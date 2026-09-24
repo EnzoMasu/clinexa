@@ -67,7 +67,7 @@ class UsuarioController extends Controller
         if ($esUnoMismo) {
             // En el formulario el perfil propio viene deshabilitado (no se envía): se completa con el actual.
             if ($request->filled('perfil_acceso_id') && (int) $request->input('perfil_acceso_id') !== $usuario->perfil_acceso_id) {
-                return back()->withInput()->with('error', 'No podés cambiar tu propio perfil de acceso.');
+                return back()->withInput()->with('error', 'No puede cambiar su propio perfil de acceso.');
             }
 
             $request->merge(['perfil_acceso_id' => $usuario->perfil_acceso_id]);
@@ -76,7 +76,7 @@ class UsuarioController extends Controller
         $datos = $this->validar($request, $usuario);
 
         if ($esUnoMismo && $datos['estado'] !== 'ACTIVO') {
-            return back()->withInput()->with('error', 'No podés bloquear ni desactivar tu propio usuario.');
+            return back()->withInput()->with('error', 'No puede bloquear ni desactivar su propio usuario.');
         }
 
         $usuario->update($datos);
@@ -87,7 +87,7 @@ class UsuarioController extends Controller
     public function desactivar(Request $request, User $usuario): RedirectResponse
     {
         if ($usuario->is($request->user())) {
-            return back()->with('error', 'No podés desactivar tu propio usuario.');
+            return back()->with('error', 'No puede desactivar su propio usuario.');
         }
 
         $usuario->update(['estado' => 'INACTIVO']);

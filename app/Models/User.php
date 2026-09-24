@@ -111,8 +111,8 @@ class User extends Authenticatable
     {
         return match ($this->estado) {
             'ACTIVO' => null,
-            'BLOQUEADO' => 'Tu usuario está bloqueado. Contactá al administrador.',
-            default => 'Tu usuario está inactivo. Contactá al administrador.',
+            'BLOQUEADO' => 'Su usuario está bloqueado. Contacte al administrador.',
+            default => 'Su usuario está inactivo. Contacte al administrador.',
         };
     }
 }

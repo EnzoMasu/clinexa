@@ -50,7 +50,7 @@ test('la vista 403 explica el motivo', function () {
 
     $this->get(route('admin.personas.index'))
         ->assertForbidden()
-        ->assertSee('No tenés permiso para acceder a esta sección.');
+        ->assertSee('No tiene permiso para acceder a esta sección.');
 });
 
 test('con VER pero sin CREAR ve el listado pero no el formulario de creación', function () {

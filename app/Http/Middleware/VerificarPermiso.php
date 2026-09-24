@@ -16,7 +16,7 @@ class VerificarPermiso
         abort_unless(
             $request->user()?->tienePermiso($modulo, $accion),
             403,
-            'No tenés permiso para acceder a esta sección.'
+            'No tiene permiso para acceder a esta sección.'
         );
 
         return $next($request);

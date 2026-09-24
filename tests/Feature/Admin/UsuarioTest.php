@@ -126,7 +126,7 @@ test('un usuario no puede cambiarse su propio perfil de acceso', function () {
     $this->put(route('admin.usuarios.update', $this->admin), [
         'name' => $this->admin->name, 'email' => $this->admin->email,
         'perfil_acceso_id' => $this->perfil->id, 'estado' => 'ACTIVO',
-    ])->assertSessionHas('error', 'No podés cambiar tu propio perfil de acceso.');
+    ])->assertSessionHas('error', 'No puede cambiar su propio perfil de acceso.');
 
     expect($this->admin->fresh()->perfil_acceso_id)->toBe($perfilOriginal);
 });
@@ -145,12 +145,12 @@ test('editarse a uno mismo sin mandar el perfil (campo deshabilitado) conserva e
 
 test('el formulario muestra el perfil propio deshabilitado con la nota, y el de otros editable', function () {
     $this->get(route('admin.usuarios.edit', $this->admin))->assertOk()
-        ->assertSee('No podés cambiar tu propio perfil de acceso')
+        ->assertSee('No puede cambiar su propio perfil de acceso')
         ->assertSeeInOrder(['name="perfil_acceso_id"', 'disabled'], false);
 
     $otro = User::factory()->create(['perfil_acceso_id' => $this->perfil->id]);
     $html = $this->get(route('admin.usuarios.edit', $otro))->assertOk()
-        ->assertDontSee('No podés cambiar tu propio perfil de acceso')
+        ->assertDontSee('No puede cambiar su propio perfil de acceso')
         ->getContent();
     expect($html)->not->toMatch('/<select[^>]*name="perfil_acceso_id"[^>]*\sdisabled\s/s');
 });
@@ -179,10 +179,10 @@ test('el email de invitación está en castellano', function () {
     $usuario = User::factory()->create(['email' => 'liz@clinexa.test']);
     $mail = (new InvitacionUsuario('token-de-prueba'))->toMail($usuario);
 
-    expect($mail->subject)->toBe('Bienvenido/a a Clinexa - Definí tu contraseña')
+    expect($mail->subject)->toBe('Bienvenido/a a Clinexa - Defina su contraseña')
         ->and($mail->actionText)->toBe('Definir mi contraseña')
         ->and($mail->actionUrl)->toContain('/reset-password/token-de-prueba')->toContain('email=liz%40clinexa.test')
-        ->and($mail->introLines)->toContain('Se te creó un usuario en el sistema Clinexa.');
+        ->and($mail->introLines)->toContain('Se le creó un usuario en el sistema Clinexa.');
 
     // El layout del email (saludo, pie, texto del link alternativo) también sale traducido.
     $html = (string) $mail->render();

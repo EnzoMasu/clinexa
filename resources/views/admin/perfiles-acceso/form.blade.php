@@ -36,7 +36,7 @@
 
             @if ($modulos->isEmpty())
                 <p class="text-sm text-gray-600 dark:text-gray-400">
-                    No hay módulos del sistema cargados. Ejecutá <code>php artisan db:seed --class=ModuloSistemaSeeder</code>.
+                    No hay módulos del sistema cargados. Ejecute <code>php artisan db:seed --class=ModuloSistemaSeeder</code>.
                 </p>
             @else
                 <div class="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">

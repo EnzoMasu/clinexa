@@ -16,12 +16,12 @@ class InvitacionUsuario extends ResetPassword
         $minutos = config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
 
         return (new MailMessage)
-            ->subject('Bienvenido/a a Clinexa - Definí tu contraseña')
+            ->subject('Bienvenido/a a Clinexa - Defina su contraseña')
             ->greeting('¡Hola!')
-            ->line('Se te creó un usuario en el sistema Clinexa.')
-            ->line('Para empezar a usarlo, definí tu contraseña con el siguiente botón:')
+            ->line('Se le creó un usuario en el sistema Clinexa.')
+            ->line('Para comenzar a usarlo, defina su contraseña con el siguiente botón:')
             ->action('Definir mi contraseña', $url)
-            ->line("Este link vence en {$minutos} minutos. Si vence, pedile al administrador que te reenvíe la invitación.")
-            ->line('Si no esperabas este correo, podés ignorarlo.');
+            ->line("Este link vence en {$minutos} minutos. Si vence, solicite al administrador que le reenvíe la invitación.")
+            ->line('Si no esperaba este correo, puede ignorarlo.');
     }
 }

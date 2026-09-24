@@ -24,8 +24,8 @@ test('el login rechaza usuarios bloqueados o inactivos aunque la contraseña sea
 
     $this->assertGuest();
 })->with([
-    'bloqueado' => ['BLOQUEADO', 'Tu usuario está bloqueado. Contactá al administrador.'],
-    'inactivo' => ['INACTIVO', 'Tu usuario está inactivo. Contactá al administrador.'],
+    'bloqueado' => ['BLOQUEADO', 'Su usuario está bloqueado. Contacte al administrador.'],
+    'inactivo' => ['INACTIVO', 'Su usuario está inactivo. Contacte al administrador.'],
 ]);
 
 test('un usuario bloqueado con la contraseña incorrecta ve el error genérico', function () {

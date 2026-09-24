@@ -10,8 +10,8 @@
                 <x-admin.select name="perfil_acceso_id" label="Perfil de acceso" :options="$perfiles->all()" :value="$usuario->perfil_acceso_id"
                     disabled aria-describedby="perfil-propio-nota" class="disabled:opacity-60 disabled:cursor-not-allowed" />
                 <p id="perfil-propio-nota" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    No podés cambiar tu propio perfil de acceso, para no quedarte sin permisos de administración por error.
-                    Si hace falta, pedíselo a otro administrador.
+                    No puede cambiar su propio perfil de acceso, para no quedarse sin permisos de administración por error.
+                    Si hace falta, solicítelo a otro administrador.
                 </p>
             </div>
         @else
