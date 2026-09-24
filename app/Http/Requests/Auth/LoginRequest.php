@@ -51,6 +51,15 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        // La contraseña es correcta, pero el usuario tiene que estar ACTIVO para entrar.
+        if ($motivo = Auth::user()->motivoAccesoDenegado()) {
+            Auth::guard('web')->logout();
+
+            throw ValidationException::withMessages([
+                'email' => $motivo,
+            ]);
+        }
     }
 
     /**

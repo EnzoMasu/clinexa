@@ -23,6 +23,12 @@
                 </div>
             @endif
 
+            @if (session('error'))
+                <div class="rounded-md bg-red-50 dark:bg-red-900/40 p-4 text-sm text-red-800 dark:text-red-200">
+                    {{ session('error') }}
+                </div>
+            @endif
+
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 {{ $slot }}
             </div>

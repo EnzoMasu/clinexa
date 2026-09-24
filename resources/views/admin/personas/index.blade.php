@@ -1,4 +1,6 @@
-<x-admin.page title="Personas" :create-route="route('admin.personas.create')" create-label="Nueva persona">
+@use('App\Support\Permisos')
+
+<x-admin.page title="Personas" :create-route="Permisos::url('admin.personas.create')" create-label="Nueva persona">
     <x-admin.search :action="route('admin.personas.index')" :value="$busqueda" placeholder="Buscar por documento, nombre o razón social…" />
 
     <x-admin.table :headers="['Documento', 'Nombre / Razón social', 'Tipo', 'Contacto', 'Estado']" :paginator="$personas">
@@ -21,8 +23,8 @@
                 </td>
                 <td class="px-6 py-4"><x-admin.estado-badge :estado="$persona->estado" /></td>
                 <x-admin.actions
-                    :edit="route('admin.personas.edit', $persona)"
-                    :desactivar="$persona->estado === 'ACTIVO' ? route('admin.personas.desactivar', $persona) : null" />
+                    :edit="Permisos::url('admin.personas.edit', $persona)"
+                    :desactivar="$persona->estado === 'ACTIVO' ? Permisos::url('admin.personas.desactivar', $persona) : null" />
             </tr>
         @empty
             <x-admin.empty-row colspan="6" />

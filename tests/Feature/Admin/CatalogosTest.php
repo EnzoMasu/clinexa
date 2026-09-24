@@ -10,7 +10,7 @@ use App\Models\TipoDocumento;
 use App\Models\User;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->administrador()->create());
 });
 
 dataset('catalogos', [

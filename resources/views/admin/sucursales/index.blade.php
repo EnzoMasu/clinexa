@@ -1,4 +1,6 @@
-<x-admin.page title="Sucursales" :create-route="route('admin.sucursales.create')" create-label="Nueva sucursal">
+@use('App\Support\Permisos')
+
+<x-admin.page title="Sucursales" :create-route="Permisos::url('admin.sucursales.create')" create-label="Nueva sucursal">
     <x-admin.table :headers="['Nombre', 'Dirección', 'Teléfono', 'Estado']" :paginator="$sucursales">
         @forelse ($sucursales as $sucursal)
             <tr>
@@ -7,8 +9,8 @@
                 <td class="px-6 py-4">{{ $sucursal->telefono }}</td>
                 <td class="px-6 py-4"><x-admin.estado-badge :estado="$sucursal->estado" /></td>
                 <x-admin.actions
-                    :edit="route('admin.sucursales.edit', $sucursal)"
-                    :desactivar="$sucursal->estado === 'ACTIVO' ? route('admin.sucursales.desactivar', $sucursal) : null" />
+                    :edit="Permisos::url('admin.sucursales.edit', $sucursal)"
+                    :desactivar="$sucursal->estado === 'ACTIVO' ? Permisos::url('admin.sucursales.desactivar', $sucursal) : null" />
             </tr>
         @empty
             <x-admin.empty-row colspan="5" />

@@ -1,5 +1,7 @@
 @php
     $catalogosAdmin = [
+        'admin.usuarios' => 'Usuarios',
+        'admin.perfiles-acceso' => 'Perfiles de acceso',
         'admin.personas' => 'Personas',
         'admin.especialidades' => 'Especialidades',
         'admin.sucursales' => 'Sucursales',
@@ -9,6 +11,13 @@
         'admin.categorias-gasto' => 'Categorías de gasto',
         'admin.procedimientos' => 'Procedimientos',
     ];
+
+    // Solo las secciones cuyo listado el usuario puede ver (permiso VER del módulo).
+    $catalogosAdmin = array_filter(
+        $catalogosAdmin,
+        fn (string $ruta) => \App\Support\Permisos::puedeRuta("{$ruta}.index"),
+        ARRAY_FILTER_USE_KEY,
+    );
 @endphp
 
 <nav x-data="{ open: false }" class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
@@ -30,6 +39,7 @@
                     </x-nav-link>
                 </div>
 
+                @if ($catalogosAdmin)
                 <div class="hidden sm:flex sm:items-center sm:ms-8">
                     <x-dropdown align="left" width="48">
                         <x-slot name="trigger">
@@ -54,6 +64,7 @@
                         </x-slot>
                     </x-dropdown>
                 </div>
+                @endif
             </div>
 
             <!-- Settings Dropdown -->
@@ -110,14 +121,16 @@
             </x-responsive-nav-link>
         </div>
 
-        <div class="pt-2 pb-3 space-y-1 border-t border-gray-200 dark:border-gray-600">
-            <div class="px-4 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Administración</div>
-            @foreach ($catalogosAdmin as $ruta => $etiqueta)
-                <x-responsive-nav-link :href="route($ruta.'.index')" :active="request()->routeIs($ruta.'.*')">
-                    {{ $etiqueta }}
-                </x-responsive-nav-link>
-            @endforeach
-        </div>
+        @if ($catalogosAdmin)
+            <div class="pt-2 pb-3 space-y-1 border-t border-gray-200 dark:border-gray-600">
+                <div class="px-4 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-500">Administración</div>
+                @foreach ($catalogosAdmin as $ruta => $etiqueta)
+                    <x-responsive-nav-link :href="route($ruta.'.index')" :active="request()->routeIs($ruta.'.*')">
+                        {{ $etiqueta }}
+                    </x-responsive-nav-link>
+                @endforeach
+            </div>
+        @endif
 
         <!-- Responsive Settings Options -->
         <div class="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Permiso extends Model
 {
+    public const ACCIONES = ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR', 'EXPORTAR'];
+
     protected $table = 'permisos';
 
     protected $fillable = [

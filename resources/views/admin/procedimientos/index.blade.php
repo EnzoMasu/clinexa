@@ -1,4 +1,6 @@
-<x-admin.page title="Procedimientos" :create-route="route('admin.procedimientos.create')" create-label="Nuevo procedimiento">
+@use('App\Support\Permisos')
+
+<x-admin.page title="Procedimientos" :create-route="Permisos::url('admin.procedimientos.create')" create-label="Nuevo procedimiento">
     <x-admin.table :headers="['Código', 'Nombre', 'Tipo', 'Duración', 'Estado']" :paginator="$procedimientos">
         @forelse ($procedimientos as $procedimiento)
             <tr>
@@ -8,8 +10,8 @@
                 <td class="px-6 py-4 whitespace-nowrap">{{ $procedimiento->duracion_estimada_minutos }} min</td>
                 <td class="px-6 py-4"><x-admin.estado-badge :estado="$procedimiento->estado" /></td>
                 <x-admin.actions
-                    :edit="route('admin.procedimientos.edit', $procedimiento)"
-                    :desactivar="$procedimiento->estado === 'ACTIVO' ? route('admin.procedimientos.desactivar', $procedimiento) : null" />
+                    :edit="Permisos::url('admin.procedimientos.edit', $procedimiento)"
+                    :desactivar="$procedimiento->estado === 'ACTIVO' ? Permisos::url('admin.procedimientos.desactivar', $procedimiento) : null" />
             </tr>
         @empty
             <x-admin.empty-row colspan="6" />

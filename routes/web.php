@@ -4,10 +4,12 @@ use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\MedioPagoController;
+use App\Http\Controllers\Admin\PerfilAccesoController;
 use App\Http\Controllers\Admin\PersonaController;
 use App\Http\Controllers\Admin\ProcedimientoController;
 use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
+use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -25,37 +27,43 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('personas', PersonaController::class)
-        ->except(['show', 'destroy']);
-    Route::patch('personas/{persona}/desactivar', [PersonaController::class, 'desactivar'])
-        ->name('personas.desactivar');
+/**
+ * Registra el CRUD de una sección de /admin con el permiso que exige cada acción sobre su
+ * módulo (código de modulos_sistema): VER para el listado, CREAR para create/store, EDITAR
+ * para edit/update y DESACTIVAR para la baja lógica. Nunca hay destroy: no se borra nada.
+ */
+$seccion = function (string $uri, string $controlador, string $modulo, string $parametro, bool $conBaja) {
+    Route::resource($uri, $controlador)
+        ->except(['show', 'destroy'])
+        ->parameters([$uri => $parametro])
+        ->middlewareFor('index', "permiso:{$modulo},VER")
+        ->middlewareFor(['create', 'store'], "permiso:{$modulo},CREAR")
+        ->middlewareFor(['edit', 'update'], "permiso:{$modulo},EDITAR");
 
-    // Catálogos sin columna estado: sin baja por ahora.
-    Route::resource('especialidades', EspecialidadController::class)
-        ->except(['show', 'destroy'])->parameters(['especialidades' => 'especialidad']);
-    Route::resource('cie10', CatalogoCIE10Controller::class)
-        ->except(['show', 'destroy'])->parameters(['cie10' => 'cie10']);
-    Route::resource('medios-pago', MedioPagoController::class)
-        ->except(['show', 'destroy'])->parameters(['medios-pago' => 'medioPago']);
-    Route::resource('categorias-gasto', CategoriaGastoController::class)
-        ->except(['show', 'destroy'])->parameters(['categorias-gasto' => 'categoriaGasto']);
+    if ($conBaja) {
+        Route::patch("{$uri}/{{$parametro}}/desactivar", [$controlador, 'desactivar'])
+            ->name("{$uri}.desactivar")
+            ->middleware("permiso:{$modulo},DESACTIVAR");
+    }
+};
 
-    // Catálogos con estado: la baja es lógica (pasa a INACTIVO), nunca se borra.
-    Route::resource('sucursales', SucursalController::class)
-        ->except(['show', 'destroy'])->parameters(['sucursales' => 'sucursal']);
-    Route::patch('sucursales/{sucursal}/desactivar', [SucursalController::class, 'desactivar'])
-        ->name('sucursales.desactivar');
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () use ($seccion) {
+    $seccion('usuarios', UsuarioController::class, 'USUARIOS', 'usuario', conBaja: true);
+    Route::post('usuarios/{usuario}/invitacion', [UsuarioController::class, 'enviarInvitacion'])
+        ->name('usuarios.invitacion')
+        ->middleware('permiso:USUARIOS,EDITAR');
 
-    Route::resource('tipos-documento', TipoDocumentoController::class)
-        ->except(['show', 'destroy'])->parameters(['tipos-documento' => 'tipoDocumento']);
-    Route::patch('tipos-documento/{tipoDocumento}/desactivar', [TipoDocumentoController::class, 'desactivar'])
-        ->name('tipos-documento.desactivar');
-
-    Route::resource('procedimientos', ProcedimientoController::class)
-        ->except(['show', 'destroy']);
-    Route::patch('procedimientos/{procedimiento}/desactivar', [ProcedimientoController::class, 'desactivar'])
-        ->name('procedimientos.desactivar');
+    // Perfiles, especialidades, CIE-10, medios de pago y categorías de gasto no tienen
+    // columna estado en el diseño: sin baja por ahora.
+    $seccion('perfiles-acceso', PerfilAccesoController::class, 'PERFILES_ACCESO', 'perfilAcceso', conBaja: false);
+    $seccion('personas', PersonaController::class, 'PERSONAS', 'persona', conBaja: true);
+    $seccion('especialidades', EspecialidadController::class, 'ESPECIALIDADES', 'especialidad', conBaja: false);
+    $seccion('sucursales', SucursalController::class, 'SUCURSALES', 'sucursal', conBaja: true);
+    $seccion('tipos-documento', TipoDocumentoController::class, 'TIPOS_DOCUMENTO', 'tipoDocumento', conBaja: true);
+    $seccion('cie10', CatalogoCIE10Controller::class, 'CIE10', 'cie10', conBaja: false);
+    $seccion('medios-pago', MedioPagoController::class, 'MEDIOS_PAGO', 'medioPago', conBaja: false);
+    $seccion('categorias-gasto', CategoriaGastoController::class, 'CATEGORIAS_GASTO', 'categoriaGasto', conBaja: false);
+    $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
 });
 
 require __DIR__.'/auth.php';

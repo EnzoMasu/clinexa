@@ -5,7 +5,7 @@ use App\Models\TipoDocumento;
 use App\Models\User;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->create());
+    $this->actingAs(User::factory()->administrador()->create());
 
     $this->ci = TipoDocumento::create(['codigo' => 'CI', 'nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
     $this->ruc = TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC', 'aplica_a' => 'AMBOS']);
