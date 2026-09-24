@@ -1,6 +1,6 @@
-@props(['action', 'method' => 'POST', 'cancel'])
+@props(['action', 'method' => 'POST', 'cancel', 'width' => 'max-w-xl'])
 
-<form method="POST" action="{{ $action }}" class="p-6 space-y-6 max-w-xl">
+<form method="POST" action="{{ $action }}" {{ $attributes->merge(['class' => "p-6 space-y-6 {$width}"]) }}>
     @csrf
     @if (strtoupper($method) !== 'POST')
         @method($method)

@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\MedioPagoController;
+use App\Http\Controllers\Admin\PersonaController;
 use App\Http\Controllers\Admin\ProcedimientoController;
 use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
@@ -25,6 +26,11 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('personas', PersonaController::class)
+        ->except(['show', 'destroy']);
+    Route::patch('personas/{persona}/desactivar', [PersonaController::class, 'desactivar'])
+        ->name('personas.desactivar');
+
     // Catálogos sin columna estado: sin baja por ahora.
     Route::resource('especialidades', EspecialidadController::class)
         ->except(['show', 'destroy'])->parameters(['especialidades' => 'especialidad']);

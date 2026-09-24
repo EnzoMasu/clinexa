@@ -1,5 +1,6 @@
 @php
     $catalogosAdmin = [
+        'admin.personas' => 'Personas',
         'admin.especialidades' => 'Especialidades',
         'admin.sucursales' => 'Sucursales',
         'admin.tipos-documento' => 'Tipos de documento',

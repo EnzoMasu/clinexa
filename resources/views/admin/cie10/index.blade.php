@@ -1,8 +1,5 @@
 <x-admin.page title="Catálogo CIE-10" :create-route="route('admin.cie10.create')" create-label="Nuevo código">
-    <form method="GET" action="{{ route('admin.cie10.index') }}" class="flex gap-3 p-4 border-b border-gray-200 dark:border-gray-700">
-        <x-text-input name="q" type="search" :value="$busqueda" placeholder="Buscar por código o descripción…" class="block w-full max-w-md" />
-        <x-secondary-button type="submit">Buscar</x-secondary-button>
-    </form>
+    <x-admin.search :action="route('admin.cie10.index')" :value="$busqueda" placeholder="Buscar por código o descripción…" />
 
     <x-admin.table :headers="['Código', 'Descripción', 'Capítulo']" :paginator="$codigos">
         @forelse ($codigos as $cie10)
