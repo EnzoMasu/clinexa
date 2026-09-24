@@ -176,10 +176,11 @@ test('reenviar a un usuario que ya entró al sistema manda el email de restablec
 });
 
 test('el email de invitación está en castellano', function () {
-    $usuario = User::factory()->create(['email' => 'liz@clinexa.test']);
+    $usuario = User::factory()->create(['name' => 'Liz Ruiz', 'email' => 'liz@clinexa.test']);
     $mail = (new InvitacionUsuario('token-de-prueba'))->toMail($usuario);
 
     expect($mail->subject)->toBe('Bienvenido/a a Clinexa - Defina su contraseña')
+        ->and($mail->greeting)->toBe('Estimado/a Liz Ruiz:')
         ->and($mail->actionText)->toBe('Definir mi contraseña')
         ->and($mail->actionUrl)->toContain('/reset-password/token-de-prueba')->toContain('email=liz%40clinexa.test')
         ->and($mail->introLines)->toContain('Se le creó un usuario en el sistema Clinexa.');
@@ -189,4 +190,10 @@ test('el email de invitación está en castellano', function () {
     expect($html)->toContain('Saludos')->not->toContain('Regards')
         ->not->toContain('All rights reserved')
         ->not->toContain("If you're having trouble");
+});
+
+test('sin nombre, el saludo de la invitación queda en "Estimado/a:"', function () {
+    $usuario = new User(['name' => '  ', 'email' => 'sin-nombre@clinexa.test']);
+
+    expect((new InvitacionUsuario('token'))->toMail($usuario)->greeting)->toBe('Estimado/a:');
 });

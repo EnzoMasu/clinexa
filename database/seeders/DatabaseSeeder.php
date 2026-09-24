@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             ModuloSistemaSeeder::class,
             PerfilAdministradorSeeder::class,
             DatosRealesClinicaSeeder::class,
+            CatalogoCie10Seeder::class,
         ]);
     }
 }

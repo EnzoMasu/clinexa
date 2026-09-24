@@ -11,13 +11,23 @@ use Illuminate\Notifications\Messages\MailMessage;
  */
 class InvitacionUsuario extends ResetPassword
 {
+    /**
+     * El saludo se arma acá porque buildMailMessage() solo recibe la URL, no el destinatario.
+     */
+    public function toMail($notifiable): MailMessage
+    {
+        $nombre = trim((string) $notifiable->name);
+
+        return parent::toMail($notifiable)
+            ->greeting($nombre !== '' ? "Estimado/a {$nombre}:" : 'Estimado/a:');
+    }
+
     protected function buildMailMessage($url): MailMessage
     {
         $minutos = config('auth.passwords.'.config('auth.defaults.passwords').'.expire');
 
         return (new MailMessage)
             ->subject('Bienvenido/a a Clinexa - Defina su contraseña')
-            ->greeting('¡Hola!')
             ->line('Se le creó un usuario en el sistema Clinexa.')
             ->line('Para comenzar a usarlo, defina su contraseña con el siguiente botón:')
             ->action('Definir mi contraseña', $url)
