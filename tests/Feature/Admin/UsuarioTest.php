@@ -2,6 +2,7 @@
 
 use App\Models\PerfilAcceso;
 use App\Models\User;
+use App\Notifications\InvitacionUsuario;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -35,7 +36,7 @@ test('crear un usuario le envía el email para definir la contraseña', function
         ->perfil_acceso_id->toBe($this->perfil->id)
         ->password->not->toBeEmpty();
 
-    Notification::assertSentTo($usuario, ResetPassword::class);
+    Notification::assertSentTo($usuario, InvitacionUsuario::class);
 });
 
 test('el flujo completo: el usuario invitado define su contraseña y entra', function () {
@@ -45,7 +46,7 @@ test('el flujo completo: el usuario invitado define su contraseña y entra', fun
     auth()->logout();
 
     $usuario = User::where('email', 'ana@clinexa.test')->sole();
-    Notification::assertSentTo($usuario, ResetPassword::class, function (ResetPassword $notificacion) use ($usuario) {
+    Notification::assertSentTo($usuario, InvitacionUsuario::class, function (InvitacionUsuario $notificacion) use ($usuario) {
         $this->get(route('password.reset', $notificacion->token))->assertOk();
 
         $this->post(route('password.store'), [
@@ -97,7 +98,7 @@ test('reenviar invitación manda de nuevo el email', function () {
         ->assertRedirect(route('admin.usuarios.index'))
         ->assertSessionHas('status');
 
-    Notification::assertSentTo($usuario, ResetPassword::class);
+    Notification::assertSentTo($usuario, InvitacionUsuario::class);
 });
 
 test('desactivar pasa el usuario a INACTIVO sin borrarlo', function () {
@@ -163,4 +164,29 @@ test('otro administrador sí puede cambiarle el perfil a un usuario', function (
     ])->assertSessionHasNoErrors();
 
     expect($otro->fresh()->perfil_acceso_id)->toBe($this->perfil->id);
+});
+
+test('reenviar a un usuario que ya entró al sistema manda el email de restablecer contraseña', function () {
+    $usuario = User::factory()->create(['ultimo_acceso' => now()]);
+
+    $this->post(route('admin.usuarios.invitacion', $usuario))->assertSessionHas('status');
+
+    Notification::assertSentTo($usuario, ResetPassword::class);
+    Notification::assertNotSentTo($usuario, InvitacionUsuario::class);
+});
+
+test('el email de invitación está en castellano', function () {
+    $usuario = User::factory()->create(['email' => 'liz@clinexa.test']);
+    $mail = (new InvitacionUsuario('token-de-prueba'))->toMail($usuario);
+
+    expect($mail->subject)->toBe('Bienvenido/a a Clinexa - Definí tu contraseña')
+        ->and($mail->actionText)->toBe('Definir mi contraseña')
+        ->and($mail->actionUrl)->toContain('/reset-password/token-de-prueba')->toContain('email=liz%40clinexa.test')
+        ->and($mail->introLines)->toContain('Se te creó un usuario en el sistema Clinexa.');
+
+    // El layout del email (saludo, pie, texto del link alternativo) también sale traducido.
+    $html = (string) $mail->render();
+    expect($html)->toContain('Saludos')->not->toContain('Regards')
+        ->not->toContain('All rights reserved')
+        ->not->toContain("If you're having trouble");
 });

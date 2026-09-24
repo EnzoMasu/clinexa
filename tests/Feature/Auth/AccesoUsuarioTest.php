@@ -2,7 +2,7 @@
 
 use App\Models\PerfilAcceso;
 use App\Models\User;
-use Illuminate\Auth\Notifications\ResetPassword;
+use App\Notifications\InvitacionUsuario;
 use Illuminate\Support\Facades\Notification;
 
 test('no existe registro público', function () {
@@ -65,7 +65,7 @@ test('crear-admin crea el administrador con todos los permisos y le manda el lin
 
     expect($admin->perfil_acceso_id)->toBe($perfil->id)
         ->and($perfil->permisos()->count())->toBe(10 * 5);
-    Notification::assertSentTo($admin, ResetPassword::class);
+    Notification::assertSentTo($admin, InvitacionUsuario::class);
 
     $this->artisan('clinexa:crear-admin', ['email' => 'admin@clinexa.test'])->assertFailed();
 });

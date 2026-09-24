@@ -102,7 +102,7 @@ class UsuarioController extends Controller
 
     private function enviarLinkContrasena(User $usuario, string $prefijo = ''): RedirectResponse
     {
-        $status = Password::sendResetLink(['email' => $usuario->email]);
+        $status = $usuario->enviarLinkContrasena();
         $redirect = redirect()->route('admin.usuarios.index');
 
         if ($status !== Password::RESET_LINK_SENT) {

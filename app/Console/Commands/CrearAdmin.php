@@ -48,7 +48,7 @@ class CrearAdmin extends Command
             ]);
         });
 
-        $status = Password::sendResetLink(['email' => $email]);
+        $status = User::where('email', $email)->sole()->enviarLinkContrasena();
 
         if ($status !== Password::RESET_LINK_SENT) {
             $this->warn('Usuario creado, pero no se pudo enviar el email: '.__($status));

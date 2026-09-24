@@ -90,3 +90,16 @@ test('los formularios muestran los requisitos', function () {
     $this->get('/reset-password/token-cualquiera')->assertSee('Al menos un carácter especial');
     $this->actingAs($user)->get('/profile')->assertSee('No más de 3 caracteres iguales seguidos');
 });
+
+test('el email de "olvidé mi contraseña" sale en castellano', function () {
+    $mail = (new ResetPassword('token'))->toMail(User::factory()->create());
+
+    expect($mail->subject)->not->toBe('Reset Password Notification')
+        ->and($mail->actionText)->not->toBe('Reset Password');
+});
+
+test('los mensajes de validación de la contraseña salen en castellano', function () {
+    $errores = Validator::make(['password' => 'clave'], ['password' => Password::defaults()])->errors()->get('password');
+
+    expect(implode(' ', $errores))->toContain('contraseña')->not->toContain('must contain');
+});

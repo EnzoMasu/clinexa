@@ -3,11 +3,14 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Notifications\InvitacionUsuario;
 use Database\Factories\UserFactory;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Password;
 
 class User extends Authenticatable
 {
@@ -85,6 +88,20 @@ class User extends Authenticatable
             ->all();
 
         return isset($this->permisosCargados["{$modulo}:{$accion}"]);
+    }
+
+    /**
+     * Envía el link para definir la contraseña (mismo token que "olvidé mi contraseña"). Si el
+     * usuario nunca entró al sistema, el email es la invitación de bienvenida; si ya lo usó,
+     * es el de restablecer contraseña. Devuelve el status de Password (p. ej. RESET_LINK_SENT).
+     */
+    public function enviarLinkContrasena(): string
+    {
+        return Password::sendResetLink(['email' => $this->email], function (User $usuario, string $token) {
+            $usuario->notify($usuario->ultimo_acceso === null
+                ? new InvitacionUsuario($token)
+                : new ResetPassword($token));
+        });
     }
 
     /**
