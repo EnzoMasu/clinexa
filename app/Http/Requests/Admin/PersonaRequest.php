@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Persona;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -54,7 +55,13 @@ class PersonaRequest extends FormRequest
             'nombre_fantasia' => ['exclude_unless:tipo_persona,JURIDICA', 'nullable', 'string', 'max:150'],
             'representante_legal' => ['exclude_unless:tipo_persona,JURIDICA', 'nullable', 'string', 'max:150'],
 
-            'email' => ['required', 'email', 'max:100'],
+            'email' => ['required', 'email', 'max:100', function (string $atributo, mixed $valor, \Closure $fail) use ($persona) {
+                // El email de una persona con usuario se copia a users.email, que es único.
+                $usuario = $persona?->usuario;
+                if ($usuario && User::where('email', Persona::emailDeUsuario((string) $valor))->whereKeyNot($usuario->id)->exists()) {
+                    $fail('Ese email ya lo usa otro usuario del sistema.');
+                }
+            }],
             'telefono' => ['required', 'string', 'max:20'],
             'direccion' => ['required', 'string', 'max:200'],
         ];

@@ -1,9 +1,6 @@
 <?php
 
-use App\Models\PerfilAcceso;
 use App\Models\User;
-use App\Notifications\InvitacionUsuario;
-use Illuminate\Support\Facades\Notification;
 
 test('no existe registro público', function () {
     $this->get('/register')->assertNotFound();
@@ -55,17 +52,21 @@ test('si bloquean a un usuario con la sesión abierta, lo saca en el siguiente r
     $this->assertGuest();
 });
 
-test('crear-admin crea el administrador con todos los permisos y le manda el link', function () {
-    Notification::fake();
+test('si la persona del usuario está inactiva, el login lo rechaza aunque el usuario esté ACTIVO', function () {
+    $user = User::factory()->create();
+    $user->persona->update(['estado' => 'INACTIVO']);
 
-    $this->artisan('clinexa:crear-admin', ['email' => 'Admin@Clinexa.test'])->assertSuccessful();
+    $this->post('/login', ['email' => $user->email, 'password' => 'password'])
+        ->assertSessionHasErrors(['email' => 'Su usuario está inactivo. Contacte al administrador.']);
+    $this->assertGuest();
+});
 
-    $admin = User::where('email', 'admin@clinexa.test')->sole();
-    $perfil = PerfilAcceso::where('nombre', 'Administrador')->sole();
+test('si desactivan la persona con la sesión abierta, lo saca en el siguiente request', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user)->get('/dashboard')->assertOk();
 
-    expect($admin->perfil_acceso_id)->toBe($perfil->id)
-        ->and($perfil->permisos()->count())->toBe(10 * 5);
-    Notification::assertSentTo($admin, InvitacionUsuario::class);
+    $user->persona->update(['estado' => 'INACTIVO']);
 
-    $this->artisan('clinexa:crear-admin', ['email' => 'admin@clinexa.test'])->assertFailed();
+    $this->actingAs($user->fresh())->get('/dashboard')->assertRedirect(route('login'));
+    $this->assertGuest();
 });

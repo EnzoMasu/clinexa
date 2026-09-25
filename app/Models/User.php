@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Notifications\InvitacionUsuario;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -23,7 +24,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'persona_id',
         'email',
         'password',
         'perfil_acceso_id',
@@ -59,6 +60,24 @@ class User extends Authenticatable
             'password' => 'hashed',
             'ultimo_acceso' => 'datetime',
         ];
+    }
+
+    /**
+     * La persona que es este usuario: de ahí salen nombre, documento, teléfono, etc.
+     * El email se guarda también en users (lo usa el login) y se mantiene sincronizado
+     * desde Persona (ver Persona::booted).
+     */
+    public function persona(): BelongsTo
+    {
+        return $this->belongsTo(Persona::class);
+    }
+
+    /**
+     * $user->name sale de la persona, así el código de Breeze que lo usa sigue funcionando.
+     */
+    protected function name(): Attribute
+    {
+        return Attribute::get(fn () => $this->persona?->nombre_completo ?? 'Usuario');
     }
 
     public function perfilAcceso(): BelongsTo
@@ -105,14 +124,33 @@ class User extends Authenticatable
     }
 
     /**
+     * Si este usuario es el único que hoy puede entrar con el perfil Administrador (usuario ACTIVO
+     * y persona ACTIVA). Sirve para no dejar el sistema sin nadie que lo administre.
+     */
+    public function esUnicoAdministradorActivo(): bool
+    {
+        if ($this->perfilAcceso?->nombre !== PerfilAcceso::ADMINISTRADOR || $this->motivoAccesoDenegado() !== null) {
+            return false;
+        }
+
+        return ! self::query()
+            ->whereKeyNot($this->getKey())
+            ->where('estado', 'ACTIVO')
+            ->where('perfil_acceso_id', $this->perfil_acceso_id)
+            ->whereHas('persona', fn ($query) => $query->where('estado', 'ACTIVO'))
+            ->exists();
+    }
+
+    /**
      * Mensaje que se muestra al usuario si su estado no le permite entrar, o null si puede.
      */
     public function motivoAccesoDenegado(): ?string
     {
-        return match ($this->estado) {
-            'ACTIVO' => null,
-            'BLOQUEADO' => 'Su usuario está bloqueado. Contacte al administrador.',
-            default => 'Su usuario está inactivo. Contacte al administrador.',
+        return match (true) {
+            $this->estado === 'BLOQUEADO' => 'Su usuario está bloqueado. Contacte al administrador.',
+            // También queda inactivo si se desactivó la persona, aunque users.estado siga ACTIVO.
+            $this->estado !== 'ACTIVO', $this->persona?->estado !== 'ACTIVO' => 'Su usuario está inactivo. Contacte al administrador.',
+            default => null,
         };
     }
 }

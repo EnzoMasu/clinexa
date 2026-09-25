@@ -16,7 +16,9 @@ class InvitacionUsuario extends ResetPassword
      */
     public function toMail($notifiable): MailMessage
     {
-        $nombre = trim((string) $notifiable->name);
+        // Orden natural "Liz Ruiz" (User::name es "Ruiz, Liz", pensado para listados).
+        $persona = $notifiable->persona;
+        $nombre = trim($persona ? "{$persona->nombres} ".($persona->apellidos === 'SIN DATO' ? '' : $persona->apellidos) : '');
 
         return parent::toMail($notifiable)
             ->greeting($nombre !== '' ? "Estimado/a {$nombre}:" : 'Estimado/a:');

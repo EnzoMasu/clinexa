@@ -7,7 +7,8 @@ use App\Models\User;
 beforeEach(function () {
     $this->actingAs(User::factory()->administrador()->create());
 
-    $this->ci = TipoDocumento::create(['codigo' => 'CI', 'nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
+    // El usuario de prueba ya creó CI (su persona la usa).
+    $this->ci = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
     $this->ruc = TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC', 'aplica_a' => 'AMBOS']);
     $this->pasaporte = TipoDocumento::create(['codigo' => 'PAS', 'nombre' => 'Pasaporte', 'aplica_a' => 'FISICA']);
 });
@@ -60,7 +61,7 @@ test('crea una persona física', function () {
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('admin.personas.index'));
 
-    $persona = Persona::sole();
+    $persona = Persona::where('nro_documento', '1234567')->sole();
     expect($persona->apellidos)->toBe('González')
         ->and($persona->fecha_nacimiento->format('Y-m-d'))->toBe('1990-05-10')
         ->and($persona->estado)->toBe('ACTIVO')
@@ -70,7 +71,7 @@ test('crea una persona física', function () {
 test('crea una persona jurídica', function () {
     $this->post(route('admin.personas.store'), datosJuridica())->assertSessionHasNoErrors();
 
-    expect(Persona::sole())->razon_social->toBe('Laboratorio Central S.A.')
+    expect(Persona::where('nro_documento', '80012345-6')->sole())->razon_social->toBe('Laboratorio Central S.A.')
         ->apellidos->toBeNull();
 });
 
@@ -89,7 +90,7 @@ test('los campos del otro tipo quedan en null aunque vengan cargados', function 
     $this->post(route('admin.personas.store'), datosFisica(['razon_social' => 'No va', 'nombre_fantasia' => 'Tampoco']))
         ->assertSessionHasNoErrors();
 
-    expect(Persona::sole())->razon_social->toBeNull()->nombre_fantasia->toBeNull();
+    expect(Persona::where('nro_documento', '1234567')->sole())->razon_social->toBeNull()->nombre_fantasia->toBeNull();
 });
 
 test('al cambiar de física a jurídica se limpian los datos personales', function () {
@@ -153,4 +154,40 @@ test('el buscador filtra por documento, nombre y razón social', function () {
 
     $this->get(route('admin.personas.index', ['q' => '1234']))->assertSee('González')->assertDontSee('Laboratorio');
     $this->get(route('admin.personas.index', ['q' => 'laboratorio']))->assertSee('Laboratorio')->assertDontSee('González');
+});
+
+test('cambiar el email de una persona con usuario actualiza también el email del usuario', function () {
+    $usuario = User::factory()->create(['email' => 'viejo@clinexa.test']);
+
+    $this->put(route('admin.personas.update', $usuario->persona), [
+        ...$usuario->persona->only(['tipo_persona', 'tipo_documento_id', 'nro_documento', 'apellidos', 'nombres', 'telefono', 'direccion', 'estado']),
+        'fecha_nacimiento' => $usuario->persona->fecha_nacimiento->format('Y-m-d'),
+        'email' => 'Nuevo@Clinexa.test',
+    ])->assertSessionHasNoErrors();
+
+    expect($usuario->persona->fresh()->email)->toBe('Nuevo@Clinexa.test')
+        // En users queda en minúsculas: el login compara el email textualmente.
+        ->and($usuario->fresh()->email)->toBe('nuevo@clinexa.test');
+});
+
+test('una persona sin usuario puede cambiar su email sin afectar a ningún usuario', function () {
+    $persona = Persona::create(datosFisica());
+    $emailsAntes = User::pluck('email')->all();
+
+    $persona->update(['email' => 'otro@clinexa.test']);
+
+    expect(User::pluck('email')->all())->toBe($emailsAntes);
+});
+
+test('no se puede poner a una persona con usuario un email que ya usa otro usuario', function () {
+    $usuario = User::factory()->create();
+    $otro = User::factory()->create(['email' => 'ocupado@clinexa.test']);
+
+    $this->put(route('admin.personas.update', $usuario->persona), [
+        ...$usuario->persona->only(['tipo_persona', 'tipo_documento_id', 'nro_documento', 'apellidos', 'nombres', 'telefono', 'direccion', 'estado']),
+        'fecha_nacimiento' => $usuario->persona->fecha_nacimiento->format('Y-m-d'),
+        'email' => 'OCUPADO@clinexa.test',
+    ])->assertSessionHasErrors(['email' => 'Ese email ya lo usa otro usuario del sistema.']);
+
+    expect($usuario->fresh()->email)->not->toBe('ocupado@clinexa.test');
 });

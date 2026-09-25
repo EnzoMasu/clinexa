@@ -12,7 +12,7 @@ use App\Models\TipoDocumento;
 use App\Models\User;
 
 beforeEach(function () {
-    $this->actingAs(User::factory()->administrador()->create(['name' => 'Admin Pruebas']));
+    $this->actingAs(User::factory()->administrador()->conPersona(['apellidos' => 'Pruebas', 'nombres' => 'Admin'])->create());
 });
 
 function ajax(string $url)
@@ -58,7 +58,7 @@ test('la request AJAX también exige permiso VER', function () {
 });
 
 test('los listados que ya buscaban siguen buscando los mismos campos, con y sin AJAX', function () {
-    $ci = TipoDocumento::create(['codigo' => 'CI', 'nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
+    $ci = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
     $base = ['tipo_persona' => 'FISICA', 'tipo_documento_id' => $ci->id, 'fecha_nacimiento' => '1990-01-01', 'email' => 'x@example.com', 'telefono' => '1', 'direccion' => 'X'];
     Persona::create([...$base, 'nro_documento' => '5234567', 'apellidos' => 'Duarte', 'nombres' => 'Carmen']);
     Persona::create([...$base, 'nro_documento' => '5876543', 'apellidos' => 'Ramírez', 'nombres' => 'Ana']);
@@ -68,8 +68,8 @@ test('los listados que ya buscaban siguen buscando los mismos campos, con y sin 
         $pedir(route('admin.personas.index', ['q' => '5234']))->assertSee('Duarte')->assertDontSee('Ramírez');
         $pedir(route('admin.personas.index', ['q' => 'ramír']))->assertSee('Ramírez')->assertDontSee('Duarte');
         $pedir(route('admin.personas.index', ['q' => 'carmen']))->assertSee('Duarte')->assertDontSee('Ramírez');
-        // Usuarios por nombre o email; CIE-10 por código o descripción.
-        $pedir(route('admin.usuarios.index', ['q' => 'admin pruebas']))->assertSee('Admin Pruebas');
+        // Usuarios por nombre/documento/email (de su persona); CIE-10 por código o descripción.
+        $pedir(route('admin.usuarios.index', ['q' => 'pruebas']))->assertSee('Pruebas, Admin');
     }
 
     CatalogoCIE10::create(['codigo' => 'O14.1', 'descripcion' => 'Preeclampsia severa', 'capitulo' => 'Embarazo']);

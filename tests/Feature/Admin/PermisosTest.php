@@ -55,6 +55,7 @@ test('la vista 403 explica el motivo', function () {
 
 test('con VER pero sin CREAR ve el listado pero no el formulario de creación', function () {
     $this->actingAs(User::factory()->conPermisos(['PERSONAS' => ['VER']])->create());
+    $personas = Persona::count(); // la del propio usuario
 
     $this->get(route('admin.personas.index'))
         ->assertOk()
@@ -62,11 +63,11 @@ test('con VER pero sin CREAR ve el listado pero no el formulario de creación', 
 
     $this->get(route('admin.personas.create'))->assertForbidden();
     $this->post(route('admin.personas.store'), [])->assertForbidden();
-    expect(Persona::count())->toBe(0);
+    expect(Persona::count())->toBe($personas);
 });
 
 test('cada acción exige su propio permiso', function () {
-    $tipo = TipoDocumento::create(['codigo' => 'CI', 'nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
+    $tipo = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
     $persona = Persona::create([
         'tipo_persona' => 'FISICA', 'tipo_documento_id' => $tipo->id, 'nro_documento' => '1',
         'apellidos' => 'Pérez', 'nombres' => 'Ana', 'fecha_nacimiento' => '1990-01-01',

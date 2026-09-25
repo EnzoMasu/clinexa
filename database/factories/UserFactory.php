@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\ModuloSistema;
 use App\Models\PerfilAcceso;
 use App\Models\Permiso;
+use App\Models\Persona;
 use App\Models\User;
 use Database\Seeders\ModuloSistemaSeeder;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -29,12 +30,23 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
+            // Cada usuario es una persona: se crea con el mismo email (salvo que el test pase persona_id).
+            'persona_id' => fn (array $atributos) => Persona::factory()->create(['email' => $atributos['email']])->id,
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
+    }
+
+    /**
+     * Usuario cuya persona tiene los datos indicados, como ['apellidos' => 'Ruiz', 'nombres' => 'Liz'].
+     */
+    public function conPersona(array $datos): static
+    {
+        return $this->state([
+            'persona_id' => fn (array $atributos) => Persona::factory()->create([...$datos, 'email' => $atributos['email']])->id,
+        ]);
     }
 
     /**

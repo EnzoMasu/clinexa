@@ -1,10 +1,10 @@
 <?php
 
 use App\Models\PerfilAcceso;
+use App\Models\Persona;
 use App\Models\User;
 use App\Notifications\InvitacionUsuario;
 use Illuminate\Auth\Notifications\ResetPassword;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 
 beforeEach(function () {
@@ -15,23 +15,58 @@ beforeEach(function () {
     $this->actingAs($this->admin);
 });
 
-test('las pantallas de usuarios cargan', function () {
-    User::factory()->create(['perfil_acceso_id' => $this->perfil->id]);
+test('el listado muestra nombre y documento de la persona', function () {
+    $usuario = User::factory()->conPersona(['apellidos' => 'Ruiz', 'nombres' => 'Liz', 'nro_documento' => '4567890'])
+        ->create(['perfil_acceso_id' => $this->perfil->id]);
 
-    $this->get(route('admin.usuarios.index'))->assertOk()->assertSee($this->admin->email)->assertSee('Recepción');
-    $this->get(route('admin.usuarios.create'))->assertOk()->assertDontSee('name="password"', false);
-    $this->get(route('admin.usuarios.edit', $this->admin))->assertOk()->assertDontSee('name="password"', false);
+    $this->get(route('admin.usuarios.index'))->assertOk()
+        ->assertSeeInOrder(['Ruiz, Liz', '4567890', $usuario->email, 'Recepción']);
 });
 
-test('crear un usuario le envía el email para definir la contraseña', function () {
+test('el buscador de usuarios busca por nombre, documento y email de la persona', function () {
+    User::factory()->conPersona(['apellidos' => 'Ruiz', 'nombres' => 'Liz', 'nro_documento' => '4567890'])->create();
+    User::factory()->conPersona(['apellidos' => 'Ferreira', 'nombres' => 'Diana', 'nro_documento' => '5678901'])->create(['email' => 'diana@clinexa.test']);
+
+    $this->get(route('admin.usuarios.index', ['q' => 'liz']))->assertSee('Ruiz, Liz')->assertDontSee('Ferreira');
+    $this->get(route('admin.usuarios.index', ['q' => '5678']))->assertSee('Ferreira, Diana')->assertDontSee('Ruiz');
+    $this->get(route('admin.usuarios.index', ['q' => 'diana@']))->assertSee('Ferreira, Diana')->assertDontSee('Ruiz');
+});
+
+test('crear muestra solo personas físicas, activas y sin usuario', function () {
+    $disponible = Persona::factory()->create(['apellidos' => 'Duarte', 'nombres' => 'Carmen']);
+    Persona::factory()->inactiva()->create(['apellidos' => 'Inactiva', 'nombres' => 'Persona']);
+    User::factory()->conPersona(['apellidos' => 'ConUsuario', 'nombres' => 'Ya'])->create();
+
+    $this->get(route('admin.usuarios.create'))->assertOk()
+        ->assertSee('Duarte, Carmen')
+        ->assertSee('value="'.$disponible->id.'"', false)
+        ->assertDontSee('Inactiva, Persona')
+        ->assertDontSee('ConUsuario, Ya')
+        ->assertDontSee('name="email"', false)
+        ->assertDontSee('name="name"', false)
+        ->assertDontSee('name="password"', false);
+});
+
+test('sin personas disponibles, crear avisa y ofrece cargar una persona', function () {
+    // La única persona física activa es la del admin, que ya tiene usuario.
+    $this->get(route('admin.usuarios.create'))->assertOk()
+        ->assertSee('No hay personas disponibles para crear un usuario.')
+        ->assertSee(route('admin.personas.create'))
+        ->assertDontSee('name="persona_id"', false);
+});
+
+test('crear un usuario toma el email de la persona y le envía la invitación', function () {
+    $persona = Persona::factory()->create(['email' => 'Ana.Recepcion@Clinexa.test']);
+
     $this->post(route('admin.usuarios.store'), [
-        'name' => 'Ana Recepcionista',
-        'email' => 'ana@clinexa.test',
+        'persona_id' => $persona->id,
         'perfil_acceso_id' => $this->perfil->id,
+        'email' => 'otro@ignorado.test', // no se usa: el email sale de la persona
     ])->assertSessionHasNoErrors()->assertRedirect(route('admin.usuarios.index'));
 
-    $usuario = User::where('email', 'ana@clinexa.test')->sole();
+    $usuario = User::where('persona_id', $persona->id)->sole();
     expect($usuario)
+        ->email->toBe('ana.recepcion@clinexa.test')
         ->estado->toBe('ACTIVO')
         ->perfil_acceso_id->toBe($this->perfil->id)
         ->password->not->toBeEmpty();
@@ -39,10 +74,33 @@ test('crear un usuario le envía el email para definir la contraseña', function
     Notification::assertSentTo($usuario, InvitacionUsuario::class);
 });
 
+test('no se puede crear un usuario para una persona no disponible', function (Closure $persona) {
+    $this->post(route('admin.usuarios.store'), ['persona_id' => $persona()->id, 'perfil_acceso_id' => $this->perfil->id])
+        ->assertSessionHasErrors('persona_id');
+})->with([
+    'que ya tiene usuario' => [fn () => User::factory()->create()->persona],
+    'inactiva' => [fn () => Persona::factory()->inactiva()->create()],
+    'jurídica' => [fn () => Persona::factory()->create([
+        'tipo_persona' => 'JURIDICA', 'razon_social' => 'Laboratorio S.A.',
+        'tipo_documento_id' => App\Models\TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC', 'aplica_a' => 'AMBOS'])->id,
+    ])],
+]);
+
+test('no se puede crear un usuario si el email de la persona ya lo usa otro usuario', function () {
+    $persona = Persona::factory()->create(['email' => $this->admin->email]);
+
+    $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfil_acceso_id' => $this->perfil->id])
+        ->assertSessionHasErrors('persona_id');
+    expect(User::where('persona_id', $persona->id)->exists())->toBeFalse();
+});
+
+test('crear exige persona y perfil de acceso', function () {
+    $this->post(route('admin.usuarios.store'), [])->assertSessionHasErrors(['persona_id', 'perfil_acceso_id']);
+});
+
 test('el flujo completo: el usuario invitado define su contraseña y entra', function () {
-    $this->post(route('admin.usuarios.store'), [
-        'name' => 'Ana', 'email' => 'ana@clinexa.test', 'perfil_acceso_id' => $this->perfil->id,
-    ]);
+    $persona = Persona::factory()->create(['email' => 'ana@clinexa.test']);
+    $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfil_acceso_id' => $this->perfil->id]);
     auth()->logout();
 
     $usuario = User::where('email', 'ana@clinexa.test')->sole();
@@ -65,29 +123,34 @@ test('el flujo completo: el usuario invitado define su contraseña y entra', fun
     expect($usuario->fresh()->ultimo_acceso)->not->toBeNull();
 });
 
-test('crear exige perfil de acceso y email único', function () {
-    $this->post(route('admin.usuarios.store'), ['name' => 'X', 'email' => $this->admin->email])
-        ->assertSessionHasErrors(['email', 'perfil_acceso_id']);
+test('la edición muestra la persona como solo lectura y no permite cambiarla', function () {
+    $usuario = User::factory()->conPersona(['apellidos' => 'Ruiz', 'nombres' => 'Liz', 'nro_documento' => '4567890'])->create();
+
+    $this->get(route('admin.usuarios.edit', $usuario))->assertOk()
+        ->assertSeeInOrder(['Ruiz, Liz', 'CI 4567890', $usuario->email])
+        ->assertDontSee('name="persona_id"', false)
+        ->assertDontSee('name="email"', false)
+        ->assertDontSee('name="password"', false);
 });
 
-test('editar cambia nombre, email, perfil y estado sin tocar la contraseña', function () {
+test('editar cambia solo perfil y estado: persona, email y contraseña no se tocan', function () {
     $otroPerfil = PerfilAcceso::create(['nombre' => 'Médicos']);
     $usuario = User::factory()->create();
-    $hashAnterior = $usuario->password;
+    [$personaAnterior, $emailAnterior, $hashAnterior] = [$usuario->persona_id, $usuario->email, $usuario->password];
 
     $this->put(route('admin.usuarios.update', $usuario), [
-        'name' => 'Nuevo nombre',
-        'email' => 'nuevo@clinexa.test',
         'perfil_acceso_id' => $otroPerfil->id,
         'estado' => 'BLOQUEADO',
+        'persona_id' => Persona::factory()->create()->id,
+        'email' => 'nuevo@clinexa.test',
         'password' => 'intento-de-cambio',
     ])->assertSessionHasNoErrors();
 
     expect($usuario->fresh())
-        ->name->toBe('Nuevo nombre')
-        ->email->toBe('nuevo@clinexa.test')
         ->perfil_acceso_id->toBe($otroPerfil->id)
         ->estado->toBe('BLOQUEADO')
+        ->persona_id->toBe($personaAnterior)
+        ->email->toBe($emailAnterior)
         ->password->toBe($hashAnterior);
 });
 
@@ -101,6 +164,15 @@ test('reenviar invitación manda de nuevo el email', function () {
     Notification::assertSentTo($usuario, InvitacionUsuario::class);
 });
 
+test('reenviar a un usuario que ya entró al sistema manda el email de restablecer contraseña', function () {
+    $usuario = User::factory()->create(['ultimo_acceso' => now()]);
+
+    $this->post(route('admin.usuarios.invitacion', $usuario))->assertSessionHas('status');
+
+    Notification::assertSentTo($usuario, ResetPassword::class);
+    Notification::assertNotSentTo($usuario, InvitacionUsuario::class);
+});
+
 test('desactivar pasa el usuario a INACTIVO sin borrarlo', function () {
     $usuario = User::factory()->create();
 
@@ -112,10 +184,7 @@ test('desactivar pasa el usuario a INACTIVO sin borrarlo', function () {
 test('un admin no puede desactivarse ni bloquearse a sí mismo', function () {
     $this->patch(route('admin.usuarios.desactivar', $this->admin))->assertSessionHas('error');
 
-    $this->put(route('admin.usuarios.update', $this->admin), [
-        'name' => $this->admin->name, 'email' => $this->admin->email,
-        'perfil_acceso_id' => $this->perfil->id, 'estado' => 'BLOQUEADO',
-    ])->assertSessionHas('error');
+    $this->put(route('admin.usuarios.update', $this->admin), ['estado' => 'BLOQUEADO'])->assertSessionHas('error');
 
     expect($this->admin->fresh()->estado)->toBe('ACTIVO');
 });
@@ -124,7 +193,6 @@ test('un usuario no puede cambiarse su propio perfil de acceso', function () {
     $perfilOriginal = $this->admin->perfil_acceso_id;
 
     $this->put(route('admin.usuarios.update', $this->admin), [
-        'name' => $this->admin->name, 'email' => $this->admin->email,
         'perfil_acceso_id' => $this->perfil->id, 'estado' => 'ACTIVO',
     ])->assertSessionHas('error', 'No puede cambiar su propio perfil de acceso.');
 
@@ -134,13 +202,10 @@ test('un usuario no puede cambiarse su propio perfil de acceso', function () {
 test('editarse a uno mismo sin mandar el perfil (campo deshabilitado) conserva el perfil', function () {
     $perfilOriginal = $this->admin->perfil_acceso_id;
 
-    $this->put(route('admin.usuarios.update', $this->admin), [
-        'name' => 'Nombre nuevo', 'email' => $this->admin->email, 'estado' => 'ACTIVO',
-    ])->assertSessionHasNoErrors()->assertSessionMissing('error');
+    $this->put(route('admin.usuarios.update', $this->admin), ['estado' => 'ACTIVO'])
+        ->assertSessionHasNoErrors()->assertSessionMissing('error');
 
-    expect($this->admin->fresh())
-        ->name->toBe('Nombre nuevo')
-        ->perfil_acceso_id->toBe($perfilOriginal);
+    expect($this->admin->fresh()->perfil_acceso_id)->toBe($perfilOriginal);
 });
 
 test('el formulario muestra el perfil propio deshabilitado con la nota, y el de otros editable', function () {
@@ -158,25 +223,14 @@ test('el formulario muestra el perfil propio deshabilitado con la nota, y el de 
 test('otro administrador sí puede cambiarle el perfil a un usuario', function () {
     $otro = User::factory()->administrador()->create();
 
-    $this->put(route('admin.usuarios.update', $otro), [
-        'name' => $otro->name, 'email' => $otro->email,
-        'perfil_acceso_id' => $this->perfil->id, 'estado' => 'ACTIVO',
-    ])->assertSessionHasNoErrors();
+    $this->put(route('admin.usuarios.update', $otro), ['perfil_acceso_id' => $this->perfil->id, 'estado' => 'ACTIVO'])
+        ->assertSessionHasNoErrors();
 
     expect($otro->fresh()->perfil_acceso_id)->toBe($this->perfil->id);
 });
 
-test('reenviar a un usuario que ya entró al sistema manda el email de restablecer contraseña', function () {
-    $usuario = User::factory()->create(['ultimo_acceso' => now()]);
-
-    $this->post(route('admin.usuarios.invitacion', $usuario))->assertSessionHas('status');
-
-    Notification::assertSentTo($usuario, ResetPassword::class);
-    Notification::assertNotSentTo($usuario, InvitacionUsuario::class);
-});
-
-test('el email de invitación está en castellano', function () {
-    $usuario = User::factory()->create(['name' => 'Liz Ruiz', 'email' => 'liz@clinexa.test']);
+test('el email de invitación está en castellano y saluda con el nombre de la persona', function () {
+    $usuario = User::factory()->conPersona(['apellidos' => 'Ruiz', 'nombres' => 'Liz'])->create(['email' => 'liz@clinexa.test']);
     $mail = (new InvitacionUsuario('token-de-prueba'))->toMail($usuario);
 
     expect($mail->subject)->toBe('Bienvenido/a a Clinexa - Defina su contraseña')
@@ -192,8 +246,12 @@ test('el email de invitación está en castellano', function () {
         ->not->toContain("If you're having trouble");
 });
 
-test('sin nombre, el saludo de la invitación queda en "Estimado/a:"', function () {
-    $usuario = new User(['name' => '  ', 'email' => 'sin-nombre@clinexa.test']);
+test('sin apellido real (migración con "SIN DATO"), el saludo usa solo los nombres', function () {
+    $usuario = User::factory()->conPersona(['apellidos' => 'SIN DATO', 'nombres' => 'Administrador'])->create();
 
-    expect((new InvitacionUsuario('token'))->toMail($usuario)->greeting)->toBe('Estimado/a:');
+    expect((new InvitacionUsuario('token'))->toMail($usuario)->greeting)->toBe('Estimado/a Administrador:');
+});
+
+test('sin persona cargada en memoria, el saludo queda en "Estimado/a:"', function () {
+    expect((new InvitacionUsuario('token'))->toMail(new User(['email' => 'x@clinexa.test']))->greeting)->toBe('Estimado/a:');
 });

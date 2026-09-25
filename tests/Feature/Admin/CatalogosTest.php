@@ -20,8 +20,8 @@ dataset('catalogos', [
         ['nombre' => 'Centro', 'direccion' => 'Av. Siempre Viva 742', 'telefono' => '021 555 000'],
         ['nombre' => 'Centro II', 'direccion' => 'Av. Siempre Viva 742', 'telefono' => '021 555 000', 'estado' => 'ACTIVO']],
     'tipos de documento' => ['tipos-documento', 'tipos_documento', TipoDocumento::class,
-        ['codigo' => 'CI', 'nombre' => 'Cédula', 'aplica_a' => 'FISICA'],
-        ['codigo' => 'CI', 'nombre' => 'Cédula de identidad', 'aplica_a' => 'FISICA', 'estado' => 'ACTIVO']],
+        ['codigo' => 'PAS', 'nombre' => 'Pasaporte', 'aplica_a' => 'FISICA'],
+        ['codigo' => 'PAS', 'nombre' => 'Pasaporte extranjero', 'aplica_a' => 'FISICA', 'estado' => 'ACTIVO']],
     'cie10' => ['cie10', 'catalogo_cie10', CatalogoCIE10::class,
         ['codigo' => 'J06.9', 'descripcion' => 'Infección aguda de vías respiratorias superiores', 'capitulo' => 'X'],
         ['descripcion' => 'IVRS aguda, no especificada', 'capitulo' => 'X']],
@@ -43,7 +43,7 @@ test('el CRUD del catálogo funciona', function (string $ruta, string $tabla, st
         ->assertRedirect(route("admin.$ruta.index"));
     $this->assertDatabaseHas($tabla, $alta);
 
-    $registro = $modelo::first();
+    $registro = $modelo::where($alta)->sole(); // el recién creado (puede haber otros, como el CI del usuario de prueba)
     $this->get(route("admin.$ruta.edit", $registro))->assertOk();
     $this->get(route("admin.$ruta.index"))->assertSee(reset($alta));
 
