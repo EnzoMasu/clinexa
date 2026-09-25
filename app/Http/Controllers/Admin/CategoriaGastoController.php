@@ -6,15 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\CategoriaGasto;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CategoriaGastoController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): Response
     {
-        return view('admin.categorias-gasto.index', [
-            'categoriasGasto' => CategoriaGasto::orderBy('nombre')->paginate(15),
+        $busqueda = trim((string) $request->query('q'));
+
+        return $this->listado($request, 'admin.categorias-gasto', [
+            'categoriasGasto' => $this->buscarEn(CategoriaGasto::query(), $busqueda, ['nombre'])
+                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'busqueda' => $busqueda,
         ]);
     }
 

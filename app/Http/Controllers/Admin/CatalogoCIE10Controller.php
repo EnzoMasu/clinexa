@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\CatalogoCIE10;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CatalogoCIE10Controller extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
 
@@ -23,7 +24,7 @@ class CatalogoCIE10Controller extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        return view('admin.cie10.index', compact('codigos', 'busqueda'));
+        return $this->listado($request, 'admin.cie10', compact('codigos', 'busqueda'));
     }
 
     public function create(): View

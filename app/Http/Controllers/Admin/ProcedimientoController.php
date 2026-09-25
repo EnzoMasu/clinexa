@@ -6,15 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Procedimiento;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ProcedimientoController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): Response
     {
-        return view('admin.procedimientos.index', [
-            'procedimientos' => Procedimiento::orderBy('codigo')->paginate(15),
+        $busqueda = trim((string) $request->query('q'));
+
+        return $this->listado($request, 'admin.procedimientos', [
+            'procedimientos' => $this->buscarEn(Procedimiento::query(), $busqueda, ['codigo', 'nombre', 'tipo'])
+                ->orderBy('codigo')->paginate(15)->withQueryString(),
+            'busqueda' => $busqueda,
         ]);
     }
 

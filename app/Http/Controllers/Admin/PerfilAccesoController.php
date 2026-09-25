@@ -7,18 +7,23 @@ use App\Models\ModuloSistema;
 use App\Models\PerfilAcceso;
 use App\Models\Permiso;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Arr;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PerfilAccesoController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): Response
     {
-        return view('admin.perfiles-acceso.index', [
-            'perfiles' => PerfilAcceso::withCount(['users', 'permisos'])->orderBy('nombre')->paginate(15),
+        $busqueda = trim((string) $request->query('q'));
+
+        return $this->listado($request, 'admin.perfiles-acceso', [
+            'perfiles' => $this->buscarEn(PerfilAcceso::withCount(['users', 'permisos']), $busqueda, ['nombre', 'descripcion'])
+                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'busqueda' => $busqueda,
         ]);
     }
 

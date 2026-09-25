@@ -6,15 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\TipoDocumento;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class TipoDocumentoController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): Response
     {
-        return view('admin.tipos-documento.index', [
-            'tiposDocumento' => TipoDocumento::orderBy('codigo')->paginate(15),
+        $busqueda = trim((string) $request->query('q'));
+
+        return $this->listado($request, 'admin.tipos-documento', [
+            'tiposDocumento' => $this->buscarEn(TipoDocumento::query(), $busqueda, ['codigo', 'nombre', 'aplica_a'])
+                ->orderBy('codigo')->paginate(15)->withQueryString(),
+            'busqueda' => $busqueda,
         ]);
     }
 

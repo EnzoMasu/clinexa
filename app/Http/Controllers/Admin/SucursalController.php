@@ -6,15 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Sucursal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SucursalController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): Response
     {
-        return view('admin.sucursales.index', [
-            'sucursales' => Sucursal::orderBy('nombre')->paginate(15),
+        $busqueda = trim((string) $request->query('q'));
+
+        return $this->listado($request, 'admin.sucursales', [
+            'sucursales' => $this->buscarEn(Sucursal::query(), $busqueda, ['nombre', 'direccion', 'telefono'])
+                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'busqueda' => $busqueda,
         ]);
     }
 

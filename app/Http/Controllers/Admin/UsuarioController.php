@@ -7,6 +7,7 @@ use App\Models\PerfilAcceso;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -14,7 +15,7 @@ use Illuminate\View\View;
 
 class UsuarioController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
 
@@ -27,7 +28,7 @@ class UsuarioController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.usuarios.index', compact('usuarios', 'busqueda'));
+        return $this->listado($request, 'admin.usuarios', compact('usuarios', 'busqueda'));
     }
 
     public function create(): View

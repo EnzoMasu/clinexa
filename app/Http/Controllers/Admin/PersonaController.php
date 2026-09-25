@@ -8,11 +8,12 @@ use App\Models\Persona;
 use App\Models\TipoDocumento;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class PersonaController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
 
@@ -29,7 +30,7 @@ class PersonaController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('admin.personas.index', compact('personas', 'busqueda'));
+        return $this->listado($request, 'admin.personas', compact('personas', 'busqueda'));
     }
 
     public function create(): View

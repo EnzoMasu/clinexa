@@ -6,14 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\MedioPago;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class MedioPagoController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): Response
     {
-        return view('admin.medios-pago.index', [
-            'mediosPago' => MedioPago::orderBy('nombre')->paginate(15),
+        $busqueda = trim((string) $request->query('q'));
+
+        return $this->listado($request, 'admin.medios-pago', [
+            'mediosPago' => $this->buscarEn(MedioPago::query(), $busqueda, ['nombre'])
+                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'busqueda' => $busqueda,
         ]);
     }
 
