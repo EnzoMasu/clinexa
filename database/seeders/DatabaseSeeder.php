@@ -19,5 +19,10 @@ class DatabaseSeeder extends Seeder
             DatosRealesClinicaSeeder::class,
             CatalogoCie10Seeder::class,
         ]);
+
+        // Personas ficticias para demo y pruebas: nunca en producción.
+        if (! app()->isProduction()) {
+            $this->call(PersonasDemoSeeder::class);
+        }
     }
 }

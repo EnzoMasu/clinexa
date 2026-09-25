@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Especialidad;
 use App\Models\Procedimiento;
 use App\Models\Sucursal;
+use App\Models\TipoDocumento;
 use Illuminate\Database\Seeder;
 
 /**
@@ -19,6 +20,12 @@ class DatosRealesClinicaSeeder extends Seeder
         Sucursal::updateOrCreate(['nombre' => 'Plenitud Mujer'], [
             'direccion' => 'Iturbe e/ Pte. Franco y Mcal Estigarribia, Concepción - Paraguay',
             'telefono' => '0975282556',
+            'estado' => 'ACTIVO',
+        ]);
+
+        TipoDocumento::updateOrCreate(['codigo' => 'CI'], [
+            'nombre' => 'Cédula de identidad',
+            'aplica_a' => 'FISICA',
             'estado' => 'ACTIVO',
         ]);
 
