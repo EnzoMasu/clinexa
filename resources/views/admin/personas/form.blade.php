@@ -14,20 +14,12 @@
         x-data="{ tipo: {{ Js::from($tipoInicial) }} }">
 
         <div class="grid gap-6 sm:grid-cols-2">
-            {{-- Al cambiar el tipo, si el documento elegido ya no aplica, se limpia. --}}
             <x-admin.select name="tipo_persona" label="Tipo de persona" :options="['FISICA' => 'Física', 'JURIDICA' => 'Jurídica']"
-                :value="$tipoInicial" x-model="tipo" required
-                x-on:change="$nextTick(() => { if ($refs.tipoDocumento.selectedOptions[0]?.disabled) $refs.tipoDocumento.value = '' })" />
+                :value="$tipoInicial" x-model="tipo" required />
 
-            <x-admin.select name="tipo_documento_id" label="Tipo de documento" :value="$tipoDocumentoActual" x-ref="tipoDocumento" required>
-                @foreach ($tiposDocumento as $tipoDocumento)
-                    @php($noAplica = "! ['AMBOS', tipo].includes('{$tipoDocumento->aplica_a}')")
-                    <option value="{{ $tipoDocumento->id }}" x-bind:disabled="{{ $noAplica }}" x-bind:hidden="{{ $noAplica }}"
-                        @selected($tipoDocumentoActual === (string) $tipoDocumento->id)>
-                        {{ $tipoDocumento->codigo }} — {{ $tipoDocumento->nombre }}
-                    </option>
-                @endforeach
-            </x-admin.select>
+            {{-- Solo los tipos habilitados para Personas (tipo_documento_modulo); el predeterminado viene elegido. --}}
+            <x-admin.select name="tipo_documento_id" label="Tipo de documento" :value="$tipoDocumentoActual" required
+                :options="$tiposDocumento->mapWithKeys(fn ($tipo) => [$tipo->id => $tipo->codigo.' — '.$tipo->nombre])->all()" />
 
             <x-admin.input name="nro_documento" label="Número de documento" :value="$persona->nro_documento" maxlength="20" required />
         </div>
@@ -67,12 +59,15 @@
                 <div class="sm:col-span-2">
                     <x-admin.input name="direccion" label="Dirección" :value="$persona->direccion" maxlength="200" required />
                 </div>
+                <div class="sm:col-span-2">
+                    <x-geografia.selector-ciudad :value="$persona->ciudad_id" />
+                </div>
             </div>
         </div>
 
         @if ($persona->exists)
             <div class="grid gap-6 sm:grid-cols-2">
-                <x-admin.select name="estado" label="Estado" :options="['ACTIVO', 'INACTIVO']" :value="$persona->estado" required />
+                <x-admin.select name="estado_id" label="Estado" :options="$persona::estadosPermitidos()->pluck('nombre', 'id')->all()" :value="$persona->estado_id" required />
             </div>
         @endif
     </x-admin.form>

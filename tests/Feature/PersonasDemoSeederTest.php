@@ -18,7 +18,7 @@ test('carga las 5 personas de ejemplo y se puede volver a correr sin duplicar', 
         ->tipo_persona->toBe('FISICA')
         ->sexo->toBe('F')
         ->nacionalidad->toBe('Paraguaya')
-        ->estado->toBe('ACTIVO')
+        ->estado->codigo->toBe('ACTIVO')
         ->and(Persona::where('nro_documento', '5234567')->sole()->fecha_nacimiento->format('Y-m-d'))->toBe('1990-03-15')
         ->and(Persona::where('nro_documento', '5234567')->sole()->tipoDocumento->codigo)->toBe('CI');
 });

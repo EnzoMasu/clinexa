@@ -14,7 +14,7 @@ test('no existe registro público', function () {
 });
 
 test('el login rechaza usuarios bloqueados o inactivos aunque la contraseña sea correcta', function (string $estado, string $mensaje) {
-    $user = User::factory()->create(['estado' => $estado]);
+    $user = User::factory()->create(['estado_id' => estadoId($estado)]);
 
     $this->post('/login', ['email' => $user->email, 'password' => 'password'])
         ->assertSessionHasErrors(['email' => $mensaje]);
@@ -26,7 +26,7 @@ test('el login rechaza usuarios bloqueados o inactivos aunque la contraseña sea
 ]);
 
 test('un usuario bloqueado con la contraseña incorrecta ve el error genérico', function () {
-    $user = User::factory()->create(['estado' => 'BLOQUEADO']);
+    $user = User::factory()->create(['estado_id' => estadoId('BLOQUEADO')]);
 
     $this->post('/login', ['email' => $user->email, 'password' => 'incorrecta'])
         ->assertSessionHasErrors(['email' => trans('auth.failed')]);
@@ -44,7 +44,7 @@ test('si bloquean a un usuario con la sesión abierta, lo saca en el siguiente r
     $user = User::factory()->create();
     $this->actingAs($user)->get('/dashboard')->assertOk();
 
-    $user->update(['estado' => 'BLOQUEADO']);
+    $user->update(['estado_id' => estadoId('BLOQUEADO')]);
 
     $this->actingAs($user->fresh())->get('/dashboard')
         ->assertRedirect(route('login'))
@@ -54,7 +54,7 @@ test('si bloquean a un usuario con la sesión abierta, lo saca en el siguiente r
 
 test('si la persona del usuario está inactiva, el login lo rechaza aunque el usuario esté ACTIVO', function () {
     $user = User::factory()->create();
-    $user->persona->update(['estado' => 'INACTIVO']);
+    $user->persona->update(['estado_id' => estadoId('INACTIVO')]);
 
     $this->post('/login', ['email' => $user->email, 'password' => 'password'])
         ->assertSessionHasErrors(['email' => 'Su usuario está inactivo. Contacte al administrador.']);
@@ -65,7 +65,7 @@ test('si desactivan la persona con la sesión abierta, lo saca en el siguiente r
     $user = User::factory()->create();
     $this->actingAs($user)->get('/dashboard')->assertOk();
 
-    $user->persona->update(['estado' => 'INACTIVO']);
+    $user->persona->update(['estado_id' => estadoId('INACTIVO')]);
 
     $this->actingAs($user->fresh())->get('/dashboard')->assertRedirect(route('login'));
     $this->assertGuest();

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Persona extends Model
 {
     /** @use HasFactory<\Database\Factories\PersonaFactory> */
-    use HasFactory;
+    use HasFactory, TieneEstado;
 
     public const CAMPOS_FISICA = ['apellidos', 'nombres', 'fecha_nacimiento', 'sexo', 'nacionalidad', 'estado_civil'];
 
@@ -40,8 +41,14 @@ class Persona extends Model
         'email',
         'telefono',
         'direccion',
-        'estado',
+        'estado_id',
+        'ciudad_id',
     ];
+
+    public static function moduloEstado(): string
+    {
+        return 'PERSONAS';
+    }
 
     protected function casts(): array
     {
@@ -98,7 +105,7 @@ class Persona extends Model
     public function scopeDisponiblesParaUsuario(Builder $query): void
     {
         $query->where('tipo_persona', 'FISICA')
-            ->where('estado', 'ACTIVO')
+            ->activos()
             ->whereDoesntHave('usuario');
     }
 
@@ -107,5 +114,41 @@ class Persona extends Model
         return Attribute::get(fn () => $this->tipo_persona === 'FISICA'
             ? "{$this->apellidos}, {$this->nombres}"
             : $this->razon_social);
+    }
+
+    /*
+     * Roles de negocio de la persona (cada uno como máximo una vez; puede tener varios distintos).
+     */
+    public function paciente(): HasOne
+    {
+        return $this->hasOne(Paciente::class);
+    }
+
+    public function profesional(): HasOne
+    {
+        return $this->hasOne(Profesional::class);
+    }
+
+    public function proveedor(): HasOne
+    {
+        return $this->hasOne(Proveedor::class);
+    }
+
+    public function propietarioEquipo(): HasOne
+    {
+        return $this->hasOne(PropietarioEquipo::class);
+    }
+
+    public function responsablePago(): HasOne
+    {
+        return $this->hasOne(ResponsablePago::class);
+    }
+
+    /**
+     * Ciudad (opcional): dato adicional a la dirección en texto libre.
+     */
+    public function ciudad(): BelongsTo
+    {
+        return $this->belongsTo(Ciudad::class);
     }
 }

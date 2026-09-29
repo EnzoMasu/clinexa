@@ -49,7 +49,7 @@ class ProcedimientoController extends Controller
 
     public function desactivar(Procedimiento $procedimiento): RedirectResponse
     {
-        $procedimiento->update(['estado' => 'INACTIVO']);
+        $procedimiento->desactivar();
 
         return redirect()->route('admin.procedimientos.index')->with('status', 'Procedimiento desactivado.');
     }
@@ -64,7 +64,7 @@ class ProcedimientoController extends Controller
         ];
 
         if ($procedimiento) {
-            $reglas['estado'] = ['required', Rule::in(['ACTIVO', 'INACTIVO'])];
+            $reglas['estado_id'] = Procedimiento::reglaEstado();
         }
 
         return $request->validate($reglas);

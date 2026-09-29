@@ -11,5 +11,9 @@
         @endif
         <x-admin.input name="descripcion" label="Descripción" :value="$cie10->descripcion" maxlength="255" required />
         <x-admin.input name="capitulo" label="Capítulo" :value="$cie10->capitulo" maxlength="100" required />
+
+        @if ($cie10->exists)
+            <x-admin.select name="estado_id" label="Estado" :options="$cie10::estadosPermitidos()->pluck('nombre', 'id')->all()" :value="$cie10->estado_id" required />
+        @endif
     </x-admin.form>
 </x-admin.page>

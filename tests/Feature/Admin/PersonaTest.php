@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ModuloSistema;
 use App\Models\Persona;
 use App\Models\TipoDocumento;
 use App\Models\User;
@@ -8,9 +9,12 @@ beforeEach(function () {
     $this->actingAs(User::factory()->administrador()->create());
 
     // El usuario de prueba ya creó CI (su persona la usa).
-    $this->ci = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
-    $this->ruc = TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC', 'aplica_a' => 'AMBOS']);
-    $this->pasaporte = TipoDocumento::create(['codigo' => 'PAS', 'nombre' => 'Pasaporte', 'aplica_a' => 'FISICA']);
+    $this->ci = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula']);
+    $this->ruc = TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC']);
+    $this->pasaporte = TipoDocumento::create(['codigo' => 'PAS', 'nombre' => 'Pasaporte']);
+
+    // Tipos que acepta el módulo Personas (tipo_documento_modulo); CI es el predeterminado.
+    ModuloSistema::where('codigo', 'PERSONAS')->sole()->configurarTiposDocumento(['CI', 'RUC', 'PAS']);
 });
 
 function datosFisica(array $cambios = []): array
@@ -64,7 +68,7 @@ test('crea una persona física', function () {
     $persona = Persona::where('nro_documento', '1234567')->sole();
     expect($persona->apellidos)->toBe('González')
         ->and($persona->fecha_nacimiento->format('Y-m-d'))->toBe('1990-05-10')
-        ->and($persona->estado)->toBe('ACTIVO')
+        ->and($persona->estado->codigo)->toBe('ACTIVO')
         ->and($persona->tipoDocumento->codigo)->toBe('CI');
 });
 
@@ -96,7 +100,7 @@ test('los campos del otro tipo quedan en null aunque vengan cargados', function 
 test('al cambiar de física a jurídica se limpian los datos personales', function () {
     $persona = Persona::create(datosFisica(['tipo_documento_id' => $this->ruc->id]));
 
-    $this->put(route('admin.personas.update', $persona), datosJuridica(['estado' => 'ACTIVO']))
+    $this->put(route('admin.personas.update', $persona), datosJuridica(['estado_id' => estadoId('ACTIVO')]))
         ->assertSessionHasNoErrors();
 
     expect($persona->fresh())
@@ -121,19 +125,46 @@ test('el número de documento es único por tipo de documento', function () {
 test('editar sin cambiar el documento no choca con el unique', function () {
     $persona = Persona::create(datosFisica());
 
-    $this->put(route('admin.personas.update', $persona), datosFisica(['nombres' => 'María José', 'estado' => 'ACTIVO']))
+    $this->put(route('admin.personas.update', $persona), datosFisica(['nombres' => 'María José', 'estado_id' => estadoId('ACTIVO')]))
         ->assertSessionHasNoErrors();
 
     expect($persona->fresh()->nombres)->toBe('María José');
 });
 
-test('el tipo de documento tiene que aplicar al tipo de persona', function () {
+test('el tipo de documento tiene que estar habilitado para personas', function () {
+    $otro = TipoDocumento::create(['codigo' => 'OTRO', 'nombre' => 'Otro documento']); // existe, pero no está en tipo_documento_modulo
+
+    $this->post(route('admin.personas.store'), datosFisica(['tipo_documento_id' => $otro->id]))
+        ->assertSessionHasErrors(['tipo_documento_id' => 'El tipo de documento no está habilitado para personas o está inactivo.']);
+});
+
+test('ya no depende del tipo de persona: una jurídica puede usar cualquier tipo habilitado', function () {
     $this->post(route('admin.personas.store'), datosJuridica(['tipo_documento_id' => $this->ci->id]))
-        ->assertSessionHasErrors('tipo_documento_id');
+        ->assertSessionHasNoErrors();
+});
+
+test('el formulario ofrece solo los tipos habilitados para personas, con el predeterminado elegido', function () {
+    TipoDocumento::create(['codigo' => 'OTRO', 'nombre' => 'Otro documento']);
+
+    $html = $this->get(route('admin.personas.create'))->assertOk()
+        ->assertSee('CI — Cédula')->assertSee('RUC — RUC')->assertSee('PAS — Pasaporte')
+        ->assertDontSee('Otro documento')
+        ->getContent();
+
+    expect($html)->toMatch('/<option value="'.$this->ci->id.'"\s+selected>/');
+});
+
+test('al editar se sigue mostrando el tipo que la persona ya tiene aunque no esté habilitado', function () {
+    $otro = TipoDocumento::create(['codigo' => 'OTRO', 'nombre' => 'Otro documento']);
+    $persona = Persona::create(datosFisica(['tipo_documento_id' => $otro->id]));
+
+    $this->get(route('admin.personas.edit', $persona))->assertOk()->assertSee('OTRO — Otro documento');
+    $this->put(route('admin.personas.update', $persona), datosFisica(['tipo_documento_id' => $otro->id, 'estado_id' => estadoId('ACTIVO')]))
+        ->assertSessionHasNoErrors();
 });
 
 test('no se puede usar un tipo de documento inactivo en una persona nueva', function () {
-    $this->ci->update(['estado' => 'INACTIVO']);
+    $this->ci->update(['estado_id' => estadoId('INACTIVO')]);
 
     $this->post(route('admin.personas.store'), datosFisica())
         ->assertSessionHasErrors('tipo_documento_id');
@@ -145,7 +176,7 @@ test('desactivar pasa la persona a INACTIVO sin borrarla', function () {
     $this->patch(route('admin.personas.desactivar', $persona))
         ->assertRedirect(route('admin.personas.index'));
 
-    expect($persona->fresh())->not->toBeNull()->estado->toBe('INACTIVO');
+    expect($persona->fresh())->not->toBeNull()->estado->codigo->toBe('INACTIVO');
 });
 
 test('el buscador filtra por documento, nombre y razón social', function () {
@@ -160,7 +191,7 @@ test('cambiar el email de una persona con usuario actualiza también el email de
     $usuario = User::factory()->create(['email' => 'viejo@clinexa.test']);
 
     $this->put(route('admin.personas.update', $usuario->persona), [
-        ...$usuario->persona->only(['tipo_persona', 'tipo_documento_id', 'nro_documento', 'apellidos', 'nombres', 'telefono', 'direccion', 'estado']),
+        ...$usuario->persona->only(['tipo_persona', 'tipo_documento_id', 'nro_documento', 'apellidos', 'nombres', 'telefono', 'direccion', 'estado_id']),
         'fecha_nacimiento' => $usuario->persona->fecha_nacimiento->format('Y-m-d'),
         'email' => 'Nuevo@Clinexa.test',
     ])->assertSessionHasNoErrors();
@@ -184,7 +215,7 @@ test('no se puede poner a una persona con usuario un email que ya usa otro usuar
     $otro = User::factory()->create(['email' => 'ocupado@clinexa.test']);
 
     $this->put(route('admin.personas.update', $usuario->persona), [
-        ...$usuario->persona->only(['tipo_persona', 'tipo_documento_id', 'nro_documento', 'apellidos', 'nombres', 'telefono', 'direccion', 'estado']),
+        ...$usuario->persona->only(['tipo_persona', 'tipo_documento_id', 'nro_documento', 'apellidos', 'nombres', 'telefono', 'direccion', 'estado_id']),
         'fecha_nacimiento' => $usuario->persona->fecha_nacimiento->format('Y-m-d'),
         'email' => 'OCUPADO@clinexa.test',
     ])->assertSessionHasErrors(['email' => 'Ese email ya lo usa otro usuario del sistema.']);

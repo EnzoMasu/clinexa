@@ -81,7 +81,6 @@ class MigrarUsuariosAPersona extends Command
                     'email' => $usuario->email,                // real: el mismo del usuario
                     'telefono' => self::SIN_DATOS_CORTO,       // RELLENO
                     'direccion' => self::SIN_DATOS,            // RELLENO
-                    'estado' => 'ACTIVO',
                 ]);
 
                 $usuario->forceFill(['persona_id' => $persona->id])->save();

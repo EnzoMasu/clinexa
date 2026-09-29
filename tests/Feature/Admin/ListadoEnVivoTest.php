@@ -58,7 +58,7 @@ test('la request AJAX también exige permiso VER', function () {
 });
 
 test('los listados que ya buscaban siguen buscando los mismos campos, con y sin AJAX', function () {
-    $ci = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
+    $ci = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula']);
     $base = ['tipo_persona' => 'FISICA', 'tipo_documento_id' => $ci->id, 'fecha_nacimiento' => '1990-01-01', 'email' => 'x@example.com', 'telefono' => '1', 'direccion' => 'X'];
     Persona::create([...$base, 'nro_documento' => '5234567', 'apellidos' => 'Duarte', 'nombres' => 'Carmen']);
     Persona::create([...$base, 'nro_documento' => '5876543', 'apellidos' => 'Ramírez', 'nombres' => 'Ana']);
@@ -94,8 +94,8 @@ test('los listados sin buscador ahora buscan por sus columnas visibles', functio
         Sucursal::create(['nombre' => 'Otra Sede', 'direccion' => 'Centro', 'telefono' => '021000']);
     }, '0975', 'Plenitud Mujer', 'Otra Sede'],
     'tipos de documento (código)' => ['tipos-documento', function () {
-        TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'Registro Único', 'aplica_a' => 'AMBOS']);
-        TipoDocumento::create(['codigo' => 'PAS', 'nombre' => 'Pasaporte', 'aplica_a' => 'FISICA']);
+        TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'Registro Único']);
+        TipoDocumento::create(['codigo' => 'PAS', 'nombre' => 'Pasaporte']);
     }, 'ruc', 'Registro Único', 'Pasaporte'],
     'medios de pago' => ['medios-pago', function () {
         MedioPago::create(['nombre' => 'Efectivo']);

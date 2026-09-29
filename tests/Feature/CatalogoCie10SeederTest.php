@@ -28,3 +28,20 @@ test('se puede volver a correr sin duplicar y actualiza lo que cambió', functio
     expect(CatalogoCIE10::count())->toBe(12436)
         ->and(CatalogoCIE10::find('N76.0')->descripcion)->toBe('Vaginitis aguda');
 });
+
+test('los códigos importados entran ACTIVOS', function () {
+    $this->seed(CatalogoCie10Seeder::class);
+
+    expect(CatalogoCIE10::where('estado_id', estadoId('ACTIVO'))->count())->toBe(12436);
+});
+
+test('volver a correr el seeder no reactiva los códigos desactivados a mano', function () {
+    $this->seed(CatalogoCie10Seeder::class);
+    CatalogoCIE10::find('O14.1')->update(['estado_id' => estadoId('INACTIVO')]);
+    CatalogoCIE10::find('N76.0')->delete(); // simula un código nuevo que aparece en el archivo
+
+    $this->seed(CatalogoCie10Seeder::class);
+
+    expect(CatalogoCIE10::find('O14.1')->estado->codigo)->toBe('INACTIVO')
+        ->and(CatalogoCIE10::find('N76.0')->estado->codigo)->toBe('ACTIVO');
+});

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\TieneEstado;
 use App\Notifications\InvitacionUsuario;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\Notifications\ResetPassword;
@@ -16,7 +17,7 @@ use Illuminate\Support\Facades\Password;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, TieneEstado;
 
     /**
      * The attributes that are mass assignable.
@@ -28,15 +29,13 @@ class User extends Authenticatable
         'email',
         'password',
         'perfil_acceso_id',
-        'estado',
+        'estado_id',
     ];
 
-    /**
-     * Mismo default que la columna, para que el modelo recién creado ya lo tenga en memoria.
-     */
-    protected $attributes = [
-        'estado' => 'ACTIVO',
-    ];
+    public static function moduloEstado(): string
+    {
+        return 'USUARIOS';
+    }
 
     /**
      * The attributes that should be hidden for serialization.
@@ -101,7 +100,7 @@ class User extends Authenticatable
             ->join('perfil_permiso', 'perfil_permiso.permiso_id', '=', 'permisos.id')
             ->join('modulos_sistema', 'modulos_sistema.id', '=', 'permisos.modulo_sistema_id')
             ->where('perfil_permiso.perfil_acceso_id', $this->perfil_acceso_id)
-            ->where('modulos_sistema.estado', 'ACTIVO')
+            ->where('modulos_sistema.estado_id', Estado::idDe(Estado::ACTIVO))
             ->get(['modulos_sistema.codigo', 'permisos.accion'])
             ->mapWithKeys(fn ($permiso) => ["{$permiso->codigo}:{$permiso->accion}" => true])
             ->all();
@@ -135,21 +134,24 @@ class User extends Authenticatable
 
         return ! self::query()
             ->whereKeyNot($this->getKey())
-            ->where('estado', 'ACTIVO')
+            ->activos()
             ->where('perfil_acceso_id', $this->perfil_acceso_id)
-            ->whereHas('persona', fn ($query) => $query->where('estado', 'ACTIVO'))
+            ->whereHas('persona', fn ($query) => $query->activos())
             ->exists();
     }
 
     /**
      * Mensaje que se muestra al usuario si su estado no le permite entrar, o null si puede.
+     * Se compara por el código del Estado relacionado (no por el nombre).
      */
     public function motivoAccesoDenegado(): ?string
     {
         return match (true) {
-            $this->estado === 'BLOQUEADO' => 'Su usuario está bloqueado. Contacte al administrador.',
-            // También queda inactivo si se desactivó la persona, aunque users.estado siga ACTIVO.
-            $this->estado !== 'ACTIVO', $this->persona?->estado !== 'ACTIVO' => 'Su usuario está inactivo. Contacte al administrador.',
+            $this->tieneEstado(Estado::BLOQUEADO) => 'Su usuario está bloqueado. Contacte al administrador.',
+            // También queda inactivo si se desactivó la persona, aunque el usuario siga ACTIVO.
+            ! $this->estaActivo(), $this->persona?->estaActivo() !== true => 'Su usuario está inactivo. Contacte al administrador.',
+            // Un perfil de acceso INACTIVO deja sin acceso a todos sus usuarios.
+            $this->perfilAcceso !== null && ! $this->perfilAcceso->estaActivo() => 'Su perfil de acceso está inactivo. Contacte al administrador.',
             default => null,
         };
     }

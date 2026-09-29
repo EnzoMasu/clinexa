@@ -20,6 +20,16 @@
                 <x-admin.input name="nombre" label="Nombre" :value="$perfil->nombre" maxlength="50" required autofocus />
             @endif
             <x-admin.textarea name="descripcion" label="Descripción" :value="$perfil->descripcion" maxlength="200" rows="2" />
+
+            {{-- El Administrador siempre está ACTIVO: no se ofrece cambiarle el estado. --}}
+            @if ($perfil->exists && ! $matrizFija)
+                <div>
+                    <x-admin.select name="estado_id" label="Estado" :options="$perfil::estadosPermitidos()->pluck('nombre', 'id')->all()" :value="$perfil->estado_id" required aria-describedby="estado-perfil-nota" />
+                    <p id="estado-perfil-nota" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        Si el perfil queda INACTIVO, los usuarios que lo tienen no pueden ingresar al sistema.
+                    </p>
+                </div>
+            @endif
         </div>
 
         <div class="space-y-3">
@@ -51,13 +61,13 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
                             @foreach ($modulos as $modulo)
-                                <tr @class(['opacity-60' => $modulo->estado !== 'ACTIVO'])>
+                                <tr @class(['opacity-60' => ! $modulo->estaActivo()])>
                                     <td class="px-4 py-2">
                                         <span class="font-medium">{{ $modulo->nombre }}</span>
                                         @if ($modulo->es_sensible)
                                             <span class="ms-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">Sensible</span>
                                         @endif
-                                        @if ($modulo->estado !== 'ACTIVO')
+                                        @if (! $modulo->estaActivo())
                                             <x-admin.estado-badge :estado="$modulo->estado" />
                                         @endif
                                     </td>

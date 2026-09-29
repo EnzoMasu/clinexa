@@ -40,7 +40,7 @@ class ProfileController extends Controller
             ])->errorBag('desactivarCuenta');
         }
 
-        $request->user()->update(['estado' => 'INACTIVO']);
+        $request->user()->desactivar();
 
         Auth::logout();
 

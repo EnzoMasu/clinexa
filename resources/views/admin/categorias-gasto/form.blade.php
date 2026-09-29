@@ -4,5 +4,9 @@
         :method="$categoriaGasto->exists ? 'PUT' : 'POST'"
         :cancel="route('admin.categorias-gasto.index')">
         <x-admin.input name="nombre" label="Nombre" :value="$categoriaGasto->nombre" maxlength="100" required autofocus />
+
+        @if ($categoriaGasto->exists)
+            <x-admin.select name="estado_id" label="Estado" :options="$categoriaGasto::estadosPermitidos()->pluck('nombre', 'id')->all()" :value="$categoriaGasto->estado_id" required />
+        @endif
     </x-admin.form>
 </x-admin.page>

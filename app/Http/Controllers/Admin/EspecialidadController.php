@@ -47,11 +47,24 @@ class EspecialidadController extends Controller
         return redirect()->route('admin.especialidades.index')->with('status', 'Especialidad actualizada.');
     }
 
+    public function desactivar(Especialidad $especialidad): RedirectResponse
+    {
+        $especialidad->desactivar();
+
+        return redirect()->route('admin.especialidades.index')->with('status', 'Especialidad desactivada.');
+    }
+
     private function validar(Request $request, ?Especialidad $especialidad = null): array
     {
-        return $request->validate([
+        $reglas = [
             'nombre' => ['required', 'string', 'max:100', Rule::unique('especialidades')->ignore($especialidad)],
             'descripcion' => ['nullable', 'string'],
-        ]);
+        ];
+
+        if ($especialidad) {
+            $reglas['estado_id'] = Especialidad::reglaEstado();
+        }
+
+        return $request->validate($reglas);
     }
 }

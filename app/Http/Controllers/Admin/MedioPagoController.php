@@ -7,6 +7,7 @@ use App\Models\MedioPago;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class MedioPagoController extends Controller
@@ -41,15 +42,28 @@ class MedioPagoController extends Controller
 
     public function update(Request $request, MedioPago $medioPago): RedirectResponse
     {
-        $medioPago->update($this->validar($request));
+        $medioPago->update($this->validar($request, $medioPago));
 
         return redirect()->route('admin.medios-pago.index')->with('status', 'Medio de pago actualizado.');
     }
 
-    private function validar(Request $request): array
+    public function desactivar(MedioPago $medioPago): RedirectResponse
     {
-        return $request->validate([
+        $medioPago->desactivar();
+
+        return redirect()->route('admin.medios-pago.index')->with('status', 'Medio de pago desactivado.');
+    }
+
+    private function validar(Request $request, ?MedioPago $medioPago = null): array
+    {
+        $reglas = [
             'nombre' => ['required', 'string', 'max:50'],
-        ]);
+        ];
+
+        if ($medioPago) {
+            $reglas['estado_id'] = MedioPago::reglaEstado();
+        }
+
+        return $request->validate($reglas);
     }
 }

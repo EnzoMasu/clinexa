@@ -44,7 +44,10 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * id del estado con ese código (tabla estados, sembrada por migración), p. ej. estadoId('INACTIVO').
+ */
+function estadoId(string $codigo): int
 {
-    // ..
+    return App\Models\Estado::idDe($codigo);
 }

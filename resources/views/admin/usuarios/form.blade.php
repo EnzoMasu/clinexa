@@ -1,7 +1,7 @@
 @use('App\Support\Permisos')
 
 <x-admin.page :title="$usuario->exists ? 'Editar usuario' : 'Nuevo usuario'">
-    @if (! $usuario->exists && $personasDisponibles->isEmpty())
+    @if (! $usuario->exists && ! $hayPersonasDisponibles)
         {{-- Sin personas para elegir: hay que cargar una antes de crear el usuario. --}}
         <div class="p-6 max-w-xl space-y-4">
             <div class="rounded-md bg-amber-50 dark:bg-amber-900/30 p-4 text-sm text-amber-800 dark:text-amber-200 space-y-2">
@@ -53,16 +53,8 @@
                     </p>
                 </div>
             @else
-                <x-admin.select name="persona_id" label="Persona" required autofocus aria-describedby="persona-nota">
-                    @foreach ($personasDisponibles as $persona)
-                        <option value="{{ $persona->id }}" @selected((string) old('persona_id') === (string) $persona->id)>
-                            {{ $persona->nombre_completo }} — {{ $persona->tipoDocumento->codigo }} {{ $persona->nro_documento }} ({{ $persona->email }})
-                        </option>
-                    @endforeach
-                </x-admin.select>
-                <p id="persona-nota" class="-mt-4 text-xs text-gray-500 dark:text-gray-400">
-                    Solo aparecen personas físicas activas que todavía no tienen usuario. El email del usuario es el de la persona.
-                </p>
+                <x-admin.selector-persona :url="route('admin.usuarios.personas-disponibles')"
+                    ayuda="Solo aparecen personas físicas activas que todavía no tienen usuario. El email del usuario es el de la persona." />
             @endif
 
             @if ($usuario->exists && $usuario->is(auth()->user()))
@@ -79,7 +71,7 @@
             @endif
 
             @if ($usuario->exists)
-                <x-admin.select name="estado" label="Estado" :options="['ACTIVO', 'BLOQUEADO', 'INACTIVO']" :value="$usuario->estado" required />
+                <x-admin.select name="estado_id" label="Estado" :options="$usuario::estadosPermitidos()->pluck('nombre', 'id')->all()" :value="$usuario->estado_id" required />
             @else
                 <p class="text-sm text-gray-600 dark:text-gray-400">
                     No hace falta cargar una contraseña: al guardar, el usuario recibe un email con un link para definirla.

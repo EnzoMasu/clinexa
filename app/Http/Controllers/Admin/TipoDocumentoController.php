@@ -17,7 +17,7 @@ class TipoDocumentoController extends Controller
         $busqueda = trim((string) $request->query('q'));
 
         return $this->listado($request, 'admin.tipos-documento', [
-            'tiposDocumento' => $this->buscarEn(TipoDocumento::query(), $busqueda, ['codigo', 'nombre', 'aplica_a'])
+            'tiposDocumento' => $this->buscarEn(TipoDocumento::with('modulos'), $busqueda, ['codigo', 'nombre'])
                 ->orderBy('codigo')->paginate(15)->withQueryString(),
             'busqueda' => $busqueda,
         ]);
@@ -49,7 +49,7 @@ class TipoDocumentoController extends Controller
 
     public function desactivar(TipoDocumento $tipoDocumento): RedirectResponse
     {
-        $tipoDocumento->update(['estado' => 'INACTIVO']);
+        $tipoDocumento->desactivar();
 
         return redirect()->route('admin.tipos-documento.index')->with('status', 'Tipo de documento desactivado.');
     }
@@ -59,11 +59,10 @@ class TipoDocumentoController extends Controller
         $reglas = [
             'codigo' => ['required', 'string', 'max:10', Rule::unique('tipos_documento')->ignore($tipoDocumento)],
             'nombre' => ['required', 'string', 'max:50'],
-            'aplica_a' => ['required', Rule::in(['FISICA', 'JURIDICA', 'AMBOS'])],
         ];
 
         if ($tipoDocumento) {
-            $reglas['estado'] = ['required', Rule::in(['ACTIVO', 'INACTIVO'])];
+            $reglas['estado_id'] = TipoDocumento::reglaEstado();
         }
 
         return $request->validate($reglas);

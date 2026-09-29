@@ -36,7 +36,8 @@ class PersonaController extends Controller
     public function create(): View
     {
         return view('admin.personas.form', [
-            'persona' => new Persona(['tipo_persona' => 'FISICA']),
+            // Preseleccionado: el tipo de documento predeterminado del módulo Personas.
+            'persona' => new Persona(['tipo_persona' => 'FISICA', 'tipo_documento_id' => TipoDocumento::predeterminadoPara('PERSONAS')]),
             'tiposDocumento' => $this->tiposDocumento(),
         ]);
     }
@@ -65,7 +66,7 @@ class PersonaController extends Controller
 
     public function desactivar(Persona $persona): RedirectResponse
     {
-        $persona->update(['estado' => 'INACTIVO']);
+        $persona->desactivar();
 
         return redirect()->route('admin.personas.index')->with('status', 'Persona desactivada.');
     }
@@ -73,12 +74,18 @@ class PersonaController extends Controller
     /**
      * Tipos de documento activos, más el que ya tenga asignado la persona aunque esté inactivo.
      */
+    /**
+     * Tipos de documento habilitados para Personas (tipo_documento_modulo) y activos, el
+     * predeterminado primero. Si la persona ya tiene otro (inactivo o no habilitado), se agrega.
+     */
     private function tiposDocumento(?Persona $persona = null)
     {
-        return TipoDocumento::query()
-            ->where('estado', 'ACTIVO')
-            ->when($persona, fn ($query) => $query->orWhere('id', $persona->tipo_documento_id))
-            ->orderBy('nombre')
-            ->get();
+        $tipos = TipoDocumento::query()->habilitadosPara('PERSONAS')->activos()->get();
+
+        if ($persona && ! $tipos->contains('id', $persona->tipo_documento_id)) {
+            $tipos->push($persona->tipoDocumento);
+        }
+
+        return $tipos;
     }
 }

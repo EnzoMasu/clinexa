@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Estado;
 use App\Models\PerfilAcceso;
 use App\Models\Persona;
 use App\Models\User;
+use App\Support\BuscadorPersonas;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -42,10 +45,19 @@ class UsuarioController extends Controller
     {
         return view('admin.usuarios.form', [
             'usuario' => new User,
-            'personasDisponibles' => Persona::disponiblesParaUsuario()
-                ->with('tipoDocumento')->orderBy('apellidos')->orderBy('nombres')->get(),
+            // La persona se elige con el buscador; acá solo importa si queda alguna para elegir.
+            'hayPersonasDisponibles' => Persona::disponiblesParaUsuario()->exists(),
             'perfiles' => $this->perfiles(),
         ]);
+    }
+
+    /**
+     * Buscador de personas del alta (JSON): físicas, activas y sin usuario. Mismo buscador que
+     * los roles (BuscadorPersonas: mínimo 2 caracteres, hasta 15 resultados).
+     */
+    public function personasDisponibles(Request $request): JsonResponse
+    {
+        return BuscadorPersonas::responder(Persona::disponiblesParaUsuario(), (string) $request->query('q'));
     }
 
     /**
@@ -63,7 +75,7 @@ class UsuarioController extends Controller
                     $fail("El email de esa persona ({$persona->email}) ya lo usa otro usuario del sistema.");
                 }
             }],
-            'perfil_acceso_id' => ['required', 'integer', Rule::exists('perfiles_acceso', 'id')],
+            'perfil_acceso_id' => ['required', 'integer', Rule::exists('perfiles_acceso', 'id')->where('estado_id', Estado::idDe(Estado::ACTIVO))],
         ], [], ['persona_id' => 'persona', 'perfil_acceso_id' => 'perfil de acceso']);
 
         $usuario = User::create([
@@ -79,7 +91,7 @@ class UsuarioController extends Controller
     {
         return view('admin.usuarios.form', [
             'usuario' => $usuario->load('persona.tipoDocumento'),
-            'perfiles' => $this->perfiles(),
+            'perfiles' => $this->perfiles($usuario),
         ]);
     }
 
@@ -101,11 +113,14 @@ class UsuarioController extends Controller
         }
 
         $datos = $request->validate([
-            'perfil_acceso_id' => ['required', 'integer', Rule::exists('perfiles_acceso', 'id')],
-            'estado' => ['required', Rule::in(['ACTIVO', 'BLOQUEADO', 'INACTIVO'])],
+            // Un perfil activo, o el que el usuario ya tenía (aunque se haya desactivado).
+            'perfil_acceso_id' => ['required', 'integer', Rule::exists('perfiles_acceso', 'id')->where(fn ($query) => $query
+                ->where('estado_id', Estado::idDe(Estado::ACTIVO))
+                ->orWhere('id', $usuario->perfil_acceso_id))],
+            'estado_id' => User::reglaEstado(),
         ], [], ['perfil_acceso_id' => 'perfil de acceso']);
 
-        if ($esUnoMismo && $datos['estado'] !== 'ACTIVO') {
+        if ($esUnoMismo && (int) $datos['estado_id'] !== Estado::idDe(Estado::ACTIVO)) {
             return back()->withInput()->with('error', 'No puede bloquear ni desactivar su propio usuario.');
         }
 
@@ -120,7 +135,7 @@ class UsuarioController extends Controller
             return back()->with('error', 'No puede desactivar su propio usuario.');
         }
 
-        $usuario->update(['estado' => 'INACTIVO']);
+        $usuario->desactivar();
 
         return redirect()->route('admin.usuarios.index')->with('status', 'Usuario desactivado.');
     }
@@ -143,8 +158,14 @@ class UsuarioController extends Controller
         return $redirect->with('status', trim("{$prefijo} Se envió a {$usuario->email} el link para definir la contraseña."));
     }
 
-    private function perfiles(): array
+    /**
+     * Perfiles activos para elegir, más el que el usuario ya tenga aunque esté inactivo.
+     */
+    private function perfiles(?User $usuario = null): array
     {
-        return PerfilAcceso::orderBy('nombre')->pluck('nombre', 'id')->all();
+        return PerfilAcceso::query()
+            ->where(fn ($query) => $query->activos()
+                ->when($usuario, fn ($query) => $query->orWhere('id', $usuario->perfil_acceso_id)))
+            ->orderBy('nombre')->pluck('nombre', 'id')->all();
     }
 }

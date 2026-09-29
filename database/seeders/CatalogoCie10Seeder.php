@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\CatalogoCIE10;
+use App\Models\Estado;
 use Illuminate\Database\Seeder;
 use RuntimeException;
 
@@ -18,10 +19,16 @@ use RuntimeException;
  *
  * Idempotente: inserta o actualiza por codigo (upsert), así se puede volver a correr si el
  * archivo cambia. No borra códigos que ya no estén en el archivo.
+ *
+ * Estado: los códigos nuevos entran ACTIVO; en los que ya existen no se toca, para que volver a
+ * correr el seeder no reactive códigos que un administrador desactivó a mano.
  */
 class CatalogoCie10Seeder extends Seeder
 {
     private const ARCHIVO = __DIR__.'/data/cie10.csv';
+
+    /** Columnas que se actualizan si el código ya existe (estado no: ver arriba). */
+    private const ACTUALIZAR = ['descripcion', 'capitulo'];
 
     public function run(): void
     {
@@ -32,19 +39,21 @@ class CatalogoCie10Seeder extends Seeder
             throw new RuntimeException('Cabecera inesperada en '.self::ARCHIVO.': '.implode(',', (array) $cabecera));
         }
 
+        // upsert no dispara eventos de modelo: el estado inicial se pone explícito.
+        $activo = Estado::idDe(Estado::ACTIVO);
         $tanda = [];
         while (($fila = fgetcsv($archivo, escape: '')) !== false) {
-            $tanda[] = array_combine($cabecera, $fila);
+            $tanda[] = [...array_combine($cabecera, $fila), 'estado_id' => $activo];
 
             if (count($tanda) === 1000) {
-                CatalogoCIE10::upsert($tanda, ['codigo'], ['descripcion', 'capitulo']);
+                CatalogoCIE10::upsert($tanda, ['codigo'], self::ACTUALIZAR);
                 $tanda = [];
             }
         }
         fclose($archivo);
 
         if ($tanda) {
-            CatalogoCIE10::upsert($tanda, ['codigo'], ['descripcion', 'capitulo']);
+            CatalogoCIE10::upsert($tanda, ['codigo'], self::ACTUALIZAR);
         }
     }
 }

@@ -47,10 +47,23 @@ class CategoriaGastoController extends Controller
         return redirect()->route('admin.categorias-gasto.index')->with('status', 'Categoría de gasto actualizada.');
     }
 
+    public function desactivar(CategoriaGasto $categoriaGasto): RedirectResponse
+    {
+        $categoriaGasto->desactivar();
+
+        return redirect()->route('admin.categorias-gasto.index')->with('status', 'Categoría de gasto desactivada.');
+    }
+
     private function validar(Request $request, ?CategoriaGasto $categoriaGasto = null): array
     {
-        return $request->validate([
+        $reglas = [
             'nombre' => ['required', 'string', 'max:100', Rule::unique('categorias_gasto')->ignore($categoriaGasto)],
-        ]);
+        ];
+
+        if ($categoriaGasto) {
+            $reglas['estado_id'] = CategoriaGasto::reglaEstado();
+        }
+
+        return $request->validate($reglas);
     }
 }

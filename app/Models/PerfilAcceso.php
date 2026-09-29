@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PerfilAcceso extends Model
 {
+    use TieneEstado;
+
     /**
      * Perfil con acceso total. Se identifica por nombre, por eso el nombre no se puede cambiar,
      * y sus permisos no se editan desde el panel: siempre tiene todas las acciones en todos los módulos.
@@ -19,7 +22,13 @@ class PerfilAcceso extends Model
     protected $fillable = [
         'nombre',
         'descripcion',
+        'estado_id',
     ];
+
+    public static function moduloEstado(): string
+    {
+        return 'PERFILES_ACCESO';
+    }
 
     public function permisos(): BelongsToMany
     {
@@ -43,6 +52,11 @@ class PerfilAcceso extends Model
     public static function asegurarAdministrador(): self
     {
         $perfil = self::firstOrCreate(['nombre' => self::ADMINISTRADOR], ['descripcion' => 'Acceso total al sistema']);
+
+        // El perfil Administrador no se puede desactivar: si por algún motivo quedó inactivo, se reactiva.
+        if (! $perfil->estaActivo()) {
+            $perfil->update(['estado_id' => Estado::idDe(Estado::ACTIVO)]);
+        }
 
         $permisoIds = ModuloSistema::all()->flatMap(fn (ModuloSistema $modulo) => collect(Permiso::ACCIONES)->map(
             fn (string $accion) => Permiso::firstOrCreate(['modulo_sistema_id' => $modulo->id, 'accion' => $accion])->id

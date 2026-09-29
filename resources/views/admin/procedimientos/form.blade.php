@@ -10,7 +10,7 @@
             :value="$procedimiento->duracion_estimada_minutos" required />
 
         @if ($procedimiento->exists)
-            <x-admin.select name="estado" label="Estado" :options="['ACTIVO', 'INACTIVO']" :value="$procedimiento->estado" required />
+            <x-admin.select name="estado_id" label="Estado" :options="$procedimiento::estadosPermitidos()->pluck('nombre', 'id')->all()" :value="$procedimiento->estado_id" required />
         @endif
     </x-admin.form>
 </x-admin.page>

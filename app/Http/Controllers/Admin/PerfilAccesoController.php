@@ -77,6 +77,22 @@ class PerfilAccesoController extends Controller
         return redirect()->route('admin.perfiles-acceso.index')->with('status', 'Perfil de acceso actualizado.');
     }
 
+    /**
+     * Baja lógica: el perfil pasa a INACTIVO y sus usuarios dejan de poder entrar.
+     * El perfil Administrador no se puede desactivar (el sistema quedaría sin administración).
+     */
+    public function desactivar(PerfilAcceso $perfilAcceso): RedirectResponse
+    {
+        if ($perfilAcceso->esAdministrador()) {
+            return back()->with('error', 'El perfil Administrador no se puede desactivar.');
+        }
+
+        $perfilAcceso->desactivar();
+
+        return redirect()->route('admin.perfiles-acceso.index')
+            ->with('status', 'Perfil de acceso desactivado. Sus usuarios ya no pueden ingresar al sistema.');
+    }
+
     private function datosFormulario(PerfilAcceso $perfil): array
     {
         return [
@@ -122,8 +138,10 @@ class PerfilAccesoController extends Controller
             }],
             'permisos.*' => ['array'],
             'permisos.*.*' => [Rule::in(Permiso::ACCIONES)],
+            // Al crear, el perfil nace con el estado inicial del módulo; se elige al editar.
+            'estado_id' => $perfil ? PerfilAcceso::reglaEstado() : ['prohibited'],
         ], [], ['descripcion' => 'descripción']);
 
-        return Arr::only($datos, ['nombre', 'descripcion']);
+        return Arr::only($datos, ['nombre', 'descripcion', 'estado_id']);
     }
 }

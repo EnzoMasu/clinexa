@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\ModuloSistema;
 use App\Models\PerfilAcceso;
+use App\Models\Permiso;
 use App\Models\Persona;
 use App\Models\User;
 use App\Notifications\InvitacionUsuario;
@@ -30,13 +32,13 @@ test('crea la persona y el usuario administrador con todos los permisos, y le ma
     $perfil = PerfilAcceso::where('nombre', PerfilAcceso::ADMINISTRADOR)->sole();
 
     expect($admin->perfil_acceso_id)->toBe($perfil->id)
-        ->and($perfil->permisos()->count())->toBe(10 * 5)
+        ->and($perfil->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES))
         ->and($admin->persona)
             ->nro_documento->toBe('1234567')
             ->nombre_completo->toBe('Masuzzo, Enzo')
             ->email->toBe('admin@clinexa.test')
             ->tipo_persona->toBe('FISICA')
-            ->estado->toBe('ACTIVO')
+            ->estado->codigo->toBe('ACTIVO')
         ->and($admin->persona->tipoDocumento->codigo)->toBe('CI');
     Notification::assertSentTo($admin, InvitacionUsuario::class);
 
@@ -79,7 +81,7 @@ test('rechaza una persona existente que no se puede usar', function (array $atri
     expect(User::where('email', 'admin@clinexa.test')->exists())->toBeFalse();
 })->with([
     'con otro email' => [['email' => 'distinto@clinexa.test'], 'tiene otro email'],
-    'inactiva' => [['estado' => 'INACTIVO'], 'está inactiva'],
+    'inactiva' => [fn () => ['estado_id' => estadoId('INACTIVO')], 'está inactiva'],
     'que ya tiene usuario' => [[], 'ya tiene un usuario'],
 ]);
 

@@ -5,10 +5,9 @@
         :cancel="route('admin.tipos-documento.index')">
         <x-admin.input name="codigo" label="Código" :value="$tipoDocumento->codigo" maxlength="10" required autofocus />
         <x-admin.input name="nombre" label="Nombre" :value="$tipoDocumento->nombre" maxlength="50" required />
-        <x-admin.select name="aplica_a" label="Aplica a" :options="['FISICA', 'JURIDICA', 'AMBOS']" :value="$tipoDocumento->aplica_a" required />
 
         @if ($tipoDocumento->exists)
-            <x-admin.select name="estado" label="Estado" :options="['ACTIVO', 'INACTIVO']" :value="$tipoDocumento->estado" required />
+            <x-admin.select name="estado_id" label="Estado" :options="$tipoDocumento::estadosPermitidos()->pluck('nombre', 'id')->all()" :value="$tipoDocumento->estado_id" required />
         @endif
     </x-admin.form>
 </x-admin.page>

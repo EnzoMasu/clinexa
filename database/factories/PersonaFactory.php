@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Estado;
 use App\Models\Persona;
 use App\Models\TipoDocumento;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -19,7 +20,7 @@ class PersonaFactory extends Factory
             'tipo_persona' => 'FISICA',
             'tipo_documento_id' => fn () => TipoDocumento::firstOrCreate(
                 ['codigo' => 'CI'],
-                ['nombre' => 'Cédula de identidad', 'aplica_a' => 'FISICA'],
+                ['nombre' => 'Cédula de identidad'],
             )->id,
             'nro_documento' => (string) fake()->unique()->numberBetween(1000000, 8999999),
             'apellidos' => fake()->lastName(),
@@ -28,12 +29,11 @@ class PersonaFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'telefono' => '0981 000 000',
             'direccion' => 'Dirección de prueba',
-            'estado' => 'ACTIVO',
         ];
     }
 
     public function inactiva(): static
     {
-        return $this->state(['estado' => 'INACTIVO']);
+        return $this->state(fn () => ['estado_id' => Estado::idDe(Estado::INACTIVO)]);
     }
 }

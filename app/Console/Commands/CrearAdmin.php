@@ -49,7 +49,7 @@ class CrearAdmin extends Command
         }
 
         // CI es un dato real del catálogo; en una base vacía todavía no existe.
-        $ci = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula de identidad', 'aplica_a' => 'FISICA']);
+        $ci = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula de identidad']);
 
         $documento = trim((string) ($this->option('documento') ?? $this->ask('Número de CI')));
         $persona = Persona::where('tipo_documento_id', $ci->id)->where('nro_documento', $documento)->first();
@@ -73,7 +73,7 @@ class CrearAdmin extends Command
             $this->callSilently('db:seed', ['--class' => ModuloSistemaSeeder::class, '--force' => true]);
             $perfil = PerfilAcceso::asegurarAdministrador();
 
-            $persona ??= Persona::create([...$datos, 'tipo_persona' => 'FISICA', 'tipo_documento_id' => $ci->id, 'estado' => 'ACTIVO']);
+            $persona ??= Persona::create([...$datos, 'tipo_persona' => 'FISICA', 'tipo_documento_id' => $ci->id]);
 
             User::create([
                 'persona_id' => $persona->id,
@@ -103,7 +103,7 @@ class CrearAdmin extends Command
     {
         return match (true) {
             $persona->tipo_persona !== 'FISICA' => 'La persona con ese documento no es una persona física.',
-            $persona->estado !== 'ACTIVO' => 'La persona con ese documento está inactiva.',
+            ! $persona->estaActivo() => 'La persona con ese documento está inactiva.',
             $persona->usuario()->exists() => 'La persona con ese documento ya tiene un usuario.',
             Persona::emailDeUsuario($persona->email) !== $email => "La persona con ese documento tiene otro email ({$persona->email}). Use ese email o corríjalo en la persona.",
             default => null,

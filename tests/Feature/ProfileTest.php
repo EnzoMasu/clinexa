@@ -38,7 +38,7 @@ test('el usuario ya no puede editar su nombre ni su email desde el perfil', func
 
 test('desactivar mi cuenta pasa el usuario a INACTIVO sin borrarlo ni tocar su persona', function () {
     $user = User::factory()->create();
-    $persona = $user->persona->only(['estado', 'email', 'apellidos', 'nombres']);
+    $persona = $user->persona->only(['estado_id', 'email', 'apellidos', 'nombres']);
 
     $this->actingAs($user)
         ->patch(route('profile.desactivar'), ['password' => 'password'])
@@ -47,8 +47,8 @@ test('desactivar mi cuenta pasa el usuario a INACTIVO sin borrarlo ni tocar su p
         ->assertSessionHas('status', 'Su cuenta fue desactivada. Para volver a usarla, solicite a un administrador que la reactive.');
 
     $this->assertGuest();
-    expect($user->fresh())->not->toBeNull()->estado->toBe('INACTIVO')
-        ->and($user->persona->fresh()->only(['estado', 'email', 'apellidos', 'nombres']))->toBe($persona);
+    expect($user->fresh())->not->toBeNull()->estado->codigo->toBe('INACTIVO')
+        ->and($user->persona->fresh()->only(['estado_id', 'email', 'apellidos', 'nombres']))->toBe($persona);
 
     // Ya no puede volver a entrar.
     $this->post('/login', ['email' => $user->email, 'password' => 'password'])
@@ -57,13 +57,13 @@ test('desactivar mi cuenta pasa el usuario a INACTIVO sin borrarlo ni tocar su p
 });
 
 test('desactivar una cuenta que ya está INACTIVA la deja inactiva, sin errores', function () {
-    $user = User::factory()->create(['estado' => 'INACTIVO']);
+    $user = User::factory()->create(['estado_id' => estadoId('INACTIVO')]);
 
     $this->actingAs($user)
         ->patch(route('profile.desactivar'), ['password' => 'password'])
         ->assertRedirect(route('login'));
 
-    expect($user->fresh())->not->toBeNull()->estado->toBe('INACTIVO');
+    expect($user->fresh())->not->toBeNull()->estado->codigo->toBe('INACTIVO');
 });
 
 test('para desactivar la cuenta hay que confirmar con la contraseña correcta', function () {
@@ -76,7 +76,7 @@ test('para desactivar la cuenta hay que confirmar con la contraseña correcta', 
         ->assertRedirect('/profile');
 
     $this->assertAuthenticatedAs($user);
-    expect($user->fresh()->estado)->toBe('ACTIVO');
+    expect($user->fresh()->estado->codigo)->toBe('ACTIVO');
 });
 
 test('ya no existe la ruta que borraba la cuenta', function () {
@@ -84,7 +84,7 @@ test('ya no existe la ruta que borraba la cuenta', function () {
 
     $this->actingAs($user)->delete('/profile', ['password' => 'password'])->assertMethodNotAllowed();
 
-    expect($user->fresh())->not->toBeNull()->estado->toBe('ACTIVO');
+    expect($user->fresh())->not->toBeNull()->estado->codigo->toBe('ACTIVO');
 });
 
 test('el único administrador activo no puede desactivar su propia cuenta', function () {
@@ -97,7 +97,7 @@ test('el único administrador activo no puede desactivar su propia cuenta', func
         ->assertSessionHasErrorsIn('desactivarCuenta', ['cuenta' => 'No puede desactivar su cuenta: es el único administrador activo del sistema.']);
 
     $this->assertAuthenticatedAs($admin);
-    expect($admin->fresh()->estado)->toBe('ACTIVO');
+    expect($admin->fresh()->estado->codigo)->toBe('ACTIVO');
 
     // El mensaje se ve en el modal de confirmación.
     $this->get('/profile')->assertSee('No puede desactivar su cuenta: es el único administrador activo del sistema.');
@@ -112,7 +112,7 @@ test('un administrador puede desactivar su cuenta si hay otro administrador acti
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('login'));
 
-    expect($admin->fresh()->estado)->toBe('INACTIVO');
+    expect($admin->fresh()->estado->codigo)->toBe('INACTIVO');
 });
 
 test('otros administradores que no pueden entrar no cuentan como administrador activo', function (Closure $otroAdmin) {
@@ -123,11 +123,11 @@ test('otros administradores que no pueden entrar no cuentan como administrador a
         ->patch(route('profile.desactivar'), ['password' => 'password'])
         ->assertSessionHasErrorsIn('desactivarCuenta', 'cuenta');
 
-    expect($admin->fresh()->estado)->toBe('ACTIVO');
+    expect($admin->fresh()->estado->codigo)->toBe('ACTIVO');
 })->with([
-    'otro admin BLOQUEADO' => [fn () => User::factory()->administrador()->create(['estado' => 'BLOQUEADO'])],
-    'otro admin INACTIVO' => [fn () => User::factory()->administrador()->create(['estado' => 'INACTIVO'])],
-    'otro admin con la persona inactiva' => [fn () => User::factory()->administrador()->create()->persona->update(['estado' => 'INACTIVO'])],
+    'otro admin BLOQUEADO' => [fn () => User::factory()->administrador()->create(['estado_id' => estadoId('BLOQUEADO')])],
+    'otro admin INACTIVO' => [fn () => User::factory()->administrador()->create(['estado_id' => estadoId('INACTIVO')])],
+    'otro admin con la persona inactiva' => [fn () => User::factory()->administrador()->create()->persona->update(['estado_id' => estadoId('INACTIVO')])],
 ]);
 
 test('un usuario que no es administrador puede desactivar su cuenta aunque haya un solo admin', function () {
@@ -138,5 +138,5 @@ test('un usuario que no es administrador puede desactivar su cuenta aunque haya 
         ->patch(route('profile.desactivar'), ['password' => 'password'])
         ->assertSessionHasNoErrors();
 
-    expect($usuario->fresh()->estado)->toBe('INACTIVO');
+    expect($usuario->fresh()->estado->codigo)->toBe('INACTIVO');
 });

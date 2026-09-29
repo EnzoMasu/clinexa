@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Ciudad;
 use App\Models\Sucursal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -49,7 +50,7 @@ class SucursalController extends Controller
 
     public function desactivar(Sucursal $sucursal): RedirectResponse
     {
-        $sucursal->update(['estado' => 'INACTIVO']);
+        $sucursal->desactivar();
 
         return redirect()->route('admin.sucursales.index')->with('status', 'Sucursal desactivada.');
     }
@@ -60,12 +61,13 @@ class SucursalController extends Controller
             'nombre' => ['required', 'string', 'max:100'],
             'direccion' => ['required', 'string', 'max:200'],
             'telefono' => ['required', 'string', 'max:20'],
+            'ciudad_id' => Ciudad::reglaOpcional($sucursal?->ciudad_id),
         ];
 
         if ($sucursal) {
-            $reglas['estado'] = ['required', Rule::in(['ACTIVO', 'INACTIVO'])];
+            $reglas['estado_id'] = Sucursal::reglaEstado();
         }
 
-        return $request->validate($reglas);
+        return $request->validate($reglas, [], ['ciudad_id' => 'ciudad']);
     }
 }

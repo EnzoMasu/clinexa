@@ -21,7 +21,7 @@
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$persona->estado" /></td>
             <x-admin.actions
                 :edit="Permisos::url('admin.personas.edit', $persona)"
-                :desactivar="$persona->estado === 'ACTIVO' ? Permisos::url('admin.personas.desactivar', $persona) : null" />
+                :desactivar="$persona->estaActivo() ? Permisos::url('admin.personas.desactivar', $persona) : null" />
         </tr>
     @empty
         <x-admin.empty-row colspan="6" :busqueda="$busqueda" />

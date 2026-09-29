@@ -2,19 +2,28 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ModuloSistema extends Model
 {
+    use TieneEstado;
+
     protected $table = 'modulos_sistema';
 
     protected $fillable = [
         'codigo',
         'nombre',
         'es_sensible',
-        'estado',
+        'estado_id',
     ];
+
+    public static function moduloEstado(): string
+    {
+        return 'MODULOS_SISTEMA';
+    }
 
     protected function casts(): array
     {
@@ -26,5 +35,55 @@ class ModuloSistema extends Model
     public function permisos(): HasMany
     {
         return $this->hasMany(Permiso::class, 'modulo_sistema_id');
+    }
+
+    /**
+     * Estados que pueden tomar los registros de este módulo (estado_modulo), con cuál es el inicial.
+     */
+    public function estados(): BelongsToMany
+    {
+        return $this->belongsToMany(Estado::class, 'estado_modulo', 'modulo_sistema_id', 'estado_id')
+            ->withPivot('es_inicial');
+    }
+
+    /**
+     * Tipos de documento que acepta este módulo (tipo_documento_modulo), con cuál es el predeterminado.
+     */
+    public function tiposDocumento(): BelongsToMany
+    {
+        return $this->belongsToMany(TipoDocumento::class, 'tipo_documento_modulo', 'modulo_sistema_id', 'tipo_documento_id')
+            ->withPivot('es_predeterminado');
+    }
+
+    /**
+     * Habilita tipos de documento para el módulo (por código); el primero es el predeterminado.
+     * Idempotente: deja exactamente esos tipos.
+     *
+     * @param  list<string>  $codigos
+     */
+    public function configurarTiposDocumento(array $codigos): void
+    {
+        $ids = TipoDocumento::whereIn('codigo', $codigos)->pluck('id', 'codigo');
+        $faltantes = array_diff($codigos, $ids->keys()->all());
+        if ($faltantes) {
+            throw new \RuntimeException('No existen los tipos de documento: '.implode(', ', $faltantes));
+        }
+
+        $this->tiposDocumento()->sync(collect($codigos)->values()->mapWithKeys(
+            fn (string $codigo, int $i) => [$ids[$codigo] => ['es_predeterminado' => $i === 0]]
+        )->all());
+    }
+
+    /**
+     * Habilita los estados del módulo en estado_modulo; el primero de la lista es el inicial.
+     * Idempotente: deja exactamente esos estados.
+     *
+     * @param  list<string>  $codigos
+     */
+    public function configurarEstados(array $codigos): void
+    {
+        $this->estados()->sync(collect($codigos)->values()->mapWithKeys(
+            fn (string $codigo, int $i) => [Estado::idDe($codigo) => ['es_inicial' => $i === 0]]
+        )->all());
     }
 }

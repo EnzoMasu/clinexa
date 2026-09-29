@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Ciudad;
 use App\Models\Persona;
+use App\Models\TipoDocumento;
 use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -22,20 +24,22 @@ class PersonaRequest extends FormRequest
     {
         /** @var Persona|null $persona */
         $persona = $this->route('persona');
-        $tipoPersona = $this->input('tipo_persona');
 
         $reglas = [
             'tipo_persona' => ['required', Rule::in(['FISICA', 'JURIDICA'])],
             'tipo_documento_id' => [
                 'required',
                 'integer',
-                // El tipo de documento tiene que aplicar al tipo de persona y estar ACTIVO
-                // (salvo que sea el que la persona ya tenía asignado).
-                Rule::exists('tipos_documento', 'id')->where(fn ($query) => $query
-                    ->whereIn('aplica_a', [$tipoPersona, 'AMBOS'])
-                    ->where(fn ($query) => $query
-                        ->where('estado', 'ACTIVO')
-                        ->orWhere('id', $persona?->tipo_documento_id))),
+                // Tiene que estar habilitado para Personas (tipo_documento_modulo) y ACTIVO,
+                // salvo que sea el que la persona ya tenía asignado.
+                function (string $atributo, mixed $valor, \Closure $fail) use ($persona) {
+                    if ($persona && (int) $valor === $persona->tipo_documento_id) {
+                        return;
+                    }
+                    if (! TipoDocumento::query()->habilitadosPara('PERSONAS')->activos()->where('tipos_documento.id', $valor)->exists()) {
+                        $fail('El tipo de documento no está habilitado para personas o está inactivo.');
+                    }
+                },
             ],
             'nro_documento' => [
                 'required',
@@ -64,10 +68,11 @@ class PersonaRequest extends FormRequest
             }],
             'telefono' => ['required', 'string', 'max:20'],
             'direccion' => ['required', 'string', 'max:200'],
+            'ciudad_id' => Ciudad::reglaOpcional($persona?->ciudad_id),
         ];
 
         if ($persona) {
-            $reglas['estado'] = ['required', Rule::in(['ACTIVO', 'INACTIVO'])];
+            $reglas['estado_id'] = Persona::reglaEstado();
         }
 
         return $reglas;
@@ -81,6 +86,7 @@ class PersonaRequest extends FormRequest
             'nro_documento' => 'número de documento',
             'fecha_nacimiento' => 'fecha de nacimiento',
             'estado_civil' => 'estado civil',
+            'ciudad_id' => 'ciudad',
             'razon_social' => 'razón social',
             'nombre_fantasia' => 'nombre de fantasía',
             'representante_legal' => 'representante legal',

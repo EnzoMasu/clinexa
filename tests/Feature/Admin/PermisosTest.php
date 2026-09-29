@@ -2,6 +2,7 @@
 
 use App\Models\ModuloSistema;
 use App\Models\PerfilAcceso;
+use App\Models\Permiso;
 use App\Models\Persona;
 use App\Models\TipoDocumento;
 use App\Models\User;
@@ -28,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(56);
+    expect($rutas)->toHaveCount(97); // 15 secciones × 6 rutas (todas con baja) + invitación + 6 buscadores de personas (usuarios y los 5 roles)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -67,7 +68,7 @@ test('con VER pero sin CREAR ve el listado pero no el formulario de creación', 
 });
 
 test('cada acción exige su propio permiso', function () {
-    $tipo = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula', 'aplica_a' => 'FISICA']);
+    $tipo = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula']);
     $persona = Persona::create([
         'tipo_persona' => 'FISICA', 'tipo_documento_id' => $tipo->id, 'nro_documento' => '1',
         'apellidos' => 'Pérez', 'nombres' => 'Ana', 'fecha_nacimiento' => '1990-01-01',
@@ -82,7 +83,7 @@ test('cada acción exige su propio permiso', function () {
     $this->get(route('admin.personas.edit', $persona))->assertOk();
     $this->patch(route('admin.personas.desactivar', $persona))->assertForbidden();
 
-    expect($persona->fresh()->estado)->toBe('ACTIVO');
+    expect($persona->fresh()->estado->codigo)->toBe('ACTIVO');
 });
 
 test('el menú de Administración muestra solo las secciones con permiso VER', function () {
@@ -98,11 +99,11 @@ test('el menú de Administración muestra solo las secciones con permiso VER', f
         ->assertDontSee(route('admin.usuarios.index'));
 });
 
-test('el perfil Administrador tiene las 5 acciones en los 10 módulos y entra a todo', function () {
+test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra a todo', function () {
     $admin = User::factory()->administrador()->create();
 
-    expect(ModuloSistema::count())->toBe(10)
-        ->and($admin->perfilAcceso->permisos()->count())->toBe(50);
+    expect(ModuloSistema::count())->toBe(17)
+        ->and($admin->perfilAcceso->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 
     $this->actingAs($admin);
     foreach (collect(rutasAdmin())->where('metodo', 'GET')->reject(fn ($ruta) => str_contains($ruta['uri'], '/1')) as $ruta) {
@@ -112,7 +113,7 @@ test('el perfil Administrador tiene las 5 acciones en los 10 módulos y entra a 
 
 test('un módulo INACTIVO no da acceso aunque el perfil tenga el permiso', function () {
     $this->actingAs(User::factory()->administrador()->create());
-    ModuloSistema::where('codigo', 'PERSONAS')->update(['estado' => 'INACTIVO']);
+    ModuloSistema::where('codigo', 'PERSONAS')->update(['estado_id' => estadoId('INACTIVO')]);
 
     // Nuevo request con el usuario recién leído (los permisos se cargan una vez por request).
     $this->actingAs(User::latest('id')->first());

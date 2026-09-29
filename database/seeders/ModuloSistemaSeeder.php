@@ -2,32 +2,47 @@
 
 namespace Database\Seeders;
 
+use App\Models\Estado;
 use App\Models\ModuloSistema;
 use Illuminate\Database\Seeder;
 
 /**
- * Módulos del sistema (filas de la matriz de permisos). Idempotente: se puede correr
- * de nuevo cuando se agreguen módulos, actualiza por código sin duplicar.
+ * Módulos del sistema (filas de la matriz de permisos) y los estados que admite cada uno
+ * (estado_modulo; el primero es el inicial). Idempotente: se puede correr de nuevo cuando se
+ * agreguen módulos, actualiza por código sin duplicar.
  */
 class ModuloSistemaSeeder extends Seeder
 {
+    /** Estados de casi todos los módulos: ACTIVO (inicial) e INACTIVO. */
+    private const ACTIVO_INACTIVO = [Estado::ACTIVO, Estado::INACTIVO];
+
     public function run(): void
     {
         $modulos = [
-            'USUARIOS' => 'Usuarios',
-            'PERFILES_ACCESO' => 'Perfiles de acceso',
-            'PERSONAS' => 'Personas',
-            'ESPECIALIDADES' => 'Especialidades',
-            'SUCURSALES' => 'Sucursales',
-            'TIPOS_DOCUMENTO' => 'Tipos de documento',
-            'CIE10' => 'Catálogo CIE-10',
-            'MEDIOS_PAGO' => 'Medios de pago',
-            'CATEGORIAS_GASTO' => 'Categorías de gasto',
-            'PROCEDIMIENTOS' => 'Procedimientos',
+            'USUARIOS' => ['Usuarios', [Estado::ACTIVO, Estado::INACTIVO, Estado::BLOQUEADO]],
+            'PERFILES_ACCESO' => ['Perfiles de acceso', self::ACTIVO_INACTIVO],
+            'PERSONAS' => ['Personas', self::ACTIVO_INACTIVO],
+            'ESPECIALIDADES' => ['Especialidades', self::ACTIVO_INACTIVO],
+            'SUCURSALES' => ['Sucursales', self::ACTIVO_INACTIVO],
+            'TIPOS_DOCUMENTO' => ['Tipos de documento', self::ACTIVO_INACTIVO],
+            'CIE10' => ['Catálogo CIE-10', self::ACTIVO_INACTIVO],
+            'MEDIOS_PAGO' => ['Medios de pago', self::ACTIVO_INACTIVO],
+            'CATEGORIAS_GASTO' => ['Categorías de gasto', self::ACTIVO_INACTIVO],
+            'PROCEDIMIENTOS' => ['Procedimientos', self::ACTIVO_INACTIVO],
+            // Roles de negocio sobre Persona.
+            'PACIENTES' => ['Pacientes', self::ACTIVO_INACTIVO],
+            'PROFESIONALES' => ['Profesionales', self::ACTIVO_INACTIVO],
+            'PROVEEDORES' => ['Proveedores', self::ACTIVO_INACTIVO],
+            'PROPIETARIOS_EQUIPO' => ['Propietarios de equipo', self::ACTIVO_INACTIVO],
+            'RESPONSABLES_PAGO' => ['Responsables de pago', self::ACTIVO_INACTIVO],
+            // Sin pantalla propia todavía: existen para que sus tablas tengan estados configurados.
+            'MODULOS_SISTEMA' => ['Módulos del sistema', self::ACTIVO_INACTIVO],
+            'GEOGRAFIA' => ['Geografía (países, departamentos y ciudades)', self::ACTIVO_INACTIVO],
         ];
 
-        foreach ($modulos as $codigo => $nombre) {
-            ModuloSistema::updateOrCreate(['codigo' => $codigo], ['nombre' => $nombre]);
+        foreach ($modulos as $codigo => [$nombre, $estados]) {
+            ModuloSistema::updateOrCreate(['codigo' => $codigo], ['nombre' => $nombre])
+                ->configurarEstados($estados);
         }
     }
 }

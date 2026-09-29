@@ -50,9 +50,19 @@ class CatalogoCIE10Controller extends Controller
     public function update(Request $request, CatalogoCIE10 $cie10): RedirectResponse
     {
         // El código es la PK: no se modifica una vez creado.
-        $cie10->update($request->validate($this->reglas()));
+        $cie10->update($request->validate([
+            ...$this->reglas(),
+            'estado_id' => CatalogoCIE10::reglaEstado(),
+        ]));
 
         return redirect()->route('admin.cie10.index')->with('status', 'Código CIE-10 actualizado.');
+    }
+
+    public function desactivar(CatalogoCIE10 $cie10): RedirectResponse
+    {
+        $cie10->desactivar();
+
+        return redirect()->route('admin.cie10.index')->with('status', 'Código CIE-10 desactivado.');
     }
 
     private function reglas(): array

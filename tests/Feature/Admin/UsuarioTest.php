@@ -4,6 +4,7 @@ use App\Models\PerfilAcceso;
 use App\Models\Persona;
 use App\Models\User;
 use App\Notifications\InvitacionUsuario;
+use App\Support\BuscadorPersonas;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\Facades\Notification;
 
@@ -32,19 +33,74 @@ test('el buscador de usuarios busca por nombre, documento y email de la persona'
     $this->get(route('admin.usuarios.index', ['q' => 'diana@']))->assertSee('Ferreira, Diana')->assertDontSee('Ruiz');
 });
 
-test('crear muestra solo personas físicas, activas y sin usuario', function () {
-    $disponible = Persona::factory()->create(['apellidos' => 'Duarte', 'nombres' => 'Carmen']);
-    Persona::factory()->inactiva()->create(['apellidos' => 'Inactiva', 'nombres' => 'Persona']);
-    User::factory()->conPersona(['apellidos' => 'ConUsuario', 'nombres' => 'Ya'])->create();
+test('crear usa el selector de personas común, sin listar personas en la página', function () {
+    Persona::factory()->create(['apellidos' => 'Duarte', 'nombres' => 'Carmen']);
 
-    $this->get(route('admin.usuarios.create'))->assertOk()
-        ->assertSee('Duarte, Carmen')
-        ->assertSee('value="'.$disponible->id.'"', false)
-        ->assertDontSee('Inactiva, Persona')
-        ->assertDontSee('ConUsuario, Ya')
+    $html = $this->get(route('admin.usuarios.create'))->assertOk()
+        ->assertSee('Escriba al menos 2 caracteres del nombre o del documento para buscar.')
+        ->assertSee('Solo aparecen personas físicas activas que todavía no tienen usuario.')
+        ->assertSee('hasta 15 resultados')
+        ->assertSee('name="persona_id"', false)
+        ->assertDontSee('Duarte, Carmen') // no se precarga: se busca al escribir
+        ->assertDontSee('<select name="persona_id"', false)
         ->assertDontSee('name="email"', false)
         ->assertDontSee('name="name"', false)
-        ->assertDontSee('name="password"', false);
+        ->assertDontSee('name="password"', false)
+        ->getContent();
+
+    expect($html)
+        ->toContain(str_replace('/', '\/', route('admin.usuarios.personas-disponibles')))
+        ->toContain('x-on:input.debounce.350ms="buscar()"')
+        ->toContain('minimo: 2');
+});
+
+test('el buscador de personas del alta devuelve solo personas físicas, activas y sin usuario', function () {
+    $disponible = Persona::factory()->create(['apellidos' => 'Duarte', 'nombres' => 'Carmen', 'nro_documento' => '5234567']);
+    Persona::factory()->inactiva()->create(['apellidos' => 'Duarte', 'nombres' => 'Inactiva']);
+    User::factory()->conPersona(['apellidos' => 'Duarte', 'nombres' => 'ConUsuario'])->create();
+    Persona::factory()->create([
+        'tipo_persona' => 'JURIDICA', 'apellidos' => null, 'nombres' => null, 'razon_social' => 'Duarte S.A.',
+        'tipo_documento_id' => App\Models\TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC'])->id,
+    ]);
+
+    $this->getJson(route('admin.usuarios.personas-disponibles', ['q' => 'Duarte']))->assertOk()
+        ->assertExactJson([['id' => $disponible->id, 'texto' => BuscadorPersonas::texto($disponible)]]);
+
+    // También por documento.
+    expect($this->getJson(route('admin.usuarios.personas-disponibles', ['q' => '52345']))->json('*.id'))->toBe([$disponible->id]);
+});
+
+test('el buscador de personas del alta nunca devuelve más de 15 resultados', function () {
+    Persona::factory()->count(40)->sequence(fn ($s) => ['apellidos' => 'Gómez', 'nombres' => "Persona {$s->index}"])->create();
+
+    expect($this->getJson(route('admin.usuarios.personas-disponibles', ['q' => 'Gómez']))->assertOk()->json())
+        ->toHaveCount(BuscadorPersonas::LIMITE);
+});
+
+test('con menos de 2 caracteres el buscador del alta no devuelve nada', function () {
+    Persona::factory()->count(3)->create(['nombres' => 'Ana']);
+
+    foreach (['', ' ', 'A', ' a '] as $q) {
+        $this->getJson(route('admin.usuarios.personas-disponibles', ['q' => $q]))->assertOk()->assertExactJson([]);
+    }
+
+    expect($this->getJson(route('admin.usuarios.personas-disponibles', ['q' => 'An']))->json())->not->toBeEmpty();
+});
+
+test('el buscador de personas del alta exige permiso de crear usuarios', function () {
+    $this->actingAs(User::factory()->conPermisos(['USUARIOS' => ['VER', 'EDITAR']])->create());
+
+    $this->getJson(route('admin.usuarios.personas-disponibles', ['q' => 'Ana']))->assertForbidden();
+});
+
+test('tras un error de validación el selector conserva la persona elegida', function () {
+    $persona = Persona::factory()->create(['apellidos' => 'Duarte', 'nombres' => 'Carmen']);
+
+    $this->from(route('admin.usuarios.create'))
+        ->post(route('admin.usuarios.store'), ['persona_id' => $persona->id])
+        ->assertSessionHasErrors('perfil_acceso_id');
+
+    $this->get(route('admin.usuarios.create'))->assertSee('Duarte, Carmen')->assertSee('value="'.$persona->id.'"', false);
 });
 
 test('sin personas disponibles, crear avisa y ofrece cargar una persona', function () {
@@ -67,7 +123,7 @@ test('crear un usuario toma el email de la persona y le envía la invitación', 
     $usuario = User::where('persona_id', $persona->id)->sole();
     expect($usuario)
         ->email->toBe('ana.recepcion@clinexa.test')
-        ->estado->toBe('ACTIVO')
+        ->estado->codigo->toBe('ACTIVO')
         ->perfil_acceso_id->toBe($this->perfil->id)
         ->password->not->toBeEmpty();
 
@@ -82,7 +138,7 @@ test('no se puede crear un usuario para una persona no disponible', function (Cl
     'inactiva' => [fn () => Persona::factory()->inactiva()->create()],
     'jurídica' => [fn () => Persona::factory()->create([
         'tipo_persona' => 'JURIDICA', 'razon_social' => 'Laboratorio S.A.',
-        'tipo_documento_id' => App\Models\TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC', 'aplica_a' => 'AMBOS'])->id,
+        'tipo_documento_id' => App\Models\TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC'])->id,
     ])],
 ]);
 
@@ -140,7 +196,7 @@ test('editar cambia solo perfil y estado: persona, email y contraseña no se toc
 
     $this->put(route('admin.usuarios.update', $usuario), [
         'perfil_acceso_id' => $otroPerfil->id,
-        'estado' => 'BLOQUEADO',
+        'estado_id' => estadoId('BLOQUEADO'),
         'persona_id' => Persona::factory()->create()->id,
         'email' => 'nuevo@clinexa.test',
         'password' => 'intento-de-cambio',
@@ -148,7 +204,7 @@ test('editar cambia solo perfil y estado: persona, email y contraseña no se toc
 
     expect($usuario->fresh())
         ->perfil_acceso_id->toBe($otroPerfil->id)
-        ->estado->toBe('BLOQUEADO')
+        ->estado->codigo->toBe('BLOQUEADO')
         ->persona_id->toBe($personaAnterior)
         ->email->toBe($emailAnterior)
         ->password->toBe($hashAnterior);
@@ -178,22 +234,22 @@ test('desactivar pasa el usuario a INACTIVO sin borrarlo', function () {
 
     $this->patch(route('admin.usuarios.desactivar', $usuario))->assertRedirect(route('admin.usuarios.index'));
 
-    expect($usuario->fresh())->not->toBeNull()->estado->toBe('INACTIVO');
+    expect($usuario->fresh())->not->toBeNull()->estado->codigo->toBe('INACTIVO');
 });
 
 test('un admin no puede desactivarse ni bloquearse a sí mismo', function () {
     $this->patch(route('admin.usuarios.desactivar', $this->admin))->assertSessionHas('error');
 
-    $this->put(route('admin.usuarios.update', $this->admin), ['estado' => 'BLOQUEADO'])->assertSessionHas('error');
+    $this->put(route('admin.usuarios.update', $this->admin), ['estado_id' => estadoId('BLOQUEADO')])->assertSessionHas('error');
 
-    expect($this->admin->fresh()->estado)->toBe('ACTIVO');
+    expect($this->admin->fresh()->estado->codigo)->toBe('ACTIVO');
 });
 
 test('un usuario no puede cambiarse su propio perfil de acceso', function () {
     $perfilOriginal = $this->admin->perfil_acceso_id;
 
     $this->put(route('admin.usuarios.update', $this->admin), [
-        'perfil_acceso_id' => $this->perfil->id, 'estado' => 'ACTIVO',
+        'perfil_acceso_id' => $this->perfil->id, 'estado_id' => estadoId('ACTIVO'),
     ])->assertSessionHas('error', 'No puede cambiar su propio perfil de acceso.');
 
     expect($this->admin->fresh()->perfil_acceso_id)->toBe($perfilOriginal);
@@ -202,7 +258,7 @@ test('un usuario no puede cambiarse su propio perfil de acceso', function () {
 test('editarse a uno mismo sin mandar el perfil (campo deshabilitado) conserva el perfil', function () {
     $perfilOriginal = $this->admin->perfil_acceso_id;
 
-    $this->put(route('admin.usuarios.update', $this->admin), ['estado' => 'ACTIVO'])
+    $this->put(route('admin.usuarios.update', $this->admin), ['estado_id' => estadoId('ACTIVO')])
         ->assertSessionHasNoErrors()->assertSessionMissing('error');
 
     expect($this->admin->fresh()->perfil_acceso_id)->toBe($perfilOriginal);
@@ -223,7 +279,7 @@ test('el formulario muestra el perfil propio deshabilitado con la nota, y el de 
 test('otro administrador sí puede cambiarle el perfil a un usuario', function () {
     $otro = User::factory()->administrador()->create();
 
-    $this->put(route('admin.usuarios.update', $otro), ['perfil_acceso_id' => $this->perfil->id, 'estado' => 'ACTIVO'])
+    $this->put(route('admin.usuarios.update', $otro), ['perfil_acceso_id' => $this->perfil->id, 'estado_id' => estadoId('ACTIVO')])
         ->assertSessionHasNoErrors();
 
     expect($otro->fresh()->perfil_acceso_id)->toBe($this->perfil->id);

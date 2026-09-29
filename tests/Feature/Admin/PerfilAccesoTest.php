@@ -56,6 +56,7 @@ test('destildar quita el permiso del perfil pero no lo borra de permisos', funct
 
     $this->put(route('admin.perfiles-acceso.update', $perfil), [
         'nombre' => 'Recepción',
+        'estado_id' => estadoId('ACTIVO'),
         'permisos' => [$this->usuarios->id => ['EXPORTAR']],
     ])->assertSessionHasNoErrors();
 
@@ -79,7 +80,7 @@ test('guardar sin ningún tilde deja el perfil sin permisos', function () {
     $perfil = PerfilAcceso::create(['nombre' => 'Recepción']);
     $perfil->permisos()->attach(Permiso::where(['modulo_sistema_id' => $this->personas->id, 'accion' => 'VER'])->sole());
 
-    $this->put(route('admin.perfiles-acceso.update', $perfil), ['nombre' => 'Recepción'])->assertSessionHasNoErrors();
+    $this->put(route('admin.perfiles-acceso.update', $perfil), ['nombre' => 'Recepción', 'estado_id' => estadoId('ACTIVO')])->assertSessionHasNoErrors();
 
     expect(permisosDe($perfil))->toBeEmpty();
 });
@@ -103,8 +104,9 @@ test('la pantalla del perfil Administrador muestra la matriz completa y bloquead
         ->assertSee('tiene siempre todos los permisos');
 
     $html = $respuesta->getContent();
-    expect(substr_count($html, 'type="checkbox"'))->toBe(50)
-        ->and(preg_match_all('/type="checkbox"[^>]*\schecked\s[^>]*\sdisabled\s/s', $html))->toBe(50)
+    $todos = ModuloSistema::count() * count(Permiso::ACCIONES); // un casillero por módulo y acción
+    expect(substr_count($html, 'type="checkbox"'))->toBe($todos)
+        ->and(preg_match_all('/type="checkbox"[^>]*\schecked\s[^>]*\sdisabled\s/s', $html))->toBe($todos)
         ->and($html)->toMatch('/name="nombre"[^>]*readonly/s');
 });
 
@@ -119,7 +121,7 @@ test('editar el Administrador cambia la descripción pero no sus permisos', func
     ])->assertSessionHasNoErrors()->assertRedirect(route('admin.perfiles-acceso.index'));
 
     expect($admin->fresh()->descripcion)->toBe('Dirección de la clínica')
-        ->and($admin->permisos()->count())->toBe(50);
+        ->and($admin->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 });
 
 test('guardar el Administrador completa los permisos si le faltaba alguno', function () {
@@ -130,7 +132,7 @@ test('guardar el Administrador completa los permisos si le faltaba alguno', func
     $this->put(route('admin.perfiles-acceso.update', $admin), ['nombre' => PerfilAcceso::ADMINISTRADOR])
         ->assertSessionHasNoErrors();
 
-    expect($admin->permisos()->count())->toBe(55)
+    expect($admin->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES)) // incluye las 5 del módulo nuevo
         ->and($admin->permisos()->where('modulo_sistema_id', $nuevo->id)->count())->toBe(5);
 });
 

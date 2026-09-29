@@ -31,7 +31,6 @@ class PersonasDemoSeeder extends Seeder
             'tipo_documento_id' => $ci->id,
             'sexo' => 'F',
             'nacionalidad' => 'Paraguaya',
-            'estado' => 'ACTIVO',
         ];
 
         $personas = [

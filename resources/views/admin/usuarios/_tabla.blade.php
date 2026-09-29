@@ -12,7 +12,7 @@
             <td class="px-6 py-4">{{ $usuario->perfilAcceso?->nombre ?? '—' }}</td>
             <td class="px-6 py-4">
                 <x-admin.estado-badge :estado="$usuario->estado" />
-                @if ($usuario->persona->estado !== 'ACTIVO')
+                @if (! $usuario->persona->estaActivo())
                     {{-- Con la persona inactiva el usuario no puede entrar aunque su estado sea ACTIVO. --}}
                     <span class="block mt-1 text-xs text-red-600 dark:text-red-400">Persona inactiva: sin acceso</span>
                 @endif
@@ -22,7 +22,7 @@
             </td>
             <x-admin.actions
                 :edit="Permisos::url('admin.usuarios.edit', $usuario)"
-                :desactivar="$usuario->estado !== 'INACTIVO' && ! $usuario->is(auth()->user()) ? Permisos::url('admin.usuarios.desactivar', $usuario) : null" />
+                :desactivar="! $usuario->tieneEstado('INACTIVO') && ! $usuario->is(auth()->user()) ? Permisos::url('admin.usuarios.desactivar', $usuario) : null" />
         </tr>
     @empty
         <x-admin.empty-row colspan="7" :busqueda="$busqueda" />
