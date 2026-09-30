@@ -2,7 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Paciente;
 use App\Models\Persona;
+use App\Models\PropietarioEquipo;
+use App\Models\Proveedor;
+use App\Models\ResponsablePago;
 use App\Models\TipoDocumento;
 use Illuminate\Database\Seeder;
 use RuntimeException;
@@ -16,7 +20,11 @@ use RuntimeException;
  * (RFC 2606), así que nunca llegan a una casilla real. No se cargan en producción
  * (ver DatabaseSeeder).
  *
- * Idempotente: actualiza por tipo_documento_id + nro_documento, sin duplicar.
+ * También les asigna roles de ejemplo (pacientes, proveedor, propietaria de equipo, responsable de
+ * pago), igualmente ficticios.
+ *
+ * Idempotente: actualiza por tipo_documento_id + nro_documento, sin duplicar; cada rol se crea
+ * solo si la persona todavía no lo tiene.
  * Requiere el tipo de documento CI (lo crea DatosRealesClinicaSeeder).
  */
 class PersonasDemoSeeder extends Seeder
@@ -58,5 +66,24 @@ class PersonasDemoSeeder extends Seeder
                 ],
             );
         }
+
+        $this->roles($ci);
+    }
+
+    /** Roles de ejemplo sobre las personas de arriba (datos ficticios). */
+    private function roles(TipoDocumento $ci): void
+    {
+        $persona = fn (string $documento) => Persona::where('tipo_documento_id', $ci->id)->where('nro_documento', $documento)->sole();
+
+        // Pacientes: el número de ficha lo genera el sistema, como en el alta desde la pantalla.
+        foreach (['5234567', '5876543'] as $documento) { // Duarte, Carmen Sofía; Ramírez, Ana Belén
+            Paciente::firstOrCreate(['persona_id' => $persona($documento)->id], ['nro_ficha' => Paciente::siguienteNroFicha()]);
+        }
+
+        Proveedor::firstOrCreate(['persona_id' => $persona('3456789')->id], [ // González, Marta Elena
+            'condiciones_comerciales' => 'Pago a 30 días (dato ficticio de demo)',
+        ]);
+        PropietarioEquipo::firstOrCreate(['persona_id' => $persona('2987654')->id], ['datos_bancarios' => null]); // Benítez, Rosa Alicia
+        ResponsablePago::firstOrCreate(['persona_id' => $persona('4123456')->id], ['limite_credito' => null]); // Insfrán, Laura Beatriz
     }
 }

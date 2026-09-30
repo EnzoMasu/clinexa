@@ -5,7 +5,11 @@ namespace Database\Seeders;
 use App\Models\Ciudad;
 use App\Models\Especialidad;
 use App\Models\ModuloSistema;
+use App\Models\Persona;
 use App\Models\Procedimiento;
+use App\Models\Profesional;
+use App\Models\PropietarioEquipo;
+use App\Models\ResponsablePago;
 use App\Models\Sucursal;
 use App\Models\TipoDocumento;
 use Illuminate\Database\Seeder;
@@ -19,7 +23,7 @@ class DatosRealesClinicaSeeder extends Seeder
     public function run(): void
     {
         // sucursales no tiene columna unique en el diseño: se identifica por nombre.
-        Sucursal::updateOrCreate(['nombre' => 'Plenitud Mujer'], [
+        $sucursal = Sucursal::updateOrCreate(['nombre' => 'Plenitud Mujer'], [
             'direccion' => 'Iturbe e/ Pte. Franco y Mcal Estigarribia, Concepción - Paraguay',
             'telefono' => '0975282556',
             // La clínica está en la ciudad de Concepción (requiere GeografiaSeeder antes).
@@ -42,10 +46,11 @@ class DatosRealesClinicaSeeder extends Seeder
             TipoDocumento::updateOrCreate(['codigo' => $codigo], ['nombre' => $nombre]);
         }
 
-        // Tipos de documento que acepta el módulo Personas; CI es el predeterminado.
-        // Requiere que existan los módulos (ModuloSistemaSeeder corre antes en DatabaseSeeder).
+        // Tipos de documento que acepta el módulo Personas. SOLO ADITIVO: agrega los que falten sin
+        // quitar lo habilitado a mano desde Tipos de documento; CI queda como predeterminado solo si
+        // Personas todavía no tiene uno. Requiere los módulos (ModuloSistemaSeeder corre antes).
         ModuloSistema::where('codigo', 'PERSONAS')->first()
-            ?->configurarTiposDocumento(['CI', 'PASAPORTE', 'RUC', 'DNI']);
+            ?->habilitarTiposDocumento(['CI', 'PASAPORTE', 'RUC', 'DNI']);
 
         Especialidad::updateOrCreate(['nombre' => 'Ginecología y Obstetricia'], [
             'descripcion' => null,
@@ -68,5 +73,53 @@ class DatosRealesClinicaSeeder extends Seeder
                 'duracion_estimada_minutos' => $duracion,
             ]);
         }
+
+        $this->personasReales($sucursal);
+    }
+
+    /**
+     * PERSONAS REALES de la clínica y sus roles (no son datos de demo).
+     *
+     * Solo se cargan los datos que se conocen. La base exige email, teléfono y dirección: el
+     * teléfono y la dirección son los de la sucursal y el email queda vacío (''); la fecha de
+     * nacimiento, el sexo y la nacionalidad quedan en NULL. Al editarlas en /admin/personas el
+     * formulario pide completar lo que falta.
+     *
+     * Idempotente sin pisar ediciones: las personas y los roles se crean solo si no existen
+     * (firstOrCreate), así volver a correr el seeder no borra un email, una fecha o unos datos
+     * bancarios que se hayan completado después desde la pantalla.
+     */
+    private function personasReales(Sucursal $sucursal): void
+    {
+        $ruc = TipoDocumento::where('codigo', 'RUC')->sole();
+        $contacto = ['email' => '', 'telefono' => $sucursal->telefono, 'direccion' => $sucursal->direccion];
+
+        $luigi = Persona::firstOrCreate(['tipo_documento_id' => $ruc->id, 'nro_documento' => '4441089-1'], [
+            'tipo_persona' => 'FISICA',
+            'apellidos' => 'Masuzzo Zorrilla',
+            'nombres' => 'Luigi Armando',
+            ...$contacto,
+        ]);
+
+        $profesional = Profesional::firstOrCreate(['persona_id' => $luigi->id], ['matricula' => '15523']);
+        // fecha_desde aproximada (no se conoce la real); sin número de matrícula de especialidad.
+        $ginecologia = Especialidad::where('nombre', 'Ginecología y Obstetricia')->sole();
+        if (! $profesional->especialidades()->whereKey($ginecologia->id)->exists()) {
+            $profesional->especialidades()->attach($ginecologia->id, ['fecha_desde' => '2015-01-01', 'nro_matricula_especialidad' => null]);
+        }
+
+        // Dueño del ecógrafo Mindray MX7 - el registro del Equipo en sí se carga cuando
+        // construyamos el módulo de Equipos, esto solo deja preparado el rol.
+        PropietarioEquipo::firstOrCreate(['persona_id' => $luigi->id], ['datos_bancarios' => null]);
+
+        $clara = Persona::firstOrCreate(['tipo_documento_id' => $ruc->id, 'nro_documento' => '421964-3'], [
+            'tipo_persona' => 'FISICA',
+            'apellidos' => 'Zorrilla de Masuzzo',
+            'nombres' => 'Clara Daniela',
+            ...$contacto,
+        ]);
+
+        // Sin límite de crédito definido.
+        ResponsablePago::firstOrCreate(['persona_id' => $clara->id], ['limite_credito' => null]);
     }
 }
