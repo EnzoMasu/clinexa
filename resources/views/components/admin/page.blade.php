@@ -23,6 +23,12 @@
                 </div>
             @endif
 
+            @if (session('aviso'))
+                <div role="status" class="rounded-md bg-amber-50 dark:bg-amber-900/30 p-4 text-sm text-amber-800 dark:text-amber-200">
+                    {{ session('aviso') }}
+                </div>
+            @endif
+
             @if (session('error'))
                 <div class="rounded-md bg-red-50 dark:bg-red-900/40 p-4 text-sm text-red-800 dark:text-red-200">
                     {{ session('error') }}

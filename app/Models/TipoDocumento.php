@@ -47,11 +47,12 @@ class TipoDocumento extends Model
     }
 
     /**
-     * id del tipo predeterminado para un módulo, o null si no tiene.
+     * id del tipo predeterminado para un módulo, o null si no tiene. Un predeterminado INACTIVO
+     * conserva la marca pero no cuenta: vuelve a ser el predeterminado si se reactiva.
      */
     public static function predeterminadoPara(string $modulo): ?int
     {
-        return self::query()->habilitadosPara($modulo)
+        return self::query()->habilitadosPara($modulo)->activos()
             ->where('tipo_documento_modulo.es_predeterminado', true)
             ->value('tipos_documento.id');
     }

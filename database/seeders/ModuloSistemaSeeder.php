@@ -16,6 +16,12 @@ class ModuloSistemaSeeder extends Seeder
     /** Estados de casi todos los módulos: ACTIVO (inicial) e INACTIVO. */
     private const ACTIVO_INACTIVO = [Estado::ACTIVO, Estado::INACTIVO];
 
+    /**
+     * Módulos que ofrecen tipos de documento: aparecen en el formulario de Tipos de documento para
+     * habilitarlos. Al agregar Facturación, Compras, etc., basta con sumar su código acá.
+     */
+    private const USAN_TIPOS_DOCUMENTO = ['PERSONAS'];
+
     public function run(): void
     {
         $modulos = [
@@ -41,7 +47,10 @@ class ModuloSistemaSeeder extends Seeder
         ];
 
         foreach ($modulos as $codigo => [$nombre, $estados]) {
-            ModuloSistema::updateOrCreate(['codigo' => $codigo], ['nombre' => $nombre])
+            ModuloSistema::updateOrCreate(['codigo' => $codigo], [
+                'nombre' => $nombre,
+                'usa_tipos_documento' => in_array($codigo, self::USAN_TIPOS_DOCUMENTO, true),
+            ])
                 ->configurarEstados($estados);
         }
     }
