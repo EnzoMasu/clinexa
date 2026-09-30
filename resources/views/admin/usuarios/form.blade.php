@@ -53,7 +53,7 @@
                     </p>
                 </div>
             @else
-                <x-admin.selector-persona :url="route('admin.usuarios.personas-disponibles')"
+                <x-admin.selector-persona :url="route('admin.usuarios.personas-disponibles')" con-email
                     ayuda="Solo aparecen personas físicas activas que todavía no tienen usuario. El email del usuario es el de la persona." />
             @endif
 

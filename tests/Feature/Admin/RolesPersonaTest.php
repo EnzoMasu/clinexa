@@ -99,6 +99,14 @@ test('el buscador de personas excluye a las que ya tienen el rol, las inactivas 
     expect(collect($porDocumento)->pluck('id')->all())->toBe([$libre->id]);
 })->with('roles');
 
+test('el buscador de personas de los roles muestra nombre y documento, sin email', function (string $ruta) {
+    $persona = Persona::factory()->create(['apellidos' => 'Ruiz', 'nombres' => 'Liz', 'nro_documento' => '4567890', 'email' => 'liz@clinexa.test']);
+
+    expect($this->getJson(route("admin.{$ruta}.personas-disponibles", ['q' => 'Ruiz']))->json('0.texto'))
+        ->toBe("Ruiz, Liz — {$persona->tipoDocumento->codigo} 4567890")
+        ->not->toContain('liz@clinexa.test');
+})->with('roles');
+
 test('el buscador de personas nunca devuelve más de 15 resultados, haya las que haya en la base', function (string $ruta) {
     // 40 personas disponibles que coinciden con la búsqueda, más de dos veces el tope.
     Persona::factory()->count(40)->sequence(fn ($s) => ['apellidos' => 'Gómez', 'nombres' => "Persona {$s->index}"])->create();

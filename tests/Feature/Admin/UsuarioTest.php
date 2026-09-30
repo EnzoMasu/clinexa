@@ -2,6 +2,7 @@
 
 use App\Models\PerfilAcceso;
 use App\Models\Persona;
+use App\Models\TipoDocumento;
 use App\Models\User;
 use App\Notifications\InvitacionUsuario;
 use App\Support\BuscadorPersonas;
@@ -60,14 +61,25 @@ test('el buscador de personas del alta devuelve solo personas físicas, activas 
     User::factory()->conPersona(['apellidos' => 'Duarte', 'nombres' => 'ConUsuario'])->create();
     Persona::factory()->create([
         'tipo_persona' => 'JURIDICA', 'apellidos' => null, 'nombres' => null, 'razon_social' => 'Duarte S.A.',
-        'tipo_documento_id' => App\Models\TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC'])->id,
+        'tipo_documento_id' => TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC'])->id,
     ]);
 
     $this->getJson(route('admin.usuarios.personas-disponibles', ['q' => 'Duarte']))->assertOk()
-        ->assertExactJson([['id' => $disponible->id, 'texto' => BuscadorPersonas::texto($disponible)]]);
+        ->assertExactJson([['id' => $disponible->id, 'texto' => BuscadorPersonas::texto($disponible, conEmail: true)]]);
 
     // También por documento.
     expect($this->getJson(route('admin.usuarios.personas-disponibles', ['q' => '52345']))->json('*.id'))->toBe([$disponible->id]);
+});
+
+test('el buscador de personas del alta muestra nombre, documento y email', function () {
+    Persona::factory()->create([
+        'apellidos' => 'Ruiz', 'nombres' => 'Liz', 'nro_documento' => '4567890',
+        'tipo_documento_id' => TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula'])->id,
+        'email' => 'liz@clinexa.test',
+    ]);
+
+    expect($this->getJson(route('admin.usuarios.personas-disponibles', ['q' => 'Ruiz']))->json('0.texto'))
+        ->toBe('Ruiz, Liz — CI 4567890 (liz@clinexa.test)');
 });
 
 test('el buscador de personas del alta nunca devuelve más de 15 resultados', function () {
@@ -100,7 +112,11 @@ test('tras un error de validación el selector conserva la persona elegida', fun
         ->post(route('admin.usuarios.store'), ['persona_id' => $persona->id])
         ->assertSessionHasErrors('perfil_acceso_id');
 
-    $this->get(route('admin.usuarios.create'))->assertSee('Duarte, Carmen')->assertSee('value="'.$persona->id.'"', false);
+    // Se ve igual que en el buscador: con el email.
+    $this->get(route('admin.usuarios.create'))
+        ->assertSee(BuscadorPersonas::texto($persona, conEmail: true))
+        ->assertSee("({$persona->email})")
+        ->assertSee('value="'.$persona->id.'"', false);
 });
 
 test('sin personas disponibles, crear avisa y ofrece cargar una persona', function () {
@@ -138,7 +154,7 @@ test('no se puede crear un usuario para una persona no disponible', function (Cl
     'inactiva' => [fn () => Persona::factory()->inactiva()->create()],
     'jurídica' => [fn () => Persona::factory()->create([
         'tipo_persona' => 'JURIDICA', 'razon_social' => 'Laboratorio S.A.',
-        'tipo_documento_id' => App\Models\TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC'])->id,
+        'tipo_documento_id' => TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC'])->id,
     ])],
 ]);
 

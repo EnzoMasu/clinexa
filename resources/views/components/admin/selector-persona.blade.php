@@ -1,12 +1,14 @@
 {{--
     Elegir una persona existente (resources/js/selector-persona.js), en el alta de Usuarios y de los
     roles de negocio. "url" es el endpoint personas-disponibles de la sección, que ya filtra las
-    personas que se pueden elegir; "ayuda" explica ese filtro al usuario.
+    personas que se pueden elegir; "ayuda" explica ese filtro al usuario. "conEmail" debe coincidir
+    con lo que devuelve el endpoint, para que la persona recordada tras un error se vea igual.
 --}}
 @props([
     'url',
     'name' => 'persona_id',
     'label' => 'Persona',
+    'conEmail' => false,
     'ayuda' => 'Solo aparecen personas activas que todavía no tienen este rol. Nombre y documento se toman de la persona.',
 ])
 
@@ -17,7 +19,7 @@
 
     // Tras un error de validación se conserva la persona que se había elegido.
     $anterior = old($name) ? Persona::with('tipoDocumento')->find(old($name)) : null;
-    $inicial = $anterior ? ['id' => $anterior->id, 'texto' => BuscadorPersonas::texto($anterior)] : null;
+    $inicial = $anterior ? ['id' => $anterior->id, 'texto' => BuscadorPersonas::texto($anterior, $conEmail)] : null;
     $urlNuevaPersona = Permisos::url('admin.personas.create');
     $minimo = BuscadorPersonas::MINIMO;
 @endphp

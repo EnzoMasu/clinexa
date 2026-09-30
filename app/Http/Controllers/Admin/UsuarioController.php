@@ -53,11 +53,12 @@ class UsuarioController extends Controller
 
     /**
      * Buscador de personas del alta (JSON): físicas, activas y sin usuario. Mismo buscador que
-     * los roles (BuscadorPersonas: mínimo 2 caracteres, hasta 15 resultados).
+     * los roles (BuscadorPersonas: mínimo 2 caracteres, hasta 15 resultados), pero muestra también
+     * el email, que es el que va a tener el usuario.
      */
     public function personasDisponibles(Request $request): JsonResponse
     {
-        return BuscadorPersonas::responder(Persona::disponiblesParaUsuario(), (string) $request->query('q'));
+        return BuscadorPersonas::responder(Persona::disponiblesParaUsuario(), (string) $request->query('q'), conEmail: true);
     }
 
     /**

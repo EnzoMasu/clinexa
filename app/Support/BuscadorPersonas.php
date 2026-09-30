@@ -21,8 +21,9 @@ class BuscadorPersonas
 
     /**
      * @param  Builder  $disponibles  personas que pueden elegirse (ya filtradas por estado, tipo, rol, etc.)
+     * @param  bool  $conEmail  mostrar también el email (alta de Usuarios, donde el email del usuario es el de la persona)
      */
-    public static function responder(Builder $disponibles, string $busqueda): JsonResponse
+    public static function responder(Builder $disponibles, string $busqueda, bool $conEmail = false): JsonResponse
     {
         $busqueda = trim($busqueda);
         if (mb_strlen($busqueda) < self::MINIMO) {
@@ -43,13 +44,18 @@ class BuscadorPersonas
 
         return response()->json($personas->map(fn (Persona $persona) => [
             'id' => $persona->id,
-            'texto' => self::texto($persona),
+            'texto' => self::texto($persona, $conEmail),
         ]));
     }
 
-    /** Cómo se muestra una persona en el selector: "Ruiz, Liz — CI 4567890". */
-    public static function texto(Persona $persona): string
+    /**
+     * Cómo se muestra una persona en el selector: "Ruiz, Liz — CI 4567890", y con $conEmail
+     * "Ruiz, Liz — CI 4567890 (liz@clinexa.test)" (sin paréntesis si no tiene email).
+     */
+    public static function texto(Persona $persona, bool $conEmail = false): string
     {
-        return "{$persona->nombre_completo} — {$persona->tipoDocumento->codigo} {$persona->nro_documento}";
+        $texto = "{$persona->nombre_completo} — {$persona->tipoDocumento->codigo} {$persona->nro_documento}";
+
+        return $conEmail && filled($persona->email) ? "{$texto} ({$persona->email})" : $texto;
     }
 }
