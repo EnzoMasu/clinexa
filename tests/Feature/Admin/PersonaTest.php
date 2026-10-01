@@ -64,7 +64,7 @@ test('las pantallas de personas cargan', function () {
 });
 
 test('crea una persona física', function () {
-    $this->post(route('admin.personas.store'), datosFisica())
+    $this->post(route('admin.personas.store'), enFormulario(datosFisica()))
         ->assertSessionHasNoErrors()
         ->assertRedirect(route('admin.personas.index'));
 
@@ -76,25 +76,25 @@ test('crea una persona física', function () {
 });
 
 test('crea una persona jurídica', function () {
-    $this->post(route('admin.personas.store'), datosJuridica())->assertSessionHasNoErrors();
+    $this->post(route('admin.personas.store'), enFormulario(datosJuridica()))->assertSessionHasNoErrors();
 
     expect(Persona::where('nro_documento', '80012345-6')->sole())->razon_social->toBe('Laboratorio Central S.A.')
         ->apellidos->toBeNull();
 });
 
 test('física exige apellidos, nombres y fecha de nacimiento', function () {
-    $this->post(route('admin.personas.store'), datosFisica(['apellidos' => '', 'nombres' => '', 'fecha_nacimiento' => '']))
+    $this->post(route('admin.personas.store'), enFormulario(datosFisica(['apellidos' => '', 'nombres' => '', 'fecha_nacimiento' => ''])))
         ->assertSessionHasErrors(['apellidos', 'nombres', 'fecha_nacimiento']);
 });
 
 test('jurídica exige razón social y no pide datos personales', function () {
-    $this->post(route('admin.personas.store'), datosJuridica(['razon_social' => '']))
+    $this->post(route('admin.personas.store'), enFormulario(datosJuridica(['razon_social' => ''])))
         ->assertSessionHasErrors('razon_social')
         ->assertSessionDoesntHaveErrors(['apellidos', 'nombres', 'fecha_nacimiento']);
 });
 
 test('los campos del otro tipo quedan en null aunque vengan cargados', function () {
-    $this->post(route('admin.personas.store'), datosFisica(['razon_social' => 'No va', 'nombre_fantasia' => 'Tampoco']))
+    $this->post(route('admin.personas.store'), enFormulario(datosFisica(['razon_social' => 'No va', 'nombre_fantasia' => 'Tampoco'])))
         ->assertSessionHasNoErrors();
 
     expect(Persona::where('nro_documento', '1234567')->sole())->razon_social->toBeNull()->nombre_fantasia->toBeNull();
@@ -103,7 +103,7 @@ test('los campos del otro tipo quedan en null aunque vengan cargados', function 
 test('al cambiar de física a jurídica se limpian los datos personales', function () {
     $persona = Persona::create(datosFisica(['tipo_documento_id' => $this->ruc->id]));
 
-    $this->put(route('admin.personas.update', $persona), datosJuridica(['estado_id' => estadoId('ACTIVO')]))
+    $this->put(route('admin.personas.update', $persona), enFormulario(datosJuridica(['estado_id' => estadoId('ACTIVO')])))
         ->assertSessionHasNoErrors();
 
     expect($persona->fresh())
@@ -117,18 +117,18 @@ test('el número de documento es único por tipo de documento', function () {
     Persona::create(datosFisica());
 
     // Mismo número con otro tipo de documento: permitido.
-    $this->post(route('admin.personas.store'), datosFisica(['tipo_documento_id' => $this->pasaporte->id]))
+    $this->post(route('admin.personas.store'), enFormulario(datosFisica(['tipo_documento_id' => $this->pasaporte->id])))
         ->assertSessionHasNoErrors();
 
     // Mismo tipo y número: rechazado.
-    $this->post(route('admin.personas.store'), datosFisica())
+    $this->post(route('admin.personas.store'), enFormulario(datosFisica()))
         ->assertSessionHasErrors('nro_documento');
 });
 
 test('editar sin cambiar el documento no choca con el unique', function () {
     $persona = Persona::create(datosFisica());
 
-    $this->put(route('admin.personas.update', $persona), datosFisica(['nombres' => 'María José', 'estado_id' => estadoId('ACTIVO')]))
+    $this->put(route('admin.personas.update', $persona), enFormulario(datosFisica(['nombres' => 'María José', 'estado_id' => estadoId('ACTIVO')])))
         ->assertSessionHasNoErrors();
 
     expect($persona->fresh()->nombres)->toBe('María José');
@@ -137,12 +137,12 @@ test('editar sin cambiar el documento no choca con el unique', function () {
 test('el tipo de documento tiene que estar habilitado para personas', function () {
     $otro = TipoDocumento::create(['codigo' => 'OTRO', 'nombre' => 'Otro documento']); // existe, pero no está en tipo_documento_modulo
 
-    $this->post(route('admin.personas.store'), datosFisica(['tipo_documento_id' => $otro->id]))
+    $this->post(route('admin.personas.store'), enFormulario(datosFisica(['tipo_documento_id' => $otro->id])))
         ->assertSessionHasErrors(['tipo_documento_id' => 'El tipo de documento no está habilitado para personas o está inactivo.']);
 });
 
 test('ya no depende del tipo de persona: una jurídica puede usar cualquier tipo habilitado', function () {
-    $this->post(route('admin.personas.store'), datosJuridica(['tipo_documento_id' => $this->ci->id]))
+    $this->post(route('admin.personas.store'), enFormulario(datosJuridica(['tipo_documento_id' => $this->ci->id])))
         ->assertSessionHasNoErrors();
 });
 
@@ -162,14 +162,14 @@ test('al editar se sigue mostrando el tipo que la persona ya tiene aunque no est
     $persona = Persona::create(datosFisica(['tipo_documento_id' => $otro->id]));
 
     $this->get(route('admin.personas.edit', $persona))->assertOk()->assertSee('OTRO — Otro documento');
-    $this->put(route('admin.personas.update', $persona), datosFisica(['tipo_documento_id' => $otro->id, 'estado_id' => estadoId('ACTIVO')]))
+    $this->put(route('admin.personas.update', $persona), enFormulario(datosFisica(['tipo_documento_id' => $otro->id, 'estado_id' => estadoId('ACTIVO')])))
         ->assertSessionHasNoErrors();
 });
 
 test('no se puede usar un tipo de documento inactivo en una persona nueva', function () {
     $this->ci->update(['estado_id' => estadoId('INACTIVO')]);
 
-    $this->post(route('admin.personas.store'), datosFisica())
+    $this->post(route('admin.personas.store'), enFormulario(datosFisica()))
         ->assertSessionHasErrors('tipo_documento_id');
 });
 
@@ -193,11 +193,11 @@ test('el buscador filtra por documento, nombre y razón social', function () {
 test('cambiar el email de una persona con usuario actualiza también el email del usuario', function () {
     $usuario = User::factory()->create(['email' => 'viejo@clinexa.test']);
 
-    $this->put(route('admin.personas.update', $usuario->persona), [
+    $this->put(route('admin.personas.update', $usuario->persona), enFormulario([
         ...$usuario->persona->only(['tipo_persona', 'tipo_documento_id', 'nro_documento', 'apellidos', 'nombres', 'telefono', 'direccion', 'estado_id']),
         'fecha_nacimiento' => $usuario->persona->fecha_nacimiento->format('Y-m-d'),
         'email' => 'Nuevo@Clinexa.test',
-    ])->assertSessionHasNoErrors();
+    ]))->assertSessionHasNoErrors();
 
     expect($usuario->persona->fresh()->email)->toBe('Nuevo@Clinexa.test')
         // En users queda en minúsculas: el login compara el email textualmente.
@@ -217,11 +217,11 @@ test('no se puede poner a una persona con usuario un email que ya usa otro usuar
     $usuario = User::factory()->create();
     $otro = User::factory()->create(['email' => 'ocupado@clinexa.test']);
 
-    $this->put(route('admin.personas.update', $usuario->persona), [
+    $this->put(route('admin.personas.update', $usuario->persona), enFormulario([
         ...$usuario->persona->only(['tipo_persona', 'tipo_documento_id', 'nro_documento', 'apellidos', 'nombres', 'telefono', 'direccion', 'estado_id']),
         'fecha_nacimiento' => $usuario->persona->fecha_nacimiento->format('Y-m-d'),
         'email' => 'OCUPADO@clinexa.test',
-    ])->assertSessionHasErrors(['email' => 'Ese email ya lo usa otro usuario del sistema.']);
+    ]))->assertSessionHasErrors(['email' => 'Ese email ya lo usa otro usuario del sistema.']);
 
     expect($usuario->fresh()->email)->not->toBe('ocupado@clinexa.test');
 });

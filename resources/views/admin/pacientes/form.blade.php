@@ -1,3 +1,5 @@
+@use('App\Support\Fecha')
+
 <x-admin.page :title="$registro->exists ? 'Editar paciente' : 'Nuevo paciente'">
     <x-admin.form
         :action="$registro->exists ? route('admin.pacientes.update', $registro) : route('admin.pacientes.store')"
@@ -18,7 +20,7 @@
         @if ($registro->exists)
             <div class="text-sm">
                 <span class="font-medium text-gray-700 dark:text-gray-300">Fecha de alta:</span>
-                <span class="text-gray-900 dark:text-gray-100">{{ $registro->fecha_alta->format('d/m/Y') }}</span>
+                <span class="text-gray-900 dark:text-gray-100">{{ Fecha::mostrar($registro->fecha_alta) }}</span>
             </div>
         @endif
 

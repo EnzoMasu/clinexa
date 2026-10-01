@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Models\Especialidad;
 use App\Models\Estado;
 use App\Models\Profesional;
+use App\Support\Fecha;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
 
@@ -42,7 +43,7 @@ class ProfesionalController extends RolPersonaController
                     ->when($yaAsignadas, fn ($query) => $query->orWhereIn('id', $yaAsignadas))
             )],
             'especialidades.*.nro_matricula_especialidad' => ['nullable', 'string', 'max:50'],
-            'especialidades.*.fecha_desde' => ['required', 'date', 'before_or_equal:today'],
+            'especialidades.*.fecha_desde' => ['required', ...Fecha::regla(hastaHoy: true)],
             // Deshabilitada (0) = sigue cargada pero no la ejerce; sin el campo, habilitada.
             'especialidades.*.activa' => ['nullable', 'boolean'],
         ];
@@ -56,6 +57,11 @@ class ProfesionalController extends RolPersonaController
     protected function columnasBusqueda(): array
     {
         return ['matricula'];
+    }
+
+    protected function mensajes(): array
+    {
+        return Fecha::mensajes('especialidades.*.fecha_desde');
     }
 
     protected function atributos(): array
@@ -94,7 +100,7 @@ class ProfesionalController extends RolPersonaController
         $registro->especialidades()->sync(collect($datos['especialidades'] ?? [])->mapWithKeys(fn (array $fila) => [
             $fila['especialidad_id'] => [
                 'nro_matricula_especialidad' => $fila['nro_matricula_especialidad'] ?? null,
-                'fecha_desde' => $fila['fecha_desde'],
+                'fecha_desde' => Fecha::aIso($fila['fecha_desde']),
                 'activa' => (bool) ($fila['activa'] ?? true),
             ],
         ])->all());

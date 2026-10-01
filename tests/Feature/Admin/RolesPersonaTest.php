@@ -72,7 +72,7 @@ test('no se puede crear dos veces el mismo rol para la misma persona', function 
 test('una persona puede tener varios roles distintos a la vez', function () {
     $persona = Persona::factory()->create();
 
-    $this->post(route('admin.profesionales.store'), ['persona_id' => $persona->id, 'matricula' => 'MP-1'])->assertSessionHasNoErrors();
+    $this->post(route('admin.profesionales.store'), enFormulario(['persona_id' => $persona->id, 'matricula' => 'MP-1']))->assertSessionHasNoErrors();
     $this->post(route('admin.propietarios-equipo.store'), ['persona_id' => $persona->id])->assertSessionHasNoErrors();
     $this->post(route('admin.pacientes.store'), ['persona_id' => $persona->id, 'nro_ficha' => '000001'])->assertSessionHasNoErrors();
 
@@ -263,13 +263,13 @@ describe('profesional', function () {
     test('se crea con varias especialidades, cada una con matrícula y fecha desde', function () {
         $persona = Persona::factory()->create();
 
-        $this->post(route('admin.profesionales.store'), [
+        $this->post(route('admin.profesionales.store'), enFormulario([
             'persona_id' => $persona->id, 'matricula' => 'MP-500', 'con_especialidades' => '1',
             'especialidades' => [
                 ['especialidad_id' => $this->gineco->id, 'nro_matricula_especialidad' => 'GO-77', 'fecha_desde' => '2015-03-01'],
                 ['especialidad_id' => $this->eco->id, 'nro_matricula_especialidad' => '', 'fecha_desde' => '2020-06-15'],
             ],
-        ])->assertSessionHasNoErrors();
+        ]))->assertSessionHasNoErrors();
 
         $especialidades = Profesional::where('persona_id', $persona->id)->sole()->especialidades->keyBy('nombre');
         expect($especialidades)->toHaveCount(2)
@@ -284,10 +284,10 @@ describe('profesional', function () {
         $profesional = Profesional::create(['persona_id' => Persona::factory()->create()->id, 'matricula' => 'MP-1']);
         $profesional->especialidades()->attach($this->gineco->id, ['fecha_desde' => '2015-01-01']);
 
-        $this->put(route('admin.profesionales.update', $profesional), [
+        $this->put(route('admin.profesionales.update', $profesional), enFormulario([
             'matricula' => 'MP-1', 'estado_id' => estadoId('ACTIVO'), 'con_especialidades' => '1',
             'especialidades' => [['especialidad_id' => $this->eco->id, 'fecha_desde' => '2021-01-01']],
-        ])->assertSessionHasNoErrors();
+        ]))->assertSessionHasNoErrors();
 
         expect($profesional->fresh()->especialidades->pluck('nombre')->all())->toBe(['Ecografía']);
     });
@@ -296,7 +296,7 @@ describe('profesional', function () {
         $profesional = Profesional::create(['persona_id' => Persona::factory()->create()->id, 'matricula' => 'MP-1']);
         $profesional->especialidades()->attach($this->gineco->id, ['fecha_desde' => '2015-01-01']);
 
-        $this->put(route('admin.profesionales.update', $profesional), ['matricula' => 'MP-2', 'estado_id' => estadoId('ACTIVO')])
+        $this->put(route('admin.profesionales.update', $profesional), enFormulario(['matricula' => 'MP-2', 'estado_id' => estadoId('ACTIVO')]))
             ->assertSessionHasNoErrors();
 
         expect($profesional->fresh())->matricula->toBe('MP-2')
@@ -307,18 +307,18 @@ describe('profesional', function () {
         $this->eco->desactivar();
         $base = ['persona_id' => Persona::factory()->create()->id, 'matricula' => 'MP-9', 'con_especialidades' => '1'];
 
-        $this->post(route('admin.profesionales.store'), [...$base, 'especialidades' => [
+        $this->post(route('admin.profesionales.store'), enFormulario([...$base, 'especialidades' => [
             ['especialidad_id' => $this->gineco->id, 'fecha_desde' => '2015-01-01'],
             ['especialidad_id' => $this->gineco->id, 'fecha_desde' => '2016-01-01'],
-        ]])->assertSessionHasErrors('especialidades.0.especialidad_id');
+        ]]))->assertSessionHasErrors('especialidades.0.especialidad_id');
 
-        $this->post(route('admin.profesionales.store'), [...$base, 'especialidades' => [
+        $this->post(route('admin.profesionales.store'), enFormulario([...$base, 'especialidades' => [
             ['especialidad_id' => $this->eco->id, 'fecha_desde' => '2015-01-01'],
-        ]])->assertSessionHasErrors('especialidades.0.especialidad_id');
+        ]]))->assertSessionHasErrors('especialidades.0.especialidad_id');
 
-        $this->post(route('admin.profesionales.store'), [...$base, 'especialidades' => [
+        $this->post(route('admin.profesionales.store'), enFormulario([...$base, 'especialidades' => [
             ['especialidad_id' => $this->gineco->id, 'fecha_desde' => ''],
-        ]])->assertSessionHasErrors('especialidades.0.fecha_desde');
+        ]]))->assertSessionHasErrors('especialidades.0.fecha_desde');
 
         expect(Profesional::count())->toBe(0);
     });
@@ -326,7 +326,7 @@ describe('profesional', function () {
     test('la matrícula es obligatoria y única', function () {
         Profesional::create(['persona_id' => Persona::factory()->create()->id, 'matricula' => 'MP-1']);
 
-        $this->post(route('admin.profesionales.store'), ['persona_id' => Persona::factory()->create()->id, 'matricula' => 'MP-1'])
+        $this->post(route('admin.profesionales.store'), enFormulario(['persona_id' => Persona::factory()->create()->id, 'matricula' => 'MP-1']))
             ->assertSessionHasErrors('matricula');
     });
 

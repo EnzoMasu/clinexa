@@ -31,8 +31,7 @@
             <div class="grid gap-6 sm:grid-cols-2">
                 <x-admin.input name="apellidos" label="Apellidos" :value="$persona->apellidos" maxlength="100" required />
                 <x-admin.input name="nombres" label="Nombres" :value="$persona->nombres" maxlength="100" required />
-                <x-admin.input name="fecha_nacimiento" label="Fecha de nacimiento" type="date"
-                    :value="$persona->fecha_nacimiento?->format('Y-m-d')" :max="now()->format('Y-m-d')" required />
+                <x-admin.fecha name="fecha_nacimiento" label="Fecha de nacimiento" :value="$persona->fecha_nacimiento" hasta-hoy required />
                 <x-admin.select name="sexo" label="Sexo" :options="Persona::SEXOS" :value="$persona->sexo" nullable />
                 {{-- País de nacionalidad (de dónde es), independiente de la ciudad (dónde vive). --}}
                 <x-admin.select name="pais_nacionalidad_id" label="Nacionalidad" :options="$paises" :value="$persona->pais_nacionalidad_id" nullable />

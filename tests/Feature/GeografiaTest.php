@@ -120,7 +120,7 @@ describe('ciudad en personas y sucursales', function () {
     test('se guarda la ciudad elegida', function () {
         $horqueta = ciudad('Concepción', 'Horqueta');
 
-        $this->post(route('admin.personas.store'), [...$this->persona, 'ciudad_id' => $horqueta->id])->assertSessionHasNoErrors();
+        $this->post(route('admin.personas.store'), enFormulario([...$this->persona, 'ciudad_id' => $horqueta->id]))->assertSessionHasNoErrors();
         $this->post(route('admin.sucursales.store'), [...$this->sucursal, 'ciudad_id' => $horqueta->id])->assertSessionHasNoErrors();
 
         expect(Persona::where('nro_documento', '1234567')->sole()->ciudad->nombre)->toBe('Horqueta')
@@ -128,7 +128,7 @@ describe('ciudad en personas y sucursales', function () {
     });
 
     test('la ciudad es opcional y la dirección de texto libre se mantiene', function () {
-        $this->post(route('admin.personas.store'), [...$this->persona, 'ciudad_id' => ''])->assertSessionHasNoErrors();
+        $this->post(route('admin.personas.store'), enFormulario([...$this->persona, 'ciudad_id' => '']))->assertSessionHasNoErrors();
 
         expect(Persona::where('nro_documento', '1234567')->sole())->ciudad_id->toBeNull()->direccion->toBe('Calle 1');
     });

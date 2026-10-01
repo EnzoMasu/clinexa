@@ -7,6 +7,7 @@ use App\Models\Pais;
 use App\Models\Persona;
 use App\Models\TipoDocumento;
 use App\Models\User;
+use App\Support\Fecha;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -51,7 +52,7 @@ class PersonaRequest extends FormRequest
 
             'apellidos' => ['exclude_unless:tipo_persona,FISICA', 'required', 'string', 'max:100'],
             'nombres' => ['exclude_unless:tipo_persona,FISICA', 'required', 'string', 'max:100'],
-            'fecha_nacimiento' => ['exclude_unless:tipo_persona,FISICA', 'required', 'date', 'before_or_equal:today'],
+            'fecha_nacimiento' => ['exclude_unless:tipo_persona,FISICA', 'required', ...Fecha::regla(hastaHoy: true)],
             'sexo' => ['exclude_unless:tipo_persona,FISICA', 'nullable', Rule::in(array_keys(Persona::SEXOS))],
             'pais_nacionalidad_id' => ['exclude_unless:tipo_persona,FISICA', ...Pais::reglaOpcional($persona?->pais_nacionalidad_id)],
             'estado_civil' => ['exclude_unless:tipo_persona,FISICA', 'nullable', Rule::in(Persona::ESTADOS_CIVILES)],
@@ -77,6 +78,24 @@ class PersonaRequest extends FormRequest
         }
 
         return $reglas;
+    }
+
+    public function messages(): array
+    {
+        return Fecha::mensajes('fecha_nacimiento');
+    }
+
+    /**
+     * La fecha de nacimiento llega como dd/mm/aaaa y se guarda en ISO.
+     */
+    public function validated($key = null, $default = null)
+    {
+        $datos = parent::validated();
+        if (array_key_exists('fecha_nacimiento', $datos)) {
+            $datos['fecha_nacimiento'] = Fecha::aIso($datos['fecha_nacimiento']);
+        }
+
+        return data_get($datos, $key, $default);
     }
 
     public function attributes(): array

@@ -4,7 +4,7 @@
         ? $registro->especialidades->map(fn ($especialidad) => [
             'especialidad_id' => (string) $especialidad->id,
             'nro_matricula_especialidad' => $especialidad->pivot->nro_matricula_especialidad,
-            'fecha_desde' => \Illuminate\Support\Carbon::parse($especialidad->pivot->fecha_desde)->format('Y-m-d'),
+            'fecha_desde' => \App\Support\Fecha::mostrar($especialidad->pivot->fecha_desde),
             'activa' => (bool) $especialidad->pivot->activa,
         ])->all()
         : []);
@@ -38,7 +38,8 @@
         {{-- Especialidades (profesional_especialidad): una fila por especialidad, con matrícula y fecha desde. --}}
         <div x-data="{
                 filas: {{ Js::from($filas) }},
-                agregar() { this.filas.push({ uid: Date.now() + Math.random(), especialidad_id: '', nro_matricula_especialidad: '', fecha_desde: '', activa: true }) },
+                // Una especialidad nueva propone hoy como fecha desde (se puede cambiar).
+                agregar() { this.filas.push({ uid: Date.now() + Math.random(), especialidad_id: '', nro_matricula_especialidad: '', fecha_desde: {{ Js::from(\App\Support\Fecha::mostrar(\App\Support\Fecha::hoy())) }}, activa: true }) },
                 quitar(i) { this.filas.splice(i, 1) },
             }" class="space-y-3">
             <h3 class="font-medium text-gray-900 dark:text-gray-100">Especialidades</h3>
@@ -72,7 +73,16 @@
                     </div>
                     <div>
                         <label x-bind:for="`desde_${i}`" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Desde</label>
-                        <input type="date" max="{{ now()->format('Y-m-d') }}" required x-bind:id="`desde_${i}`" x-bind:name="`especialidades[${i}][fecha_desde]`" x-model="fila.fecha_desde" class="{{ $clases }}">
+                        {{-- Fecha dd/mm/aaaa con calendario (campo-fecha.js), enlazada a la fila. --}}
+                        <div class="relative mt-1" x-data="campoFecha({ valor: fila.fecha_desde, max: {{ Js::from(\App\Support\Fecha::hoy()->format('Y-m-d')) }} })"
+                            x-modelable="valor" x-model="fila.fecha_desde">
+                            <input type="text" required x-ref="entrada" x-bind:id="`desde_${i}`" x-bind:name="`especialidades[${i}][fecha_desde]`"
+                                x-bind:value="valor" x-on:input="escribir($event)"
+                                placeholder="dd/mm/aaaa" inputmode="numeric" maxlength="10" autocomplete="off"
+                                pattern="\d{2}/\d{2}/\d{4}" title="Fecha en formato dd/mm/aaaa"
+                                class="{{ str_replace('mt-1 ', '', $clases) }} pe-10">
+                            <x-admin.calendario />
+                        </div>
                     </div>
                     <div class="flex gap-4 sm:mb-2">
                         <button type="button" x-on:click="fila.activa = ! fila.activa" x-text="fila.activa ? 'Deshabilitar' : 'Habilitar'"

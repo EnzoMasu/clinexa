@@ -68,6 +68,14 @@ return [
     'timezone' => 'UTC',
 
     /*
+    | Hora local de la clínica, para MOSTRAR fechas-hora y saber qué día es "hoy" (la base guarda
+    | en UTC). Paraguay usa UTC-3 todo el año desde 2024; se usa el desfase fijo porque los datos
+    | de zonas horarias de PHP pueden ser anteriores a ese cambio y aplicarían -04:00 en invierno.
+    */
+
+    'zona_horaria_local' => env('APP_ZONA_HORARIA_LOCAL', '-03:00'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

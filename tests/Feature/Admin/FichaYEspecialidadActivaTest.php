@@ -105,9 +105,9 @@ describe('especialidad activa del profesional', function () {
 
     function guardarEspecialidades(array $filas)
     {
-        return test()->put(route('admin.profesionales.update', test()->profesional), [
+        return test()->put(route('admin.profesionales.update', test()->profesional), enFormulario([
             'matricula' => 'MP-1', 'estado_id' => estadoId('ACTIVO'), 'con_especialidades' => '1', 'especialidades' => $filas,
-        ]);
+        ]));
     }
 
     function estadoEspecialidades(): array

@@ -53,10 +53,10 @@ test('el formulario tiene un select de nacionalidad con los países, Paraguay el
 test('la nacionalidad es independiente de la ciudad: vive en Concepción y es brasileña', function () {
     $concepcion = Ciudad::where('nombre', 'Concepción')->sole();
 
-    $this->post(route('admin.personas.store'), fisicaConNacionalidad([
+    $this->post(route('admin.personas.store'), enFormulario(fisicaConNacionalidad([
         'pais_nacionalidad_id' => $this->brasil->id,
         'ciudad_id' => $concepcion->id,
-    ]))->assertSessionHasNoErrors();
+    ])))->assertSessionHasNoErrors();
 
     $persona = Persona::where('nro_documento', '7654321')->sole();
     expect($persona->paisNacionalidad->nombre)->toBe('Brasil')
@@ -67,27 +67,27 @@ test('la nacionalidad es independiente de la ciudad: vive en Concepción y es br
 });
 
 test('la nacionalidad es opcional', function () {
-    $this->post(route('admin.personas.store'), fisicaConNacionalidad(['pais_nacionalidad_id' => '']))->assertSessionHasNoErrors();
+    $this->post(route('admin.personas.store'), enFormulario(fisicaConNacionalidad(['pais_nacionalidad_id' => ''])))->assertSessionHasNoErrors();
 
     expect(Persona::where('nro_documento', '7654321')->sole()->pais_nacionalidad_id)->toBeNull();
 });
 
 test('rechaza un país inexistente o inactivo, pero conserva el inactivo que ya tenía', function () {
-    $this->post(route('admin.personas.store'), fisicaConNacionalidad(['pais_nacionalidad_id' => 999999]))
+    $this->post(route('admin.personas.store'), enFormulario(fisicaConNacionalidad(['pais_nacionalidad_id' => 999999])))
         ->assertSessionHasErrors('pais_nacionalidad_id');
 
     $persona = Persona::create(fisicaConNacionalidad(['pais_nacionalidad_id' => $this->brasil->id]));
     $this->brasil->desactivar();
 
-    $this->post(route('admin.personas.store'), fisicaConNacionalidad(['nro_documento' => '1111111', 'pais_nacionalidad_id' => $this->brasil->id]))
+    $this->post(route('admin.personas.store'), enFormulario(fisicaConNacionalidad(['nro_documento' => '1111111', 'pais_nacionalidad_id' => $this->brasil->id])))
         ->assertSessionHasErrors('pais_nacionalidad_id');
 
     // Al crear no se ofrece; al editar a quien ya lo tenía, sí, y se puede guardar.
     $this->get(route('admin.personas.create'))->assertDontSee('>Brasil</option>', false);
     $this->get(route('admin.personas.edit', $persona))->assertSee('>Brasil</option>', false);
-    $this->put(route('admin.personas.update', $persona), fisicaConNacionalidad([
+    $this->put(route('admin.personas.update', $persona), enFormulario(fisicaConNacionalidad([
         'pais_nacionalidad_id' => $this->brasil->id, 'estado_id' => estadoId('ACTIVO'),
-    ]))->assertSessionHasNoErrors();
+    ])))->assertSessionHasNoErrors();
 });
 
 test('una persona jurídica no tiene nacionalidad', function () {

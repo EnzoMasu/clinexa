@@ -1,3 +1,4 @@
+@use('App\Support\Fecha')
 @use('App\Support\Permisos')
 
 <x-admin.table :headers="['Nombre', 'Documento', 'Email', 'Perfil de acceso', 'Estado', 'Último acceso']" :paginator="$usuarios">
@@ -18,7 +19,7 @@
                 @endif
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">
-                {{ $usuario->ultimo_acceso?->format('d/m/Y H:i') ?? 'Nunca' }}
+                {{ $usuario->ultimo_acceso ? Fecha::mostrar($usuario->ultimo_acceso, conHora: true) : 'Nunca' }}
             </td>
             <x-admin.actions
                 :edit="Permisos::url('admin.usuarios.edit', $usuario)"

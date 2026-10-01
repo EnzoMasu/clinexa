@@ -63,7 +63,7 @@ test('con VER pero sin CREAR ve el listado pero no el formulario de creación', 
         ->assertDontSee('Nueva persona');
 
     $this->get(route('admin.personas.create'))->assertForbidden();
-    $this->post(route('admin.personas.store'), [])->assertForbidden();
+    $this->post(route('admin.personas.store'), enFormulario([]))->assertForbidden();
     expect(Persona::count())->toBe($personas);
 });
 

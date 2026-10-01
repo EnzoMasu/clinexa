@@ -67,6 +67,12 @@ abstract class RolPersonaController extends Controller
     /** Guarda lo que no son columnas del rol (p. ej. especialidades del profesional). */
     protected function guardarRelaciones(Model $registro, array $datos): void {}
 
+    /** Mensajes de validación propios del rol (p. ej. los de las fechas). */
+    protected function mensajes(): array
+    {
+        return [];
+    }
+
     /** Nombres de los campos en los mensajes de validación. */
     protected function atributos(): array
     {
@@ -119,7 +125,7 @@ abstract class RolPersonaController extends Controller
                 }
             }],
             ...$this->reglas(null),
-        ], [], ['persona_id' => 'persona', ...$this->atributos()]);
+        ], $this->mensajes(), ['persona_id' => 'persona', ...$this->atributos()]);
 
         DB::transaction(function () use ($modelo, $datos) {
             $registro = $modelo::create($datos);
@@ -150,7 +156,7 @@ abstract class RolPersonaController extends Controller
         $datos = $request->validate([
             ...$this->reglas($registro),
             'estado_id' => $modelo::reglaEstado(),
-        ], [], $this->atributos());
+        ], $this->mensajes(), $this->atributos());
 
         DB::transaction(function () use ($registro, $datos) {
             $registro->update($datos);

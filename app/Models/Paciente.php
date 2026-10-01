@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\EsRolDePersona;
 use App\Models\Concerns\TieneEstado;
+use App\Support\Fecha;
 use Illuminate\Database\Eloquent\Model;
 
 class Paciente extends Model
@@ -34,7 +35,7 @@ class Paciente extends Model
     protected static function booted(): void
     {
         static::creating(function (Paciente $paciente) {
-            $paciente->fecha_alta ??= today();
+            $paciente->fecha_alta ??= Fecha::hoy()->format('Y-m-d');
         });
     }
 

@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Estado;
+use App\Support\Fecha;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -49,5 +51,22 @@ expect()->extend('toBeOne', function () {
  */
 function estadoId(string $codigo): int
 {
-    return App\Models\Estado::idDe($codigo);
+    return Estado::idDe($codigo);
+}
+
+/**
+ * Datos de prueba -> como los manda el formulario: las fechas ISO (fecha_nacimiento, fecha_desde)
+ * pasan a dd/mm/aaaa, que es el formato que se carga en pantalla.
+ */
+function enFormulario(array $datos): array
+{
+    foreach ($datos as $clave => $valor) {
+        if (is_array($valor)) {
+            $datos[$clave] = enFormulario($valor);
+        } elseif (in_array($clave, ['fecha_nacimiento', 'fecha_desde'], true) && is_string($valor) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $valor)) {
+            $datos[$clave] = Fecha::mostrar($valor);
+        }
+    }
+
+    return $datos;
 }

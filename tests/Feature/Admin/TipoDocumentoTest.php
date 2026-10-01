@@ -179,17 +179,17 @@ test('destildar un módulo no rompe las personas que ya usan ese tipo de documen
         ->and(TipoDocumento::whereKey($this->ruc->id)->exists())->toBeTrue();
     $this->get(route('admin.personas.index'))->assertOk()->assertSee('Laboratorio Central S.A.');
     $this->get(route('admin.personas.edit', $empresa))->assertOk()->assertSee('RUC');
-    $this->put(route('admin.personas.update', $empresa), [
+    $this->put(route('admin.personas.update', $empresa), enFormulario([
         'tipo_persona' => 'JURIDICA', 'tipo_documento_id' => $this->ruc->id, 'nro_documento' => '80012345-6',
         'razon_social' => 'Laboratorio Central S.A. (nuevo nombre)', 'email' => 'lab@example.com',
         'telefono' => '021 000 000', 'direccion' => 'Asunción', 'estado_id' => estadoId('ACTIVO'),
-    ])->assertSessionHasNoErrors();
+    ]))->assertSessionHasNoErrors();
     expect($empresa->fresh())->razon_social->toBe('Laboratorio Central S.A. (nuevo nombre)')->tipo_documento_id->toBe($this->ruc->id);
 
     // Lo que cambia: ya no se ofrece para personas nuevas.
-    $this->post(route('admin.personas.store'), [
+    $this->post(route('admin.personas.store'), enFormulario([
         'tipo_persona' => 'JURIDICA', 'tipo_documento_id' => $this->ruc->id, 'nro_documento' => '80099999-1', 'razon_social' => 'Otra S.A.',
-    ])->assertSessionHasErrors('tipo_documento_id');
+    ]))->assertSessionHasErrors('tipo_documento_id');
 });
 
 test('el listado muestra en qué módulos está habilitado y dónde es predeterminado', function () {
