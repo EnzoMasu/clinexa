@@ -2,6 +2,7 @@
 
 use App\Models\CatalogoCIE10;
 use App\Models\CategoriaGasto;
+use App\Models\CategoriaProveedor;
 use App\Models\Especialidad;
 use App\Models\MedioPago;
 use App\Models\PerfilAcceso;
@@ -30,6 +31,8 @@ dataset('catalogos', [
         ['nombre' => 'Efectivo'], fn () => ['nombre' => 'Efectivo (Gs.)', 'estado_id' => estadoId('ACTIVO')]],
     'categorias de gasto' => ['categorias-gasto', 'categorias_gasto', CategoriaGasto::class,
         ['nombre' => 'Insumos'], fn () => ['nombre' => 'Insumos médicos', 'estado_id' => estadoId('ACTIVO')]],
+    'categorias de proveedor' => ['categorias-proveedor', 'categorias_proveedor', CategoriaProveedor::class,
+        ['nombre' => 'Equipos'], fn () => ['nombre' => 'Equipos médicos', 'estado_id' => estadoId('ACTIVO')]],
     'procedimientos' => ['procedimientos', 'procedimientos', Procedimiento::class,
         ['codigo' => 'CONS-01', 'nombre' => 'Consulta general', 'tipo' => 'CONSULTA', 'duracion_estimada_minutos' => 20],
         fn () => ['codigo' => 'CONS-01', 'nombre' => 'Consulta general', 'tipo' => 'CONSULTA', 'duracion_estimada_minutos' => 30, 'estado_id' => estadoId('ACTIVO')]],
@@ -69,6 +72,7 @@ dataset('catalogos con estado', [
     'cie10' => ['cie10', CatalogoCIE10::class, ['codigo' => 'J06.9', 'descripcion' => 'IVRS aguda', 'capitulo' => 'X']],
     'medios de pago' => ['medios-pago', MedioPago::class, ['nombre' => 'Efectivo']],
     'categorias de gasto' => ['categorias-gasto', CategoriaGasto::class, ['nombre' => 'Insumos']],
+    'categorias de proveedor' => ['categorias-proveedor', CategoriaProveedor::class, ['nombre' => 'Equipos médicos']],
     'procedimientos' => ['procedimientos', Procedimiento::class, ['codigo' => 'ECO', 'nombre' => 'Ecografía', 'tipo' => 'ESTUDIO', 'duracion_estimada_minutos' => 30]],
 ]);
 

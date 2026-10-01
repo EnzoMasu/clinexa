@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\CategoriaProveedor;
 use App\Models\Paciente;
 use App\Models\Pais;
 use App\Models\Persona;
-use App\Models\PropietarioEquipo;
 use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\TipoDocumento;
@@ -87,7 +87,9 @@ class PersonasDemoSeeder extends Seeder
         Proveedor::firstOrCreate(['persona_id' => $persona('3456789')->id], [ // González, Marta Elena
             'condiciones_comerciales' => 'Pago a 30 días (dato ficticio de demo)',
         ]);
-        PropietarioEquipo::firstOrCreate(['persona_id' => $persona('2987654')->id], ['datos_bancarios' => null]); // Benítez, Rosa Alicia
+        // Benítez, Rosa Alicia: proveedora de equipos médicos (era PropietarioEquipo, fusionado en Proveedor).
+        Proveedor::firstOrCreate(['persona_id' => $persona('2987654')->id], ['datos_bancarios' => null])
+            ->categorias()->syncWithoutDetaching([CategoriaProveedor::where('nombre', 'Equipos médicos')->sole()->id]);
         ResponsablePago::firstOrCreate(['persona_id' => $persona('4123456')->id], ['limite_credito' => null]); // Insfrán, Laura Beatriz
     }
 }

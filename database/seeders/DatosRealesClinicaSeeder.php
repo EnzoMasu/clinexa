@@ -2,13 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Models\CategoriaProveedor;
 use App\Models\Ciudad;
 use App\Models\Especialidad;
 use App\Models\ModuloSistema;
 use App\Models\Persona;
 use App\Models\Procedimiento;
 use App\Models\Profesional;
-use App\Models\PropietarioEquipo;
+use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\Sucursal;
 use App\Models\TipoDocumento;
@@ -20,6 +21,8 @@ use Illuminate\Database\Seeder;
  */
 class DatosRealesClinicaSeeder extends Seeder
 {
+    public const CATEGORIAS_PROVEEDOR = ['Insumos médicos', 'Equipos médicos', 'Insumos de oficina', 'Artículos de limpieza', 'Servicios tercerizados'];
+
     public function run(): void
     {
         // sucursales no tiene columna unique en el diseño: se identifica por nombre.
@@ -51,6 +54,11 @@ class DatosRealesClinicaSeeder extends Seeder
         // Personas todavía no tiene uno. Requiere los módulos (ModuloSistemaSeeder corre antes).
         ModuloSistema::where('codigo', 'PERSONAS')->first()
             ?->habilitarTiposDocumento(['CI', 'PASAPORTE', 'RUC', 'DNI']);
+
+        // Categorías base de proveedor (se crean si faltan; no se tocan las que ya existen).
+        foreach (self::CATEGORIAS_PROVEEDOR as $nombre) {
+            CategoriaProveedor::firstOrCreate(['nombre' => $nombre]);
+        }
 
         Especialidad::updateOrCreate(['nombre' => 'Ginecología y Obstetricia'], [
             'descripcion' => null,
@@ -109,8 +117,10 @@ class DatosRealesClinicaSeeder extends Seeder
         }
 
         // Dueño del ecógrafo Mindray MX7 - el registro del Equipo en sí se carga cuando
-        // construyamos el módulo de Equipos, esto solo deja preparado el rol.
-        PropietarioEquipo::firstOrCreate(['persona_id' => $luigi->id], ['datos_bancarios' => null]);
+        // construyamos el módulo de Equipos, esto solo deja preparado el rol. Era PropietarioEquipo,
+        // que se fusionó en Proveedor: proveedor con categoría "Equipos médicos", sin datos bancarios.
+        $proveedor = Proveedor::firstOrCreate(['persona_id' => $luigi->id], ['datos_bancarios' => null]);
+        $proveedor->categorias()->syncWithoutDetaching([CategoriaProveedor::where('nombre', 'Equipos médicos')->sole()->id]);
 
         $clara = Persona::firstOrCreate(['tipo_documento_id' => $ruc->id, 'nro_documento' => '421964-3'], [
             'tipo_persona' => 'FISICA',

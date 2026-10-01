@@ -6,7 +6,6 @@
         'admin.pacientes' => 'Pacientes',
         'admin.profesionales' => 'Profesionales',
         'admin.proveedores' => 'Proveedores',
-        'admin.propietarios-equipo' => 'Propietarios de equipo',
         'admin.responsables-pago' => 'Responsables de pago',
         'admin.especialidades' => 'Especialidades',
         'admin.sucursales' => 'Sucursales',
@@ -14,6 +13,7 @@
         'admin.cie10' => 'Catálogo CIE-10',
         'admin.medios-pago' => 'Medios de pago',
         'admin.categorias-gasto' => 'Categorías de gasto',
+        'admin.categorias-proveedor' => 'Categorías de proveedor',
         'admin.procedimientos' => 'Procedimientos',
     ];
 

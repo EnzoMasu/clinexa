@@ -5,7 +5,6 @@ use App\Models\ModuloSistema;
 use App\Models\Paciente;
 use App\Models\Persona;
 use App\Models\Profesional;
-use App\Models\PropietarioEquipo;
 use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\User;
@@ -27,12 +26,11 @@ dataset('roles', [
     'pacientes' => ['pacientes', Paciente::class, ['nro_ficha' => 'F-100'], false],
     'profesionales' => ['profesionales', Profesional::class, ['matricula' => 'MP-123'], false],
     'proveedores' => ['proveedores', Proveedor::class, ['condiciones_comerciales' => 'Pago a 30 días'], true],
-    'propietarios de equipo' => ['propietarios-equipo', PropietarioEquipo::class, ['datos_bancarios' => 'Banco Continental, CA 123456'], true],
     'responsables de pago' => ['responsables-pago', ResponsablePago::class, ['limite_credito' => '1500000'], true],
 ]);
 
-test('los 5 módulos de roles existen con ACTIVO (inicial) e INACTIVO', function () {
-    foreach (['PACIENTES', 'PROFESIONALES', 'PROVEEDORES', 'PROPIETARIOS_EQUIPO', 'RESPONSABLES_PAGO'] as $codigo) {
+test('los 4 módulos de roles existen con ACTIVO (inicial) e INACTIVO', function () {
+    foreach (['PACIENTES', 'PROFESIONALES', 'PROVEEDORES', 'RESPONSABLES_PAGO'] as $codigo) {
         $modulo = ModuloSistema::where('codigo', $codigo)->with('estados')->sole();
         expect($modulo->estados->pluck('codigo')->sort()->values()->all())->toBe(['ACTIVO', 'INACTIVO'])
             ->and($modulo->estados->firstWhere('pivot.es_inicial', true)->codigo)->toBe('ACTIVO');
@@ -73,10 +71,10 @@ test('una persona puede tener varios roles distintos a la vez', function () {
     $persona = Persona::factory()->create();
 
     $this->post(route('admin.profesionales.store'), enFormulario(['persona_id' => $persona->id, 'matricula' => 'MP-1']))->assertSessionHasNoErrors();
-    $this->post(route('admin.propietarios-equipo.store'), ['persona_id' => $persona->id])->assertSessionHasNoErrors();
+    $this->post(route('admin.proveedores.store'), ['persona_id' => $persona->id])->assertSessionHasNoErrors();
     $this->post(route('admin.pacientes.store'), ['persona_id' => $persona->id, 'nro_ficha' => '000001'])->assertSessionHasNoErrors();
 
-    expect($persona->fresh())->profesional->not->toBeNull()->propietarioEquipo->not->toBeNull()->paciente->not->toBeNull();
+    expect($persona->fresh())->profesional->not->toBeNull()->proveedor->not->toBeNull()->paciente->not->toBeNull();
 });
 
 test('el buscador de personas excluye a las que ya tienen el rol, las inactivas y los tipos no permitidos', function (string $ruta, string $modelo, array $campos, bool $aceptaJuridicas) {

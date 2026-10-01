@@ -3,7 +3,7 @@
 use App\Models\ModuloSistema;
 use App\Models\Persona;
 use App\Models\Profesional;
-use App\Models\PropietarioEquipo;
+use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\TipoDocumento;
 use Database\Seeders\DatosRealesClinicaSeeder;
@@ -57,7 +57,9 @@ test('carga las personas reales con sus roles', function () {
         ->and($profesional->especialidades->pluck('nombre')->all())->toBe(['Ginecología y Obstetricia'])
         ->and($profesional->especialidades->first()->pivot->nro_matricula_especialidad)->toBeNull()
         ->and($profesional->especialidades->first()->pivot->fecha_desde)->not->toBeNull()
-        ->and(PropietarioEquipo::where('persona_id', $luigi->id)->sole()->datos_bancarios)->toBeNull();
+        // Era PropietarioEquipo: ahora proveedor de "Equipos médicos", sin datos bancarios.
+        ->and(Proveedor::where('persona_id', $luigi->id)->sole()->datos_bancarios)->toBeNull()
+        ->and(Proveedor::where('persona_id', $luigi->id)->sole()->categorias->pluck('nombre')->all())->toBe(['Equipos médicos']);
 
     $clara = Persona::where('tipo_documento_id', $ruc)->where('nro_documento', '421964-3')->sole();
     expect($clara->nombre_completo)->toBe('Zorrilla de Masuzzo, Clara Daniela')
@@ -70,17 +72,18 @@ test('volver a correrlo no duplica personas ni roles y no pisa lo completado des
     // Datos que se completan después desde la pantalla.
     $luigi = Persona::where('nro_documento', '4441089-1')->sole();
     $luigi->update(['email' => 'luigi@example.com', 'fecha_nacimiento' => '1980-01-01']);
-    PropietarioEquipo::where('persona_id', $luigi->id)->sole()->update(['datos_bancarios' => 'Banco X - cta 123']);
+    Proveedor::where('persona_id', $luigi->id)->sole()->update(['datos_bancarios' => 'Banco X - cta 123']);
 
     $this->seed(DatosRealesClinicaSeeder::class);
 
     expect(Persona::whereIn('nro_documento', ['4441089-1', '421964-3'])->count())->toBe(2)
         ->and(Profesional::count())->toBe(1)
-        ->and(PropietarioEquipo::count())->toBe(1)
+        ->and(Proveedor::count())->toBe(1)
+        ->and(DB::table('proveedor_categoria')->count())->toBe(1)
         ->and(ResponsablePago::count())->toBe(1)
         ->and(DB::table('profesional_especialidad')->count())->toBe(1)
         ->and($luigi->fresh()->email)->toBe('luigi@example.com')
-        ->and(PropietarioEquipo::sole()->datos_bancarios)->toBe('Banco X - cta 123');
+        ->and(Proveedor::sole()->datos_bancarios)->toBe('Banco X - cta 123');
 });
 
 test('la habilitación de tipos es solo aditiva: no quita lo habilitado a mano ni cambia el predeterminado', function () {

@@ -41,6 +41,8 @@ final class Unicidad
             'mensaje' => 'Ya hay una especialidad con este nombre.'],
         'categoria_gasto.nombre' => ['tabla' => 'categorias_gasto', 'columna' => 'nombre', 'modulo' => 'CATEGORIAS_GASTO',
             'mensaje' => 'Ya hay una categoría de gasto con este nombre.'],
+        'categoria_proveedor.nombre' => ['tabla' => 'categorias_proveedor', 'columna' => 'nombre', 'modulo' => 'CATEGORIAS_PROVEEDOR',
+            'mensaje' => 'Ya hay una categoría de proveedor con este nombre.'],
         'perfil_acceso.nombre' => ['tabla' => 'perfiles_acceso', 'columna' => 'nombre', 'modulo' => 'PERFILES_ACCESO',
             'mensaje' => 'Ya hay un perfil de acceso con este nombre.'],
         'sucursal.nombre' => ['tabla' => 'sucursales', 'columna' => 'nombre', 'modulo' => 'SUCURSALES',

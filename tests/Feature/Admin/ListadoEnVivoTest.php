@@ -2,6 +2,7 @@
 
 use App\Models\CatalogoCIE10;
 use App\Models\CategoriaGasto;
+use App\Models\CategoriaProveedor;
 use App\Models\Especialidad;
 use App\Models\MedioPago;
 use App\Models\PerfilAcceso;
@@ -21,7 +22,7 @@ function ajax(string $url)
 }
 
 dataset('listados', ['usuarios', 'perfiles-acceso', 'personas', 'especialidades', 'sucursales',
-    'tipos-documento', 'cie10', 'medios-pago', 'categorias-gasto', 'procedimientos']);
+    'tipos-documento', 'cie10', 'medios-pago', 'categorias-gasto', 'categorias-proveedor', 'procedimientos']);
 
 test('una request normal devuelve la página completa con el buscador en vivo', function (string $listado) {
     $html = $this->get(route("admin.{$listado}.index"))->assertOk()
@@ -105,6 +106,10 @@ test('los listados sin buscador ahora buscan por sus columnas visibles', functio
         CategoriaGasto::create(['nombre' => 'Insumos médicos']);
         CategoriaGasto::create(['nombre' => 'Alquiler']);
     }, 'insumos', 'Insumos médicos', 'Alquiler'],
+    'categorías de proveedor' => ['categorias-proveedor', function () {
+        CategoriaProveedor::create(['nombre' => 'Equipos médicos']);
+        CategoriaProveedor::create(['nombre' => 'Artículos de limpieza']);
+    }, 'limpieza', 'Artículos de limpieza', 'Equipos médicos'],
     'procedimientos (tipo)' => ['procedimientos', function () {
         Procedimiento::create(['codigo' => 'CONS-001', 'nombre' => 'Consulta', 'tipo' => 'CONSULTA', 'duracion_estimada_minutos' => 20]);
         Procedimiento::create(['codigo' => 'ECO-TV', 'nombre' => 'Ecografía Transvaginal', 'tipo' => 'ESTUDIO', 'duracion_estimada_minutos' => 30]);

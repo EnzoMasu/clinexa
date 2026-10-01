@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(97); // 15 secciones × 6 rutas (todas con baja) + invitación + 6 buscadores de personas (usuarios y los 5 roles)
+    expect($rutas)->toHaveCount(96); // 15 secciones × 6 rutas (todas con baja) + invitación + 5 buscadores de personas (usuarios y los 4 roles)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])

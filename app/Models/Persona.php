@@ -135,11 +135,6 @@ class Persona extends Model
         return $this->hasOne(Proveedor::class);
     }
 
-    public function propietarioEquipo(): HasOne
-    {
-        return $this->hasOne(PropietarioEquipo::class);
-    }
-
     public function responsablePago(): HasOne
     {
         return $this->hasOne(ResponsablePago::class);

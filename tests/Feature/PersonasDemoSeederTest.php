@@ -2,7 +2,6 @@
 
 use App\Models\Paciente;
 use App\Models\Persona;
-use App\Models\PropietarioEquipo;
 use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\TipoDocumento;
@@ -38,14 +37,16 @@ test('asigna los roles de ejemplo a las personas de demo, sin duplicar al volver
     $nombres = fn (string $modelo) => $modelo::with('persona')->get()->map(fn ($rol) => $rol->persona->nombre_completo)->sort()->values()->all();
 
     expect($nombres(Paciente::class))->toBe(['Duarte, Carmen Sofía', 'Ramírez, Ana Belén'])
-        ->and($nombres(Proveedor::class))->toBe(['González, Marta Elena'])
-        ->and($nombres(PropietarioEquipo::class))->toBe(['Benítez, Rosa Alicia', 'Masuzzo Zorrilla, Luigi Armando'])
+        ->and($nombres(Proveedor::class))->toBe(['Benítez, Rosa Alicia', 'González, Marta Elena', 'Masuzzo Zorrilla, Luigi Armando'])
         ->and($nombres(ResponsablePago::class))->toBe(['Insfrán, Laura Beatriz', 'Zorrilla de Masuzzo, Clara Daniela']);
 
     // Fichas autogeneradas, distintas; datos ficticios marcados como tales.
     expect(Paciente::pluck('nro_ficha')->unique())->toHaveCount(2)
-        ->and(Proveedor::sole()->condiciones_comerciales)->toContain('ficticio')
-        ->and(PropietarioEquipo::whereNotNull('datos_bancarios')->exists())->toBeFalse()
+        ->and(Proveedor::whereHas('persona', fn ($q) => $q->where('nro_documento', '3456789'))->sole()->condiciones_comerciales)->toContain('ficticio')
+        ->and(Proveedor::whereNotNull('datos_bancarios')->exists())->toBeFalse()
+        // Benítez y Luigi (antes propietarios de equipo) son proveedores de equipos médicos.
+        ->and(Proveedor::whereHas('categorias', fn ($q) => $q->where('nombre', 'Equipos médicos'))->with('persona')->get()
+            ->map(fn ($proveedor) => $proveedor->persona->apellidos)->sort()->values()->all())->toBe(['Benítez', 'Masuzzo Zorrilla'])
         ->and(ResponsablePago::whereNotNull('limite_credito')->exists())->toBeFalse()
         ->and(Paciente::all()->every->estaActivo())->toBeTrue();
 });

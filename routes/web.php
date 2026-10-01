@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
+use App\Http\Controllers\Admin\CategoriaProveedorController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\MedioPagoController;
 use App\Http\Controllers\Admin\PacienteController;
@@ -9,7 +10,6 @@ use App\Http\Controllers\Admin\PerfilAccesoController;
 use App\Http\Controllers\Admin\PersonaController;
 use App\Http\Controllers\Admin\ProcedimientoController;
 use App\Http\Controllers\Admin\ProfesionalController;
-use App\Http\Controllers\Admin\PropietarioEquipoController;
 use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
 use App\Http\Controllers\Admin\SucursalController;
@@ -79,6 +79,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('cie10', CatalogoCIE10Controller::class, 'CIE10', 'cie10', conBaja: true);
     $seccion('medios-pago', MedioPagoController::class, 'MEDIOS_PAGO', 'medioPago', conBaja: true);
     $seccion('categorias-gasto', CategoriaGastoController::class, 'CATEGORIAS_GASTO', 'categoriaGasto', conBaja: true);
+    $seccion('categorias-proveedor', CategoriaProveedorController::class, 'CATEGORIAS_PROVEEDOR', 'categoriaProveedor', conBaja: true);
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
@@ -86,7 +87,6 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         ['pacientes', PacienteController::class, 'PACIENTES', 'paciente'],
         ['profesionales', ProfesionalController::class, 'PROFESIONALES', 'profesional'],
         ['proveedores', ProveedorController::class, 'PROVEEDORES', 'proveedor'],
-        ['propietarios-equipo', PropietarioEquipoController::class, 'PROPIETARIOS_EQUIPO', 'propietarioEquipo'],
         ['responsables-pago', ResponsablePagoController::class, 'RESPONSABLES_PAGO', 'responsablePago'],
     ] as [$uri, $controlador, $modulo, $parametro]) {
         Route::get("{$uri}/personas-disponibles", [$controlador, 'personasDisponibles'])

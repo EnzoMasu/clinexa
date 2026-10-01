@@ -34,12 +34,12 @@ class ModuloSistemaSeeder extends Seeder
             'CIE10' => ['Catálogo CIE-10', self::ACTIVO_INACTIVO],
             'MEDIOS_PAGO' => ['Medios de pago', self::ACTIVO_INACTIVO],
             'CATEGORIAS_GASTO' => ['Categorías de gasto', self::ACTIVO_INACTIVO],
+            'CATEGORIAS_PROVEEDOR' => ['Categorías de proveedor', self::ACTIVO_INACTIVO],
             'PROCEDIMIENTOS' => ['Procedimientos', self::ACTIVO_INACTIVO],
             // Roles de negocio sobre Persona.
             'PACIENTES' => ['Pacientes', self::ACTIVO_INACTIVO],
             'PROFESIONALES' => ['Profesionales', self::ACTIVO_INACTIVO],
             'PROVEEDORES' => ['Proveedores', self::ACTIVO_INACTIVO],
-            'PROPIETARIOS_EQUIPO' => ['Propietarios de equipo', self::ACTIVO_INACTIVO],
             'RESPONSABLES_PAGO' => ['Responsables de pago', self::ACTIVO_INACTIVO],
             // Sin pantalla propia todavía: existen para que sus tablas tengan estados configurados.
             'MODULOS_SISTEMA' => ['Módulos del sistema', self::ACTIVO_INACTIVO],
