@@ -43,6 +43,8 @@ class ProfesionalController extends RolPersonaController
             )],
             'especialidades.*.nro_matricula_especialidad' => ['nullable', 'string', 'max:50'],
             'especialidades.*.fecha_desde' => ['required', 'date', 'before_or_equal:today'],
+            // Deshabilitada (0) = sigue cargada pero no la ejerce; sin el campo, habilitada.
+            'especialidades.*.activa' => ['nullable', 'boolean'],
         ];
     }
 
@@ -79,7 +81,8 @@ class ProfesionalController extends RolPersonaController
     }
 
     /**
-     * Deja exactamente las especialidades del formulario (con sus datos en el pivote).
+     * Deja exactamente las especialidades del formulario (con sus datos en el pivote). "Quitar"
+     * borra la fila; "Deshabilitar" la conserva con activa = false.
      */
     protected function guardarRelaciones(Model $registro, array $datos): void
     {
@@ -92,6 +95,7 @@ class ProfesionalController extends RolPersonaController
             $fila['especialidad_id'] => [
                 'nro_matricula_especialidad' => $fila['nro_matricula_especialidad'] ?? null,
                 'fecha_desde' => $fila['fecha_desde'],
+                'activa' => (bool) ($fila['activa'] ?? true),
             ],
         ])->all());
     }

@@ -230,11 +230,15 @@ test('los roles aparecen en el menú de Administración según el permiso VER', 
 
 describe('paciente', function () {
     test('propone el siguiente número de ficha libre y se puede cambiar', function () {
-        $this->get(route('admin.pacientes.create'))->assertSee('value="000001"', false);
+        $this->get(route('admin.pacientes.create'))->assertSee('value="FP-0000001"', false);
 
-        Paciente::create(['persona_id' => Persona::factory()->create()->id, 'nro_ficha' => '000123']);
+        Paciente::create(['persona_id' => Persona::factory()->create()->id, 'nro_ficha' => 'FP-0000123']);
         Paciente::create(['persona_id' => Persona::factory()->create()->id, 'nro_ficha' => 'PAPEL-7']); // no numérica: se ignora
-        $this->get(route('admin.pacientes.create'))->assertSee('value="000124"', false);
+        $this->get(route('admin.pacientes.create'))->assertSee('value="FP-0000124"', false);
+
+        // Un número viejo solo con dígitos también cuenta para el correlativo.
+        Paciente::create(['persona_id' => Persona::factory()->create()->id, 'nro_ficha' => '000200']);
+        expect(Paciente::siguienteNroFicha())->toBe('FP-0000201');
 
         $this->post(route('admin.pacientes.store'), ['persona_id' => Persona::factory()->create()->id, 'nro_ficha' => 'A-55'])
             ->assertSessionHasNoErrors();

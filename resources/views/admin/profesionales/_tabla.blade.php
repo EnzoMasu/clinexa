@@ -9,7 +9,9 @@
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ $registro->persona->tipoDocumento->codigo }}</span>
                 <span class="font-mono">{{ $registro->persona->nro_documento }}</span>
             </td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">{{ $registro->especialidades->pluck('nombre')->join(', ') ?: '—' }}</td>
+            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">
+                {{ $registro->especialidades->map(fn ($especialidad) => $especialidad->nombre.($especialidad->pivot->activa ? '' : ' (deshabilitada)'))->join(', ') ?: '—' }}
+            </td>
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$registro->estado" /></td>
             <x-admin.actions
                 :edit="Permisos::url('admin.profesionales.edit', $registro)"

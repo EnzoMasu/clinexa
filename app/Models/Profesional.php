@@ -30,11 +30,24 @@ class Profesional extends Model
     }
 
     /**
-     * Especialidades del profesional, con la matrícula de la especialidad y desde cuándo la ejerce.
+     * Todas las especialidades del profesional (habilitadas y deshabilitadas), con la matrícula de
+     * la especialidad, desde cuándo la ejerce y si está activa. Para administrarlas (formulario).
      */
     public function especialidades(): BelongsToMany
     {
         return $this->belongsToMany(Especialidad::class, 'profesional_especialidad', 'profesional_id', 'especialidad_id')
-            ->withPivot('nro_matricula_especialidad', 'fecha_desde');
+            ->withPivot('nro_matricula_especialidad', 'fecha_desde', 'activa');
+    }
+
+    /**
+     * Especialidades que el profesional ejerce hoy: las habilitadas (pivote activa) y cuyo
+     * catálogo está ACTIVO. Es la que debe usar cualquier otra parte del sistema (agenda, turnos,
+     * etc.) para ofrecer las especialidades del profesional.
+     */
+    public function especialidadesActivas(): BelongsToMany
+    {
+        return $this->especialidades()
+            ->wherePivot('activa', true)
+            ->where('especialidades.estado_id', Estado::idDe(Estado::ACTIVO));
     }
 }
