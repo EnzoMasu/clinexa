@@ -21,7 +21,7 @@
             <x-admin.select name="tipo_documento_id" label="Tipo de documento" :value="$tipoDocumentoActual" required
                 :options="$tiposDocumento->mapWithKeys(fn ($tipo) => [$tipo->id => $tipo->codigo.' — '.$tipo->nombre])->all()" />
 
-            <x-admin.input name="nro_documento" label="Número de documento" :value="$persona->nro_documento" maxlength="20" required />
+            <x-admin.input name="nro_documento" label="Número de documento" :value="$persona->nro_documento" unico="persona.documento" :unico-ignorar="$persona->id" :unico-con="['tipo_documento_id']" maxlength="20" required />
         </div>
 
         {{-- fieldset deshabilitado = sus campos no se validan en el navegador ni se envían --}}
@@ -54,7 +54,9 @@
         <div class="space-y-4">
             <h3 class="font-medium text-gray-900 dark:text-gray-100">Contacto</h3>
             <div class="grid gap-6 sm:grid-cols-2">
-                <x-admin.input name="email" label="Email" type="email" :value="$persona->email" maxlength="100" required />
+                {{-- El email solo tiene que ser único si la persona tiene usuario (se copia a users.email). --}}
+                <x-admin.input name="email" label="Email" type="email" :value="$persona->email" maxlength="100" required
+                    :unico="$persona->usuario ? 'persona.email' : null" :unico-ignorar="$persona->id" />
                 <x-admin.input name="telefono" label="Teléfono" :value="$persona->telefono" maxlength="20" required />
                 <div class="sm:col-span-2">
                     <x-admin.input name="direccion" label="Dirección" :value="$persona->direccion" maxlength="200" required />

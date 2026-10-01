@@ -3,7 +3,7 @@
         :action="$sucursal->exists ? route('admin.sucursales.update', $sucursal) : route('admin.sucursales.store')"
         :method="$sucursal->exists ? 'PUT' : 'POST'"
         :cancel="route('admin.sucursales.index')">
-        <x-admin.input name="nombre" label="Nombre" :value="$sucursal->nombre" maxlength="100" required autofocus />
+        <x-admin.input name="nombre" label="Nombre" :value="$sucursal->nombre" unico="sucursal.nombre" :unico-ignorar="$sucursal->id" maxlength="100" required autofocus />
         <x-admin.input name="direccion" label="Dirección" :value="$sucursal->direccion" maxlength="200" required />
         <x-admin.input name="telefono" label="Teléfono" :value="$sucursal->telefono" maxlength="20" required />
         <x-geografia.selector-ciudad :value="$sucursal->ciudad_id" />

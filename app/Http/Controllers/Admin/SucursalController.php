@@ -58,7 +58,7 @@ class SucursalController extends Controller
     private function validar(Request $request, ?Sucursal $sucursal = null): array
     {
         $reglas = [
-            'nombre' => ['required', 'string', 'max:100'],
+            'nombre' => ['required', 'string', 'max:100', Rule::unique('sucursales')->ignore($sucursal)],
             'direccion' => ['required', 'string', 'max:200'],
             'telefono' => ['required', 'string', 'max:20'],
             'ciudad_id' => Ciudad::reglaOpcional($sucursal?->ciudad_id),

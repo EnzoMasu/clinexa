@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\TipoDocumentoController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\GeografiaController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\VerificarUnicoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -32,6 +33,9 @@ Route::middleware('auth')->prefix('geografia')->name('geografia.')->group(functi
     Route::get('departamentos', [GeografiaController::class, 'departamentos'])->name('departamentos');
     Route::get('ciudades', [GeografiaController::class, 'ciudades'])->name('ciudades');
 });
+
+// Verificación al vuelo de campos únicos (el permiso lo controla App\Support\Unicidad según el campo).
+Route::get('verificar-unico', VerificarUnicoController::class)->middleware('auth')->name('verificar-unico');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

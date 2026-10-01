@@ -57,7 +57,7 @@ class MedioPagoController extends Controller
     private function validar(Request $request, ?MedioPago $medioPago = null): array
     {
         $reglas = [
-            'nombre' => ['required', 'string', 'max:50'],
+            'nombre' => ['required', 'string', 'max:50', Rule::unique('medios_pago')->ignore($medioPago)],
         ];
 
         if ($medioPago) {

@@ -13,7 +13,7 @@
         :action="$tipoDocumento->exists ? route('admin.tipos-documento.update', $tipoDocumento) : route('admin.tipos-documento.store')"
         :method="$tipoDocumento->exists ? 'PUT' : 'POST'"
         :cancel="route('admin.tipos-documento.index')">
-        <x-admin.input name="codigo" label="Código" :value="$tipoDocumento->codigo" maxlength="10" required autofocus />
+        <x-admin.input name="codigo" label="Código" :value="$tipoDocumento->codigo" unico="tipo_documento.codigo" :unico-ignorar="$tipoDocumento->id" maxlength="10" required autofocus />
         <x-admin.input name="nombre" label="Nombre" :value="$tipoDocumento->nombre" maxlength="50" required />
 
         @if ($tipoDocumento->exists)

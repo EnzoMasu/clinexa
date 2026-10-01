@@ -11,7 +11,7 @@
             <x-admin.selector-persona :url="route('admin.pacientes.personas-disponibles')" />
         @endif
 
-        <x-admin.input name="nro_ficha" label="Número de ficha" :value="$registro->nro_ficha" maxlength="20" required aria-describedby="nro_ficha_ayuda" />
+        <x-admin.input name="nro_ficha" label="Número de ficha" :value="$registro->nro_ficha" unico="paciente.nro_ficha" :unico-ignorar="$registro->id" maxlength="20" required aria-describedby="nro_ficha_ayuda" />
         @unless ($registro->exists)
             <p id="nro_ficha_ayuda" class="-mt-4 text-xs text-gray-500 dark:text-gray-400">Se propone el siguiente número libre (formato FP-0000001); se puede cambiar (por ejemplo, para respetar el número de una ficha en papel). La fecha de alta se registra sola al guardar.</p>
         @endunless

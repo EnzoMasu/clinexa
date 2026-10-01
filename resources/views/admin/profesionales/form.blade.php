@@ -32,7 +32,7 @@
         @endif
 
         <div class="max-w-sm">
-            <x-admin.input name="matricula" label="Matrícula profesional" :value="$registro->matricula" maxlength="50" required />
+            <x-admin.input name="matricula" label="Matrícula profesional" :value="$registro->matricula" unico="profesional.matricula" :unico-ignorar="$registro->id" maxlength="50" required />
         </div>
 
         {{-- Especialidades (profesional_especialidad): una fila por especialidad, con matrícula y fecha desde. --}}

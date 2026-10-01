@@ -17,7 +17,7 @@
             @if ($matrizFija)
                 <x-admin.input name="nombre" label="Nombre" :value="$perfil->nombre" readonly />
             @else
-                <x-admin.input name="nombre" label="Nombre" :value="$perfil->nombre" maxlength="50" required autofocus />
+                <x-admin.input name="nombre" label="Nombre" :value="$perfil->nombre" unico="perfil_acceso.nombre" :unico-ignorar="$perfil->id" maxlength="50" required autofocus />
             @endif
             <x-admin.textarea name="descripcion" label="Descripción" :value="$perfil->descripcion" maxlength="200" rows="2" />
 
