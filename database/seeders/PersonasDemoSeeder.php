@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Paciente;
+use App\Models\Pais;
 use App\Models\Persona;
 use App\Models\PropietarioEquipo;
 use App\Models\Proveedor;
@@ -25,7 +26,7 @@ use RuntimeException;
  *
  * Idempotente: actualiza por tipo_documento_id + nro_documento, sin duplicar; cada rol se crea
  * solo si la persona todavía no lo tiene.
- * Requiere el tipo de documento CI (lo crea DatosRealesClinicaSeeder).
+ * Requiere el tipo de documento CI (lo crea DatosRealesClinicaSeeder) y el país Paraguay (GeografiaSeeder).
  */
 class PersonasDemoSeeder extends Seeder
 {
@@ -34,11 +35,14 @@ class PersonasDemoSeeder extends Seeder
         $ci = TipoDocumento::where('codigo', 'CI')->first()
             ?? throw new RuntimeException('Falta el tipo de documento CI: correr antes DatosRealesClinicaSeeder.');
 
+        $paraguay = Pais::idParaguay()
+            ?? throw new RuntimeException('Falta el país Paraguay: correr antes GeografiaSeeder.');
+
         $comunes = [
             'tipo_persona' => 'FISICA',
             'tipo_documento_id' => $ci->id,
             'sexo' => 'F',
-            'nacionalidad' => 'Paraguaya',
+            'pais_nacionalidad_id' => $paraguay,
         ];
 
         $personas = [

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\TieneEstado;
+use Database\Factories\PersonaFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,10 +13,10 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Persona extends Model
 {
-    /** @use HasFactory<\Database\Factories\PersonaFactory> */
+    /** @use HasFactory<PersonaFactory> */
     use HasFactory, TieneEstado;
 
-    public const CAMPOS_FISICA = ['apellidos', 'nombres', 'fecha_nacimiento', 'sexo', 'nacionalidad', 'estado_civil'];
+    public const CAMPOS_FISICA = ['apellidos', 'nombres', 'fecha_nacimiento', 'sexo', 'pais_nacionalidad_id', 'estado_civil'];
 
     public const CAMPOS_JURIDICA = ['razon_social', 'nombre_fantasia', 'representante_legal'];
 
@@ -33,7 +34,7 @@ class Persona extends Model
         'nombres',
         'fecha_nacimiento',
         'sexo',
-        'nacionalidad',
+        'pais_nacionalidad_id',
         'estado_civil',
         'razon_social',
         'nombre_fantasia',
@@ -145,7 +146,16 @@ class Persona extends Model
     }
 
     /**
-     * Ciudad (opcional): dato adicional a la dirección en texto libre.
+     * País de nacionalidad (opcional, solo personas físicas). Independiente de la ciudad: es de
+     * dónde es la persona, no dónde vive.
+     */
+    public function paisNacionalidad(): BelongsTo
+    {
+        return $this->belongsTo(Pais::class, 'pais_nacionalidad_id');
+    }
+
+    /**
+     * Ciudad (opcional): dato adicional a la dirección en texto libre (dónde vive).
      */
     public function ciudad(): BelongsTo
     {

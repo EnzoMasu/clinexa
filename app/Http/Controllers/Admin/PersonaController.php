@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PersonaRequest;
+use App\Models\Pais;
 use App\Models\Persona;
 use App\Models\TipoDocumento;
 use Illuminate\Http\RedirectResponse;
@@ -36,9 +37,14 @@ class PersonaController extends Controller
     public function create(): View
     {
         return view('admin.personas.form', [
-            // Preseleccionado: el tipo de documento predeterminado del módulo Personas.
-            'persona' => new Persona(['tipo_persona' => 'FISICA', 'tipo_documento_id' => TipoDocumento::predeterminadoPara('PERSONAS')]),
+            // Preseleccionados: el tipo de documento predeterminado del módulo Personas y nacionalidad paraguaya.
+            'persona' => new Persona([
+                'tipo_persona' => 'FISICA',
+                'tipo_documento_id' => TipoDocumento::predeterminadoPara('PERSONAS'),
+                'pais_nacionalidad_id' => Pais::idParaguay(),
+            ]),
             'tiposDocumento' => $this->tiposDocumento(),
+            'paises' => Pais::opciones(),
         ]);
     }
 
@@ -54,6 +60,7 @@ class PersonaController extends Controller
         return view('admin.personas.form', [
             'persona' => $persona,
             'tiposDocumento' => $this->tiposDocumento($persona),
+            'paises' => Pais::opciones($persona->pais_nacionalidad_id),
         ]);
     }
 

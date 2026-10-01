@@ -8,12 +8,15 @@ use App\Models\Pais;
 use Illuminate\Database\Seeder;
 
 /**
- * Geografía real básica: Paraguay, sus 17 departamentos más Asunción (Distrito Capital, que no
- * pertenece a ningún departamento), y las ciudades que usa hoy la clínica: Asunción y los 14
- * distritos del departamento de Concepción (fuente: Wikipedia, "Departamento de Concepción
- * (Paraguay)", consultada el 28/09/2026). El resto de las ciudades se carga más adelante.
+ * Los 249 países de ISO 3166-1 (database/data/paises.php), para elegir la nacionalidad de una
+ * persona. Solo Paraguay tiene departamentos y ciudades cargados.
  *
- * Idempotente: busca por nombre (dentro de su país/departamento) y no duplica.
+ * Paraguay: sus 17 departamentos más Asunción (Distrito Capital, que no pertenece a ningún
+ * departamento) y sus 263 distritos, que son las ciudades (database/data/distritos-paraguay.php;
+ * fuente: INE, Cartografía Censal 2022).
+ *
+ * Idempotente y solo aditivo: busca por nombre (dentro de su país/departamento), agrega lo que
+ * falte y no modifica ni quita lo existente.
  */
 class GeografiaSeeder extends Seeder
 {
@@ -25,24 +28,20 @@ class GeografiaSeeder extends Seeder
 
     public const DISTRITO_CAPITAL = 'Asunción (Distrito Capital)';
 
-    public const CIUDADES = [
-        self::DISTRITO_CAPITAL => ['Asunción'],
-        'Concepción' => [
-            'Concepción', 'Arroyito', 'Azotey', 'Belén', 'Horqueta', 'Itacuá', 'Loreto', 'Paso Barreto',
-            'Paso Horqueta', 'San Alfredo', 'San Carlos del Apa', 'San Lázaro', 'Sargento José Félix López', 'Yby Yaú',
-        ],
-    ];
-
     public function run(): void
     {
-        $paraguay = Pais::firstOrCreate(['nombre' => 'Paraguay']);
+        foreach (require database_path('data/paises.php') as $nombre) {
+            Pais::firstOrCreate(['nombre' => $nombre]);
+        }
+
+        $paraguay = Pais::where('nombre', 'Paraguay')->sole();
 
         foreach ([...self::DEPARTAMENTOS, self::DISTRITO_CAPITAL] as $nombre) {
             Departamento::firstOrCreate(['pais_id' => $paraguay->id, 'nombre' => $nombre]);
         }
 
-        foreach (self::CIUDADES as $departamento => $ciudades) {
-            $departamentoId = Departamento::where('pais_id', $paraguay->id)->where('nombre', $departamento)->value('id');
+        foreach (require database_path('data/distritos-paraguay.php') as $departamento => $ciudades) {
+            $departamentoId = Departamento::where('pais_id', $paraguay->id)->where('nombre', $departamento)->sole()->id;
             foreach ($ciudades as $ciudad) {
                 Ciudad::firstOrCreate(['departamento_id' => $departamentoId, 'nombre' => $ciudad]);
             }

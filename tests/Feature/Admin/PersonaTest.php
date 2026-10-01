@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ModuloSistema;
+use App\Models\Pais;
 use App\Models\Persona;
 use App\Models\TipoDocumento;
 use App\Models\User;
@@ -12,6 +13,8 @@ beforeEach(function () {
     $this->ci = TipoDocumento::firstOrCreate(['codigo' => 'CI'], ['nombre' => 'Cédula']);
     $this->ruc = TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC']);
     $this->pasaporte = TipoDocumento::create(['codigo' => 'PAS', 'nombre' => 'Pasaporte']);
+
+    $this->paraguay = Pais::firstOrCreate(['nombre' => 'Paraguay']);
 
     // Tipos que acepta el módulo Personas (tipo_documento_modulo); CI es el predeterminado.
     ModuloSistema::where('codigo', 'PERSONAS')->sole()->configurarTiposDocumento(['CI', 'RUC', 'PAS']);
@@ -27,7 +30,7 @@ function datosFisica(array $cambios = []): array
         'nombres' => 'María',
         'fecha_nacimiento' => '1990-05-10',
         'sexo' => 'F',
-        'nacionalidad' => 'Paraguaya',
+        'pais_nacionalidad_id' => test()->paraguay->id,
         'estado_civil' => 'SOLTERO',
         'email' => 'maria@example.com',
         'telefono' => '0981 000 000',

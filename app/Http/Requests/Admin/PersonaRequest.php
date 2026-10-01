@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Ciudad;
+use App\Models\Pais;
 use App\Models\Persona;
 use App\Models\TipoDocumento;
 use App\Models\User;
@@ -52,7 +53,7 @@ class PersonaRequest extends FormRequest
             'nombres' => ['exclude_unless:tipo_persona,FISICA', 'required', 'string', 'max:100'],
             'fecha_nacimiento' => ['exclude_unless:tipo_persona,FISICA', 'required', 'date', 'before_or_equal:today'],
             'sexo' => ['exclude_unless:tipo_persona,FISICA', 'nullable', Rule::in(array_keys(Persona::SEXOS))],
-            'nacionalidad' => ['exclude_unless:tipo_persona,FISICA', 'nullable', 'string', 'max:50'],
+            'pais_nacionalidad_id' => ['exclude_unless:tipo_persona,FISICA', ...Pais::reglaOpcional($persona?->pais_nacionalidad_id)],
             'estado_civil' => ['exclude_unless:tipo_persona,FISICA', 'nullable', Rule::in(Persona::ESTADOS_CIVILES)],
 
             'razon_social' => ['exclude_unless:tipo_persona,JURIDICA', 'required', 'string', 'max:150'],
@@ -87,6 +88,7 @@ class PersonaRequest extends FormRequest
             'fecha_nacimiento' => 'fecha de nacimiento',
             'estado_civil' => 'estado civil',
             'ciudad_id' => 'ciudad',
+            'pais_nacionalidad_id' => 'nacionalidad',
             'razon_social' => 'razón social',
             'nombre_fantasia' => 'nombre de fantasía',
             'representante_legal' => 'representante legal',

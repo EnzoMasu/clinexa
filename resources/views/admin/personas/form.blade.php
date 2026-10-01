@@ -34,7 +34,8 @@
                 <x-admin.input name="fecha_nacimiento" label="Fecha de nacimiento" type="date"
                     :value="$persona->fecha_nacimiento?->format('Y-m-d')" :max="now()->format('Y-m-d')" required />
                 <x-admin.select name="sexo" label="Sexo" :options="Persona::SEXOS" :value="$persona->sexo" nullable />
-                <x-admin.input name="nacionalidad" label="Nacionalidad" :value="$persona->nacionalidad" maxlength="50" />
+                {{-- País de nacionalidad (de dónde es), independiente de la ciudad (dónde vive). --}}
+                <x-admin.select name="pais_nacionalidad_id" label="Nacionalidad" :options="$paises" :value="$persona->pais_nacionalidad_id" nullable />
                 <x-admin.select name="estado_civil" label="Estado civil" :options="Persona::ESTADOS_CIVILES" :value="$persona->estado_civil" nullable />
             </div>
         </fieldset>

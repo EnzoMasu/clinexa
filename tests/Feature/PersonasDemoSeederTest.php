@@ -7,10 +7,11 @@ use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\TipoDocumento;
 use Database\Seeders\DatosRealesClinicaSeeder;
+use Database\Seeders\GeografiaSeeder;
 use Database\Seeders\PersonasDemoSeeder;
 
 test('carga las 5 personas de ejemplo y se puede volver a correr sin duplicar', function () {
-    $this->seed([DatosRealesClinicaSeeder::class, PersonasDemoSeeder::class]);
+    $this->seed([GeografiaSeeder::class, DatosRealesClinicaSeeder::class, PersonasDemoSeeder::class]);
     $this->seed(PersonasDemoSeeder::class);
 
     // Las de demo son las de CI (DatosRealesClinicaSeeder carga además personas reales con RUC).
@@ -24,14 +25,14 @@ test('carga las 5 personas de ejemplo y se puede volver a correr sin duplicar', 
         ->nombre_completo->toBe('Duarte, Carmen Sofía')
         ->tipo_persona->toBe('FISICA')
         ->sexo->toBe('F')
-        ->nacionalidad->toBe('Paraguaya')
+        ->paisNacionalidad->nombre->toBe('Paraguay')
         ->estado->codigo->toBe('ACTIVO')
         ->and(Persona::where('nro_documento', '5234567')->sole()->fecha_nacimiento->format('Y-m-d'))->toBe('1990-03-15')
         ->and(Persona::where('nro_documento', '5234567')->sole()->tipoDocumento->codigo)->toBe('CI');
 });
 
 test('asigna los roles de ejemplo a las personas de demo, sin duplicar al volver a correr', function () {
-    $this->seed([DatosRealesClinicaSeeder::class, PersonasDemoSeeder::class]);
+    $this->seed([GeografiaSeeder::class, DatosRealesClinicaSeeder::class, PersonasDemoSeeder::class]);
     $this->seed(PersonasDemoSeeder::class);
 
     $nombres = fn (string $modelo) => $modelo::with('persona')->get()->map(fn ($rol) => $rol->persona->nombre_completo)->sort()->values()->all();

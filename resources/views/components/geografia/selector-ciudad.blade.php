@@ -13,7 +13,8 @@
     $ciudadId = old($name, $value);
     $actual = $ciudadId ? Ciudad::with('departamento')->find($ciudadId) : null;
 
-    $paises = Pais::activos()->orderBy('nombre')->get();
+    // Solo países con departamentos cargados (el catálogo tiene todos, para la nacionalidad).
+    $paises = Pais::activos()->whereHas('departamentos')->orderBy('nombre')->get();
     // Sin ciudad elegida: si hay un solo país (Paraguay), ya viene seleccionado.
     $paisId = $actual?->departamento->pais_id ?? ($paises->count() === 1 ? $paises->first()->id : null);
     $departamentoId = $actual?->departamento_id;
