@@ -15,6 +15,10 @@
         'admin.categorias-gasto' => 'Categorías de gasto',
         'admin.categorias-proveedor' => 'Categorías de proveedor',
         'admin.procedimientos' => 'Procedimientos',
+        'admin.turnos' => 'Turnos',
+        'admin.disponibilidades' => 'Disponibilidades',
+        'admin.consultorios' => 'Consultorios',
+        'admin.origenes-turno' => 'Orígenes de turno',
     ];
 
     // Solo las secciones cuyo listado el usuario puede ver (permiso VER del módulo).

@@ -3,8 +3,11 @@
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
+use App\Http\Controllers\Admin\ConsultorioController;
+use App\Http\Controllers\Admin\DisponibilidadController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\MedioPagoController;
+use App\Http\Controllers\Admin\OrigenTurnoController;
 use App\Http\Controllers\Admin\PacienteController;
 use App\Http\Controllers\Admin\PerfilAccesoController;
 use App\Http\Controllers\Admin\PersonaController;
@@ -14,6 +17,7 @@ use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
 use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
+use App\Http\Controllers\Admin\TurnoController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\GeografiaController;
 use App\Http\Controllers\ProfileController;
@@ -81,6 +85,28 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('categorias-gasto', CategoriaGastoController::class, 'CATEGORIAS_GASTO', 'categoriaGasto', conBaja: true);
     $seccion('categorias-proveedor', CategoriaProveedorController::class, 'CATEGORIAS_PROVEEDOR', 'categoriaProveedor', conBaja: true);
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
+
+    // Agenda: catálogos, disponibilidades de los profesionales y turnos.
+    $seccion('consultorios', ConsultorioController::class, 'CONSULTORIOS', 'consultorio', conBaja: true);
+    $seccion('origenes-turno', OrigenTurnoController::class, 'ORIGENES_TURNO', 'origenTurno', conBaja: true);
+    Route::get('disponibilidades/profesionales', [DisponibilidadController::class, 'profesionales'])
+        ->name('disponibilidades.profesionales')
+        ->middleware('permiso:DISPONIBILIDAD,CREAR');
+    $seccion('disponibilidades', DisponibilidadController::class, 'DISPONIBILIDAD', 'disponibilidad', conBaja: true);
+
+    // Turnos: no se editan ni se borran; solo se dan de alta y cambian de estado.
+    Route::middleware('permiso:TURNOS,CREAR')->group(function () {
+        Route::get('turnos/horarios-disponibles', [TurnoController::class, 'horariosDisponibles'])->name('turnos.horarios-disponibles');
+        Route::get('turnos/pacientes', [TurnoController::class, 'pacientes'])->name('turnos.pacientes');
+        Route::get('turnos/profesionales', [TurnoController::class, 'profesionales'])->name('turnos.profesionales');
+    });
+    Route::resource('turnos', TurnoController::class)
+        ->only(['index', 'create', 'store'])
+        ->middlewareFor('index', 'permiso:TURNOS,VER')
+        ->middlewareFor(['create', 'store'], 'permiso:TURNOS,CREAR');
+    Route::patch('turnos/{turno}/estado', [TurnoController::class, 'cambiarEstado'])
+        ->name('turnos.estado')
+        ->middleware('permiso:TURNOS,EDITAR');
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
     foreach ([

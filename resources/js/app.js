@@ -1,6 +1,7 @@
 import './bootstrap';
 
 import Alpine from 'alpinejs';
+import altaTurno from './alta-turno';
 import campoFecha from './campo-fecha';
 import listadoEnVivo from './listado-en-vivo';
 import selectorCiudad from './selector-ciudad';
@@ -9,6 +10,7 @@ import verificarUnico from './verificar-unico';
 
 window.Alpine = Alpine;
 
+Alpine.data('altaTurno', altaTurno);
 Alpine.data('campoFecha', campoFecha);
 Alpine.data('listadoEnVivo', listadoEnVivo);
 Alpine.data('selectorCiudad', selectorCiudad);

@@ -16,14 +16,18 @@ test('la tabla estados tiene los 22 estados, con código y nombre', function () 
     ])->and(Estado::whereColumn('codigo', '!=', 'nombre')->count())->toBe(0);
 });
 
-test('estado_modulo: todos los módulos con ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO', function () {
+test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Turnos con su ciclo propio', function () {
     $this->seed(ModuloSistemaSeeder::class);
 
     foreach (ModuloSistema::with('estados')->get() as $modulo) {
-        $esperados = $modulo->codigo === 'USUARIOS' ? ['ACTIVO', 'BLOQUEADO', 'INACTIVO'] : ['ACTIVO', 'INACTIVO'];
+        [$esperados, $inicial] = match ($modulo->codigo) {
+            'USUARIOS' => [['ACTIVO', 'BLOQUEADO', 'INACTIVO'], 'ACTIVO'],
+            'TURNOS' => [['ATENDIDO', 'AUSENTE', 'CANCELADO', 'CONFIRMADO', 'PENDIENTE'], 'PENDIENTE'],
+            default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
+        };
 
         expect($modulo->estados->pluck('codigo')->sort()->values()->all())->toBe($esperados)
-            ->and($modulo->estados->where('pivot.es_inicial', true)->pluck('codigo')->all())->toBe(['ACTIVO']);
+            ->and($modulo->estados->where('pivot.es_inicial', true)->pluck('codigo')->all())->toBe([$inicial]);
     }
 
     expect(ModuloSistema::pluck('codigo')->all())->toContain('PERSONAS', 'USUARIOS', 'PERFILES_ACCESO', 'MODULOS_SISTEMA', 'GEOGRAFIA');

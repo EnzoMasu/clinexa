@@ -19,6 +19,17 @@ class Estado extends Model
 
     public const BLOQUEADO = 'BLOQUEADO';
 
+    // Estados de los turnos.
+    public const PENDIENTE = 'PENDIENTE';
+
+    public const CONFIRMADO = 'CONFIRMADO';
+
+    public const ATENDIDO = 'ATENDIDO';
+
+    public const CANCELADO = 'CANCELADO';
+
+    public const AUSENTE = 'AUSENTE';
+
     protected $table = 'estados';
 
     protected $fillable = [

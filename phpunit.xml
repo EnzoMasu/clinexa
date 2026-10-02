@@ -11,6 +11,10 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <!-- Lo que necesita PostgreSQL de verdad (EXCLUDE de turnos): base clinexa_test, ver tests/PostgresTestCase.php. -->
+        <testsuite name="Postgres">
+            <directory>tests/Postgres</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

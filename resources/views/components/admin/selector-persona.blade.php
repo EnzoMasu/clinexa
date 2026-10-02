@@ -3,6 +3,10 @@
     roles de negocio. "url" es el endpoint personas-disponibles de la sección, que ya filtra las
     personas que se pueden elegir; "ayuda" explica ese filtro al usuario. "conEmail" debe coincidir
     con lo que devuelve el endpoint, para que la persona recordada tras un error se vea igual.
+
+    También sirve para elegir un registro de un rol (paciente, profesional): "url" devuelve sus ids,
+    "inicial" (['id' => ..., 'texto' => ...]) es lo elegido de antes y "ofrecerAlta" en false
+    oculta el enlace para cargar una persona nueva.
 --}}
 @props([
     'url',
@@ -10,6 +14,9 @@
     'label' => 'Persona',
     'conEmail' => false,
     'ayuda' => 'Solo aparecen personas activas que todavía no tienen este rol. Nombre y documento se toman de la persona.',
+    'inicial' => null,
+    'ofrecerAlta' => true,
+    'sinResultados' => 'No hay personas disponibles con esa búsqueda.',
 ])
 
 @php
@@ -17,14 +24,15 @@
     use App\Support\BuscadorPersonas;
     use App\Support\Permisos;
 
-    // Tras un error de validación se conserva la persona que se había elegido.
-    $anterior = old($name) ? Persona::with('tipoDocumento')->find(old($name)) : null;
-    $inicial = $anterior ? ['id' => $anterior->id, 'texto' => BuscadorPersonas::texto($anterior, $conEmail)] : null;
-    $urlNuevaPersona = Permisos::url('admin.personas.create');
+    // Tras un error de validación se conserva la persona que se había elegido (o lo que indique "inicial").
+    if ($inicial === null && old($name) && ($anterior = Persona::with('tipoDocumento')->find(old($name)))) {
+        $inicial = ['id' => $anterior->id, 'texto' => BuscadorPersonas::texto($anterior, $conEmail)];
+    }
+    $urlNuevaPersona = $ofrecerAlta ? Permisos::url('admin.personas.create') : null;
     $minimo = BuscadorPersonas::MINIMO;
 @endphp
 
-<div x-data="selectorPersona({ url: @js($url), inicial: @js($inicial), minimo: {{ $minimo }} })" class="space-y-2">
+<div x-data="selectorPersona({ url: @js($url), inicial: @js($inicial), minimo: {{ $minimo }}, campo: @js($name) })" class="space-y-2">
     <x-input-label :for="$name.'_buscar'" :value="$label" />
     <input type="hidden" name="{{ $name }}" x-bind:value="elegida ? elegida.id : ''" value="{{ $inicial['id'] ?? '' }}">
 
@@ -57,7 +65,7 @@
                 Escriba al menos {{ $minimo }} caracteres del nombre o del documento para buscar.
             </li>
             <li x-show="buscado && ! cargando && ! faltanCaracteres && resultados.length === 0" style="display: none" class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">
-                No hay personas disponibles con esa búsqueda.
+                {{ $sinResultados }}
                 @if ($urlNuevaPersona)
                     <a href="{{ $urlNuevaPersona }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Cargar una persona nueva</a>
                 @endif

@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(96); // 15 secciones × 6 rutas (todas con baja) + invitación + 5 buscadores de personas (usuarios y los 4 roles)
+    expect($rutas)->toHaveCount(122); // 18 secciones × 6 rutas (todas con baja) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -102,7 +102,7 @@ test('el menú de Administración muestra solo las secciones con permiso VER', f
 test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra a todo', function () {
     $admin = User::factory()->administrador()->create();
 
-    expect(ModuloSistema::count())->toBe(17)
+    expect(ModuloSistema::count())->toBe(21)
         ->and($admin->perfilAcceso->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 
     $this->actingAs($admin);

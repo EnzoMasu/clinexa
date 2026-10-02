@@ -6,8 +6,11 @@
  * Mismo mecanismo que el buscador en vivo de los listados: debounce de 350 ms (en la vista) y
  * cancelación de la petición anterior con AbortController. No busca al abrir el formulario ni con
  * menos de "minimo" caracteres (el servidor tampoco responde con menos).
+ *
+ * Al elegir o cambiar avisa con el evento "elegido" ({ campo, id }), para que el formulario que
+ * lo contiene pueda reaccionar (p. ej. el alta de turno carga los horarios del profesional).
  */
-export default ({ url, inicial, minimo }) => ({
+export default ({ url, inicial, minimo, campo = 'persona_id' }) => ({
     q: '',
     resultados: [],
     elegida: inicial, // { id, texto } o null
@@ -60,10 +63,12 @@ export default ({ url, inicial, minimo }) => ({
 
     elegir(persona) {
         this.elegida = persona;
+        this.$dispatch('elegido', { campo, id: persona.id });
     },
 
     cambiar() {
         this.elegida = null;
+        this.$dispatch('elegido', { campo, id: null });
         this.$nextTick(() => this.$refs.busqueda.focus());
     },
 });

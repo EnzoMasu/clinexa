@@ -3,6 +3,7 @@
 use App\Models\Estado;
 use App\Support\Fecha;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\PostgresTestCase;
 use Tests\TestCase;
 
 /*
@@ -19,6 +20,12 @@ use Tests\TestCase;
 pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
+
+// Solo lo que depende de PostgreSQL (restricciones EXCLUDE): base clinexa_test. PostgresTestCase ya
+// trae RefreshDatabase, con su propio control de migración.
+pest()->extend(PostgresTestCase::class)
+    ->group('postgres')
+    ->in('Postgres');
 
 /*
 |--------------------------------------------------------------------------

@@ -6,6 +6,7 @@ use App\Models\CategoriaProveedor;
 use App\Models\Ciudad;
 use App\Models\Especialidad;
 use App\Models\ModuloSistema;
+use App\Models\OrigenTurno;
 use App\Models\Persona;
 use App\Models\Procedimiento;
 use App\Models\Profesional;
@@ -21,6 +22,9 @@ use Illuminate\Database\Seeder;
  */
 class DatosRealesClinicaSeeder extends Seeder
 {
+    /** Orígenes de turno (código => nombre). */
+    public const ORIGENES_TURNO = ['PRESENCIAL' => 'Presencial', 'TELEFONICO' => 'Telefónico', 'WEB' => 'Web', 'APP' => 'App'];
+
     public const CATEGORIAS_PROVEEDOR = ['Insumos médicos', 'Equipos médicos', 'Insumos de oficina', 'Artículos de limpieza', 'Servicios tercerizados'];
 
     public function run(): void
@@ -58,6 +62,11 @@ class DatosRealesClinicaSeeder extends Seeder
         // Categorías base de proveedor (se crean si faltan; no se tocan las que ya existen).
         foreach (self::CATEGORIAS_PROVEEDOR as $nombre) {
             CategoriaProveedor::firstOrCreate(['nombre' => $nombre]);
+        }
+
+        // Orígenes de turno (se crean si faltan; no se tocan los que ya existen).
+        foreach (self::ORIGENES_TURNO as $codigo => $nombre) {
+            OrigenTurno::firstOrCreate(['codigo' => $codigo], ['nombre' => $nombre]);
         }
 
         Especialidad::updateOrCreate(['nombre' => 'Ginecología y Obstetricia'], [

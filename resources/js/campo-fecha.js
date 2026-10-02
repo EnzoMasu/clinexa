@@ -6,6 +6,7 @@
 // Uso: x-data="campoFecha({ valor: '05/03/1990', max: '2026-10-01' })" con un input
 // x-bind:value="valor" x-on:input="escribir($event)" y la vista del calendario
 // (componente Blade x-admin.calendario). Con x-modelable="valor" se puede enlazar con x-model.
+// Cada cambio avisa con el evento "fecha-cambiada" ({ campo, valor }) para el formulario que lo contiene.
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DIAS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
@@ -39,6 +40,10 @@ export default ({ valor = '', max = null } = {}) => ({
     meses: MESES,
     nombresDias: DIAS,
     maximo: max ? new Date(`${max}T00:00:00`) : null,
+
+    init() {
+        this.$watch('valor', (valor) => this.$dispatch('fecha-cambiada', { campo: this.$refs.entrada?.name, valor }));
+    },
 
     escribir(evento) {
         this.valor = enmascarar(evento.target.value);

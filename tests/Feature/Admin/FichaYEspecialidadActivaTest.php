@@ -88,7 +88,7 @@ describe('ficha de paciente', function () {
         expect(fn () => $migracion->up())->toThrow(function (RuntimeException $e) {
             expect($e->getMessage())->toContain('FP-0000002 <- ')->toContain('000002')->toContain('No se modificó nada');
         });
-        expect(DB::table('pacientes')->pluck('nro_ficha')->sort()->values()->all())->toBe(['000002', '2']);
+        expect(DB::table('pacientes')->pluck('nro_ficha')->sort(SORT_STRING)->values()->all())->toBe(['000002', '2']);
     });
 });
 
