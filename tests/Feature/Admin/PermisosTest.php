@@ -99,6 +99,50 @@ test('el menú de Administración muestra solo las secciones con permiso VER', f
         ->assertDontSee(route('admin.usuarios.index'));
 });
 
+test('el Administrador ve los 4 grupos del menú, en orden y con sus secciones, en escritorio y en mobile', function () {
+    $this->actingAs(User::factory()->administrador()->create());
+
+    $grupos = [
+        'Seguridad' => ['usuarios', 'perfiles-acceso'],
+        'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'proveedores', 'categorias-proveedor', 'responsables-pago'],
+        'Agenda' => ['turnos', 'disponibilidades', 'consultorios', 'origenes-turno'],
+        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10'],
+    ];
+
+    // Cada encabezado seguido de sus links, en el desplegable de escritorio y en el menú de mobile.
+    foreach (['data-grupo-menu', 'data-grupo-menu-movil'] as $atributo) {
+        $esperado = collect($grupos)->flatMap(fn (array $secciones, string $grupo) => [
+            $atributo.'="'.$grupo.'"',
+            ...array_map(fn (string $seccion) => 'href="'.route("admin.{$seccion}.index").'"', $secciones),
+        ])->all();
+
+        $this->get('/dashboard')->assertOk()->assertSeeInOrder($esperado, false);
+    }
+
+    // No queda ninguna sección de /admin con listado fuera del menú.
+    $enMenu = collect($grupos)->flatten()->map(fn (string $seccion) => "admin.{$seccion}.index")->sort()->values()->all();
+    $conListado = collect(rutasAdmin())->pluck('nombre')->filter(fn (string $nombre) => str_ends_with($nombre, '.index'))->sort()->values()->all();
+    expect($enMenu)->toBe($conListado);
+});
+
+test('un perfil con permisos en un solo grupo no ve los encabezados de los grupos vacíos', function () {
+    $this->actingAs(User::factory()->conPermisos([
+        'TURNOS' => ['VER'],
+        'CONSULTORIOS' => ['VER'],
+        'ESPECIALIDADES' => ['CREAR'], // sin VER: no cuenta para Catálogos
+    ])->create());
+
+    $html = $this->get('/dashboard')->assertOk()
+        ->assertSee(route('admin.turnos.index'))->assertSee(route('admin.consultorios.index'))
+        ->assertDontSee(route('admin.disponibilidades.index'))
+        ->getContent();
+
+    expect($html)->toContain('data-grupo-menu="Agenda"')->toContain('data-grupo-menu-movil="Agenda"');
+    foreach (['Seguridad', 'Personas y Roles', 'Catálogos'] as $grupo) {
+        expect($html)->not->toContain('data-grupo-menu="'.$grupo.'"')->not->toContain('data-grupo-menu-movil="'.$grupo.'"');
+    }
+});
+
 test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra a todo', function () {
     $admin = User::factory()->administrador()->create();
 
