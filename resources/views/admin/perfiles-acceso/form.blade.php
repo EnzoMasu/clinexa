@@ -73,11 +73,16 @@
                                     </td>
                                     @foreach (Permiso::ACCIONES as $accion)
                                         <td class="px-4 py-2 text-center">
-                                            <input type="checkbox" name="permisos[{{ $modulo->id }}][]" value="{{ $accion }}"
-                                                aria-label="{{ $modulo->nombre }}: {{ $accion }}"
-                                                @checked($matrizFija || in_array("{$modulo->id}:{$accion}", $tildados))
-                                                @disabled($matrizFija)
-                                                class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800 disabled:opacity-60 disabled:cursor-not-allowed">
+                                            @if (in_array($accion, Permiso::accionesDe($modulo->codigo), true))
+                                                <input type="checkbox" name="permisos[{{ $modulo->id }}][]" value="{{ $accion }}"
+                                                    aria-label="{{ $modulo->nombre }}: {{ $accion }}"
+                                                    @checked($matrizFija || in_array("{$modulo->id}:{$accion}", $tildados))
+                                                    @disabled($matrizFija)
+                                                    class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800 disabled:opacity-60 disabled:cursor-not-allowed">
+                                            @else
+                                                {{-- No aplica (p. ej. CREAR en Auditoría, que es de solo lectura). --}}
+                                                <span class="text-gray-400 dark:text-gray-500" title="No aplica a este módulo" aria-label="{{ $modulo->nombre }}: {{ $accion }} no aplica">—</span>
+                                            @endif
                                         </td>
                                     @endforeach
                                 </tr>

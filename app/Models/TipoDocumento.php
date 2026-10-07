@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class TipoDocumento extends Model
 {
-    use TieneEstado;
+    use Auditable, TieneEstado;
 
     protected $table = 'tipos_documento';
 
@@ -27,6 +29,16 @@ class TipoDocumento extends Model
     /**
      * Módulos que aceptan este tipo de documento (tipo_documento_modulo).
      */
+    /** En el log, los módulos habilitados: "Personas (predeterminado)". */
+    public function relacionesAuditadas(): array
+    {
+        return [
+            'modulos' => fn (Collection $modulos) => $modulos
+                ->map(fn (ModuloSistema $modulo) => $modulo->nombre.($modulo->pivot->es_predeterminado ? ' (predeterminado)' : ''))
+                ->sort()->values()->all(),
+        ];
+    }
+
     public function modulos(): BelongsToMany
     {
         return $this->belongsToMany(ModuloSistema::class, 'tipo_documento_modulo', 'tipo_documento_id', 'modulo_sistema_id')

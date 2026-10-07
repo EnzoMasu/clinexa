@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\AccionAuditoria;
 use App\Http\Controllers\Controller;
+use App\Support\Auditoria;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +25,9 @@ class PasswordController extends Controller
         $request->user()->update([
             'password' => Hash::make($validated['password']),
         ]);
+
+        // Solo el hecho y el origen: nunca la contraseña ni su hash.
+        Auditoria::registrar(AccionAuditoria::CAMBIO_CONTRASENA, 'users', $request->user()->id, detalle: 'Origen: perfil (cambio por el propio usuario).');
 
         return back()->with('status', 'password-updated');
     }

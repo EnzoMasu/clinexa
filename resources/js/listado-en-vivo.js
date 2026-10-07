@@ -5,6 +5,9 @@
  * Con JavaScript: busca sola al dejar de escribir y al paginar, pide al mismo endpoint con
  * X-Requested-With y el controlador devuelve solo la tabla (_tabla.blade.php), que reemplaza
  * el contenido de x-ref="resultados" sin recargar el resto de la página.
+ *
+ * Además del texto (q), toma todos los campos del formulario: los filtros que agregue el listado
+ * (selects, fechas) buscan al cambiar. Los campos vacíos no van en la URL.
  */
 export default () => ({
     cargando: false,
@@ -12,22 +15,40 @@ export default () => ({
     peticion: null,
 
     init() {
-        this.ultimaBusqueda = this.$refs.q.value.trim();
+        this.ultimaBusqueda = this.consulta();
+    },
+
+    // Texto y filtros del formulario como query string, sin los vacíos.
+    consulta() {
+        const parametros = new URLSearchParams();
+        for (const [nombre, valor] of new FormData(this.$refs.formulario)) {
+            const texto = String(valor).trim();
+            if (texto !== '') {
+                parametros.append(nombre, texto);
+            }
+        }
+
+        return parametros.toString();
     },
 
     buscar() {
-        const q = this.$refs.q.value.trim();
-        if (q === this.ultimaBusqueda) {
+        const consulta = this.consulta();
+        if (consulta === this.ultimaBusqueda) {
             return;
         }
-        this.ultimaBusqueda = q;
+        this.ultimaBusqueda = consulta;
 
         // Una búsqueda nueva siempre vuelve a la página 1.
         const url = new URL(this.$refs.formulario.action);
-        if (q !== '') {
-            url.searchParams.set('q', q);
-        }
+        url.search = consulta;
         this.cargar(url.toString());
+    },
+
+    // Un filtro de fecha busca cuando queda vacío o completo (dd/mm/aaaa), no mientras se escribe.
+    alCambiarFecha(evento) {
+        if (/^(\d{2}\/\d{2}\/\d{4})?$/.test(evento.detail.valor ?? '')) {
+            this.buscar();
+        }
     },
 
     // Clicks dentro de los resultados: solo se interceptan los links de la paginación.

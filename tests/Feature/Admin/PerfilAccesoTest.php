@@ -104,8 +104,11 @@ test('la pantalla del perfil Administrador muestra la matriz completa y bloquead
         ->assertSee('tiene siempre todos los permisos');
 
     $html = $respuesta->getContent();
-    $todos = ModuloSistema::count() * count(Permiso::ACCIONES); // un casillero por módulo y acción
+    // Un casillero por módulo y acción que le aplica (en Auditoría, solo VER y EXPORTAR: el resto es "—").
+    $todos = ModuloSistema::pluck('codigo')->sum(fn (string $codigo) => count(Permiso::accionesDe($codigo)));
     expect(substr_count($html, 'type="checkbox"'))->toBe($todos)
+        ->and(substr_count($html, 'Auditoría: ')
+            - substr_count($html, 'aria-label="Auditoría: VER"') - substr_count($html, 'aria-label="Auditoría: EXPORTAR"'))->toBe(3)
         ->and(preg_match_all('/type="checkbox"[^>]*\schecked\s[^>]*\sdisabled\s/s', $html))->toBe($todos)
         ->and($html)->toMatch('/name="nombre"[^>]*readonly/s');
 });

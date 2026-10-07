@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use App\Notifications\InvitacionUsuario;
 use Database\Factories\UserFactory;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Password;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, TieneEstado;
+    use Auditable, HasFactory, Notifiable, TieneEstado;
 
     /**
      * The attributes that are mass assignable.

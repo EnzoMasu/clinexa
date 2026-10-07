@@ -97,7 +97,7 @@ class ProfesionalController extends RolPersonaController
             return;
         }
 
-        $registro->especialidades()->sync(collect($datos['especialidades'] ?? [])->mapWithKeys(fn (array $fila) => [
+        $registro->sincronizarAuditado('especialidades', collect($datos['especialidades'] ?? [])->mapWithKeys(fn (array $fila) => [
             $fila['especialidad_id'] => [
                 'nro_matricula_especialidad' => $fila['nro_matricula_especialidad'] ?? null,
                 'fecha_desde' => Fecha::aIso($fila['fecha_desde']),

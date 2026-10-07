@@ -2,14 +2,17 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\EsRolDePersona;
 use App\Models\Concerns\TieneEstado;
+use App\Support\Fecha;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Profesional extends Model
 {
-    use EsRolDePersona, TieneEstado;
+    use Auditable, EsRolDePersona, TieneEstado;
 
     protected $table = 'profesionales';
 
@@ -33,6 +36,20 @@ class Profesional extends Model
      * Todas las especialidades del profesional (habilitadas y deshabilitadas), con la matrícula de
      * la especialidad, desde cuándo la ejerce y si está activa. Para administrarlas (formulario).
      */
+    /** En el log, cada especialidad con sus datos: "Ecografía (desde 01/03/2015, matrícula GO-77)". */
+    public function relacionesAuditadas(): array
+    {
+        return [
+            'especialidades' => fn (Collection $especialidades) => $especialidades
+                ->map(fn (Especialidad $especialidad) => sprintf('%s (desde %s%s%s)',
+                    $especialidad->nombre,
+                    Fecha::mostrar($especialidad->pivot->fecha_desde),
+                    $especialidad->pivot->nro_matricula_especialidad ? ', matrícula '.$especialidad->pivot->nro_matricula_especialidad : '',
+                    $especialidad->pivot->activa ? '' : ', deshabilitada'))
+                ->sort()->values()->all(),
+        ];
+    }
+
     public function especialidades(): BelongsToMany
     {
         return $this->belongsToMany(Especialidad::class, 'profesional_especialidad', 'profesional_id', 'especialidad_id')

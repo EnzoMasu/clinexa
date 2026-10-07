@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Model;
 
 class Procedimiento extends Model
 {
-    use TieneEstado;
+    use Auditable, TieneEstado;
 
     protected $table = 'procedimientos';
 

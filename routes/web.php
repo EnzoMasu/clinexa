@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
@@ -77,6 +78,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::post('usuarios/{usuario}/invitacion', [UsuarioController::class, 'enviarInvitacion'])
         ->name('usuarios.invitacion')
         ->middleware('permiso:USUARIOS,EDITAR');
+
+    // Auditoría: solo lectura (no hay alta, edición ni baja del log).
+    Route::middleware('permiso:AUDITORIA,VER')->group(function () {
+        Route::get('auditoria', [AuditoriaController::class, 'index'])->name('auditoria.index');
+        Route::get('auditoria/{log}', [AuditoriaController::class, 'show'])->name('auditoria.show')->whereNumber('log');
+    });
 
     $seccion('perfiles-acceso', PerfilAccesoController::class, 'PERFILES_ACCESO', 'perfilAcceso', conBaja: true);
     $seccion('personas', PersonaController::class, 'PERSONAS', 'persona', conBaja: true);

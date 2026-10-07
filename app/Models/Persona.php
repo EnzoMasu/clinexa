@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use Database\Factories\PersonaFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class Persona extends Model
 {
     /** @use HasFactory<PersonaFactory> */
-    use HasFactory, TieneEstado;
+    use Auditable, HasFactory, TieneEstado;
 
     public const CAMPOS_FISICA = ['apellidos', 'nombres', 'fecha_nacimiento', 'sexo', 'pais_nacionalidad_id', 'estado_civil'];
 

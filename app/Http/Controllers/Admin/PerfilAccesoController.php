@@ -114,12 +114,16 @@ class PerfilAccesoController extends Controller
      */
     private function sincronizarPermisos(PerfilAcceso $perfil, array $matriz): void
     {
+        $codigos = ModuloSistema::pluck('codigo', 'id');
+
         $permisoIds = collect($matriz)
+            // Las acciones que no aplican al módulo (CREAR en Auditoría, etc.) se ignoran.
+            ->map(fn (array $acciones, $moduloId) => array_intersect($acciones, Permiso::accionesDe($codigos[$moduloId] ?? '')))
             ->flatMap(fn (array $acciones, $moduloId) => collect($acciones)->map(
                 fn (string $accion) => Permiso::firstOrCreate(['modulo_sistema_id' => $moduloId, 'accion' => $accion])->id
             ));
 
-        $perfil->permisos()->sync($permisoIds->all());
+        $perfil->sincronizarAuditado('permisos', $permisoIds->all());
     }
 
     /**

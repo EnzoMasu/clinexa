@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\EsRolDePersona;
 use App\Models\Concerns\TieneEstado;
 use App\Support\Fecha;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Paciente extends Model
 {
-    use EsRolDePersona, TieneEstado;
+    use Auditable, EsRolDePersona, TieneEstado;
 
     protected $table = 'pacientes';
 

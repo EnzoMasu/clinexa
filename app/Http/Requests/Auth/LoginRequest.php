@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Enums\AccionAuditoria;
+use App\Support\Auditoria;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -42,7 +45,16 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        // Primero se valida la contraseña y que la cuenta pueda entrar; recién entonces se inicia la
+        // sesión. (Con Auth::attempt la sesión se abría y se cerraba enseguida si la cuenta estaba
+        // bloqueada: la auditoría habría registrado un inicio y un cierre de sesión que no existieron.)
+        $credenciales = $this->only('email', 'password');
+        $guard = Auth::guard('web');
+        $usuario = $guard->getProvider()->retrieveByCredentials($credenciales);
+
+        if (! $usuario || ! $guard->getProvider()->validateCredentials($usuario, $credenciales)) {
+            // El mismo evento que dispara Auth::attempt (lo registra la auditoría, sin la contraseña).
+            event(new Failed('web', $usuario, $credenciales));
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -53,13 +65,17 @@ class LoginRequest extends FormRequest
         RateLimiter::clear($this->throttleKey());
 
         // La contraseña es correcta, pero el usuario tiene que estar ACTIVO para entrar.
-        if ($motivo = Auth::user()->motivoAccesoDenegado()) {
-            Auth::guard('web')->logout();
+        if ($motivo = $usuario->motivoAccesoDenegado()) {
+            Auditoria::registrar(AccionAuditoria::INICIO_SESION_FALLIDO, 'users', $usuario->getAuthIdentifier(),
+                detalle: "Correo: {$this->string('email')}. Contraseña correcta, pero no puede ingresar: {$motivo}",
+                usuarioId: $usuario->getAuthIdentifier());
 
             throw ValidationException::withMessages([
                 'email' => $motivo,
             ]);
         }
+
+        $guard->login($usuario, $this->boolean('remember'));
     }
 
     /**

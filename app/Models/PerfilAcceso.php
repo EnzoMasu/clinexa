@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PerfilAcceso extends Model
 {
-    use TieneEstado;
+    use Auditable, TieneEstado;
 
     /**
      * Perfil con acceso total. Se identifica por nombre, por eso el nombre no se puede cambiar,
@@ -28,6 +30,16 @@ class PerfilAcceso extends Model
     public static function moduloEstado(): string
     {
         return 'PERFILES_ACCESO';
+    }
+
+    /** En el log, la matriz como "MÓDULO: ACCIÓN" ordenada. */
+    public function relacionesAuditadas(): array
+    {
+        return [
+            'permisos' => fn (Collection $permisos) => $permisos->loadMissing('moduloSistema')
+                ->map(fn (Permiso $permiso) => "{$permiso->moduloSistema->codigo}: {$permiso->accion}")
+                ->sort()->values()->all(),
+        ];
     }
 
     public function permisos(): BelongsToMany

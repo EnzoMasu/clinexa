@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Turno extends Model
 {
-    use TieneEstado;
+    use Auditable, TieneEstado;
 
     /** Acción => [estado al que lleva, texto del botón]. */
     public const ACCIONES = [

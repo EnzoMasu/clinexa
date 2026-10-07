@@ -1,0 +1,76 @@
+@use('App\Support\Auditoria')
+@use('App\Support\Fecha')
+
+@php
+    // Listas (permisos de un perfil, especialidades, ...) una por renglón.
+    $mostrar = fn ($valor) => match (true) {
+        $valor === null => '—',
+        is_array($valor) => $valor === [] ? '(ninguno)' : implode("\n", array_map(fn ($item) => is_scalar($item) ? (string) $item : json_encode($item, JSON_UNESCAPED_UNICODE), $valor)),
+        is_bool($valor) => $valor ? 'sí' : 'no',
+        default => (string) $valor,
+    };
+@endphp
+
+<x-admin.page title="Detalle del evento de auditoría">
+    <div class="p-6 space-y-6 max-w-4xl">
+        <dl class="grid gap-4 sm:grid-cols-3 text-sm">
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Fecha y hora</dt>
+                <dd class="font-medium font-mono text-gray-900 dark:text-gray-100">{{ Fecha::mostrar($log->fecha_hora, conHora: true) }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Usuario</dt>
+                <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $log->usuario?->name ?? 'Sin usuario' }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Acción</dt>
+                <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $log->accion->etiqueta() }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Módulo</dt>
+                <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $modulos[Auditoria::modulosPorTabla()[$log->tabla_afectada] ?? ''] ?? $log->tabla_afectada }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Registro afectado</dt>
+                <dd class="font-medium font-mono text-gray-900 dark:text-gray-100">{{ $log->tabla_afectada }} {{ $log->registro_afectado_id ? '#'.$log->registro_afectado_id : '' }}</dd>
+            </div>
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">IP de origen</dt>
+                <dd class="font-medium font-mono text-gray-900 dark:text-gray-100">{{ $log->ip_origen ?? '—' }}</dd>
+            </div>
+            @if ($log->detalle)
+                <div class="sm:col-span-3">
+                    <dt class="text-gray-500 dark:text-gray-400">Detalle</dt>
+                    <dd class="text-gray-900 dark:text-gray-100">{{ $log->detalle }}</dd>
+                </div>
+            @endif
+        </dl>
+
+        @if ($cambios)
+            <div class="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
+                    <thead class="bg-gray-50 dark:bg-gray-900/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Campo</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Valor anterior</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Valor nuevo</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
+                        @foreach ($cambios as $cambio)
+                            <tr>
+                                <td class="px-4 py-2 font-mono align-top">{{ $cambio['campo'] }}</td>
+                                <td class="px-4 py-2 align-top whitespace-pre-line text-gray-600 dark:text-gray-400">{{ $mostrar($cambio['anterior']) }}</td>
+                                <td class="px-4 py-2 align-top whitespace-pre-line">{{ $mostrar($cambio['nuevo']) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <p class="text-sm text-gray-600 dark:text-gray-400">Este evento no registra cambios de datos.</p>
+        @endif
+
+        <a href="{{ route('admin.auditoria.index') }}" class="inline-block text-sm text-gray-600 dark:text-gray-400 hover:underline">Volver a la auditoría</a>
+    </div>
+</x-admin.page>

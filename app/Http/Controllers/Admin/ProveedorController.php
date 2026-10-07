@@ -81,6 +81,6 @@ class ProveedorController extends RolPersonaController
             return;
         }
 
-        $registro->categorias()->sync(array_map('intval', $datos['categorias'] ?? []));
+        $registro->sincronizarAuditado('categorias', array_map('intval', $datos['categorias'] ?? []));
     }
 }

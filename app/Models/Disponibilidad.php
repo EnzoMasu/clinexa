@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Disponibilidad extends Model
 {
-    use TieneEstado;
+    use Auditable, TieneEstado;
 
     /** Días de la semana, en el orden ISO (lunes = 1). */
     public const DIAS = ['LUN' => 'Lunes', 'MAR' => 'Martes', 'MIE' => 'Miércoles', 'JUE' => 'Jueves', 'VIE' => 'Viernes', 'SAB' => 'Sábado', 'DOM' => 'Domingo'];

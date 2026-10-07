@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Especialidad extends Model
 {
-    use TieneEstado;
+    use Auditable, TieneEstado;
 
     protected $table = 'especialidades';
 

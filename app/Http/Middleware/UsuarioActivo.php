@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\ContextoAuditoria;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,6 +16,8 @@ class UsuarioActivo
     public function handle(Request $request, Closure $next): Response
     {
         if ($motivo = $request->user()?->motivoAccesoDenegado()) {
+            // La auditoría registra este cierre de sesión con el motivo.
+            app(ContextoAuditoria::class)->motivoCierre = $motivo;
             Auth::guard('web')->logout();
 
             $request->session()->invalidate();

@@ -1,8 +1,12 @@
 <?php
 
+use App\Http\Middleware\ContextoAuditoriaWeb;
+use App\Http\Middleware\UsuarioActivo;
+use App\Http\Middleware\VerificarPermiso;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,18 +16,24 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
-            \App\Http\Middleware\UsuarioActivo::class,
+            UsuarioActivo::class,
+        ]);
+
+        // Auditoría: marca el pedido web (solo entonces se registran cambios). Va primero, antes
+        // de UsuarioActivo, que puede cerrar la sesión (y eso también se registra).
+        $middleware->web(prepend: [
+            ContextoAuditoriaWeb::class,
         ]);
 
         $middleware->alias([
-            'permiso' => \App\Http\Middleware\VerificarPermiso::class,
+            'permiso' => VerificarPermiso::class,
         ]);
 
         // El permiso se verifica antes de buscar el registro de la URL: sin permiso es 403,
         // exista o no el registro (si no, un 404 revelaría qué IDs existen).
         $middleware->prependToPriorityList(
-            before: \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            prepend: \App\Http\Middleware\VerificarPermiso::class,
+            before: SubstituteBindings::class,
+            prepend: VerificarPermiso::class,
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Model;
 
 /** Por dónde se pidió el turno: PRESENCIAL, TELEFONICO, WEB, APP (catálogo, no enum). */
 class OrigenTurno extends Model
 {
-    use TieneEstado;
+    use Auditable, TieneEstado;
 
     protected $table = 'origenes_turno';
 

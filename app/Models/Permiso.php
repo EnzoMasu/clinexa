@@ -10,6 +10,19 @@ class Permiso extends Model
 {
     public const ACCIONES = ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR', 'EXPORTAR'];
 
+    /**
+     * Módulos en los que solo algunas acciones tienen sentido. Igual existen las 5 filas en
+     * permisos (el Administrador tiene siempre módulos × 5), pero la matriz de perfiles muestra las
+     * demás como "no aplica" y al guardar se ignoran. Auditoría es de solo lectura.
+     */
+    public const ACCIONES_POR_MODULO = ['AUDITORIA' => ['VER', 'EXPORTAR']];
+
+    /** Acciones que se pueden asignar en la matriz para ese módulo. */
+    public static function accionesDe(string $codigoModulo): array
+    {
+        return self::ACCIONES_POR_MODULO[$codigoModulo] ?? self::ACCIONES;
+    }
+
     protected $table = 'permisos';
 
     protected $fillable = [

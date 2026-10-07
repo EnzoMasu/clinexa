@@ -162,13 +162,19 @@ class TipoDocumentoController extends Controller
     private function guardarModulos(TipoDocumento $tipoDocumento, array $modulos, array $predeterminado): void
     {
         if ($predeterminado) {
-            DB::table('tipo_documento_modulo')
-                ->whereIn('modulo_sistema_id', $predeterminado)
-                ->where('tipo_documento_id', '!=', $tipoDocumento->id)
-                ->update(['es_predeterminado' => false]);
+            // Los tipos que dejan de ser el predeterminado de esos módulos: el cambio queda en el log de cada uno.
+            $otros = TipoDocumento::whereHas('modulos', fn ($query) => $query->whereIn('modulos_sistema.id', $predeterminado)
+                ->where('tipo_documento_modulo.es_predeterminado', true))->whereKeyNot($tipoDocumento->id)->get();
+
+            foreach ($otros as $otro) {
+                $otro->auditarRelacion('modulos', fn () => DB::table('tipo_documento_modulo')
+                    ->whereIn('modulo_sistema_id', $predeterminado)
+                    ->where('tipo_documento_id', $otro->id)
+                    ->update(['es_predeterminado' => false]));
+            }
         }
 
-        $tipoDocumento->modulos()->sync(collect($modulos)->mapWithKeys(fn (int $id) => [
+        $tipoDocumento->sincronizarAuditado('modulos', collect($modulos)->mapWithKeys(fn (int $id) => [
             $id => ['es_predeterminado' => in_array($id, $predeterminado, true)],
         ])->all());
     }
