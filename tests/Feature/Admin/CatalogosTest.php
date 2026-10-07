@@ -3,8 +3,11 @@
 use App\Models\CatalogoCIE10;
 use App\Models\CategoriaGasto;
 use App\Models\CategoriaProveedor;
+use App\Models\Ciudad;
+use App\Models\Departamento;
 use App\Models\Especialidad;
 use App\Models\MedioPago;
+use App\Models\Pais;
 use App\Models\PerfilAcceso;
 use App\Models\Procedimiento;
 use App\Models\Sucursal;
@@ -36,7 +39,25 @@ dataset('catalogos', [
     'procedimientos' => ['procedimientos', 'procedimientos', Procedimiento::class,
         ['codigo' => 'CONS-01', 'nombre' => 'Consulta general', 'tipo' => 'CONSULTA', 'duracion_estimada_minutos' => 20],
         fn () => ['codigo' => 'CONS-01', 'nombre' => 'Consulta general', 'tipo' => 'CONSULTA', 'duracion_estimada_minutos' => 30, 'estado_id' => estadoId('ACTIVO')]],
+    'paises' => ['paises', 'paises', Pais::class,
+        ['nombre' => 'Uruguay', 'codigo' => 'UY'], fn () => ['nombre' => 'República Oriental del Uruguay', 'codigo' => 'UY', 'estado_id' => estadoId('ACTIVO')]],
+    'departamentos' => ['departamentos', 'departamentos', Departamento::class,
+        fn () => ['nombre' => 'Canelones', 'pais_id' => paisDePrueba()->id],
+        fn () => ['nombre' => 'Canelones (dpto.)', 'pais_id' => paisDePrueba()->id, 'estado_id' => estadoId('ACTIVO')]],
+    'ciudades' => ['ciudades', 'ciudades', Ciudad::class,
+        fn () => ['nombre' => 'Las Piedras', 'departamento_id' => departamentoDePrueba()->id],
+        fn () => ['nombre' => 'Ciudad de Las Piedras', 'departamento_id' => departamentoDePrueba()->id, 'estado_id' => estadoId('ACTIVO')]],
 ]);
+
+function paisDePrueba(): Pais
+{
+    return Pais::firstOrCreate(['codigo' => 'UY'], ['nombre' => 'Uruguay']);
+}
+
+function departamentoDePrueba(): Departamento
+{
+    return Departamento::firstOrCreate(['pais_id' => paisDePrueba()->id, 'nombre' => 'Canelones']);
+}
 
 test('el CRUD del catálogo funciona', function (string $ruta, string $tabla, string $modelo, array $alta, array $cambios) {
     $this->get(route("admin.$ruta.index"))->assertOk();
@@ -74,6 +95,9 @@ dataset('catalogos con estado', [
     'categorias de gasto' => ['categorias-gasto', CategoriaGasto::class, ['nombre' => 'Insumos']],
     'categorias de proveedor' => ['categorias-proveedor', CategoriaProveedor::class, ['nombre' => 'Equipos médicos']],
     'procedimientos' => ['procedimientos', Procedimiento::class, ['codigo' => 'ECO', 'nombre' => 'Ecografía', 'tipo' => 'ESTUDIO', 'duracion_estimada_minutos' => 30]],
+    'paises' => ['paises', Pais::class, ['nombre' => 'Uruguay', 'codigo' => 'UY']],
+    'departamentos' => ['departamentos', Departamento::class, fn () => ['nombre' => 'Canelones', 'pais_id' => paisDePrueba()->id]],
+    'ciudades' => ['ciudades', Ciudad::class, fn () => ['nombre' => 'Las Piedras', 'departamento_id' => departamentoDePrueba()->id]],
 ]);
 
 test('un registro nuevo entra ACTIVO', function (string $ruta, string $modelo, array $datos) {

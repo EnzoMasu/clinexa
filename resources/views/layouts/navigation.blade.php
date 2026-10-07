@@ -27,6 +27,9 @@
             'admin.medios-pago' => 'Medios de pago',
             'admin.categorias-gasto' => 'Categorías de gasto',
             'admin.cie10' => 'Catálogo CIE-10',
+            'admin.paises' => 'Países',
+            'admin.departamentos' => 'Departamentos',
+            'admin.ciudades' => 'Ciudades',
         ],
     ];
 

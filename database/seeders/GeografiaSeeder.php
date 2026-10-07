@@ -30,8 +30,9 @@ class GeografiaSeeder extends Seeder
 
     public function run(): void
     {
-        foreach (require database_path('data/paises.php') as $nombre) {
-            Pais::firstOrCreate(['nombre' => $nombre]);
+        // Por código ISO: si el nombre se cambió desde la pantalla, no se duplica.
+        foreach (require database_path('data/paises.php') as $codigo => $nombre) {
+            Pais::firstOrCreate(['codigo' => $codigo], ['nombre' => $nombre]);
         }
 
         $paraguay = Pais::where('nombre', 'Paraguay')->sole();

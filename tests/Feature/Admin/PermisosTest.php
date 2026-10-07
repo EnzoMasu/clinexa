@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(122); // 18 secciones × 6 rutas (todas con baja) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado)
+    expect($rutas)->toHaveCount(140); // 21 secciones × 6 rutas (todas con baja) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -106,7 +106,7 @@ test('el Administrador ve los 4 grupos del menú, en orden y con sus secciones, 
         'Seguridad' => ['usuarios', 'perfiles-acceso'],
         'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'proveedores', 'categorias-proveedor', 'responsables-pago'],
         'Agenda' => ['turnos', 'disponibilidades', 'consultorios', 'origenes-turno'],
-        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10'],
+        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'paises', 'departamentos', 'ciudades'],
     ];
 
     // Cada encabezado seguido de sus links, en el desplegable de escritorio y en el menú de mobile.

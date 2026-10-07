@@ -14,7 +14,7 @@ beforeEach(function () {
     $this->ruc = TipoDocumento::create(['codigo' => 'RUC', 'nombre' => 'RUC']);
     $this->pasaporte = TipoDocumento::create(['codigo' => 'PAS', 'nombre' => 'Pasaporte']);
 
-    $this->paraguay = Pais::firstOrCreate(['nombre' => 'Paraguay']);
+    $this->paraguay = Pais::firstOrCreate(['nombre' => 'Paraguay'], ['codigo' => 'PY']);
 
     // Tipos que acepta el módulo Personas (tipo_documento_modulo); CI es el predeterminado.
     ModuloSistema::where('codigo', 'PERSONAS')->sole()->configurarTiposDocumento(['CI', 'RUC', 'PAS']);

@@ -3,12 +3,15 @@
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
+use App\Http\Controllers\Admin\CiudadController;
 use App\Http\Controllers\Admin\ConsultorioController;
+use App\Http\Controllers\Admin\DepartamentoController;
 use App\Http\Controllers\Admin\DisponibilidadController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\MedioPagoController;
 use App\Http\Controllers\Admin\OrigenTurnoController;
 use App\Http\Controllers\Admin\PacienteController;
+use App\Http\Controllers\Admin\PaisController;
 use App\Http\Controllers\Admin\PerfilAccesoController;
 use App\Http\Controllers\Admin\PersonaController;
 use App\Http\Controllers\Admin\ProcedimientoController;
@@ -85,6 +88,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('categorias-gasto', CategoriaGastoController::class, 'CATEGORIAS_GASTO', 'categoriaGasto', conBaja: true);
     $seccion('categorias-proveedor', CategoriaProveedorController::class, 'CATEGORIAS_PROVEEDOR', 'categoriaProveedor', conBaja: true);
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
+
+    // Geografía: las tres pantallas comparten el módulo GEOGRAFIA.
+    $seccion('paises', PaisController::class, 'GEOGRAFIA', 'pais', conBaja: true);
+    $seccion('departamentos', DepartamentoController::class, 'GEOGRAFIA', 'departamento', conBaja: true);
+    $seccion('ciudades', CiudadController::class, 'GEOGRAFIA', 'ciudad', conBaja: true);
 
     // Agenda: catálogos, disponibilidades de los profesionales y turnos.
     $seccion('consultorios', ConsultorioController::class, 'CONSULTORIOS', 'consultorio', conBaja: true);

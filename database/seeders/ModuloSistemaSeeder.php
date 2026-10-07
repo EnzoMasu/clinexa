@@ -46,9 +46,10 @@ class ModuloSistemaSeeder extends Seeder
             'ORIGENES_TURNO' => ['Orígenes de turno', self::ACTIVO_INACTIVO],
             'DISPONIBILIDAD' => ['Disponibilidades', self::ACTIVO_INACTIVO],
             'TURNOS' => ['Turnos', [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::ATENDIDO, Estado::CANCELADO, Estado::AUSENTE]],
-            // Sin pantalla propia todavía: existen para que sus tablas tengan estados configurados.
-            'MODULOS_SISTEMA' => ['Módulos del sistema', self::ACTIVO_INACTIVO],
+            // Un solo módulo para las tres pantallas: Países, Departamentos y Ciudades.
             'GEOGRAFIA' => ['Geografía (países, departamentos y ciudades)', self::ACTIVO_INACTIVO],
+            // Sin pantalla propia todavía: existe para que su tabla tenga estados configurados.
+            'MODULOS_SISTEMA' => ['Módulos del sistema', self::ACTIVO_INACTIVO],
         ];
 
         foreach ($modulos as $codigo => [$nombre, $estados]) {
