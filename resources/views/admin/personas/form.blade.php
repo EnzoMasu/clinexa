@@ -55,7 +55,7 @@
             <h3 class="font-medium text-gray-900 dark:text-gray-100">Contacto</h3>
             <div class="grid gap-6 sm:grid-cols-2">
                 {{-- El email solo tiene que ser único si la persona tiene usuario (se copia a users.email). --}}
-                <x-admin.input name="email" label="Email" type="email" :value="$persona->email" maxlength="100" required
+                <x-admin.input name="email" label="Correo electrónico" type="email" :value="$persona->email" maxlength="100" required
                     :unico="$persona->usuario ? 'persona.email' : null" :unico-ignorar="$persona->id" />
                 <x-admin.input name="telefono" label="Teléfono" :value="$persona->telefono" maxlength="20" required />
                 <div class="sm:col-span-2">

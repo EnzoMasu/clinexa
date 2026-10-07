@@ -24,7 +24,7 @@
             </dd>
         </div>
         <div class="sm:col-span-2">
-            <dt class="text-gray-500 dark:text-gray-400">{{ __('Email') }}</dt>
+            <dt class="text-gray-500 dark:text-gray-400">Correo electrónico</dt>
             <dd class="mt-1 font-medium text-gray-900 dark:text-gray-100">{{ $user->email }}</dd>
         </div>
     </dl>

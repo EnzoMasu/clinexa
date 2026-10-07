@@ -41,7 +41,7 @@
                             <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $usuario->persona->tipoDocumento->codigo }} {{ $usuario->persona->nro_documento }}</dd>
                         </div>
                         <div class="sm:col-span-2">
-                            <dt class="text-gray-500 dark:text-gray-400">Email</dt>
+                            <dt class="text-gray-500 dark:text-gray-400">Correo electrónico</dt>
                             <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $usuario->email }}</dd>
                         </div>
                     </dl>
