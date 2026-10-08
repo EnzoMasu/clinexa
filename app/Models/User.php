@@ -11,6 +11,7 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Password;
@@ -78,6 +79,15 @@ class User extends Authenticatable
     protected function name(): Attribute
     {
         return Attribute::get(fn () => $this->persona?->nombre_completo ?? 'Usuario');
+    }
+
+    /**
+     * El registro de profesional de la persona del usuario (si lo tiene): es el que atiende y
+     * firma las consultas de la historia clínica.
+     */
+    public function profesional(): HasOne
+    {
+        return $this->hasOne(Profesional::class, 'persona_id', 'persona_id');
     }
 
     public function perfilAcceso(): BelongsTo

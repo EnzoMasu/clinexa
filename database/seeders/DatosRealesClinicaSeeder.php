@@ -13,6 +13,7 @@ use App\Models\Profesional;
 use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\Sucursal;
+use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
 use App\Models\TipoRedSocial;
 use Illuminate\Database\Seeder;
@@ -27,6 +28,11 @@ class DatosRealesClinicaSeeder extends Seeder
     public const ORIGENES_TURNO = ['PRESENCIAL' => 'Presencial', 'TELEFONICO' => 'Telefónico', 'WEB' => 'Web', 'APP' => 'App'];
 
     public const TIPOS_RED_SOCIAL = ['Facebook', 'Instagram', 'WhatsApp', 'LinkedIn', 'X', 'TikTok', 'YouTube', 'Telegram'];
+
+    public const TIPOS_BLOQUE_ANAMNESIS = [
+        'Enfermedad actual', 'Antecedentes personales', 'Antecedentes familiares', 'Hábitos',
+        'Antecedentes ginecoobstétricos', 'Alergias', 'Otros',
+    ];
 
     public const CATEGORIAS_PROVEEDOR = ['Insumos médicos', 'Equipos médicos', 'Insumos de oficina', 'Artículos de limpieza', 'Servicios tercerizados'];
 
@@ -80,6 +86,12 @@ class DatosRealesClinicaSeeder extends Seeder
         if (! TipoRedSocial::exists()) {
             foreach (self::TIPOS_RED_SOCIAL as $nombre) {
                 TipoRedSocial::create(['nombre' => $nombre]);
+            }
+        }
+
+        if (! TipoBloqueAnamnesis::exists()) {
+            foreach (self::TIPOS_BLOQUE_ANAMNESIS as $nombre) {
+                TipoBloqueAnamnesis::create(['nombre' => $nombre]);
             }
         }
 

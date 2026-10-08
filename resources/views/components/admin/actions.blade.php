@@ -1,7 +1,9 @@
-{{-- edit / desactivar: URL de la acción, o null para no mostrarla (sin permiso o no corresponde). --}}
+{{-- edit / desactivar: URL de la acción, o null para no mostrarla (sin permiso o no corresponde). El contenido va antes (otros enlaces). --}}
 @props(['edit' => null, 'desactivar' => null])
 
 <td class="px-6 py-4 text-right whitespace-nowrap space-x-3">
+    {{ $slot }}
+
     @if ($edit)
         <a href="{{ $edit }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Editar</a>
     @endif

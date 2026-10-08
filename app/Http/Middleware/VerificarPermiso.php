@@ -29,7 +29,10 @@ class VerificarPermiso
         $respuesta = $next($request);
 
         if ($this->esLectura($request, $accion, $respuesta) && Auditoria::esSensible($modulo)) {
-            Auditoria::registrarLectura($modulo, $this->registroDe($request));
+            $registro = $this->registroDe($request);
+            // Un módulo con varias tablas (historia clínica: historias y consultas) registra la lectura
+            // en la tabla del registro de la URL; un listado, en la tabla principal del módulo.
+            Auditoria::registrarLectura($modulo, $registro?->getKey(), $registro?->getTable());
         }
 
         return $respuesta;
@@ -43,11 +46,11 @@ class VerificarPermiso
             && $respuesta->isSuccessful();
     }
 
-    /** El registro de la URL ({persona}, {usuario}, ...), o null en un listado. */
-    private function registroDe(Request $request): int|string|null
+    /** El registro de la URL ({persona}, {usuario}, {consulta}, ...), o null en un listado. */
+    private function registroDe(Request $request): ?Model
     {
         $parametro = collect($request->route()?->parameters() ?? [])->first();
 
-        return $parametro instanceof Model ? $parametro->getKey() : $parametro;
+        return $parametro instanceof Model ? $parametro : null;
     }
 }

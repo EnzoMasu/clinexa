@@ -36,6 +36,12 @@ class PacienteController extends RolPersonaController
         ];
     }
 
+    /** La historia clínica, para el enlace del listado. */
+    protected function relacionesListado(): array
+    {
+        return [...parent::relacionesListado(), 'historiaClinica'];
+    }
+
     protected function columnasBusqueda(): array
     {
         return ['nro_ficha'];

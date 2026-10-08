@@ -7,21 +7,21 @@ use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Turno de un paciente con un profesional. No se edita ni se borra: solo cambia de estado.
- * PENDIENTE -> CONFIRMADO o CANCELADO; CONFIRMADO -> ATENDIDO, CANCELADO o AUSENTE; los demás
- * son finales. La base impide que se superponga con otro (no CANCELADO) del mismo profesional o
+ * PENDIENTE -> CONFIRMADO o CANCELADO; CONFIRMADO -> CANCELADO o AUSENTE, o ATENDIDO, que solo se
+ * alcanza guardando la consulta del turno (ConsultaController); los demás son finales. La base impide que se superponga con otro (no CANCELADO) del mismo profesional o
  * del mismo consultorio.
  */
 class Turno extends Model
 {
     use Auditable, TieneEstado;
 
-    /** Acción => [estado al que lleva, texto del botón]. */
+    /** Acción => [estado al que lleva, texto del botón]. "Atender" no está: abre el formulario de la consulta. */
     public const ACCIONES = [
         'confirmar' => [Estado::CONFIRMADO, 'Confirmar'],
-        'atender' => [Estado::ATENDIDO, 'Atender'],
         'ausente' => [Estado::AUSENTE, 'Ausente'],
         'cancelar' => [Estado::CANCELADO, 'Cancelar'],
     ];
@@ -29,7 +29,7 @@ class Turno extends Model
     /** Estado actual => acciones posibles. */
     public const TRANSICIONES = [
         Estado::PENDIENTE => ['confirmar', 'cancelar'],
-        Estado::CONFIRMADO => ['atender', 'ausente', 'cancelar'],
+        Estado::CONFIRMADO => ['ausente', 'cancelar'],
     ];
 
     protected $table = 'turnos';
@@ -81,6 +81,12 @@ class Turno extends Model
     public function procedimiento(): BelongsTo
     {
         return $this->belongsTo(Procedimiento::class);
+    }
+
+    /** La consulta que generó al atenderse (como mucho una). */
+    public function consulta(): HasOne
+    {
+        return $this->hasOne(Consulta::class);
     }
 
     public function origenTurno(): BelongsTo

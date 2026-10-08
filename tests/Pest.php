@@ -21,6 +21,9 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
 
+// Escenario y ayudas de los tests de historia clínica.
+require_once __DIR__.'/Feature/HistoriaClinica/escenario.php';
+
 // Solo lo que depende de PostgreSQL (restricciones EXCLUDE): base clinexa_test. PostgresTestCase ya
 // trae RefreshDatabase, con su propio control de migración.
 pest()->extend(PostgresTestCase::class)

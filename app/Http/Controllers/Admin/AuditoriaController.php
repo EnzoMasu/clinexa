@@ -27,6 +27,9 @@ class AuditoriaController extends Controller
     public function index(Request $request): Response
     {
         $filtros = $this->filtros($request);
+        // Sin permiso de lectura clínica, el texto buscado no se compara con los eventos clínicos (si no,
+        // filtrando se podría deducir su contenido).
+        $veClinico = $request->user()->tienePermiso('HISTORIA_CLINICA', 'VER');
 
         $logs = LogAuditoria::query()
             ->with('usuario.persona')
@@ -38,7 +41,9 @@ class AuditoriaController extends Controller
             ->when($filtros['hastaUtc'], fn ($query, $hasta) => $query->where('fecha_hora', '<', $hasta))
             ->when($filtros['q'] !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->where('registro_afectado_id', $filtros['q'])
-                ->orWhereLike('detalle', "%{$filtros['q']}%")))
+                ->orWhere(fn ($query) => $query
+                    ->whereLike('detalle', "%{$filtros['q']}%")
+                    ->when(! $veClinico, fn ($query) => $query->whereNotIn('tabla_afectada', Auditoria::TABLAS_CLINICAS)))))
             ->orderByDesc('fecha_hora')
             ->orderByDesc('id')
             ->paginate(20)
@@ -58,10 +63,16 @@ class AuditoriaController extends Controller
     {
         $log->load('usuario.persona');
 
+        // Contenido clínico: los valores (y el detalle) solo con VER sobre HISTORIA_CLINICA. Se conservan
+        // quién, cuándo, la acción y los nombres de los campos.
+        $contenidoOculto = in_array($log->tabla_afectada, Auditoria::TABLAS_CLINICAS, true)
+            && ! request()->user()->tienePermiso('HISTORIA_CLINICA', 'VER');
+
         return view('admin.auditoria.show', [
             'log' => $log,
             'modulos' => $this->nombresDeModulos(),
-            'cambios' => $this->cambios($log),
+            'cambios' => $contenidoOculto ? $this->soloCampos($log) : $this->cambios($log),
+            'contenidoOculto' => $contenidoOculto,
         ]);
     }
 
@@ -84,6 +95,18 @@ class AuditoriaController extends Controller
                 'anterior' => array_key_exists($campo, $anterior) ? $legible($campo, $anterior[$campo]) : null,
                 'nuevo' => array_key_exists($campo, $nuevo) ? $legible($campo, $nuevo[$campo]) : null,
             ])
+            ->values()->all();
+    }
+
+    /**
+     * Los nombres de los campos que cambiaron, sin sus valores (contenido clínico sin permiso).
+     *
+     * @return list<array{campo: string, anterior: null, nuevo: null}>
+     */
+    private function soloCampos(LogAuditoria $log): array
+    {
+        return collect(array_unique([...array_keys($log->valor_anterior ?? []), ...array_keys($log->valor_nuevo ?? [])]))
+            ->map(fn (string $campo) => ['campo' => $campo, 'anterior' => null, 'nuevo' => null])
             ->values()->all();
     }
 

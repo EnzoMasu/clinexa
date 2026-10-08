@@ -3,15 +3,20 @@
 namespace App\Support;
 
 use App\Enums\AccionAuditoria;
+use App\Models\BloqueAnamnesis;
 use App\Models\CatalogoCIE10;
 use App\Models\CategoriaGasto;
 use App\Models\CategoriaProveedor;
 use App\Models\Ciudad;
+use App\Models\Consulta;
 use App\Models\Consultorio;
 use App\Models\Departamento;
+use App\Models\Diagnostico;
 use App\Models\Disponibilidad;
 use App\Models\Especialidad;
 use App\Models\Estado;
+use App\Models\ExamenFisico;
+use App\Models\HistoriaClinica;
 use App\Models\MedioPago;
 use App\Models\ModuloSistema;
 use App\Models\OrigenTurno;
@@ -24,6 +29,7 @@ use App\Models\Profesional;
 use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\Sucursal;
+use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
 use App\Models\TipoRedSocial;
 use App\Models\Turno;
@@ -57,8 +63,16 @@ final class Auditoria
         CatalogoCIE10::class, MedioPago::class, CategoriaGasto::class,
         CategoriaProveedor::class, Procedimiento::class, Pais::class,
         Departamento::class, Ciudad::class, Consultorio::class,
-        OrigenTurno::class, Disponibilidad::class, Turno::class, TipoRedSocial::class,
+        OrigenTurno::class, Disponibilidad::class, Turno::class, TipoRedSocial::class, TipoBloqueAnamnesis::class,
+        // Historia clínica (módulo HISTORIA_CLINICA; la historia primero: es la tabla de sus lecturas).
+        HistoriaClinica::class, Consulta::class, BloqueAnamnesis::class, ExamenFisico::class, Diagnostico::class,
     ];
+
+    /**
+     * Tablas con contenido clínico: en la pantalla de auditoría, sus valores solo los ve quien tiene
+     * VER sobre HISTORIA_CLINICA (y el buscador no busca en ellos para los demás).
+     */
+    public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos'];
 
     /** Minutos en los que no se repite un VER idéntico (mismo usuario, tabla y registro). */
     public const MINUTOS_SIN_REPETIR_VER = 5;
@@ -75,7 +89,7 @@ final class Auditoria
 
         return $tablas ??= collect(self::MODELOS)
             ->reverse() // el primero de la lista gana (Pais antes que Departamento y Ciudad)
-            ->mapWithKeys(fn (string $modelo) => [$modelo::moduloEstado() => (new $modelo)->getTable()])
+            ->mapWithKeys(fn (string $modelo) => [$modelo::moduloAuditoria() => (new $modelo)->getTable()])
             ->put('AUDITORIA', 'logs_auditoria')
             ->all();
     }
@@ -90,18 +104,20 @@ final class Auditoria
         static $modulos = null;
 
         return $modulos ??= collect(self::MODELOS)
-            ->mapWithKeys(fn (string $modelo) => [(new $modelo)->getTable() => $modelo::moduloEstado()])
+            ->mapWithKeys(fn (string $modelo) => [(new $modelo)->getTable() => $modelo::moduloAuditoria()])
             ->put('logs_auditoria', 'AUDITORIA')
             ->all();
     }
 
     /**
      * Lectura de una pantalla de un módulo sensible: el listado (sin registro) o el detalle/edición
-     * de un registro. No repite un VER idéntico dentro de MINUTOS_SIN_REPETIR_VER.
+     * de un registro. No repite un VER idéntico (mismo usuario, tabla, registro y detalle) dentro de
+     * MINUTOS_SIN_REPETIR_VER. "tabla": la del registro, si el módulo tiene varias (por defecto, la
+     * principal del módulo); "detalle": qué se leyó, si no alcanza con la tabla y el registro.
      */
-    public static function registrarLectura(string $modulo, int|string|null $registroId): void
+    public static function registrarLectura(string $modulo, int|string|null $registroId, ?string $tabla = null, ?string $detalle = null): void
     {
-        $tabla = self::tablasPorModulo()[$modulo] ?? strtolower($modulo);
+        $tabla ??= self::tablasPorModulo()[$modulo] ?? strtolower($modulo);
         $registro = $registroId === null ? null : (string) $registroId;
 
         $reciente = DB::table('logs_auditoria')
@@ -109,11 +125,12 @@ final class Auditoria
             ->where('tabla_afectada', $tabla)
             ->where('accion', AccionAuditoria::VER->value)
             ->when($registro === null, fn ($query) => $query->whereNull('registro_afectado_id'), fn ($query) => $query->where('registro_afectado_id', $registro))
+            ->when($detalle === null, fn ($query) => $query->whereNull('detalle'), fn ($query) => $query->where('detalle', $detalle))
             ->where('fecha_hora', '>=', now()->subMinutes(self::MINUTOS_SIN_REPETIR_VER))
             ->exists();
 
         if (! $reciente) {
-            self::registrar(AccionAuditoria::VER, $tabla, $registro);
+            self::registrar(AccionAuditoria::VER, $tabla, $registro, detalle: $detalle);
         }
     }
 

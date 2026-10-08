@@ -38,13 +38,19 @@
                 <dt class="text-gray-500 dark:text-gray-400">IP de origen</dt>
                 <dd class="font-medium font-mono text-gray-900 dark:text-gray-100">{{ $log->ip_origen ?? '—' }}</dd>
             </div>
-            @if ($log->detalle)
+            @if ($log->detalle && ! $contenidoOculto)
                 <div class="sm:col-span-3">
                     <dt class="text-gray-500 dark:text-gray-400">Detalle</dt>
                     <dd class="text-gray-900 dark:text-gray-100">{{ $log->detalle }}</dd>
                 </div>
             @endif
         </dl>
+
+        @if ($contenidoOculto)
+            <p role="status" class="rounded-md bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                Contenido clínico: se requiere permiso de lectura sobre Historia Clínica
+            </p>
+        @endif
 
         @if ($cambios)
             <div class="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
@@ -60,8 +66,12 @@
                         @foreach ($cambios as $cambio)
                             <tr>
                                 <td class="px-4 py-2 font-mono align-top">{{ $cambio['campo'] }}</td>
-                                <td class="px-4 py-2 align-top whitespace-pre-line text-gray-600 dark:text-gray-400">{{ $mostrar($cambio['anterior']) }}</td>
-                                <td class="px-4 py-2 align-top whitespace-pre-line">{{ $mostrar($cambio['nuevo']) }}</td>
+                                @if ($contenidoOculto)
+                                    <td colspan="2" class="px-4 py-2 align-top italic text-gray-500 dark:text-gray-400">Oculto</td>
+                                @else
+                                    <td class="px-4 py-2 align-top whitespace-pre-line text-gray-600 dark:text-gray-400">{{ $mostrar($cambio['anterior']) }}</td>
+                                    <td class="px-4 py-2 align-top whitespace-pre-line">{{ $mostrar($cambio['nuevo']) }}</td>
+                                @endif
                             </tr>
                         @endforeach
                     </tbody>

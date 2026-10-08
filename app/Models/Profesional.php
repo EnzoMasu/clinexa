@@ -9,6 +9,7 @@ use App\Support\Fecha;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Profesional extends Model
 {
@@ -48,6 +49,11 @@ class Profesional extends Model
                     $especialidad->pivot->activa ? '' : ', deshabilitada'))
                 ->sort()->values()->all(),
         ];
+    }
+
+    public function consultas(): HasMany
+    {
+        return $this->hasMany(Consulta::class);
     }
 
     public function especialidades(): BelongsToMany

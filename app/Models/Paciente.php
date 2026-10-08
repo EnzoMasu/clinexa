@@ -7,6 +7,7 @@ use App\Models\Concerns\EsRolDePersona;
 use App\Models\Concerns\TieneEstado;
 use App\Support\Fecha;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Paciente extends Model
 {
@@ -38,6 +39,17 @@ class Paciente extends Model
         static::creating(function (Paciente $paciente) {
             $paciente->fecha_alta ??= Fecha::hoy()->format('Y-m-d');
         });
+
+        // Su historia clínica, por cualquier vía de alta (pantalla, seeders, consola), en la misma
+        // transacción que el paciente cuando la hay.
+        static::created(function (Paciente $paciente) {
+            $paciente->historiaClinica()->create(['fecha_apertura' => $paciente->fecha_alta]);
+        });
+    }
+
+    public function historiaClinica(): HasOne
+    {
+        return $this->hasOne(HistoriaClinica::class);
     }
 
     public static function moduloEstado(): string

@@ -13,9 +13,13 @@ class Permiso extends Model
     /**
      * Módulos en los que solo algunas acciones tienen sentido. Igual existen las 5 filas en
      * permisos (el Administrador tiene siempre módulos × 5), pero la matriz de perfiles muestra las
-     * demás como "no aplica" y al guardar se ignoran. Auditoría es de solo lectura.
+     * demás como "no aplica" y al guardar se ignoran. Auditoría es de solo lectura; en la historia
+     * clínica no se desactiva ni se exporta nada (las consultas no se borran).
      */
-    public const ACCIONES_POR_MODULO = ['AUDITORIA' => ['VER', 'EXPORTAR']];
+    public const ACCIONES_POR_MODULO = [
+        'AUDITORIA' => ['VER', 'EXPORTAR'],
+        'HISTORIA_CLINICA' => ['VER', 'CREAR', 'EDITAR'],
+    ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */
     public static function accionesDe(string $codigoModulo): array

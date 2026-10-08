@@ -223,7 +223,6 @@ describe('cambios de estado', function () {
     })->with([
         ['PENDIENTE', 'confirmar', 'CONFIRMADO'],
         ['PENDIENTE', 'cancelar', 'CANCELADO'],
-        ['CONFIRMADO', 'atender', 'ATENDIDO'],
         ['CONFIRMADO', 'ausente', 'AUSENTE'],
         ['CONFIRMADO', 'cancelar', 'CANCELADO'],
     ]);
@@ -234,13 +233,18 @@ describe('cambios de estado', function () {
         accion($turno, $accion)->assertSessionHas('error');
         expect($turno->fresh()->estado->codigo)->toBe($desde);
     })->with([
-        ['PENDIENTE', 'atender'],
         ['PENDIENTE', 'ausente'],
         ['CONFIRMADO', 'confirmar'],
         ['ATENDIDO', 'cancelar'],
         ['CANCELADO', 'confirmar'],
-        ['AUSENTE', 'atender'],
     ]);
+
+    test('"atender" ya no es un cambio de estado: ATENDIDO solo se alcanza guardando la consulta', function (string $desde) {
+        $turno = turno(['estado_id' => Estado::idDe($desde)]);
+
+        accion($turno, 'atender')->assertSessionHasErrors('accion');
+        expect($turno->fresh()->estado->codigo)->toBe($desde);
+    })->with(['PENDIENTE', 'CONFIRMADO', 'AUSENTE']);
 
     test('una acción desconocida se rechaza', function () {
         accion(turno(), 'borrar')->assertSessionHasErrors('accion');

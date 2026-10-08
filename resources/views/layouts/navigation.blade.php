@@ -21,6 +21,9 @@
             'admin.consultorios' => 'Consultorios',
             'admin.origenes-turno' => 'Orígenes de turno',
         ],
+        'Clínica' => [
+            'admin.historias-clinicas' => 'Historias clínicas',
+        ],
         'Catálogos' => [
             'admin.especialidades' => 'Especialidades',
             'admin.sucursales' => 'Sucursales',
@@ -29,6 +32,7 @@
             'admin.medios-pago' => 'Medios de pago',
             'admin.categorias-gasto' => 'Categorías de gasto',
             'admin.cie10' => 'Catálogo CIE-10',
+            'admin.tipos-bloque-anamnesis' => 'Tipos de bloque de anamnesis',
             'admin.paises' => 'Países',
             'admin.departamentos' => 'Departamentos',
             'admin.ciudades' => 'Ciudades',
@@ -85,7 +89,7 @@
                         </x-slot>
 
                         <x-slot name="content">
-                            {{-- Con scroll: con todos los permisos son 23 entradas más los encabezados. --}}
+                            {{-- Con scroll: con todos los permisos son 25 entradas más los encabezados. --}}
                             <div class="max-h-[75vh] overflow-y-auto">
                                 @foreach ($gruposAdmin as $grupo => $secciones)
                                     <div role="presentation" data-grupo-menu="{{ $grupo }}" @class([

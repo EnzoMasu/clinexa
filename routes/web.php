@@ -5,10 +5,12 @@ use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
 use App\Http\Controllers\Admin\CiudadController;
+use App\Http\Controllers\Admin\ConsultaController;
 use App\Http\Controllers\Admin\ConsultorioController;
 use App\Http\Controllers\Admin\DepartamentoController;
 use App\Http\Controllers\Admin\DisponibilidadController;
 use App\Http\Controllers\Admin\EspecialidadController;
+use App\Http\Controllers\Admin\HistoriaClinicaController;
 use App\Http\Controllers\Admin\MedioPagoController;
 use App\Http\Controllers\Admin\OrigenTurnoController;
 use App\Http\Controllers\Admin\PacienteController;
@@ -20,6 +22,7 @@ use App\Http\Controllers\Admin\ProfesionalController;
 use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
 use App\Http\Controllers\Admin\SucursalController;
+use App\Http\Controllers\Admin\TipoBloqueAnamnesisController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
 use App\Http\Controllers\Admin\TipoRedSocialController;
 use App\Http\Controllers\Admin\TurnoController;
@@ -97,6 +100,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('categorias-proveedor', CategoriaProveedorController::class, 'CATEGORIAS_PROVEEDOR', 'categoriaProveedor', conBaja: true);
     $seccion('tipos-red-social', TipoRedSocialController::class, 'TIPOS_RED_SOCIAL', 'tipoRedSocial', conBaja: true);
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
+    $seccion('tipos-bloque-anamnesis', TipoBloqueAnamnesisController::class, 'TIPOS_BLOQUE_ANAMNESIS', 'tipoBloqueAnamnesis', conBaja: true);
 
     // Geografía: las tres pantallas comparten el módulo GEOGRAFIA.
     $seccion('paises', PaisController::class, 'GEOGRAFIA', 'pais', conBaja: true);
@@ -124,6 +128,24 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::patch('turnos/{turno}/estado', [TurnoController::class, 'cambiarEstado'])
         ->name('turnos.estado')
         ->middleware('permiso:TURNOS,EDITAR');
+
+    // Historia clínica: se lee con VER. Las consultas se crean con CREAR y se modifican con EDITAR, y
+    // además ConsultaPolicy exige que sea el profesional que atiende. Nada se desactiva ni se borra.
+    Route::middleware('permiso:HISTORIA_CLINICA,VER')->group(function () {
+        // Buscador de CIE-10 del formulario (el controlador exige CREAR o EDITAR).
+        Route::get('historias-clinicas/cie10', [ConsultaController::class, 'cie10'])->name('historias-clinicas.cie10');
+        Route::get('historias-clinicas', [HistoriaClinicaController::class, 'index'])->name('historias-clinicas.index');
+        Route::get('historias-clinicas/{historiaClinica}', [HistoriaClinicaController::class, 'show'])->name('historias-clinicas.show')->whereNumber('historiaClinica');
+        Route::get('consultas/{consulta}', [ConsultaController::class, 'show'])->name('consultas.show')->whereNumber('consulta');
+    });
+    Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
+        Route::get('historias-clinicas/{historiaClinica}/consultas/create', [ConsultaController::class, 'create'])->name('consultas.create');
+        Route::post('historias-clinicas/{historiaClinica}/consultas', [ConsultaController::class, 'store'])->name('consultas.store');
+    });
+    Route::middleware('permiso:HISTORIA_CLINICA,EDITAR')->group(function () {
+        Route::get('consultas/{consulta}/edit', [ConsultaController::class, 'edit'])->name('consultas.edit');
+        Route::put('consultas/{consulta}', [ConsultaController::class, 'update'])->name('consultas.update');
+    });
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
     foreach ([

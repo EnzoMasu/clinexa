@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(148); // 22 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado)
+    expect($rutas)->toHaveCount(162); // 23 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: alta, guardar, ver, editar, actualizar)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -99,14 +99,15 @@ test('el menú de Administración muestra solo las secciones con permiso VER', f
         ->assertDontSee(route('admin.usuarios.index'));
 });
 
-test('el Administrador ve los 4 grupos del menú, en orden y con sus secciones, en escritorio y en mobile', function () {
+test('el Administrador ve los 5 grupos del menú, en orden y con sus secciones, en escritorio y en mobile', function () {
     $this->actingAs(User::factory()->administrador()->create());
 
     $grupos = [
         'Seguridad' => ['usuarios', 'perfiles-acceso', 'auditoria'],
         'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
         'Agenda' => ['turnos', 'disponibilidades', 'consultorios', 'origenes-turno'],
-        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'paises', 'departamentos', 'ciudades'],
+        'Clínica' => ['historias-clinicas'],
+        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'paises', 'departamentos', 'ciudades'],
     ];
 
     // Cada encabezado seguido de sus links, en el desplegable de escritorio y en el menú de mobile.
@@ -138,7 +139,7 @@ test('un perfil con permisos en un solo grupo no ve los encabezados de los grupo
         ->getContent();
 
     expect($html)->toContain('data-grupo-menu="Agenda"')->toContain('data-grupo-menu-movil="Agenda"');
-    foreach (['Seguridad', 'Personas y Roles', 'Catálogos'] as $grupo) {
+    foreach (['Seguridad', 'Personas y Roles', 'Clínica', 'Catálogos'] as $grupo) {
         expect($html)->not->toContain('data-grupo-menu="'.$grupo.'"')->not->toContain('data-grupo-menu-movil="'.$grupo.'"');
     }
 });
@@ -146,7 +147,7 @@ test('un perfil con permisos en un solo grupo no ve los encabezados de los grupo
 test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra a todo', function () {
     $admin = User::factory()->administrador()->create();
 
-    expect(ModuloSistema::count())->toBe(23)
+    expect(ModuloSistema::count())->toBe(25)
         ->and($admin->perfilAcceso->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 
     $this->actingAs($admin);

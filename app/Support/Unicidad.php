@@ -55,6 +55,8 @@ final class Unicidad
             'mensaje' => 'Ese departamento ya tiene una ciudad con este nombre.'],
         'tipo_red_social.nombre' => ['tabla' => 'tipos_red_social', 'columna' => 'nombre', 'modulo' => 'TIPOS_RED_SOCIAL',
             'mensaje' => 'Ya hay un tipo de red social con este nombre.'],
+        'tipo_bloque_anamnesis.nombre' => ['tabla' => 'tipos_bloque_anamnesis', 'columna' => 'nombre', 'modulo' => 'TIPOS_BLOQUE_ANAMNESIS',
+            'mensaje' => 'Ya hay un tipo de bloque de anamnesis con este nombre.'],
         'categoria_proveedor.nombre' => ['tabla' => 'categorias_proveedor', 'columna' => 'nombre', 'modulo' => 'CATEGORIAS_PROVEEDOR',
             'mensaje' => 'Ya hay una categoría de proveedor con este nombre.'],
         'perfil_acceso.nombre' => ['tabla' => 'perfiles_acceso', 'columna' => 'nombre', 'modulo' => 'PERFILES_ACCESO',

@@ -1,0 +1,23 @@
+@use('App\Support\Fecha')
+
+<x-admin.table :headers="['Nro. ficha', 'Paciente', 'Documento', 'Consultas', 'Última consulta', 'Estado del paciente']" :paginator="$historias">
+    @forelse ($historias as $historia)
+        <tr>
+            <td class="px-6 py-4 font-mono font-medium">{{ $historia->paciente->nro_ficha }}</td>
+            <td class="px-6 py-4 font-medium">{{ $historia->paciente->persona->nombre_completo }}</td>
+            <td class="px-6 py-4 whitespace-nowrap">
+                <span class="text-xs text-gray-500 dark:text-gray-400">{{ $historia->paciente->persona->tipoDocumento->codigo }}</span>
+                <span class="font-mono">{{ $historia->paciente->persona->nro_documento }}</span>
+            </td>
+            {{-- Conteo y última fecha precargados (withCount / withMax): sin una consulta por fila. --}}
+            <td class="px-6 py-4 text-gray-600 dark:text-gray-400">{{ $historia->consultas_count ?: '—' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $historia->consultas_max_fecha_hora ? Fecha::mostrar($historia->consultas_max_fecha_hora, conHora: true) : '—' }}</td>
+            <td class="px-6 py-4"><x-admin.estado-badge :estado="$historia->paciente->estado" /></td>
+            <td class="px-6 py-4 text-right whitespace-nowrap">
+                <a href="{{ route('admin.historias-clinicas.show', $historia) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Ver historia</a>
+            </td>
+        </tr>
+    @empty
+        <x-admin.empty-row colspan="7" :busqueda="$busqueda" />
+    @endforelse
+</x-admin.table>

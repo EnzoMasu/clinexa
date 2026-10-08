@@ -45,7 +45,7 @@ class TurnoController extends Controller
             ->join('personas as persona_paciente', 'persona_paciente.id', '=', 'pacientes.persona_id')
             ->join('profesionales', 'profesionales.id', '=', 'turnos.profesional_id')
             ->join('personas as persona_profesional', 'persona_profesional.id', '=', 'profesionales.persona_id')
-            ->with(['paciente.persona.tipoDocumento', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno'])
+            ->with(['paciente.persona.tipoDocumento', 'paciente.historiaClinica', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno', 'consulta'])
             ->when($fecha, fn ($query) => $query->whereDate('turnos.fecha', $fecha))
             ->when($busqueda !== '' && ! $fecha, fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('persona_paciente.apellidos', "%{$busqueda}%")
@@ -136,7 +136,7 @@ class TurnoController extends Controller
             fn (Profesional $profesional) => "Mat. {$profesional->matricula}");
     }
 
-    /** Confirmar, atender, marcar ausente o cancelar, según las transiciones válidas del estado actual. */
+    /** Confirmar, marcar ausente o cancelar, según las transiciones válidas del estado actual (atender es guardar la consulta). */
     public function cambiarEstado(Request $request, Turno $turno): RedirectResponse
     {
         $accion = $request->validate(['accion' => ['required', Rule::in(array_keys(Turno::ACCIONES))]])['accion'];

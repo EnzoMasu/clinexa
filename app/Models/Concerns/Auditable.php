@@ -4,6 +4,7 @@ namespace App\Models\Concerns;
 
 use App\Enums\AccionAuditoria;
 use App\Support\Auditoria;
+use App\Support\ContextoAuditoria;
 use Illuminate\Support\Collection;
 
 /**
@@ -19,21 +20,22 @@ use Illuminate\Support\Collection;
  *   registro se confirman o se deshacen juntos.
  *
  * Los modelos con tablas pivote importantes las sincronizan con sincronizarAuditado(), que las
- * registra como EDITAR del modelo dueño, con la lista de antes y la de después.
+ * registra como EDITAR del modelo dueño, con la lista de antes y la de después. Los modelos hijos
+ * que se guardan dentro de auditarRelacion() no registran por su cuenta (quedan en el dueño).
  */
 trait Auditable
 {
     public static function bootAuditable(): void
     {
         static::created(function (self $modelo) {
-            if (Auditoria::activa()) {
+            if (Auditoria::activa() && ! self::dentroDeRelacion()) {
                 Auditoria::registrar(AccionAuditoria::CREAR, $modelo->getTable(), $modelo->getKey(),
                     nuevo: Auditoria::filtrar($modelo->getAttributes(), $modelo->camposNoAuditados()));
             }
         });
 
         static::updated(function (self $modelo) {
-            if (! Auditoria::activa()) {
+            if (! Auditoria::activa() || self::dentroDeRelacion()) {
                 return;
             }
 
@@ -45,6 +47,20 @@ trait Auditable
             $anterior = array_intersect_key($modelo->getRawOriginal(), $cambios);
             Auditoria::registrar(Auditoria::accionDeEdicion($cambios), $modelo->getTable(), $modelo->getKey(), $anterior, $cambios);
         });
+    }
+
+    /**
+     * Módulo al que pertenece la tabla en la auditoría (el de sus estados). Los modelos sin estados
+     * propios (los de la historia clínica) lo indican aparte.
+     */
+    public static function moduloAuditoria(): string
+    {
+        return static::moduloEstado();
+    }
+
+    private static function dentroDeRelacion(): bool
+    {
+        return app(ContextoAuditoria::class)->dentroDeRelacion > 0;
     }
 
     /** Guardado y registro de auditoría en la misma transacción. */
@@ -97,7 +113,13 @@ trait Auditable
 
         return $this->getConnection()->transaction(function () use ($relacion, $cambio, $describir) {
             $antes = $describir($this->{$relacion}()->get());
-            $resultado = $cambio();
+            $contexto = app(ContextoAuditoria::class);
+            $contexto->dentroDeRelacion++;
+            try {
+                $resultado = $cambio();
+            } finally {
+                $contexto->dentroDeRelacion--;
+            }
             $despues = $describir($this->{$relacion}()->get());
 
             if ($antes !== $despues) {

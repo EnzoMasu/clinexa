@@ -11,6 +11,7 @@ use App\Models\Pais;
 use App\Models\PerfilAcceso;
 use App\Models\Procedimiento;
 use App\Models\Sucursal;
+use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
 use App\Models\TipoRedSocial;
 use App\Models\User;
@@ -37,6 +38,8 @@ dataset('catalogos', [
         ['nombre' => 'Insumos'], fn () => ['nombre' => 'Insumos médicos', 'estado_id' => estadoId('ACTIVO')]],
     'tipos de red social' => ['tipos-red-social', 'tipos_red_social', TipoRedSocial::class,
         ['nombre' => 'Mastodon'], fn () => ['nombre' => 'Mastodon (fediverso)', 'estado_id' => estadoId('ACTIVO')]],
+    'tipos de bloque de anamnesis' => ['tipos-bloque-anamnesis', 'tipos_bloque_anamnesis', TipoBloqueAnamnesis::class,
+        ['nombre' => 'Vacunas'], fn () => ['nombre' => 'Vacunas e inmunizaciones', 'estado_id' => estadoId('ACTIVO')]],
     'categorias de proveedor' => ['categorias-proveedor', 'categorias_proveedor', CategoriaProveedor::class,
         ['nombre' => 'Equipos'], fn () => ['nombre' => 'Equipos médicos', 'estado_id' => estadoId('ACTIVO')]],
     'procedimientos' => ['procedimientos', 'procedimientos', Procedimiento::class,
@@ -98,6 +101,7 @@ dataset('catalogos con estado', [
     'categorias de gasto' => ['categorias-gasto', CategoriaGasto::class, ['nombre' => 'Insumos']],
     'categorias de proveedor' => ['categorias-proveedor', CategoriaProveedor::class, ['nombre' => 'Equipos médicos']],
     'tipos de red social' => ['tipos-red-social', TipoRedSocial::class, ['nombre' => 'Mastodon']],
+    'tipos de bloque de anamnesis' => ['tipos-bloque-anamnesis', TipoBloqueAnamnesis::class, ['nombre' => 'Vacunas']],
     'procedimientos' => ['procedimientos', Procedimiento::class, ['codigo' => 'ECO', 'nombre' => 'Ecografía', 'tipo' => 'ESTUDIO', 'duracion_estimada_minutos' => 30]],
     'paises' => ['paises', Pais::class, ['nombre' => 'Uruguay', 'codigo' => 'UY']],
     'departamentos' => ['departamentos', Departamento::class, fn () => ['nombre' => 'Canelones', 'pais_id' => paisDePrueba()->id]],

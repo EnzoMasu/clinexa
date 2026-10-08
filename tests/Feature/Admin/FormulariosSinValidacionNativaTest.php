@@ -21,6 +21,8 @@ test('todos los formularios de alta de /admin llevan novalidate', function () {
     $altas = collect(Route::getRoutes()->getRoutes())
         ->map(fn ($ruta) => $ruta->getName())
         ->filter(fn (?string $nombre) => $nombre && str_starts_with($nombre, 'admin.') && str_ends_with($nombre, '.create'))
+        // La consulta depende de una historia y de un profesional: su novalidate se prueba en ConsultaFormularioTest.
+        ->reject(fn (string $nombre) => $nombre === 'admin.consultas.create')
         ->values();
 
     expect($altas)->not->toBeEmpty();
