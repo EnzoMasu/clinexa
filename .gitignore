@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Respaldos de la base: contienen datos de salud, nunca al repositorio (ver docs/respaldo.md).
+*.dump
+/respaldos/

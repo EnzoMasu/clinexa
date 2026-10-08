@@ -5,6 +5,10 @@ namespace App\Providers;
 use App\Rules\SinCaracteresRepetidos;
 use App\Support\AuditoriaAutenticacion;
 use App\Support\ContextoAuditoria;
+use Illuminate\Database\Console\Migrations\FreshCommand;
+use Illuminate\Database\Console\Migrations\RefreshCommand;
+use Illuminate\Database\Console\Migrations\ResetCommand;
+use Illuminate\Database\Console\WipeCommand;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\ServiceProvider;
@@ -12,6 +16,15 @@ use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
+    /** migrate:fresh, migrate:refresh, migrate:reset y db:wipe. */
+    public const COMANDOS_DESTRUCTIVOS = [FreshCommand::class, RefreshCommand::class, ResetCommand::class, WipeCommand::class];
+
+    /** Se bloquean siempre, salvo cuando corre la suite de tests. */
+    public static function bloquearComandosDestructivos(bool $enTests): bool
+    {
+        return ! $enTests;
+    }
+
     /**
      * Register any application services.
      */
@@ -26,6 +39,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Comandos que vacían la base entera: bloqueados fuera de la suite de tests (que los usa sobre
+        // :memory: y clinexa_test). Uno a uno y no con DB::prohibitDestructiveCommands(), que en esta
+        // versión también bloquea migrate:rollback, y ese debe seguir funcionando.
+        $bloquear = self::bloquearComandosDestructivos($this->app->runningUnitTests());
+        foreach (self::COMANDOS_DESTRUCTIVOS as $comando) {
+            $comando::prohibit($bloquear);
+        }
+
         // Auditoría de inicio y cierre de sesión, intentos fallidos, bloqueos y cambios de contraseña.
         Event::subscribe(AuditoriaAutenticacion::class);
 
