@@ -132,6 +132,7 @@ describe('formularios', function () {
         ['admin.especialidades.create', 'especialidad.nombre'],
         ['admin.categorias-gasto.create', 'categoria_gasto.nombre'],
         ['admin.categorias-proveedor.create', 'categoria_proveedor.nombre'],
+        ['admin.tipos-red-social.create', 'tipo_red_social.nombre'],
         ['admin.perfiles-acceso.create', 'perfil_acceso.nombre'],
         ['admin.sucursales.create', 'sucursal.nombre'],
         ['admin.medios-pago.create', 'medio_pago.nombre'],

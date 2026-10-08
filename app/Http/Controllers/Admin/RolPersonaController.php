@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Persona;
 use App\Support\BuscadorPersonas;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -73,6 +74,18 @@ abstract class RolPersonaController extends Controller
         return [];
     }
 
+    /** Ajustes del pedido antes de validar (normalizar valores, recortar espacios). */
+    protected function prepararPedido(Request $request): void {}
+
+    /** Condiciones extra del buscador del listado (p. ej. buscar en una tabla relacionada). */
+    protected function ampliarBusqueda(Builder $query, string $busqueda, string $tabla): void {}
+
+    /** Conteos que se precargan en el listado (withCount): una subconsulta, no una consulta por fila. */
+    protected function conteosListado(): array
+    {
+        return [];
+    }
+
     /** Nombres de los campos en los mensajes de validación. */
     protected function atributos(): array
     {
@@ -89,6 +102,7 @@ abstract class RolPersonaController extends Controller
             ->select("{$tabla}.*")
             ->join('personas', 'personas.id', '=', "{$tabla}.persona_id")
             ->with($this->relacionesListado())
+            ->withCount($this->conteosListado())
             ->when($busqueda !== '', fn ($query) => $query->where(function ($query) use ($busqueda, $tabla) {
                 $query->whereLike('personas.nro_documento', "{$busqueda}%")
                     ->orWhereLike('personas.apellidos', "%{$busqueda}%")
@@ -97,6 +111,7 @@ abstract class RolPersonaController extends Controller
                 foreach ($this->columnasBusqueda() as $columna) {
                     $query->orWhereLike("{$tabla}.{$columna}", "%{$busqueda}%");
                 }
+                $this->ampliarBusqueda($query, $busqueda, $tabla);
             }))
             ->orderByRaw('COALESCE(personas.apellidos, personas.razon_social)')
             ->orderBy('personas.nombres')
@@ -117,6 +132,8 @@ abstract class RolPersonaController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $modelo = $this->modelo();
+
+        $this->prepararPedido($request);
 
         $datos = $request->validate([
             'persona_id' => ['required', 'integer', function (string $atributo, mixed $valor, \Closure $fail) use ($modelo) {
@@ -152,6 +169,8 @@ abstract class RolPersonaController extends Controller
     {
         $registro = $this->registro($id);
         $modelo = $this->modelo();
+
+        $this->prepararPedido($request);
 
         $datos = $request->validate([
             ...$this->reglas($registro),

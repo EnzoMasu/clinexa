@@ -21,6 +21,7 @@ use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
 use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
+use App\Http\Controllers\Admin\TipoRedSocialController;
 use App\Http\Controllers\Admin\TurnoController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\GeografiaController;
@@ -94,6 +95,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('medios-pago', MedioPagoController::class, 'MEDIOS_PAGO', 'medioPago', conBaja: true);
     $seccion('categorias-gasto', CategoriaGastoController::class, 'CATEGORIAS_GASTO', 'categoriaGasto', conBaja: true);
     $seccion('categorias-proveedor', CategoriaProveedorController::class, 'CATEGORIAS_PROVEEDOR', 'categoriaProveedor', conBaja: true);
+    $seccion('tipos-red-social', TipoRedSocialController::class, 'TIPOS_RED_SOCIAL', 'tipoRedSocial', conBaja: true);
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
 
     // Geografía: las tres pantallas comparten el módulo GEOGRAFIA.

@@ -88,8 +88,10 @@ class PersonasDemoSeeder extends Seeder
             'condiciones_comerciales' => 'Pago a 30 días (dato ficticio de demo)',
         ]);
         // Benítez, Rosa Alicia: proveedora de equipos médicos (era PropietarioEquipo, fusionado en Proveedor).
-        Proveedor::firstOrCreate(['persona_id' => $persona('2987654')->id], ['datos_bancarios' => null])
-            ->categorias()->syncWithoutDetaching([CategoriaProveedor::where('nombre', 'Equipos médicos')->sole()->id]);
+        $benitez = Proveedor::firstOrCreate(['persona_id' => $persona('2987654')->id], ['datos_bancarios' => null]);
+        if ($equipos = CategoriaProveedor::where('nombre', 'Equipos médicos')->first()) { // si no se renombró
+            $benitez->categorias()->syncWithoutDetaching([$equipos->id]);
+        }
         ResponsablePago::firstOrCreate(['persona_id' => $persona('4123456')->id], ['limite_credito' => null]); // Insfrán, Laura Beatriz
     }
 }

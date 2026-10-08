@@ -25,6 +25,7 @@ use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\Sucursal;
 use App\Models\TipoDocumento;
+use App\Models\TipoRedSocial;
 use App\Models\Turno;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -56,7 +57,7 @@ final class Auditoria
         CatalogoCIE10::class, MedioPago::class, CategoriaGasto::class,
         CategoriaProveedor::class, Procedimiento::class, Pais::class,
         Departamento::class, Ciudad::class, Consultorio::class,
-        OrigenTurno::class, Disponibilidad::class, Turno::class,
+        OrigenTurno::class, Disponibilidad::class, Turno::class, TipoRedSocial::class,
     ];
 
     /** Minutos en los que no se repite un VER idéntico (mismo usuario, tabla y registro). */

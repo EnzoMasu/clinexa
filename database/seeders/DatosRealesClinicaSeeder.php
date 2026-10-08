@@ -14,6 +14,7 @@ use App\Models\Proveedor;
 use App\Models\ResponsablePago;
 use App\Models\Sucursal;
 use App\Models\TipoDocumento;
+use App\Models\TipoRedSocial;
 use Illuminate\Database\Seeder;
 
 /**
@@ -24,6 +25,8 @@ class DatosRealesClinicaSeeder extends Seeder
 {
     /** Orígenes de turno (código => nombre). */
     public const ORIGENES_TURNO = ['PRESENCIAL' => 'Presencial', 'TELEFONICO' => 'Telefónico', 'WEB' => 'Web', 'APP' => 'App'];
+
+    public const TIPOS_RED_SOCIAL = ['Facebook', 'Instagram', 'WhatsApp', 'LinkedIn', 'X', 'TikTok', 'YouTube', 'Telegram'];
 
     public const CATEGORIAS_PROVEEDOR = ['Insumos médicos', 'Equipos médicos', 'Insumos de oficina', 'Artículos de limpieza', 'Servicios tercerizados'];
 
@@ -59,14 +62,25 @@ class DatosRealesClinicaSeeder extends Seeder
         ModuloSistema::where('codigo', 'PERSONAS')->first()
             ?->habilitarTiposDocumento(['CI', 'PASAPORTE', 'RUC', 'DNI']);
 
-        // Categorías base de proveedor (se crean si faltan; no se tocan las que ya existen).
-        foreach (self::CATEGORIAS_PROVEEDOR as $nombre) {
-            CategoriaProveedor::firstOrCreate(['nombre' => $nombre]);
+        // Catálogos editables desde el panel: los valores base se siembran solo si la tabla está vacía.
+        // Así, si se renombra uno (o se le cambia el código) desde la pantalla, volver a correr el
+        // seeder no crea un duplicado con el nombre original.
+        if (! CategoriaProveedor::exists()) {
+            foreach (self::CATEGORIAS_PROVEEDOR as $nombre) {
+                CategoriaProveedor::create(['nombre' => $nombre]);
+            }
         }
 
-        // Orígenes de turno (se crean si faltan; no se tocan los que ya existen).
-        foreach (self::ORIGENES_TURNO as $codigo => $nombre) {
-            OrigenTurno::firstOrCreate(['codigo' => $codigo], ['nombre' => $nombre]);
+        if (! OrigenTurno::exists()) {
+            foreach (self::ORIGENES_TURNO as $codigo => $nombre) {
+                OrigenTurno::create(['codigo' => $codigo, 'nombre' => $nombre]);
+            }
+        }
+
+        if (! TipoRedSocial::exists()) {
+            foreach (self::TIPOS_RED_SOCIAL as $nombre) {
+                TipoRedSocial::create(['nombre' => $nombre]);
+            }
         }
 
         Especialidad::updateOrCreate(['nombre' => 'Ginecología y Obstetricia'], [
@@ -129,7 +143,10 @@ class DatosRealesClinicaSeeder extends Seeder
         // construyamos el módulo de Equipos, esto solo deja preparado el rol. Era PropietarioEquipo,
         // que se fusionó en Proveedor: proveedor con categoría "Equipos médicos", sin datos bancarios.
         $proveedor = Proveedor::firstOrCreate(['persona_id' => $luigi->id], ['datos_bancarios' => null]);
-        $proveedor->categorias()->syncWithoutDetaching([CategoriaProveedor::where('nombre', 'Equipos médicos')->sole()->id]);
+        // Si la categoría se renombró desde el panel, no se asigna (el seeder no la vuelve a crear).
+        if ($equipos = CategoriaProveedor::where('nombre', 'Equipos médicos')->first()) {
+            $proveedor->categorias()->syncWithoutDetaching([$equipos->id]);
+        }
 
         $clara = Persona::firstOrCreate(['tipo_documento_id' => $ruc->id, 'nro_documento' => '421964-3'], [
             'tipo_persona' => 'FISICA',

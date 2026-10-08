@@ -35,6 +35,7 @@ class ModuloSistemaSeeder extends Seeder
             'MEDIOS_PAGO' => ['Medios de pago', self::ACTIVO_INACTIVO],
             'CATEGORIAS_GASTO' => ['Categorías de gasto', self::ACTIVO_INACTIVO],
             'CATEGORIAS_PROVEEDOR' => ['Categorías de proveedor', self::ACTIVO_INACTIVO],
+            'TIPOS_RED_SOCIAL' => ['Tipos de red social', self::ACTIVO_INACTIVO],
             'PROCEDIMIENTOS' => ['Procedimientos', self::ACTIVO_INACTIVO],
             // Roles de negocio sobre Persona.
             'PACIENTES' => ['Pacientes', self::ACTIVO_INACTIVO],

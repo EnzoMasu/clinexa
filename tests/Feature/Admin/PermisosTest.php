@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(142); // 21 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado)
+    expect($rutas)->toHaveCount(148); // 22 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -104,7 +104,7 @@ test('el Administrador ve los 4 grupos del menú, en orden y con sus secciones, 
 
     $grupos = [
         'Seguridad' => ['usuarios', 'perfiles-acceso', 'auditoria'],
-        'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'proveedores', 'categorias-proveedor', 'responsables-pago'],
+        'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
         'Agenda' => ['turnos', 'disponibilidades', 'consultorios', 'origenes-turno'],
         'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'paises', 'departamentos', 'ciudades'],
     ];
@@ -146,7 +146,7 @@ test('un perfil con permisos en un solo grupo no ve los encabezados de los grupo
 test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra a todo', function () {
     $admin = User::factory()->administrador()->create();
 
-    expect(ModuloSistema::count())->toBe(22)
+    expect(ModuloSistema::count())->toBe(23)
         ->and($admin->perfilAcceso->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 
     $this->actingAs($admin);

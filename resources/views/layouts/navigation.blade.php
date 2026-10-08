@@ -12,6 +12,7 @@
             'admin.profesionales' => 'Profesionales',
             'admin.proveedores' => 'Proveedores',
             'admin.categorias-proveedor' => 'Categorías de proveedor',
+            'admin.tipos-red-social' => 'Tipos de red social',
             'admin.responsables-pago' => 'Responsables de pago',
         ],
         'Agenda' => [
