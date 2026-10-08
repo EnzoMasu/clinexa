@@ -24,6 +24,7 @@ use App\Models\Turno;
 use App\Models\User;
 use Database\Seeders\ModulosSensiblesSeeder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 const HC_PERMISOS_MEDICO = ['HISTORIA_CLINICA' => ['VER', 'CREAR', 'EDITAR'], 'TURNOS' => ['VER']];
 
@@ -130,4 +131,17 @@ function hcFilasGuardadas(Consulta $consulta): array
         'diagnosticos' => $diagnosticos->map(fn ($d) => ['id' => (string) $d->id, 'activo' => $d->activo ? '1' : '0', 'codigo_cie10' => $d->codigo_cie10, 'tipo' => $d->tipo->value, 'descripcion_adicional' => $d->descripcion_adicional ?? ''])->all(),
         'diagnostico_principal' => (string) ($diagnosticos->search(fn ($d) => $d->principal) === false ? '' : $diagnosticos->search(fn ($d) => $d->principal)),
     ];
+}
+
+/** Consultas SQL de un pedido, después de uno de calentamiento (permisos y estados quedan en memoria). */
+function consultasSql(string $url, array $encabezados = []): int
+{
+    test()->get($url, $encabezados)->assertOk(); // calentamiento (permisos, estados en memoria)
+    DB::enableQueryLog();
+    DB::flushQueryLog();
+    test()->get($url, $encabezados)->assertOk();
+    $cantidad = count(DB::getQueryLog());
+    DB::disableQueryLog();
+
+    return $cantidad;
 }

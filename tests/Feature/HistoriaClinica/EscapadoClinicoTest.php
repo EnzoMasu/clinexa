@@ -84,7 +84,7 @@ test('un error de validación vuelve a mostrar lo escrito, escapado', function (
 });
 
 test('las vistas clínicas no usan {!! !!}', function () {
-    foreach (['consultas/show', 'consultas/_contenido', 'consultas/form', 'historias-clinicas/show', 'historias-clinicas/_tabla', 'auditoria/show'] as $vista) {
+    foreach (['consultas/show', 'consultas/_contenido', 'consultas/form', 'historias-clinicas/show', 'historias-clinicas/_tabla', 'atencion-sin-turno/index', 'atencion-sin-turno/_tabla', 'auditoria/show'] as $vista) {
         expect(file_get_contents(resource_path("views/admin/{$vista}.blade.php")))->not->toContain('{!!');
     }
 });

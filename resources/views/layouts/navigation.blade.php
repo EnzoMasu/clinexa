@@ -23,6 +23,7 @@
         ],
         'Clínica' => [
             'admin.historias-clinicas' => 'Historias clínicas',
+            'admin.atencion-sin-turno' => 'Atención sin turno',
         ],
         'Catálogos' => [
             'admin.especialidades' => 'Especialidades',
@@ -89,7 +90,7 @@
                         </x-slot>
 
                         <x-slot name="content">
-                            {{-- Con scroll: con todos los permisos son 25 entradas más los encabezados. --}}
+                            {{-- Con scroll: con todos los permisos son 26 entradas más los encabezados. --}}
                             <div class="max-h-[75vh] overflow-y-auto">
                                 @foreach ($gruposAdmin as $grupo => $secciones)
                                     <div role="presentation" data-grupo-menu="{{ $grupo }}" @class([

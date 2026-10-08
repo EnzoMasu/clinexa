@@ -13,9 +13,13 @@
             <td class="px-6 py-4 text-gray-600 dark:text-gray-400">{{ $historia->consultas_count ?: '—' }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $historia->consultas_max_fecha_hora ? Fecha::mostrar($historia->consultas_max_fecha_hora, conHora: true) : '—' }}</td>
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$historia->paciente->estado" /></td>
-            <td class="px-6 py-4 text-right whitespace-nowrap">
+            <x-admin.actions>
                 <a href="{{ route('admin.historias-clinicas.show', $historia) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Ver historia</a>
-            </td>
+                {{-- Si el usuario puede atender (calculado una vez por pedido) y el paciente está activo (ya cargado). --}}
+                @if ($puedeAtender && $historia->paciente->estaActivo())
+                    <a href="{{ route('admin.consultas.create', $historia) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Atender sin turno</a>
+                @endif
+            </x-admin.actions>
         </tr>
     @empty
         <x-admin.empty-row colspan="7" :busqueda="$busqueda" />

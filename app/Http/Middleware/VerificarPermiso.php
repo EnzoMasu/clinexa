@@ -6,6 +6,7 @@ use App\Support\Auditoria;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use LogicException;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -20,13 +21,21 @@ use Symfony\Component\HttpFoundation\Response;
  * Es para las peticiones AJAX que SÍ son una lectura de contenido (el detalle de una consulta en el
  * popup de la historia): registran VER aunque sean AJAX. La marca está en la ruta y no se deduce de
  * los encabezados, así los buscadores y la paginación siguen sin registrar.
+ *
+ * Otra marca: "tabla=consultas". Un listado registra su lectura en la tabla principal del módulo
+ * (historias_clinicas para HISTORIA_CLINICA); con esta marca, en otra tabla del mismo módulo (la
+ * pantalla Atención sin turno lista consultas). Tiene que ser una tabla auditada de ese módulo.
+ * Las marcas se pueden combinar: "permiso:MODULO,VER,lectura-ajax,tabla=consultas".
  */
 class VerificarPermiso
 {
     /** Marca de ruta: esta petición AJAX es una lectura de contenido y se registra. */
     public const LECTURA_AJAX = 'lectura-ajax';
 
-    public function handle(Request $request, Closure $next, string $modulo, string $accion, ?string $marca = null): Response
+    /** Marca de ruta: la lectura de un listado se registra en esta tabla del módulo. */
+    public const TABLA = 'tabla=';
+
+    public function handle(Request $request, Closure $next, string $modulo, string $accion, string ...$marcas): Response
     {
         abort_unless(
             $request->user()?->tienePermiso($modulo, $accion),
@@ -36,14 +45,31 @@ class VerificarPermiso
 
         $respuesta = $next($request);
 
-        if ($this->esLectura($request, $accion, $respuesta, $marca === self::LECTURA_AJAX) && Auditoria::esSensible($modulo)) {
+        if ($this->esLectura($request, $accion, $respuesta, in_array(self::LECTURA_AJAX, $marcas, true)) && Auditoria::esSensible($modulo)) {
             $registro = $this->registroDe($request);
             // Un módulo con varias tablas (historia clínica: historias y consultas) registra la lectura
-            // en la tabla del registro de la URL; un listado, en la tabla principal del módulo.
-            Auditoria::registrarLectura($modulo, $registro?->getKey(), $registro?->getTable());
+            // en la tabla del registro de la URL; un listado, en la de la marca o la principal del módulo.
+            Auditoria::registrarLectura($modulo, $registro?->getKey(), $registro?->getTable() ?? $this->tablaMarcada($modulo, $marcas));
         }
 
         return $respuesta;
+    }
+
+    /** La tabla de la marca "tabla=...", o null. Una tabla que no es del módulo es un error de la ruta. */
+    private function tablaMarcada(string $modulo, array $marcas): ?string
+    {
+        foreach ($marcas as $marca) {
+            if (str_starts_with($marca, self::TABLA)) {
+                $tabla = substr($marca, strlen(self::TABLA));
+                if ((Auditoria::modulosPorTabla()[$tabla] ?? null) !== $modulo) {
+                    throw new LogicException("La tabla {$tabla} no es del módulo {$modulo}.");
+                }
+
+                return $tabla;
+            }
+        }
+
+        return null;
     }
 
     /** Solo si se devolvió contenido (2xx): un 403, un 404 o una redirección no registran. */

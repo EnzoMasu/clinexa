@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AtencionSinTurnoController;
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
@@ -145,7 +146,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         // los buscadores, esta petición AJAX es una lectura de contenido clínico y registra VER.
         Route::get('consultas/{consulta}/detalle', [ConsultaController::class, 'detalle'])->name('consultas.detalle')->whereNumber('consulta')
             ->middleware('permiso:HISTORIA_CLINICA,VER,lectura-ajax');
+        // Atención sin turno (urgencias): el listado es una lectura de consultas ("tabla=consultas"); el
+        // buscador de pacientes para iniciar la atención exige CREAR (y como no es VER, no registra).
+        Route::get('atencion-sin-turno', [AtencionSinTurnoController::class, 'index'])->name('atencion-sin-turno.index')
+            ->middleware('permiso:HISTORIA_CLINICA,VER,tabla=consultas');
         Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
+            Route::get('atencion-sin-turno/pacientes', [AtencionSinTurnoController::class, 'pacientes'])->name('atencion-sin-turno.pacientes');
             Route::get('historias-clinicas/{historiaClinica}/consultas/create', [ConsultaController::class, 'create'])->name('consultas.create');
             Route::post('historias-clinicas/{historiaClinica}/consultas', [ConsultaController::class, 'store'])->name('consultas.store');
         });

@@ -32,18 +32,6 @@ beforeEach(function () {
 
 afterEach(fn () => Carbon::setTestNow());
 
-function consultasSql(string $url, array $encabezados = []): int
-{
-    test()->get($url, $encabezados)->assertOk(); // calentamiento (permisos, estados en memoria)
-    DB::enableQueryLog();
-    DB::flushQueryLog();
-    test()->get($url, $encabezados)->assertOk();
-    $cantidad = count(DB::getQueryLog());
-    DB::disableQueryLog();
-
-    return $cantidad;
-}
-
 test('listado de historias: las mismas consultas SQL en la página 1 y en la 2 (20 historias cada una)', function () {
     $pagina1 = consultasSql(route('admin.historias-clinicas.index'));
     $pagina2 = consultasSql(route('admin.historias-clinicas.index', ['page' => 2]));

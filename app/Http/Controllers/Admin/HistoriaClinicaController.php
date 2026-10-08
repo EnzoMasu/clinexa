@@ -38,7 +38,11 @@ class HistoriaClinicaController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.historias-clinicas', compact('historias', 'busqueda'));
+        return $this->listado($request, 'admin.historias-clinicas', [
+            ...compact('historias', 'busqueda'),
+            // Una vez por pedido (no por fila): la parte de la regla que depende solo del usuario.
+            'puedeAtender' => Gate::allows('atender', Consulta::class),
+        ]);
     }
 
     public function show(HistoriaClinica $historiaClinica): View

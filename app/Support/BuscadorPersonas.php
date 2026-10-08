@@ -21,6 +21,12 @@ class BuscadorPersonas
     public const LIMITE = 15;
 
     /**
+     * < > & ' " codificados (\u003C...) en el JSON: los nombres los carga un usuario, y aunque el selector
+     * los muestra con x-text, así no aparecen como etiquetas en ningún lado.
+     */
+    public const JSON_SEGURO = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT;
+
+    /**
      * @param  Builder  $disponibles  personas que pueden elegirse (ya filtradas por estado, tipo, rol, etc.)
      * @param  bool  $conEmail  mostrar también el email (alta de Usuarios, donde el email del usuario es el de la persona)
      */
@@ -46,7 +52,7 @@ class BuscadorPersonas
         return response()->json($personas->map(fn (Persona $persona) => [
             'id' => $persona->id,
             'texto' => self::texto($persona, $conEmail),
-        ]));
+        ]), options: self::JSON_SEGURO);
     }
 
     /**
@@ -57,8 +63,9 @@ class BuscadorPersonas
      * @param  Builder  $roles  consulta del modelo del rol (Paciente::query(), Profesional::query())
      * @param  list<string>  $columnasRol  columnas del rol que también se buscan
      * @param  \Closure|null  $detalle  dato extra para el texto (p. ej. fn ($p) => "Ficha {$p->nro_ficha}")
+     * @param  \Closure|null  $id  qué id devolver, si no es el del rol (p. ej. el de la historia clínica del paciente)
      */
-    public static function responderRol(Builder $roles, string $busqueda, array $columnasRol = [], ?\Closure $detalle = null): JsonResponse
+    public static function responderRol(Builder $roles, string $busqueda, array $columnasRol = [], ?\Closure $detalle = null, ?\Closure $id = null): JsonResponse
     {
         $busqueda = trim($busqueda);
         if (mb_strlen($busqueda) < self::MINIMO) {
@@ -88,9 +95,9 @@ class BuscadorPersonas
             ->get();
 
         return response()->json($registros->map(fn ($registro) => [
-            'id' => $registro->id,
+            'id' => $id ? $id($registro) : $registro->id,
             'texto' => self::textoRol($registro, $detalle),
-        ]));
+        ]), options: self::JSON_SEGURO);
     }
 
     /** "Ruiz, Liz — CI 4567890 · Ficha FP-0000001". */

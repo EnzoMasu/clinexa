@@ -25,16 +25,29 @@ class ConsultaPolicy
 {
     public const SOLO_EL_QUE_ATIENDE = 'Solo el profesional que atiende puede modificar esta consulta.';
 
-    public function create(User $usuario, HistoriaClinica $historia, ?Turno $turno = null): Response
+    /**
+     * La parte de "crear" que depende solo del usuario: profesional ACTIVO con CREAR. Para mostrar
+     * las entradas a una atención (Atención sin turno, botones de los listados) sin mirar paciente
+     * por paciente: Gate::allows('atender', Consulta::class), una vez por pedido.
+     */
+    public function atender(User $usuario): Response
     {
         if (! $usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR')) {
             return Response::deny('No tiene permiso para crear consultas.');
         }
 
-        $profesional = $this->profesionalActivo($usuario);
-        if (! $profesional) {
-            return Response::deny('Solo un profesional activo puede atender consultas.');
+        return $this->profesionalActivo($usuario)
+            ? Response::allow()
+            : Response::deny('Solo un profesional activo puede atender consultas.');
+    }
+
+    public function create(User $usuario, HistoriaClinica $historia, ?Turno $turno = null): Response
+    {
+        $atender = $this->atender($usuario);
+        if ($atender->denied()) {
+            return $atender;
         }
+        $profesional = $this->profesionalActivo($usuario);
 
         if (! $historia->paciente->estaActivo()) {
             return Response::deny('El paciente está inactivo: no se pueden cargar consultas nuevas.');
