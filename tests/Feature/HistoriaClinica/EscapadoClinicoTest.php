@@ -33,15 +33,18 @@ test('HTML y JS en motivo, anamnesis, hallazgos y descripción adicional: escapa
     ]);
     expect($consulta->motivo_consulta)->toBe("Motivo {$this->img}\nsegunda línea"); // se guarda tal cual
 
-    // Vista de lectura: escapado y con el salto de línea por CSS.
-    sinHtmlCrudo($this->get(route('admin.consultas.show', $consulta))->assertOk())
-        ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false)
-        ->assertSee('Bloque &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
-        ->assertSee('Hallazgo &lt;img src=x onerror=alert(1)&gt;', false)
-        ->assertSee('Detalle &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
-        ->assertSee('whitespace-pre-line', false);
+    // Vista de lectura y fragmento del popup (el mismo partial): escapado y con el salto de línea por CSS.
+    $detalle = $this->get(route('admin.consultas.detalle', $consulta), ['X-Requested-With' => 'XMLHttpRequest']);
+    foreach ([$this->get(route('admin.consultas.show', $consulta)), $detalle] as $lectura) {
+        sinHtmlCrudo($lectura->assertOk())
+            ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false)
+            ->assertSee('Bloque &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
+            ->assertSee('Hallazgo &lt;img src=x onerror=alert(1)&gt;', false)
+            ->assertSee('Detalle &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
+            ->assertSee('whitespace-pre-line', false);
+    }
 
-    // Historia del paciente (motivo resumido en la tabla).
+    // Historia del paciente: el motivo resumido en la fila, escapado.
     sinHtmlCrudo($this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk())
         ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false);
 
@@ -81,7 +84,7 @@ test('un error de validación vuelve a mostrar lo escrito, escapado', function (
 });
 
 test('las vistas clínicas no usan {!! !!}', function () {
-    foreach (['consultas/show', 'consultas/form', 'historias-clinicas/show', 'historias-clinicas/_tabla', 'auditoria/show'] as $vista) {
+    foreach (['consultas/show', 'consultas/_contenido', 'consultas/form', 'historias-clinicas/show', 'historias-clinicas/_tabla', 'auditoria/show'] as $vista) {
         expect(file_get_contents(resource_path("views/admin/{$vista}.blade.php")))->not->toContain('{!!');
     }
 });

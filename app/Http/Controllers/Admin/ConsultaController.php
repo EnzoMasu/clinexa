@@ -20,6 +20,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -100,12 +101,15 @@ class ConsultaController extends Controller
         return redirect()->route('admin.consultas.show', $consulta)->with('status', 'Consulta guardada.');
     }
 
+    /** Relaciones que muestra el contenido de una consulta (partial consultas._contenido). */
+    private const RELACIONES_CONTENIDO = [
+        'historiaClinica.paciente.persona.tipoDocumento', 'profesional.persona', 'turno',
+        'bloquesAnamnesis.tipoBloqueAnamnesis', 'examenFisico', 'diagnosticos.cie10',
+    ];
+
     public function show(Request $request, Consulta $consulta): View
     {
-        $consulta->load([
-            'historiaClinica.paciente.persona.tipoDocumento', 'profesional.persona', 'turno',
-            'bloquesAnamnesis.tipoBloqueAnamnesis', 'examenFisico', 'diagnosticos.cie10',
-        ]);
+        $consulta->load(self::RELACIONES_CONTENIDO);
 
         // Historial de cambios: solo con VER sobre AUDITORIA (además de HISTORIA_CLINICA, que pide la ruta).
         $historial = null;
@@ -128,6 +132,28 @@ class ConsultaController extends Controller
             'puedeModificar' => Gate::allows('update', $consulta),
             'historial' => $historial,
         ]);
+    }
+
+    /**
+     * Detalle de una consulta para el popup de la historia: solo el partial del contenido, de a una
+     * consulta. La ruta lleva la marca "lectura-ajax": el middleware de permisos registra el VER sobre
+     * consultas (con la misma regla de no repetir en 5 minutos) cuando se devuelve el contenido.
+     *
+     * Pegado en el navegador (sin AJAX) no se devuelve el fragmento suelto: redirige a la página
+     * completa, que es la que registra esa lectura (una redirección no registra).
+     */
+    public function detalle(Request $request, Consulta $consulta): Response|RedirectResponse
+    {
+        if (! $request->ajax()) {
+            return redirect()->route('admin.consultas.show', $consulta);
+        }
+
+        $consulta->load(self::RELACIONES_CONTENIDO);
+
+        return response()->view('admin.consultas._contenido', [
+            'consulta' => $consulta,
+            'puedeModificar' => Gate::allows('update', $consulta),
+        ])->header('Vary', 'X-Requested-With');
     }
 
     public function edit(Consulta $consulta): View
@@ -164,7 +190,7 @@ class ConsultaController extends Controller
             return back()->withInput()->with('error', self::MODIFICADA_EN_OTRA_VENTANA);
         }
 
-        return redirect()->route('admin.consultas.show', $consulta)->with('status', 'Consulta actualizada.');
+        return redirect()->route('admin.consultas.show', $consulta)->with('status', 'Consulta guardada.');
     }
 
     /**

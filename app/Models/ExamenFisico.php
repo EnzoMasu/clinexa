@@ -28,6 +28,17 @@ class ExamenFisico extends Model
         'hallazgos' => ['Hallazgos', null],
     ];
 
+    /** Sigla de cada signo vital para las pastillas de la consulta ("FC 88 lpm"). */
+    public const SIGLAS = [
+        'presion_arterial' => 'PA',
+        'frecuencia_cardiaca' => 'FC',
+        'frecuencia_respiratoria' => 'FR',
+        'temperatura' => 'T',
+        'peso' => 'Peso',
+        'talla' => 'Talla',
+        'saturacion_oxigeno' => 'SatO₂',
+    ];
+
     protected $fillable = [
         'consulta_id',
         'presion_arterial',

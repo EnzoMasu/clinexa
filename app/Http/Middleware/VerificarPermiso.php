@@ -15,10 +15,18 @@ use Symfony\Component\HttpFoundation\Response;
  * el listado (acción VER) o el detalle/edición de un registro (GET con VER o EDITAR), en una carga
  * de página normal. No en las peticiones AJAX (búsqueda en vivo, paginación, verificación de
  * únicos, buscadores), ni en los formularios de alta, ni si la página no se pudo mostrar.
+ *
+ * Excepción explícita, marcada en la ruta con un tercer parámetro: "permiso:MODULO,VER,lectura-ajax".
+ * Es para las peticiones AJAX que SÍ son una lectura de contenido (el detalle de una consulta en el
+ * popup de la historia): registran VER aunque sean AJAX. La marca está en la ruta y no se deduce de
+ * los encabezados, así los buscadores y la paginación siguen sin registrar.
  */
 class VerificarPermiso
 {
-    public function handle(Request $request, Closure $next, string $modulo, string $accion): Response
+    /** Marca de ruta: esta petición AJAX es una lectura de contenido y se registra. */
+    public const LECTURA_AJAX = 'lectura-ajax';
+
+    public function handle(Request $request, Closure $next, string $modulo, string $accion, ?string $marca = null): Response
     {
         abort_unless(
             $request->user()?->tienePermiso($modulo, $accion),
@@ -28,7 +36,7 @@ class VerificarPermiso
 
         $respuesta = $next($request);
 
-        if ($this->esLectura($request, $accion, $respuesta) && Auditoria::esSensible($modulo)) {
+        if ($this->esLectura($request, $accion, $respuesta, $marca === self::LECTURA_AJAX) && Auditoria::esSensible($modulo)) {
             $registro = $this->registroDe($request);
             // Un módulo con varias tablas (historia clínica: historias y consultas) registra la lectura
             // en la tabla del registro de la URL; un listado, en la tabla principal del módulo.
@@ -38,11 +46,12 @@ class VerificarPermiso
         return $respuesta;
     }
 
-    private function esLectura(Request $request, string $accion, Response $respuesta): bool
+    /** Solo si se devolvió contenido (2xx): un 403, un 404 o una redirección no registran. */
+    private function esLectura(Request $request, string $accion, Response $respuesta, bool $lecturaAjax): bool
     {
         return $request->isMethod('GET')
             && in_array($accion, ['VER', 'EDITAR'], true)
-            && ! $request->ajax() && ! $request->wantsJson()
+            && ($lecturaAjax || (! $request->ajax() && ! $request->wantsJson()))
             && $respuesta->isSuccessful();
     }
 

@@ -45,11 +45,14 @@ class HistoriaClinicaController extends Controller
     {
         $historiaClinica->load(['paciente.persona.tipoDocumento', 'paciente.estado']);
 
+        // Solo lo de cada fila: el contenido completo se pide de a una consulta al abrirla (popup o página).
         $consultas = $historiaClinica->consultas()
+            ->select(['id', 'historia_clinica_id', 'turno_id', 'profesional_id', 'fecha_hora', 'motivo_consulta'])
             ->with([
                 'profesional.persona',
-                // Solo los diagnósticos vigentes, el principal primero.
-                'diagnosticos' => fn ($query) => $query->where('activo', true)->orderByDesc('principal')->orderBy('id'),
+                // Solo los códigos de los diagnósticos vigentes, el principal primero.
+                'diagnosticos' => fn ($query) => $query->select(['id', 'consulta_id', 'codigo_cie10', 'principal'])
+                    ->where('activo', true)->orderByDesc('principal')->orderBy('id'),
             ])
             ->orderByDesc('fecha_hora')
             ->orderByDesc('id')

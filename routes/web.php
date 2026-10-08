@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\GeografiaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VerificarUnicoController;
+use App\Http\Middleware\SinAlmacenar;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -131,20 +132,27 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
 
     // Historia clínica: se lee con VER. Las consultas se crean con CREAR y se modifican con EDITAR, y
     // además ConsultaPolicy exige que sea el profesional que atiende. Nada se desactiva ni se borra.
-    Route::middleware('permiso:HISTORIA_CLINICA,VER')->group(function () {
-        // Buscador de CIE-10 del formulario (el controlador exige CREAR o EDITAR).
-        Route::get('historias-clinicas/cie10', [ConsultaController::class, 'cie10'])->name('historias-clinicas.cie10');
-        Route::get('historias-clinicas', [HistoriaClinicaController::class, 'index'])->name('historias-clinicas.index');
-        Route::get('historias-clinicas/{historiaClinica}', [HistoriaClinicaController::class, 'show'])->name('historias-clinicas.show')->whereNumber('historiaClinica');
-        Route::get('consultas/{consulta}', [ConsultaController::class, 'show'])->name('consultas.show')->whereNumber('consulta');
-    });
-    Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
-        Route::get('historias-clinicas/{historiaClinica}/consultas/create', [ConsultaController::class, 'create'])->name('consultas.create');
-        Route::post('historias-clinicas/{historiaClinica}/consultas', [ConsultaController::class, 'store'])->name('consultas.store');
-    });
-    Route::middleware('permiso:HISTORIA_CLINICA,EDITAR')->group(function () {
-        Route::get('consultas/{consulta}/edit', [ConsultaController::class, 'edit'])->name('consultas.edit');
-        Route::put('consultas/{consulta}', [ConsultaController::class, 'update'])->name('consultas.update');
+    // Ninguna de estas respuestas se guarda en la caché del navegador (SinAlmacenar).
+    Route::middleware(SinAlmacenar::class)->group(function () {
+        Route::middleware('permiso:HISTORIA_CLINICA,VER')->group(function () {
+            // Buscador de CIE-10 del formulario (el controlador exige CREAR o EDITAR).
+            Route::get('historias-clinicas/cie10', [ConsultaController::class, 'cie10'])->name('historias-clinicas.cie10');
+            Route::get('historias-clinicas', [HistoriaClinicaController::class, 'index'])->name('historias-clinicas.index');
+            Route::get('historias-clinicas/{historiaClinica}', [HistoriaClinicaController::class, 'show'])->name('historias-clinicas.show')->whereNumber('historiaClinica');
+            Route::get('consultas/{consulta}', [ConsultaController::class, 'show'])->name('consultas.show')->whereNumber('consulta');
+        });
+        // Detalle de una consulta para el popup de la historia (fragmento). "lectura-ajax": a diferencia de
+        // los buscadores, esta petición AJAX es una lectura de contenido clínico y registra VER.
+        Route::get('consultas/{consulta}/detalle', [ConsultaController::class, 'detalle'])->name('consultas.detalle')->whereNumber('consulta')
+            ->middleware('permiso:HISTORIA_CLINICA,VER,lectura-ajax');
+        Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
+            Route::get('historias-clinicas/{historiaClinica}/consultas/create', [ConsultaController::class, 'create'])->name('consultas.create');
+            Route::post('historias-clinicas/{historiaClinica}/consultas', [ConsultaController::class, 'store'])->name('consultas.store');
+        });
+        Route::middleware('permiso:HISTORIA_CLINICA,EDITAR')->group(function () {
+            Route::get('consultas/{consulta}/edit', [ConsultaController::class, 'edit'])->name('consultas.edit');
+            Route::put('consultas/{consulta}', [ConsultaController::class, 'update'])->name('consultas.update');
+        });
     });
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
