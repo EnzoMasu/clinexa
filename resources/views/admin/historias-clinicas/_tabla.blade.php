@@ -11,13 +11,17 @@
             </td>
             {{-- Conteo y última fecha precargados (withCount / withMax): sin una consulta por fila. --}}
             <td class="px-6 py-4 text-gray-600 dark:text-gray-400">{{ $historia->consultas_count ?: '—' }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $historia->consultas_max_fecha_hora ? Fecha::mostrar($historia->consultas_max_fecha_hora, conHora: true) : '—' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-gray-400">{{ $historia->consultas_max_iniciada_en ? Fecha::mostrar($historia->consultas_max_iniciada_en, conHora: true) : '—' }}</td>
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$historia->paciente->estado" /></td>
             <x-admin.actions>
                 <a href="{{ route('admin.historias-clinicas.show', $historia) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Ver historia</a>
                 {{-- Si el usuario puede atender (calculado una vez por pedido) y el paciente está activo (ya cargado). --}}
                 @if ($puedeAtender && $historia->paciente->estaActivo())
-                    <a href="{{ route('admin.consultas.create', $historia) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Atender sin turno</a>
+                    {{-- POST: crea la consulta EN_CURSO y abre la pantalla de atención. --}}
+                    <form method="POST" action="{{ route('admin.atencion.atender-sin-turno', $historia) }}" class="inline">
+                        @csrf
+                        <button type="submit" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Atender sin turno</button>
+                    </form>
                 @endif
             </x-admin.actions>
         </tr>

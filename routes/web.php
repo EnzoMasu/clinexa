@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\Admin\AtencionSinTurnoController;
+use App\Http\Controllers\Admin\AtencionController;
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\PacienteController;
 use App\Http\Controllers\Admin\PaisController;
 use App\Http\Controllers\Admin\PerfilAccesoController;
 use App\Http\Controllers\Admin\PersonaController;
+use App\Http\Controllers\Admin\PreparacionController;
 use App\Http\Controllers\Admin\ProcedimientoController;
 use App\Http\Controllers\Admin\ProfesionalController;
 use App\Http\Controllers\Admin\ProveedorController;
@@ -134,8 +135,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         ->name('turnos.estado')
         ->middleware('permiso:TURNOS,EDITAR');
 
-    // Historia clínica: se lee con VER. Las consultas se crean con CREAR y se modifican con EDITAR, y
-    // además ConsultaPolicy exige que sea el profesional que atiende. Nada se desactiva ni se borra.
+    // Historia clínica y flujo de atención: se lee con VER. Quién escribe qué (preparación o grupo clínico)
+    // lo decide ConsultaPolicy; las acciones las hacen los servicios de App\Support\Atencion. Nada se borra.
     // Ninguna de estas respuestas se guarda en la caché del navegador (SinAlmacenar).
     Route::middleware(SinAlmacenar::class)->group(function () {
         Route::middleware('permiso:HISTORIA_CLINICA,VER')->group(function () {
@@ -149,18 +150,48 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         // los buscadores, esta petición AJAX es una lectura de contenido clínico y registra VER.
         Route::get('consultas/{consulta}/detalle', [ConsultaController::class, 'detalle'])->name('consultas.detalle')->whereNumber('consulta')
             ->middleware('permiso:HISTORIA_CLINICA,VER,lectura-ajax');
-        // Atención sin turno (urgencias): el listado es una lectura de consultas ("tabla=consultas"); el
-        // buscador de pacientes para iniciar la atención exige CREAR (y como no es VER, no registra).
-        Route::get('atencion-sin-turno', [AtencionSinTurnoController::class, 'index'])->name('atencion-sin-turno.index')
+        // Pantalla "Consulta" (la lista del profesional) y sus acciones. Abrirla registra VER sobre consultas
+        // ("tabla=consultas"); su actualización automática (AJAX) y el buscador de pacientes, no.
+        Route::get('consulta', [AtencionController::class, 'index'])->name('atencion.index')
             ->middleware('permiso:HISTORIA_CLINICA,VER,tabla=consultas');
-        Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
-            Route::get('atencion-sin-turno/pacientes', [AtencionSinTurnoController::class, 'pacientes'])->name('atencion-sin-turno.pacientes');
-            Route::get('historias-clinicas/{historiaClinica}/consultas/create', [ConsultaController::class, 'create'])->name('consultas.create');
-            Route::post('historias-clinicas/{historiaClinica}/consultas', [ConsultaController::class, 'store'])->name('consultas.store');
+        Route::get('consulta/pacientes', [AtencionController::class, 'pacientes'])->name('atencion.pacientes')
+            ->middleware('permiso:HISTORIA_CLINICA,CREAR');
+        Route::middleware('permiso:TURNOS,EDITAR')->group(function () {
+            Route::get('consulta/cerrar-jornada', [AtencionController::class, 'vistaCerrarJornada'])->name('atencion.cerrar-jornada');
+            Route::post('consulta/cerrar-jornada', [AtencionController::class, 'cerrarJornada'])->name('atencion.cerrar-jornada.confirmar');
+            Route::post('turnos/{turno}/no-se-presento', [AtencionController::class, 'noSePresento'])->name('atencion.no-se-presento')->whereNumber('turno');
         });
+        Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
+            Route::post('turnos/{turno}/atender', [AtencionController::class, 'atender'])->name('atencion.atender')->whereNumber('turno');
+            Route::post('historias-clinicas/{historiaClinica}/atender', [AtencionController::class, 'atenderSinTurno'])->name('atencion.atender-sin-turno')->whereNumber('historiaClinica');
+        });
+        // La pantalla de atención de una consulta EN_CURSO (registra VER de la consulta y de su historia).
+        Route::get('consultas/{consulta}/atencion', [AtencionController::class, 'pantalla'])->name('consultas.atencion')->whereNumber('consulta')
+            ->middleware('permiso:HISTORIA_CLINICA,VER');
+        // Finalizar y deshacer: el profesional de la consulta (ConsultaPolicy).
+        Route::middleware('permiso.alguno:HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR')->group(function () {
+            Route::post('consultas/{consulta}/finalizar', [AtencionController::class, 'finalizar'])->name('consultas.finalizar')->whereNumber('consulta');
+            Route::post('consultas/{consulta}/deshacer', [AtencionController::class, 'deshacer'])->name('consultas.deshacer')->whereNumber('consulta');
+        });
+        // Autoguardado (preparación y atención): lo usan la enfermería (PREPARACION) y el profesional; qué
+        // campos puede escribir cada uno lo decide ConsultaPolicy. Hasta 30 pedidos por minuto por usuario.
+        Route::patch('consultas/{consulta}/autoguardado', [AtencionController::class, 'autoguardar'])->name('consultas.autoguardado')->whereNumber('consulta')
+            ->middleware(['permiso.alguno:PREPARACION.EDITAR,HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR', 'throttle:autoguardado']);
+        // Consulta FINALIZADA: "Editar" abre la misma pantalla con "Guardar cambios" (sin autoguardado).
         Route::middleware('permiso:HISTORIA_CLINICA,EDITAR')->group(function () {
-            Route::get('consultas/{consulta}/edit', [ConsultaController::class, 'edit'])->name('consultas.edit');
-            Route::put('consultas/{consulta}', [ConsultaController::class, 'update'])->name('consultas.update');
+            Route::get('consultas/{consulta}/edit', [AtencionController::class, 'editar'])->name('consultas.edit')->whereNumber('consulta');
+            Route::put('consultas/{consulta}', [AtencionController::class, 'actualizar'])->name('consultas.update')->whereNumber('consulta');
+        });
+
+        // Preparación: la lista de turnos de hoy (VER sobre PREPARACION) y el formulario de anamnesis y signos
+        // vitales, que usan la enfermería (PREPARACION) o el profesional del turno (HISTORIA_CLINICA).
+        Route::get('preparacion', [PreparacionController::class, 'index'])->name('preparacion.index')->middleware('permiso:PREPARACION,VER');
+        Route::post('turnos/{turno}/preparar', [PreparacionController::class, 'preparar'])->name('preparacion.preparar')->whereNumber('turno')
+            ->middleware('permiso.alguno:PREPARACION.CREAR,HISTORIA_CLINICA.CREAR');
+        Route::middleware('permiso.alguno:PREPARACION.EDITAR,HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR')->group(function () {
+            Route::get('consultas/{consulta}/preparacion', [PreparacionController::class, 'formulario'])->name('preparacion.formulario')->whereNumber('consulta');
+            Route::post('consultas/{consulta}/preparacion/lista', [PreparacionController::class, 'marcarLista'])->name('preparacion.lista')->whereNumber('consulta');
+            Route::post('consultas/{consulta}/preparacion/reabrir', [PreparacionController::class, 'reabrir'])->name('preparacion.reabrir')->whereNumber('consulta');
         });
 
         // Recetas de una consulta (RecetaPolicy: además, solo el profesional que la atiende escribe). VER: la

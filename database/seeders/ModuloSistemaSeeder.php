@@ -48,9 +48,13 @@ class ModuloSistemaSeeder extends Seeder
             'CONSULTORIOS' => ['Consultorios', self::ACTIVO_INACTIVO],
             'ORIGENES_TURNO' => ['Orígenes de turno', self::ACTIVO_INACTIVO],
             'DISPONIBILIDAD' => ['Disponibilidades', self::ACTIVO_INACTIVO],
-            'TURNOS' => ['Turnos', [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::ATENDIDO, Estado::CANCELADO, Estado::AUSENTE]],
+            'TURNOS' => ['Turnos', [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::SALTADO, Estado::EN_CONSULTA, Estado::ATENDIDO, Estado::CANCELADO, Estado::AUSENTE]],
             // Historia clínica: historias, consultas, anamnesis, examen físico y diagnósticos (solo VER, CREAR y EDITAR).
-            'HISTORIA_CLINICA' => ['Historia clínica', self::ACTIVO_INACTIVO],
+            // Los estados de este módulo son los de la CONSULTA (Consulta usa HISTORIA_CLINICA como módulo de
+            // estados): así no hace falta un módulo aparte con permisos que no tendrían efecto.
+            'HISTORIA_CLINICA' => ['Historia clínica', [Estado::EN_PREPARACION, Estado::EN_CURSO, Estado::FINALIZADO, Estado::ANULADO]],
+            // Preparación de la consulta (anamnesis y signos vitales antes de entrar): solo VER, CREAR y EDITAR.
+            'PREPARACION' => ['Preparación', self::ACTIVO_INACTIVO],
             // Recetas de las consultas: borrador (PENDIENTE), emitida y anulada (solo VER, CREAR y EDITAR).
             'RECETAS' => ['Recetas', [Estado::PENDIENTE, Estado::EMITIDO, Estado::ANULADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

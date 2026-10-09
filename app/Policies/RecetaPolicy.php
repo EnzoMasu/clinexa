@@ -49,7 +49,7 @@ class RecetaPolicy
 
     public function anular(User $usuario, Receta $receta): Response
     {
-        return $this->deLaConsulta($usuario, $receta->consulta, ['EDITAR'])
+        return $this->deLaConsulta($usuario, $receta->consulta, ['EDITAR'], exigeConsultaEnCurso: false)
             ?? ($receta->puedePasarA(Estado::ANULADO) ? Response::allow() : Response::deny('Esta receta ya está anulada.'));
     }
 
@@ -60,13 +60,20 @@ class RecetaPolicy
             ?? ($receta->estaEmitida() ? Response::allow() : Response::deny('Solo se corrige una receta emitida.'));
     }
 
-    /** El rechazo por permisos de RECETAS o por no ser el profesional que atiende, o null si pasa. */
-    private function deLaConsulta(User $usuario, Consulta $consulta, array $acciones): ?Response
+    /**
+     * El rechazo por permisos de RECETAS, por no ser el profesional que atiende o por el estado de la
+     * consulta, o null si pasa. Crear, editar, emitir y corregir: solo con la consulta EN_CURSO o
+     * FINALIZADA (en preparación todavía no hay consulta; anulada, ya no). Anular: en cualquier estado.
+     */
+    private function deLaConsulta(User $usuario, Consulta $consulta, array $acciones, bool $exigeConsultaEnCurso = true): ?Response
     {
         foreach ($acciones as $accion) {
             if (! $usuario->tienePermiso('RECETAS', $accion)) {
                 return Response::deny('No tiene permiso para esta acción sobre las recetas.');
             }
+        }
+        if ($exigeConsultaEnCurso && ! $consulta->enCurso() && ! $consulta->finalizada()) {
+            return Response::deny('Las recetas se cargan con la consulta en curso o finalizada.');
         }
 
         return $this->consultas->esElQueAtiende($usuario, $consulta) ? null : Response::deny(ConsultaPolicy::SOLO_EL_QUE_ATIENDE);

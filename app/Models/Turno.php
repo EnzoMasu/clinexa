@@ -4,32 +4,46 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
+use DomainException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Turno de un paciente con un profesional. No se edita ni se borra: solo cambia de estado.
- * PENDIENTE -> CONFIRMADO o CANCELADO; CONFIRMADO -> CANCELADO o AUSENTE, o ATENDIDO, que solo se
- * alcanza guardando la consulta del turno (ConsultaController); los demás son finales. La base impide que se superponga con otro (no CANCELADO) del mismo profesional o
+ * Las transiciones válidas están en TRANSICIONES (y se aplican con pasarA). Solo CANCELADO libera el
+ * horario: SALTADO, EN_CONSULTA, ATENDIDO y AUSENTE lo siguen ocupando. La base impide que se superponga con otro (no CANCELADO) del mismo profesional o
  * del mismo consultorio.
  */
 class Turno extends Model
 {
     use Auditable, TieneEstado;
 
-    /** Acción => [estado al que lleva, texto del botón]. "Atender" no está: abre el formulario de la consulta. */
+    /**
+     * Estado actual => estados a los que puede pasar. Es el ÚNICO lugar donde se definen; todo cambio de
+     * estado pasa por pasarA(). ATENDIDO, CANCELADO y AUSENTE son finales.
+     *
+     * - SALTADO: "No se presentó" (lo llamaron y no estaba); se lo vuelve a llamar.
+     * - EN_CONSULTA: "Atender". De ahí solo se sale a ATENDIDO (Finalizar la consulta) o de vuelta a
+     *   PENDIENTE (Deshacer atención): un turno en consulta no se cancela ni se marca ausente.
+     */
+    public const TRANSICIONES = [
+        Estado::PENDIENTE => [Estado::CONFIRMADO, Estado::SALTADO, Estado::EN_CONSULTA, Estado::AUSENTE, Estado::CANCELADO],
+        Estado::CONFIRMADO => [Estado::SALTADO, Estado::EN_CONSULTA, Estado::AUSENTE, Estado::CANCELADO],
+        Estado::SALTADO => [Estado::EN_CONSULTA, Estado::AUSENTE, Estado::CANCELADO],
+        Estado::EN_CONSULTA => [Estado::ATENDIDO, Estado::PENDIENTE],
+    ];
+
+    /**
+     * Botones manuales del listado de Turnos (EDITAR sobre TURNOS): acción => [estado al que lleva, texto].
+     * Nunca llevan a SALTADO, EN_CONSULTA ni ATENDIDO: eso lo hacen la pantalla Consulta y sus servicios.
+     */
     public const ACCIONES = [
         'confirmar' => [Estado::CONFIRMADO, 'Confirmar'],
         'ausente' => [Estado::AUSENTE, 'Ausente'],
         'cancelar' => [Estado::CANCELADO, 'Cancelar'],
-    ];
-
-    /** Estado actual => acciones posibles. */
-    public const TRANSICIONES = [
-        Estado::PENDIENTE => ['confirmar', 'cancelar'],
-        Estado::CONFIRMADO => ['ausente', 'cancelar'],
     ];
 
     protected $table = 'turnos';
@@ -100,14 +114,43 @@ class Turno extends Model
         $query->where($this->qualifyColumn('estado_id'), '!=', Estado::idDe(Estado::CANCELADO));
     }
 
-    /** Acciones que se pueden aplicar en su estado actual (vacío si el estado es final). */
+    /** Botones manuales que se pueden aplicar en su estado actual (vacío si el estado es final). */
     public function accionesPosibles(): array
     {
-        return self::TRANSICIONES[$this->estado->codigo] ?? [];
+        return array_keys(array_filter(self::ACCIONES, fn (array $accion) => $this->puedePasarA($accion[0])));
     }
 
     public function puede(string $accion): bool
     {
         return in_array($accion, $this->accionesPosibles(), true);
+    }
+
+    public function puedePasarA(string $estado): bool
+    {
+        return in_array($estado, self::TRANSICIONES[$this->estado?->codigo] ?? [], true);
+    }
+
+    /**
+     * Cambia el estado, si la transición es válida (si no, DomainException con el motivo). Al pasar a
+     * CANCELADO o AUSENTE, su consulta EN_PREPARACION (si la hay) pasa a ANULADO en la misma transacción:
+     * los datos se conservan, pero no aparece en listados, historial ni conteos.
+     */
+    public function pasarA(string $estado): void
+    {
+        if (! $this->puedePasarA($estado)) {
+            throw new DomainException(sprintf('Un turno %s no puede pasar a %s.', mb_strtolower((string) $this->estado?->nombre), mb_strtolower(Estado::where('codigo', $estado)->value('nombre') ?? $estado)));
+        }
+
+        DB::transaction(function () use ($estado) {
+            $this->update(['estado_id' => Estado::idDe($estado)]);
+            $this->unsetRelation('estado');
+
+            if (in_array($estado, [Estado::CANCELADO, Estado::AUSENTE], true)) {
+                $consulta = Consulta::where('turno_id', $this->id)->lockForUpdate()->first();
+                if ($consulta?->enPreparacion()) {
+                    $consulta->forceFill(['estado_id' => Estado::idDe(Estado::ANULADO)])->save();
+                }
+            }
+        });
     }
 }

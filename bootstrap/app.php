@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\ContextoAuditoriaWeb;
 use App\Http\Middleware\UsuarioActivo;
+use App\Http\Middleware\VerificarAlgunPermiso;
 use App\Http\Middleware\VerificarPermiso;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'permiso' => VerificarPermiso::class,
+            'permiso.alguno' => VerificarAlgunPermiso::class,
         ]);
 
         // El permiso se verifica antes de buscar el registro de la URL: sin permiso es 403,
@@ -34,6 +36,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prependToPriorityList(
             before: SubstituteBindings::class,
             prepend: VerificarPermiso::class,
+        );
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: VerificarAlgunPermiso::class,
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {

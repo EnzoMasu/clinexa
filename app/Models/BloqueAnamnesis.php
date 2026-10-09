@@ -22,6 +22,8 @@ class BloqueAnamnesis extends Model
         'contenido',
         'orden',
         'activo',
+        'usuario_id',
+        'modificado_por_id',
     ];
 
     protected function casts(): array
@@ -40,6 +42,18 @@ class BloqueAnamnesis extends Model
     public function consulta(): BelongsTo
     {
         return $this->belongsTo(Consulta::class);
+    }
+
+    /** Quién lo cargó. */
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'usuario_id');
+    }
+
+    /** El último que cambió su contenido (si no fue quien lo cargó). */
+    public function modificadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'modificado_por_id');
     }
 
     public function tipoBloqueAnamnesis(): BelongsTo

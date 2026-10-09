@@ -4,8 +4,9 @@
 
     Todo el contenido clínico va escapado ({{ }}); los saltos de línea los da whitespace-pre-line.
     Las secciones vacías se omiten. Requiere $consulta con historiaClinica.paciente.persona.tipoDocumento,
-    profesional.persona, turno, bloquesAnamnesis.tipoBloqueAnamnesis, examenFisico, diagnosticos.cie10 e
-    indicaciones.tipoIndicacion y recetas.detalles.
+    profesional.persona, turno, bloquesAnamnesis.tipoBloqueAnamnesis (y su usuario y modificadoPor, con
+    persona), examenFisico (y signosUsuario y hallazgosUsuario), diagnosticos.cie10 e
+    indicaciones.tipoIndicacion y recetas.detalles. La autoría se muestra como "Cargado por …" / "modificado por …".
 
     Recetas: solo con VER sobre RECETAS, y sin acciones (Nueva receta, Editar, Imprimir, Anular van en la
     página, fuera de este partial: el fragmento del popup es idéntico al artículo de la página).
@@ -15,6 +16,7 @@
 --}}
 @php
     use App\Models\ExamenFisico;
+    use App\Support\Atencion\DatosFormulario;
     use App\Support\Fecha;
 
     $puedeModificar ??= false;
@@ -29,6 +31,7 @@
     $diagnosticos = $consulta->diagnosticos->sortBy([['activo', 'desc'], ['principal', 'desc'], ['id', 'asc']]);
     $indicaciones = $consulta->indicaciones->sortBy(['orden', 'id']);
     $recetas = auth()->user()?->tienePermiso('RECETAS', 'VER') ? $consulta->recetas->sortBy('id') : collect();
+    $autoria = 'text-xs text-gray-500 dark:text-gray-400';
     $retirado = 'rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-300';
 @endphp
 
@@ -51,7 +54,7 @@
 
     <section>
         <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Motivo de consulta</h4>
-        <p class="mt-1 whitespace-pre-line">{{ $consulta->motivo_consulta }}</p>
+        <p class="mt-1 whitespace-pre-line">{{ $consulta->motivo_consulta ?? '—' }}</p>
     </section>
 
     @if ($signos->isNotEmpty())
@@ -64,6 +67,9 @@
                     </li>
                 @endforeach
             </ul>
+            @if ($texto = DatosFormulario::autoria($examen->signosUsuario))
+                <p class="mt-1 {{ $autoria }}">{{ $texto }}</p>
+            @endif
         </section>
     @endif
 
@@ -71,6 +77,9 @@
         <section>
             <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Hallazgos</h4>
             <p class="mt-1 whitespace-pre-line">{{ $examen->hallazgos }}</p>
+            @if ($texto = DatosFormulario::autoria($examen->hallazgosUsuario))
+                <p class="mt-1 {{ $autoria }}">{{ $texto }}</p>
+            @endif
         </section>
     @endif
 
@@ -87,6 +96,9 @@
                             @endunless
                         </div>
                         <p class="whitespace-pre-line">{{ $bloque->contenido }}</p>
+                        @if ($texto = DatosFormulario::autoria($bloque->usuario, $bloque->modificadoPor))
+                            <p class="{{ $autoria }}">{{ $texto }}</p>
+                        @endif
                     </li>
                 @endforeach
             </ul>

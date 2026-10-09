@@ -45,7 +45,7 @@ class TurnoController extends Controller
             ->join('personas as persona_paciente', 'persona_paciente.id', '=', 'pacientes.persona_id')
             ->join('profesionales', 'profesionales.id', '=', 'turnos.profesional_id')
             ->join('personas as persona_profesional', 'persona_profesional.id', '=', 'profesionales.persona_id')
-            ->with(['paciente.persona.tipoDocumento', 'paciente.historiaClinica', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno', 'consulta'])
+            ->with(['paciente.persona.tipoDocumento', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno'])
             ->when($fecha, fn ($query) => $query->whereDate('turnos.fecha', $fecha))
             ->when($busqueda !== '' && ! $fecha, fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('persona_paciente.apellidos', "%{$busqueda}%")
@@ -136,7 +136,7 @@ class TurnoController extends Controller
             fn (Profesional $profesional) => "Mat. {$profesional->matricula}");
     }
 
-    /** Confirmar, marcar ausente o cancelar, según las transiciones válidas del estado actual (atender es guardar la consulta). */
+    /** Botones manuales: confirmar, marcar ausente o cancelar, según las transiciones válidas del estado actual. */
     public function cambiarEstado(Request $request, Turno $turno): RedirectResponse
     {
         $accion = $request->validate(['accion' => ['required', Rule::in(array_keys(Turno::ACCIONES))]])['accion'];
@@ -145,7 +145,8 @@ class TurnoController extends Controller
             return back()->with('error', sprintf('No se puede %s un turno %s.', mb_strtolower(Turno::ACCIONES[$accion][1]), mb_strtolower($turno->estado->nombre)));
         }
 
-        $turno->update(['estado_id' => Estado::idDe(Turno::ACCIONES[$accion][0])]);
+        // pasarA revalida y, si corresponde, anula la consulta EN_PREPARACION del turno.
+        $turno->pasarA(Turno::ACCIONES[$accion][0]);
 
         return back()->with('status', sprintf('Turno del %s a las %s: %s.',
             Fecha::mostrar($turno->fecha), substr($turno->hora_inicio, 0, 5), mb_strtolower($turno->fresh()->estado->nombre)));

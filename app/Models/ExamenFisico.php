@@ -49,6 +49,8 @@ class ExamenFisico extends Model
         'talla',
         'saturacion_oxigeno',
         'hallazgos',
+        'signos_usuario_id',
+        'hallazgos_usuario_id',
     ];
 
     protected function casts(): array
@@ -66,6 +68,18 @@ class ExamenFisico extends Model
     public static function moduloAuditoria(): string
     {
         return 'HISTORIA_CLINICA';
+    }
+
+    /** Quién cargó (o cambió por última vez) los signos vitales. */
+    public function signosUsuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signos_usuario_id');
+    }
+
+    /** Quién cargó (o cambió por última vez) los hallazgos. */
+    public function hallazgosUsuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'hallazgos_usuario_id');
     }
 
     public function consulta(): BelongsTo

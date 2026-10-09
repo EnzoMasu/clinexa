@@ -1,4 +1,5 @@
-@props(['title', 'createRoute' => null, 'createLabel' => 'Nuevo'])
+{{-- sinRecorte: sin overflow-hidden en la tarjeta, para que una barra "sticky" de adentro quede fija al desplazarse. --}}
+@props(['title', 'createRoute' => null, 'createLabel' => 'Nuevo', 'sinRecorte' => false])
 
 <x-app-layout>
     <x-slot name="header">
@@ -35,7 +36,7 @@
                 </div>
             @endif
 
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div @class(['bg-white dark:bg-gray-800 shadow-sm sm:rounded-lg', 'overflow-hidden' => ! $sinRecorte])>
                 {{ $slot }}
             </div>
         </div>

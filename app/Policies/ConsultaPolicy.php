@@ -12,23 +12,29 @@ use App\Support\Fecha;
 use Illuminate\Auth\Access\Response;
 
 /**
- * Quién crea y quién modifica una consulta de la historia clínica (el único lugar que lo decide).
+ * Quién hace qué con una consulta (el único lugar que lo decide). Leer: VER sobre HISTORIA_CLINICA
+ * (lo controla la ruta). Escribir se divide en dos grupos de campos:
  *
- * - Leer: cualquiera con VER sobre HISTORIA_CLINICA (lo controla la ruta).
- * - Crear: un profesional ACTIVO (users.persona_id = profesionales.persona_id) con CREAR, para un
- *   paciente ACTIVO. Desde un turno: el turno tiene que ser suyo, de ese paciente, CONFIRMADO, de
- *   hoy (hora de Paraguay) y sin consulta.
- * - Modificar: solo el profesional que la atiende, ACTIVO y con EDITAR. Ni el Administrador
- *   modifica la consulta de otro profesional. El paciente puede estar inactivo (se corrige igual).
+ * - PREPARACIÓN (bloques de anamnesis y signos vitales): (a) el profesional ACTIVO de la consulta con
+ *   CREAR o EDITAR sobre HISTORIA_CLINICA, o (b) cualquier usuario con EDITAR sobre PREPARACION; solo
+ *   mientras la consulta está EN_PREPARACION o EN_CURSO. Ya FINALIZADA: solo (a), con EDITAR.
+ * - CLÍNICO (motivo, hallazgos, diagnósticos, indicaciones y recetas): solo el profesional ACTIVO de la
+ *   consulta (ni el Administrador), mientras está EN_CURSO; FINALIZADA, con EDITAR ("Guardar cambios").
+ *
+ * Las acciones del flujo (preparar, atender, no se presentó, cerrar jornada, deshacer, finalizar)
+ * también se deciden acá; los servicios de App\Support\Atencion las revalidan dentro de su transacción.
  */
 class ConsultaPolicy
 {
     public const SOLO_EL_QUE_ATIENDE = 'Solo el profesional que atiende puede modificar esta consulta.';
 
+    /** Estados del turno desde los que se puede preparar o atender. */
+    public const TURNO_POR_ATENDER = [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::SALTADO];
+
     /**
-     * La parte de "crear" que depende solo del usuario: profesional ACTIVO con CREAR. Para mostrar
-     * las entradas a una atención (Atención sin turno, botones de los listados) sin mirar paciente
-     * por paciente: Gate::allows('atender', Consulta::class), una vez por pedido.
+     * La parte de "atender" que depende solo del usuario: profesional ACTIVO con CREAR sobre
+     * HISTORIA_CLINICA. Para mostrar las entradas a una atención sin mirar paciente por paciente:
+     * Gate::allows('atender', Consulta::class), una vez por pedido.
      */
     public function atender(User $usuario): Response
     {
@@ -41,26 +47,126 @@ class ConsultaPolicy
             : Response::deny('Solo un profesional activo puede atender consultas.');
     }
 
-    public function create(User $usuario, HistoriaClinica $historia, ?Turno $turno = null): Response
+    /** Atender sin turno (urgencia) a este paciente: profesional activo con CREAR, paciente activo. */
+    public function atenderSinTurno(User $usuario, HistoriaClinica $historia): Response
     {
         $atender = $this->atender($usuario);
         if ($atender->denied()) {
             return $atender;
         }
-        $profesional = $this->profesionalActivo($usuario);
 
-        if (! $historia->paciente->estaActivo()) {
-            return Response::deny('El paciente está inactivo: no se pueden cargar consultas nuevas.');
-        }
-
-        return $turno ? $this->puedeAtenderTurno($profesional, $historia, $turno) : Response::allow();
+        return $historia->paciente->estaActivo()
+            ? Response::allow()
+            : Response::deny('El paciente está inactivo: no se pueden cargar consultas nuevas.');
     }
 
+    /** Atender este turno: el profesional ACTIVO del turno con CREAR, turno de hoy por atender, paciente activo. */
+    public function atenderTurno(User $usuario, Turno $turno): Response
+    {
+        $atender = $this->atender($usuario);
+        if ($atender->denied()) {
+            return $atender;
+        }
+        if ((int) $turno->profesional_id !== (int) $this->profesionalActivo($usuario)->id) {
+            return Response::deny('Solo el profesional del turno puede atenderlo.');
+        }
+
+        return $this->turnoDeHoyPorAtender($turno);
+    }
+
+    /**
+     * Preparar al paciente de este turno (crear la consulta EN_PREPARACION): CREAR sobre PREPARACION, o
+     * ser el profesional ACTIVO del turno con CREAR sobre HISTORIA_CLINICA. Turno de hoy por atender, con
+     * paciente y profesional activos.
+     */
+    public function preparar(User $usuario, Turno $turno): Response
+    {
+        $esSuProfesional = $usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR')
+            && (int) $this->profesionalActivo($usuario)?->id === (int) $turno->profesional_id;
+        if (! $usuario->tienePermiso('PREPARACION', 'CREAR') && ! $esSuProfesional) {
+            return Response::deny('No tiene permiso para preparar consultas.');
+        }
+        if (! $turno->profesional->estaActivo()) {
+            return Response::deny('El profesional del turno está inactivo.');
+        }
+
+        return $this->turnoDeHoyPorAtender($turno);
+    }
+
+    /** "No se presentó": el profesional ACTIVO del turno con EDITAR sobre TURNOS; turno de hoy PENDIENTE o CONFIRMADO. */
+    public function noSePresento(User $usuario, Turno $turno): Response
+    {
+        if (! $usuario->tienePermiso('TURNOS', 'EDITAR') || (int) $this->profesionalActivo($usuario)?->id !== (int) $turno->profesional_id) {
+            return Response::deny('Solo el profesional del turno puede marcar que no se presentó.');
+        }
+        if ($turno->fecha->format('Y-m-d') !== Fecha::hoy()->format('Y-m-d')) {
+            return Response::deny('Solo se marcan los turnos de hoy.');
+        }
+
+        return in_array($turno->estado->codigo, [Estado::PENDIENTE, Estado::CONFIRMADO], true)
+            ? Response::allow()
+            : Response::deny('Solo se marca un turno pendiente o confirmado.');
+    }
+
+    /** Cerrar la jornada (sus turnos sin atender pasan a AUSENTE): profesional ACTIVO con EDITAR sobre TURNOS. */
+    public function cerrarJornada(User $usuario): Response
+    {
+        return $usuario->tienePermiso('TURNOS', 'EDITAR') && $this->profesionalActivo($usuario)
+            ? Response::allow()
+            : Response::deny('Solo un profesional activo con permiso sobre los turnos puede cerrar su jornada.');
+    }
+
+    /** Escribir el grupo PREPARACIÓN (anamnesis y signos vitales) de esta consulta. */
+    public function escribirPreparacion(User $usuario, Consulta $consulta): Response
+    {
+        if ($consulta->abierta()) {
+            $comoProfesional = $this->esElQueAtiende($usuario, $consulta)
+                && ($usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR') || $usuario->tienePermiso('HISTORIA_CLINICA', 'EDITAR'));
+
+            return $comoProfesional || $usuario->tienePermiso('PREPARACION', 'EDITAR')
+                ? Response::allow()
+                : Response::deny('No tiene permiso para cargar la preparación de esta consulta.');
+        }
+
+        return $consulta->finalizada() ? $this->update($usuario, $consulta) : Response::deny('Esta consulta ya no se puede modificar.');
+    }
+
+    /** Escribir el grupo CLÍNICO (motivo, hallazgos, diagnósticos, indicaciones y recetas) de esta consulta. */
+    public function escribirClinico(User $usuario, Consulta $consulta): Response
+    {
+        if ($consulta->enCurso()) {
+            return $this->esElQueAtiende($usuario, $consulta)
+                && ($usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR') || $usuario->tienePermiso('HISTORIA_CLINICA', 'EDITAR'))
+                ? Response::allow()
+                : Response::deny(self::SOLO_EL_QUE_ATIENDE);
+        }
+
+        return $consulta->finalizada() ? $this->update($usuario, $consulta) : Response::deny('Esta consulta todavía no está en curso.');
+    }
+
+    /** Modificar una consulta FINALIZADA ("Guardar cambios"): solo el profesional que la atendió, ACTIVO y con EDITAR. */
     public function update(User $usuario, Consulta $consulta): Response
     {
-        return $usuario->tienePermiso('HISTORIA_CLINICA', 'EDITAR') && $this->esElQueAtiende($usuario, $consulta)
+        return $usuario->tienePermiso('HISTORIA_CLINICA', 'EDITAR') && $this->esElQueAtiende($usuario, $consulta) && ! $consulta->anulada()
             ? Response::allow()
             : Response::deny(self::SOLO_EL_QUE_ATIENDE);
+    }
+
+    /** Marcar como lista o reabrir la preparación: quien escribe el grupo PREPARACIÓN, solo EN_PREPARACION. */
+    public function marcarLista(User $usuario, Consulta $consulta): Response
+    {
+        return $consulta->enPreparacion() ? $this->escribirPreparacion($usuario, $consulta) : Response::deny('La consulta ya no está en preparación.');
+    }
+
+    /** Finalizar o deshacer la atención: el profesional de la consulta, EN_CURSO. */
+    public function finalizar(User $usuario, Consulta $consulta): Response
+    {
+        return $consulta->enCurso() ? $this->escribirClinico($usuario, $consulta) : Response::deny('La consulta no está en curso.');
+    }
+
+    public function deshacer(User $usuario, Consulta $consulta): Response
+    {
+        return $this->finalizar($usuario, $consulta);
     }
 
     /**
@@ -74,15 +180,13 @@ class ConsultaPolicy
         return $profesional !== null && (int) $profesional->id === (int) $consulta->profesional_id;
     }
 
-    /** El turno se puede atender ahora: suyo, de este paciente, CONFIRMADO, de hoy y sin consulta. */
-    private function puedeAtenderTurno(Profesional $profesional, HistoriaClinica $historia, Turno $turno): Response
+    /** El turno es de hoy (hora de Paraguay), está por atender y su paciente está activo. */
+    private function turnoDeHoyPorAtender(Turno $turno): Response
     {
         return match (true) {
-            (int) $turno->profesional_id !== (int) $profesional->id => Response::deny('Solo el profesional del turno puede atenderlo.'),
-            (int) $turno->paciente_id !== (int) $historia->paciente_id => Response::deny('El turno no es de este paciente.'),
-            ! $turno->tieneEstado(Estado::CONFIRMADO) => Response::deny('Solo se puede atender un turno confirmado.'),
-            $turno->fecha->format('Y-m-d') !== Fecha::hoy()->format('Y-m-d') => Response::deny('Solo se pueden atender los turnos de hoy.'),
-            ($turno->relationLoaded('consulta') ? $turno->consulta !== null : $turno->consulta()->exists()) => Response::deny('Este turno ya tiene una consulta.'),
+            $turno->fecha->format('Y-m-d') !== Fecha::hoy()->format('Y-m-d') => Response::deny('Solo se atienden los turnos de hoy.'),
+            ! in_array($turno->estado->codigo, self::TURNO_POR_ATENDER, true) => Response::deny('Este turno no está por atender (estado: '.mb_strtolower((string) $turno->estado->nombre).').'),
+            ! $turno->paciente->estaActivo() => Response::deny('El paciente está inactivo: no se pueden cargar consultas nuevas.'),
             default => Response::allow(),
         };
     }

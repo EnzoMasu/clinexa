@@ -9,8 +9,11 @@ use Illuminate\Database\Console\Migrations\FreshCommand;
 use Illuminate\Database\Console\Migrations\RefreshCommand;
 use Illuminate\Database\Console\Migrations\ResetCommand;
 use Illuminate\Database\Console\WipeCommand;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -46,6 +49,9 @@ class AppServiceProvider extends ServiceProvider
         foreach (self::COMANDOS_DESTRUCTIVOS as $comando) {
             $comando::prohibit($bloquear);
         }
+
+        // Autoguardado de consultas: hasta 30 pedidos por minuto por usuario (el navegador manda uno cada 10 s como mucho).
+        RateLimiter::for('autoguardado', fn (Request $request) => Limit::perMinute(30)->by((string) ($request->user()?->id ?? $request->ip())));
 
         // Auditoría de inicio y cierre de sesión, intentos fallidos, bloqueos y cambios de contraseña.
         Event::subscribe(AuditoriaAutenticacion::class);

@@ -1,4 +1,3 @@
-@use('App\Models\Consulta')
 @use('App\Models\Turno')
 @use('App\Support\Fecha')
 @use('App\Support\Permisos')
@@ -24,16 +23,11 @@
             </td>
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$turno->estado" /></td>
             {{--
-                "Atender": abre la consulta del turno (CONFIRMADO, de hoy, sin consulta, del profesional del
-                usuario; lo decide ConsultaPolicy). Después, las transiciones válidas según el estado actual.
+                Botones manuales (Confirmar, Ausente, Cancelar) según las transiciones válidas del estado actual.
+                "Atender" y "No se presentó" están en la pantalla Consulta del profesional.
             --}}
-            @php($turno->paciente->historiaClinica?->setRelation('paciente', $turno->paciente))
             <td class="px-6 py-4 text-right whitespace-nowrap">
                 <div class="flex justify-end gap-3">
-                    @if ($turno->paciente->historiaClinica && Gate::allows('create', [Consulta::class, $turno->paciente->historiaClinica, $turno]))
-                        <a href="{{ route('admin.consultas.create', [$turno->paciente->historiaClinica, 'turno' => $turno->id]) }}"
-                            class="text-sm font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Atender</a>
-                    @endif
                     @if ($puedeCambiarEstado)
                         @foreach ($turno->accionesPosibles() as $accion)
                             <form method="POST" action="{{ route('admin.turnos.estado', $turno) }}"

@@ -12,7 +12,7 @@
  * - Accesibilidad: diálogo modal, foco adentro mientras está abierto (y de vuelta a la fila al
  *   cerrar), Esc, flechas izquierda y derecha, y el fondo no se desplaza.
  */
-export default ({ ids, urlDetalle, urlPagina }) => ({
+export default ({ ids, urlDetalle, urlPagina, sinEditar = false }) => ({
     ids,
     urlPagina,
     abierto: false,
@@ -102,7 +102,8 @@ export default ({ ids, urlDetalle, urlPagina }) => ({
             }
             // Solo HTML que viene del servidor, ya escapado por Blade (sin scripts: innerHTML no los ejecuta).
             this.$refs.contenido.innerHTML = html;
-            this.urlEditar = this.$refs.contenido.querySelector('[data-url-editar]')?.dataset.urlEditar ?? null;
+            // sinEditar: el panel de historial de la pantalla de atención abre las consultas anteriores solo para leer.
+            this.urlEditar = sinEditar ? null : (this.$refs.contenido.querySelector('[data-url-editar]')?.dataset.urlEditar ?? null);
             this.estado = 'listo';
         } catch (error) {
             if (error.name !== 'AbortError' && this.peticion === peticion) {

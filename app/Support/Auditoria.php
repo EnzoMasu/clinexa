@@ -165,6 +165,27 @@ final class Auditoria
         return isset($contexto->sensibles[$modulo]);
     }
 
+    /**
+     * Corre una acción con un detalle para los eventos de cambios que registre (salvo los que traen uno
+     * propio, como el motivo al anular una receta), p. ej. "Borrador (autoguardado)" o "Cierre de jornada".
+     *
+     * @template T
+     *
+     * @param  \Closure(): T  $accion
+     * @return T
+     */
+    public static function conDetalle(string $detalle, \Closure $accion): mixed
+    {
+        $contexto = app(ContextoAuditoria::class);
+        $anterior = $contexto->detalle;
+        $contexto->detalle = $detalle;
+        try {
+            return $accion();
+        } finally {
+            $contexto->detalle = $anterior;
+        }
+    }
+
     /** Se registran cambios de datos: dentro de un pedido web y con un usuario autenticado. */
     public static function activa(): bool
     {
@@ -192,6 +213,9 @@ final class Auditoria
         ?string $detalle = null,
         int|false|null $usuarioId = false,
     ): void {
+        $detalle ??= in_array($accion, [AccionAuditoria::CREAR, AccionAuditoria::EDITAR, AccionAuditoria::ANULAR], true)
+            ? app(ContextoAuditoria::class)->detalle : null;
+
         DB::table('logs_auditoria')->insert([
             'usuario_id' => $usuarioId === false ? Auth::id() : $usuarioId,
             'tabla_afectada' => $tabla,

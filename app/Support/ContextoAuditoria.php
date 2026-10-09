@@ -23,6 +23,13 @@ class ContextoAuditoria
      */
     public int $dentroDeRelacion = 0;
 
+    /**
+     * Detalle que llevan los eventos de cambios registrados mientras corre una acción del flujo de atención
+     * ("Borrador (autoguardado)", "Atender", "Cierre de jornada"...), si el evento no trae uno propio.
+     * Lo pone Auditoria::conDetalle().
+     */
+    public ?string $detalle = null;
+
     /** @var array<string, bool>|null códigos de los módulos sensibles, cargados una vez por pedido */
     public ?array $sensibles = null;
 }

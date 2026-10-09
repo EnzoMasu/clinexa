@@ -30,6 +30,19 @@ class Estado extends Model
 
     public const AUSENTE = 'AUSENTE';
 
+    /** Turno: el paciente está en el consultorio (se pasa con Atender). */
+    public const EN_CONSULTA = 'EN_CONSULTA';
+
+    /** Turno: lo llamaron y no estaba ("No se presentó"); se lo vuelve a llamar. */
+    public const SALTADO = 'SALTADO';
+
+    // Estados de la consulta (módulo HISTORIA_CLINICA): EN_PREPARACION (inicial), EN_CURSO, FINALIZADO y ANULADO.
+    public const EN_PREPARACION = 'EN_PREPARACION';
+
+    public const EN_CURSO = 'EN_CURSO';
+
+    public const FINALIZADO = 'FINALIZADO';
+
     /** Recetas: emitida (impresa, ya no se modifica). El borrador usa PENDIENTE. */
     public const EMITIDO = 'EMITIDO';
 

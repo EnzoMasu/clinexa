@@ -88,6 +88,12 @@ class Persona extends Model
         return mb_strtolower(trim($email));
     }
 
+    /** Edad en años cumplidos a hoy (hora de Paraguay); null sin fecha de nacimiento. */
+    public function edad(): ?int
+    {
+        return $this->fecha_nacimiento ? (int) $this->fecha_nacimiento->diffInYears(\App\Support\Fecha::hoy()) : null;
+    }
+
     public function tipoDocumento(): BelongsTo
     {
         return $this->belongsTo(TipoDocumento::class, 'tipo_documento_id');
