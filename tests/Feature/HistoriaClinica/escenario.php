@@ -2,7 +2,8 @@
 
 /*
  * Escenario común de los tests de historia clínica (lo carga tests/Pest.php). "Ahora" fijo: martes
- * 06/10/2026 09:00 en Paraguay (12:00 UTC).
+ * 06/10/2026 09:00 en Paraguay (12:00 UTC). Las consultas se crean por el flujo de atención: Atender (o
+ * Atender sin turno) y Finalizar, o el autoguardado.
  *
  * - medico: usuario de la Dra. Rosa Benítez, profesional ACTIVA, con VER, CREAR y EDITAR sobre la
  *   historia clínica (y VER sobre Turnos).
@@ -97,13 +98,58 @@ function hcDatos(array $cambios = []): array
     ];
 }
 
-/** Atiende sin turno (o con el turno indicado) como el usuario logueado. */
-function hcGuardarNueva(array $cambios = [], ?Turno $turno = null)
+/**
+ * Inicia la atención como el usuario logueado: "Atender" del turno indicado o, sin turno, "Atender sin
+ * turno" desde la historia. Devuelve la consulta EN_CURSO, o null si la acción se rechazó.
+ */
+function hcIniciar(?Turno $turno = null): ?Consulta
 {
-    return test()->post(route('admin.consultas.store', test()->historia), [...hcDatos($cambios), 'turno_id' => $turno?->id ?? '']);
+    $antes = Consulta::max('id') ?? 0;
+    $turno
+        ? test()->post(route('admin.atencion.atender', $turno))
+        : test()->post(route('admin.atencion.atender-sin-turno', test()->historia));
+
+    return Consulta::where('id', '>', $antes)->latest('id')->first() ?? ($turno ? Consulta::where('turno_id', $turno->id)->first() : null);
 }
 
-/** Una consulta ya guardada de la Dra. Benítez, por el formulario. */
+/** Una consulta EN_CURSO de la Dra. Benítez (sin turno, o del turno indicado), todavía sin contenido. */
+function hcEnCurso(?Turno $turno = null): Consulta
+{
+    $consulta = hcIniciar($turno);
+    expect($consulta?->fresh()->enCurso())->toBeTrue();
+
+    return $consulta->fresh();
+}
+
+/** Finaliza la consulta mandando el formulario completo con su versión actual (o la indicada). */
+function hcFinalizar(Consulta $consulta, array $datos, ?string $version = null)
+{
+    return test()->from(route('admin.consultas.atencion', $consulta))
+        ->post(route('admin.consultas.finalizar', $consulta), [...$datos, 'version' => $version ?? $consulta->fresh()->version()]);
+}
+
+/** Autoguardado (PATCH, JSON) con la versión actual (o la indicada). */
+function hcAutoguardar(Consulta $consulta, array $datos, ?string $version = null)
+{
+    return test()->patchJson(route('admin.consultas.autoguardado', $consulta), [...$datos, 'version' => $version ?? $consulta->fresh()->version()]);
+}
+
+/**
+ * Atiende (sin turno o con el turno indicado) y finaliza con los datos del formulario, como el usuario
+ * logueado. Devuelve la respuesta del paso que corta: el de iniciar si se rechazó, si no la de finalizar.
+ */
+function hcGuardarNueva(array $cambios = [], ?Turno $turno = null)
+{
+    $antes = Consulta::max('id') ?? 0;
+    $respuesta = $turno
+        ? test()->post(route('admin.atencion.atender', $turno))
+        : test()->post(route('admin.atencion.atender-sin-turno', test()->historia));
+    $consulta = Consulta::where('id', '>', $antes)->latest('id')->first();
+
+    return $consulta && $consulta->fresh()->enCurso() ? hcFinalizar($consulta, hcDatos($cambios)) : $respuesta;
+}
+
+/** Una consulta FINALIZADA de la Dra. Benítez, por la pantalla de atención. */
 function hcConsulta(array $cambios = []): Consulta
 {
     hcGuardarNueva($cambios)->assertSessionHasNoErrors();

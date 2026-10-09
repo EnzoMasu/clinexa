@@ -31,7 +31,7 @@ final class Atender
 
                     return $consulta; // doble clic: ya se está atendiendo
                 }
-                Gate::forUser($usuario)->authorize('atenderTurno', $turno);
+                Gate::forUser($usuario)->authorize('atenderTurno', [Consulta::class, $turno]);
                 if ($consulta && ! $consulta->enPreparacion()) {
                     throw new AccionRechazada('Este turno ya tiene una consulta ('.mb_strtolower($consulta->estado->nombre).'): no se puede volver a atender.');
                 }

@@ -17,7 +17,7 @@ final class AtenderSinTurno
     {
         return DB::transaction(function () use ($usuario, $historia) {
             $historia->load('paciente');
-            Gate::forUser($usuario)->authorize('atenderSinTurno', $historia);
+            Gate::forUser($usuario)->authorize('atenderSinTurno', [Consulta::class, $historia]);
 
             return Auditoria::conDetalle('Atender sin turno',
                 fn () => Apoyo::crearConsulta($historia, null, Estado::EN_CURSO, $usuario->profesional->id));

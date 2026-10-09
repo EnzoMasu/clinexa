@@ -6,6 +6,8 @@
  * permiso (para no insistir; al recargar se ve el login o la pantalla 403). Estas actualizaciones no
  * registran lecturas en la auditoría.
  */
+import fragmentoInerte from './fragmento-inerte';
+
 export default ({ url = null, intervalo = 30000 } = {}) => ({
     detenido: false,
     abiertos: {}, // secciones plegables abiertas: se mantienen al reemplazar el fragmento
@@ -45,10 +47,8 @@ export default ({ url = null, intervalo = 30000 } = {}) => ({
                 return;
             }
             if (respuesta.ok && this.peticion === peticion) {
-                // <template>: el HTML se parsea inerte (sin ejecutar scripts) y reemplaza al fragmento anterior.
-                const plantilla = document.createElement('template');
-                plantilla.innerHTML = await respuesta.text();
-                this.$root.querySelector('[data-refresco]')?.replaceWith(plantilla.content);
+                // Sin scripts ni atributos on* (fragmento-inerte.js); reemplaza al fragmento anterior.
+                this.$root.querySelector('[data-refresco]')?.replaceWith(fragmentoInerte(await respuesta.text()));
             }
         } catch (error) {
             // Red caída o pedido cancelado: se reintenta en el próximo intervalo.

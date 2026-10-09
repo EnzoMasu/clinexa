@@ -12,6 +12,8 @@
  * - Accesibilidad: diálogo modal, foco adentro mientras está abierto (y de vuelta a la fila al
  *   cerrar), Esc, flechas izquierda y derecha, y el fondo no se desplaza.
  */
+import fragmentoInerte from './fragmento-inerte';
+
 export default ({ ids, urlDetalle, urlPagina, sinEditar = false }) => ({
     ids,
     urlPagina,
@@ -100,8 +102,8 @@ export default ({ ids, urlDetalle, urlPagina, sinEditar = false }) => ({
             if (this.peticion !== peticion) {
                 return;
             }
-            // Solo HTML que viene del servidor, ya escapado por Blade (sin scripts: innerHTML no los ejecuta).
-            this.$refs.contenido.innerHTML = html;
+            // Solo HTML que viene del servidor, ya escapado por Blade; además sin scripts ni atributos on*.
+            this.$refs.contenido.replaceChildren(fragmentoInerte(html));
             // sinEditar: el panel de historial de la pantalla de atención abre las consultas anteriores solo para leer.
             this.urlEditar = sinEditar ? null : (this.$refs.contenido.querySelector('[data-url-editar]')?.dataset.urlEditar ?? null);
             this.estado = 'listo';

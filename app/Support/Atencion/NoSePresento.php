@@ -2,6 +2,7 @@
 
 namespace App\Support\Atencion;
 
+use App\Models\Consulta;
 use App\Models\Estado;
 use App\Models\Turno;
 use App\Models\User;
@@ -16,7 +17,7 @@ final class NoSePresento
     {
         DB::transaction(function () use ($usuario, $turno) {
             $turno = Apoyo::turnoBloqueado($turno);
-            Gate::forUser($usuario)->authorize('noSePresento', $turno);
+            Gate::forUser($usuario)->authorize('noSePresento', [Consulta::class, $turno]);
 
             Auditoria::conDetalle('No se presentó', fn () => $turno->pasarA(Estado::SALTADO));
         });

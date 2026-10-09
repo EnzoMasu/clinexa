@@ -26,7 +26,7 @@ final class Preparar
                 if ($existente = Consulta::where('turno_id', $turno->id)->first()) {
                     return Apoyo::consultaDelTurno($existente);
                 }
-                Gate::forUser($usuario)->authorize('preparar', $turno);
+                Gate::forUser($usuario)->authorize('preparar', [Consulta::class, $turno]);
 
                 return Auditoria::conDetalle('Preparar', fn () => Apoyo::crearConsulta($turno->paciente->historiaClinica, $turno, Estado::EN_PREPARACION));
             });
