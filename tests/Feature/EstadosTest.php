@@ -16,13 +16,15 @@ test('la tabla estados tiene los 22 estados, con código y nombre', function () 
     ])->and(Estado::whereColumn('codigo', '!=', 'nombre')->count())->toBe(0);
 });
 
-test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Turnos con su ciclo propio', function () {
+test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Turnos y Recetas con su ciclo propio', function () {
     $this->seed(ModuloSistemaSeeder::class);
 
     foreach (ModuloSistema::with('estados')->get() as $modulo) {
         [$esperados, $inicial] = match ($modulo->codigo) {
             'USUARIOS' => [['ACTIVO', 'BLOQUEADO', 'INACTIVO'], 'ACTIVO'],
             'TURNOS' => [['ATENDIDO', 'AUSENTE', 'CANCELADO', 'CONFIRMADO', 'PENDIENTE'], 'PENDIENTE'],
+            // Recetas: borrador (PENDIENTE, inicial), emitida y anulada.
+            'RECETAS' => [['ANULADO', 'EMITIDO', 'PENDIENTE'], 'PENDIENTE'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

@@ -22,7 +22,7 @@ function ajax(string $url)
 }
 
 dataset('listados', ['usuarios', 'perfiles-acceso', 'personas', 'especialidades', 'sucursales',
-    'tipos-documento', 'cie10', 'medios-pago', 'categorias-gasto', 'categorias-proveedor', 'tipos-red-social', 'tipos-bloque-anamnesis', 'procedimientos']);
+    'tipos-documento', 'cie10', 'medios-pago', 'categorias-gasto', 'categorias-proveedor', 'tipos-red-social', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'procedimientos']);
 
 test('una request normal devuelve la página completa con el buscador en vivo', function (string $listado) {
     $html = $this->get(route("admin.{$listado}.index"))->assertOk()

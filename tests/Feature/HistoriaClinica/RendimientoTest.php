@@ -1,9 +1,11 @@
 <?php
 
 use App\Models\Consulta;
+use App\Models\DetalleReceta;
 use App\Models\Diagnostico;
 use App\Models\Paciente;
 use App\Models\Persona;
+use App\Models\Receta;
 use App\Models\Turno;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -59,4 +61,29 @@ test('listado de turnos con "Atender": sin una consulta por fila', function () {
     Turno::query()->limit(10)->get()->each(fn ($turno) => DB::table('turnos')->where('id', $turno->id)->update(['fecha' => '2026-10-07']));
 
     expect($conVeinte)->toBeLessThan(30)->toBe(consultasSql(route('admin.turnos.index')));
+});
+
+test('con 3 recetas por consulta: la página de la consulta y la historia hacen las mismas consultas SQL, tengan las recetas 1 o 4 medicamentos', function () {
+    $this->actingAs(hcDarPermisos($this->medico, HC_PERMISOS_RECETAS));
+    $renglon = ['medicamento' => 'Amoxicilina 500 mg', 'dosis' => '1 comprimido', 'frecuencia' => 'Cada 8 horas'];
+    foreach (Consulta::all() as $n => $consulta) {
+        foreach (range(1, 3) as $r) {
+            $receta = Receta::create(['consulta_id' => $consulta->id]);
+            foreach (range(1, intdiv($n, 2) % 2 ? 4 : 1) as $orden) {
+                DetalleReceta::create([...$renglon, 'receta_id' => $receta->id, 'orden' => $orden]);
+            }
+        }
+    }
+    // Dos consultas de la misma profesional (la que atiende: ve todas las acciones), con 1 y con 4 medicamentos por receta.
+    $suyas = Consulta::where('profesional_id', $this->profesional->id)->withCount('recetas')->with('recetas.detalles')->orderBy('id')->get();
+    $conUno = $suyas->first(fn ($c) => $c->recetas->first()->detalles->count() === 1);
+    $conCuatro = $suyas->first(fn ($c) => $c->recetas->first()->detalles->count() === 4);
+
+    $sqlUno = consultasSql(route('admin.consultas.show', $conUno));
+    expect($sqlUno)->toBeLessThan(40)
+        ->toBe(consultasSql(route('admin.consultas.show', $conCuatro)))
+        ->and(consultasSql(route('admin.consultas.detalle', $conUno), ['X-Requested-With' => 'XMLHttpRequest']))
+        ->toBe(consultasSql(route('admin.consultas.detalle', $conCuatro), ['X-Requested-With' => 'XMLHttpRequest']))
+        ->and(consultasSql(route('admin.historias-clinicas.show', $this->historia)))
+        ->toBe(consultasSql(route('admin.historias-clinicas.show', [$this->historia, 'page' => 2])));
 });

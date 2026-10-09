@@ -11,7 +11,9 @@ use App\Models\Estado;
 use App\Models\ExamenFisico;
 use App\Models\HistoriaClinica;
 use App\Models\LogAuditoria;
+use App\Models\Receta;
 use App\Models\TipoBloqueAnamnesis;
+use App\Models\TipoIndicacion;
 use App\Models\Turno;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
@@ -38,6 +40,8 @@ class ConsultaController extends Controller
     public const MAXIMO_BLOQUES = 30;
 
     public const MAXIMO_DIAGNOSTICOS = 10;
+
+    public const MAXIMO_INDICACIONES = 10;
 
     public const MODIFICADA_EN_OTRA_VENTANA = 'La consulta fue modificada desde otra ventana. Recargue la página.';
 
@@ -104,21 +108,39 @@ class ConsultaController extends Controller
     /** Relaciones que muestra el contenido de una consulta (partial consultas._contenido). */
     private const RELACIONES_CONTENIDO = [
         'historiaClinica.paciente.persona.tipoDocumento', 'profesional.persona', 'turno',
-        'bloquesAnamnesis.tipoBloqueAnamnesis', 'examenFisico', 'diagnosticos.cie10',
+        'bloquesAnamnesis.tipoBloqueAnamnesis', 'examenFisico', 'diagnosticos.cie10', 'indicaciones.tipoIndicacion',
     ];
+
+    /**
+     * Las relaciones del contenido para este usuario: las recetas solo con VER sobre RECETAS. Sin ese
+     * permiso ni siquiera se consultan a la base (el partial tampoco las muestra).
+     */
+    private function relacionesContenido(Request $request): array
+    {
+        return [...self::RELACIONES_CONTENIDO, ...($request->user()->tienePermiso('RECETAS', 'VER') ? ['recetas.detalles'] : [])];
+    }
 
     public function show(Request $request, Consulta $consulta): View
     {
-        $consulta->load(self::RELACIONES_CONTENIDO);
+        $consulta->load($this->relacionesContenido($request));
+        $verRecetas = $request->user()->tienePermiso('RECETAS', 'VER');
+        if ($verRecetas) {
+            // Para las acciones de cada receta (RecetaPolicy mira la consulta): sin una consulta SQL por receta.
+            $consulta->recetas->each->setRelation('consulta', $consulta);
+        }
 
         // Historial de cambios: solo con VER sobre AUDITORIA (además de HISTORIA_CLINICA, que pide la ruta).
+        // Incluye los eventos de sus recetas solo si además tiene VER sobre RECETAS.
         $historial = null;
         if ($request->user()->tienePermiso('AUDITORIA', 'VER')) {
+            $recetas = $verRecetas ? $consulta->recetas->modelKeys() : [];
             $historial = LogAuditoria::query()
                 ->with('usuario.persona')
-                ->where('tabla_afectada', 'consultas')
-                ->where('registro_afectado_id', (string) $consulta->id)
-                ->whereIn('accion', [AccionAuditoria::CREAR->value, AccionAuditoria::EDITAR->value])
+                ->where(fn ($query) => $query
+                    ->where(fn ($query) => $query->where('tabla_afectada', 'consultas')->where('registro_afectado_id', (string) $consulta->id))
+                    ->when($recetas !== [], fn ($query) => $query->orWhere(fn ($query) => $query
+                        ->where('tabla_afectada', 'recetas')->whereIn('registro_afectado_id', array_map('strval', $recetas)))))
+                ->whereIn('accion', [AccionAuditoria::CREAR->value, AccionAuditoria::EDITAR->value, AccionAuditoria::ANULAR->value])
                 ->orderBy('fecha_hora')
                 ->orderBy('id')
                 ->get();
@@ -131,6 +153,8 @@ class ConsultaController extends Controller
             'consulta' => $consulta,
             'puedeModificar' => Gate::allows('update', $consulta),
             'historial' => $historial,
+            'verRecetas' => $verRecetas,
+            'puedeCrearReceta' => $verRecetas && Gate::allows('create', [Receta::class, $consulta]),
         ]);
     }
 
@@ -148,7 +172,7 @@ class ConsultaController extends Controller
             return redirect()->route('admin.consultas.show', $consulta);
         }
 
-        $consulta->load(self::RELACIONES_CONTENIDO);
+        $consulta->load($this->relacionesContenido($request));
 
         return response()->view('admin.consultas._contenido', [
             'consulta' => $consulta,
@@ -219,7 +243,7 @@ class ConsultaController extends Controller
     {
         $historia->loadMissing('paciente.persona.tipoDocumento');
         if ($consulta->exists) {
-            $consulta->load(['bloquesAnamnesis.tipoBloqueAnamnesis', 'examenFisico', 'diagnosticos.cie10', 'profesional.persona']);
+            $consulta->load(['bloquesAnamnesis.tipoBloqueAnamnesis', 'examenFisico', 'diagnosticos.cie10', 'indicaciones.tipoIndicacion', 'profesional.persona']);
         }
 
         return view('admin.consultas.form', [
@@ -228,6 +252,7 @@ class ConsultaController extends Controller
             'turno' => $turno,
             'profesional' => $consulta->exists ? $consulta->profesional : request()->user()->profesional->load('persona'),
             'tiposBloqueActivos' => TipoBloqueAnamnesis::activos()->orderBy('nombre')->pluck('nombre', 'id'),
+            'tiposIndicacionActivos' => TipoIndicacion::activos()->orderBy('nombre')->pluck('nombre', 'id'),
         ]);
     }
 
@@ -244,15 +269,16 @@ class ConsultaController extends Controller
 
     /**
      * Valida el formulario completo. Lo que no se toca: una lista sin su marca (con_anamnesis,
-     * con_diagnosticos), que es lo que pasa sin JavaScript.
+     * con_diagnosticos, con_indicaciones), que es lo que pasa sin JavaScript.
      */
     private function validar(Request $request, ?Consulta $consulta): array
     {
         $request->merge($this->normalizar($request->all()));
 
         $guardados = $consulta
-            ? ['anamnesis' => $consulta->bloquesAnamnesis()->get()->keyBy('id'), 'diagnosticos' => $consulta->diagnosticos()->get()->keyBy('id')]
-            : ['anamnesis' => collect(), 'diagnosticos' => collect()];
+            ? ['anamnesis' => $consulta->bloquesAnamnesis()->get()->keyBy('id'), 'diagnosticos' => $consulta->diagnosticos()->get()->keyBy('id'),
+                'indicaciones' => $consulta->indicaciones()->get()->keyBy('id')]
+            : ['anamnesis' => collect(), 'diagnosticos' => collect(), 'indicaciones' => collect()];
 
         // El tipo (o el código) que la fila ya tenía guardado: vale aunque hoy esté inactivo.
         $original = function (string $atributo, string $lista, string $campo) use ($request, $guardados): mixed {
@@ -324,6 +350,23 @@ class ConsultaController extends Controller
             }],
             'diagnosticos.*.tipo' => ['required', Rule::enum(TipoDiagnostico::class)],
             'diagnosticos.*.descripcion_adicional' => ['nullable', 'string', 'max:500'],
+
+            'con_indicaciones' => ['nullable', 'boolean'],
+            'indicaciones' => ['nullable', 'array', function (string $atributo, mixed $filas, Closure $fail) use ($activas) {
+                if ($activas($filas)->count() > self::MAXIMO_INDICACIONES) {
+                    $fail('La consulta puede tener hasta '.self::MAXIMO_INDICACIONES.' indicaciones generales vigentes. Retire o descarte alguna.');
+                }
+            }],
+            'indicaciones.*.id' => ['nullable', 'integer', Rule::exists('indicaciones', 'id')->where('consulta_id', $consulta?->id ?? 0)],
+            'indicaciones.*.activo' => ['nullable', 'boolean'],
+            // El tipo es opcional: los activos, o el inactivo que esa fila ya tenía.
+            'indicaciones.*.tipo_indicacion_id' => ['nullable', 'integer', function (string $atributo, mixed $valor, Closure $fail) use ($original) {
+                $activo = TipoIndicacion::activos()->whereKey((int) $valor)->exists();
+                if (! $activo && (int) $original($atributo, 'indicaciones', 'tipo_indicacion_id') !== (int) $valor) {
+                    $fail('Elija un tipo de indicación activo, o déjelo sin tipo.');
+                }
+            }],
+            'indicaciones.*.descripcion' => ['required', 'string', 'max:500'],
         ], [
             'anamnesis.*.contenido.required' => 'Escriba el contenido del bloque de anamnesis.',
             'anamnesis.*.tipo_bloque_anamnesis_id.required' => 'Elija el tipo del bloque de anamnesis.',
@@ -337,6 +380,8 @@ class ConsultaController extends Controller
             'diagnosticos.*.tipo.required' => 'Indique si el diagnóstico es presuntivo o confirmado.',
             'anamnesis.*.id.exists' => 'Uno de los bloques de anamnesis no pertenece a esta consulta.',
             'diagnosticos.*.id.exists' => 'Uno de los diagnósticos no pertenece a esta consulta.',
+            'indicaciones.*.descripcion.required' => 'Escriba el texto de la indicación general.',
+            'indicaciones.*.id.exists' => 'Una de las indicaciones generales no pertenece a esta consulta.',
         ], [
             'motivo_consulta' => 'motivo de consulta',
             'anamnesis.*.contenido' => 'contenido del bloque',
@@ -352,6 +397,8 @@ class ConsultaController extends Controller
             'diagnosticos.*.codigo_cie10' => 'código CIE-10',
             'diagnosticos.*.tipo' => 'tipo de diagnóstico',
             'diagnosticos.*.descripcion_adicional' => 'descripción adicional',
+            'indicaciones.*.descripcion' => 'texto de la indicación',
+            'indicaciones.*.tipo_indicacion_id' => 'tipo de indicación',
         ]);
     }
 
@@ -371,7 +418,7 @@ class ConsultaController extends Controller
             }
         }
 
-        foreach (['anamnesis', 'diagnosticos'] as $lista) {
+        foreach (['anamnesis', 'diagnosticos', 'indicaciones'] as $lista) {
             if (is_array($entrada[$lista] ?? null)) {
                 // Una fila sin guardar siempre es vigente (no se retira: se descarta).
                 $salida[$lista] = array_map(fn ($fila) => is_array($fila)
@@ -384,8 +431,8 @@ class ConsultaController extends Controller
     }
 
     /**
-     * Anamnesis, examen físico y diagnósticos. Cada uno queda en la auditoría como EDITAR de la
-     * consulta, con la lista de antes y la de después (si cambió).
+     * Anamnesis, examen físico, diagnósticos e indicaciones generales. Cada uno queda en la auditoría
+     * como EDITAR de la consulta, con la lista de antes y la de después (si cambió).
      */
     private function guardarSecciones(Consulta $consulta, array $datos): void
     {
@@ -398,6 +445,30 @@ class ConsultaController extends Controller
         if (! empty($datos['con_diagnosticos'])) {
             $principal = (string) ($datos['diagnostico_principal'] ?? '');
             $consulta->auditarRelacion('diagnosticos', fn () => $this->guardarDiagnosticos($consulta, $datos['diagnosticos'] ?? [], $principal));
+        }
+
+        if (! empty($datos['con_indicaciones'])) {
+            $consulta->auditarRelacion('indicaciones', fn () => $this->guardarIndicaciones($consulta, $datos['indicaciones'] ?? []));
+        }
+    }
+
+    /** Actualiza o crea las indicaciones generales en el orden del formulario. Nunca borra. */
+    private function guardarIndicaciones(Consulta $consulta, array $filas): void
+    {
+        $guardadas = $consulta->indicaciones()->get()->keyBy('id');
+
+        foreach (array_values($filas) as $posicion => $fila) {
+            $valores = [
+                'tipo_indicacion_id' => filled($fila['tipo_indicacion_id'] ?? null) ? (int) $fila['tipo_indicacion_id'] : null,
+                'descripcion' => $fila['descripcion'],
+                'orden' => $posicion + 1,
+            ];
+
+            if (filled($fila['id'] ?? null)) {
+                $guardadas[(int) $fila['id']]->update([...$valores, 'activo' => filter_var($fila['activo'] ?? true, FILTER_VALIDATE_BOOLEAN)]);
+            } else {
+                $consulta->indicaciones()->create($valores); // una fila nueva nace activa
+            }
         }
     }
 

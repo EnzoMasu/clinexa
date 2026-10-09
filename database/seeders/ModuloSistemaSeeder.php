@@ -38,6 +38,7 @@ class ModuloSistemaSeeder extends Seeder
             'TIPOS_RED_SOCIAL' => ['Tipos de red social', self::ACTIVO_INACTIVO],
             'PROCEDIMIENTOS' => ['Procedimientos', self::ACTIVO_INACTIVO],
             'TIPOS_BLOQUE_ANAMNESIS' => ['Tipos de bloque de anamnesis', self::ACTIVO_INACTIVO],
+            'TIPOS_INDICACION' => ['Tipos de indicación', self::ACTIVO_INACTIVO],
             // Roles de negocio sobre Persona.
             'PACIENTES' => ['Pacientes', self::ACTIVO_INACTIVO],
             'PROFESIONALES' => ['Profesionales', self::ACTIVO_INACTIVO],
@@ -50,6 +51,8 @@ class ModuloSistemaSeeder extends Seeder
             'TURNOS' => ['Turnos', [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::ATENDIDO, Estado::CANCELADO, Estado::AUSENTE]],
             // Historia clínica: historias, consultas, anamnesis, examen físico y diagnósticos (solo VER, CREAR y EDITAR).
             'HISTORIA_CLINICA' => ['Historia clínica', self::ACTIVO_INACTIVO],
+            // Recetas de las consultas: borrador (PENDIENTE), emitida y anulada (solo VER, CREAR y EDITAR).
+            'RECETAS' => ['Recetas', [Estado::PENDIENTE, Estado::EMITIDO, Estado::ANULADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).
             'AUDITORIA' => ['Auditoría', self::ACTIVO_INACTIVO],
             // Un solo módulo para las tres pantallas: Países, Departamentos y Ciudades.

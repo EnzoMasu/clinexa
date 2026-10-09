@@ -30,6 +30,12 @@ class Estado extends Model
 
     public const AUSENTE = 'AUSENTE';
 
+    /** Recetas: emitida (impresa, ya no se modifica). El borrador usa PENDIENTE. */
+    public const EMITIDO = 'EMITIDO';
+
+    /** Recetas: anulada (se conserva y se ve, con el motivo). */
+    public const ANULADO = 'ANULADO';
+
     protected $table = 'estados';
 
     protected $fillable = [

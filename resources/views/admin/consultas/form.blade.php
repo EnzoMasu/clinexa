@@ -30,6 +30,26 @@
         })->values()->all();
     $tiposActivos = $tiposBloqueActivos->map(fn ($nombre, $id) => ['id' => (string) $id, 'nombre' => $nombre])->values()->all();
 
+    // Indicaciones generales: mismo criterio que la anamnesis (el tipo es opcional).
+    $indicacionesGuardadas = $consulta->exists ? $consulta->indicaciones->keyBy('id') : collect();
+    $filasIndicaciones = collect(old('con_indicaciones')
+            ? (array) old('indicaciones', [])
+            : $indicacionesGuardadas->sortBy(['orden', 'id'])->map(fn ($indicacion) => $indicacion->only(['id', 'tipo_indicacion_id', 'descripcion', 'activo']))->all())
+        ->map(function ($fila) use ($indicacionesGuardadas, $tiposIndicacionActivos) {
+            $guardada = filled($fila['id'] ?? null) ? $indicacionesGuardadas->get((int) $fila['id']) : null;
+            $tipoOriginal = $guardada?->tipoIndicacion;
+
+            return [
+                'uid' => uniqid('', true),
+                'id' => $guardada ? (string) $guardada->id : '',
+                'tipo_indicacion_id' => (string) ($fila['tipo_indicacion_id'] ?? ''),
+                'descripcion' => (string) ($fila['descripcion'] ?? ''),
+                'activo' => filter_var($fila['activo'] ?? true, FILTER_VALIDATE_BOOLEAN),
+                'tipoInactivo' => $tipoOriginal && ! $tiposIndicacionActivos->has($tipoOriginal->id) ? ['id' => (string) $tipoOriginal->id, 'nombre' => $tipoOriginal->nombre.' (inactivo)'] : null,
+            ];
+        })->values()->all();
+    $tiposIndicacion = $tiposIndicacionActivos->map(fn ($nombre, $id) => ['id' => (string) $id, 'nombre' => $nombre])->values()->all();
+
     // Diagnósticos: los del error de validación (el principal es el índice marcado), o los guardados.
     $diagnosticosGuardados = $consulta->exists ? $consulta->diagnosticos->keyBy('id') : collect();
     $principalAnterior = (string) old('diagnostico_principal');
@@ -58,6 +78,7 @@
 
     $erroresAnamnesis = collect($errors->get('anamnesis*'))->flatten()->unique();
     $erroresDiagnosticos = collect([...$errors->get('diagnosticos*'), ...$errors->get('diagnostico_principal')])->flatten()->unique();
+    $erroresIndicaciones = collect($errors->get('indicaciones*'))->flatten()->unique();
     $clases = 'mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm';
 @endphp
 
@@ -287,6 +308,65 @@
             @endif
         </div>
 
-        <noscript><p class="text-sm text-red-600">Para cargar la anamnesis y los diagnósticos se necesita JavaScript habilitado. Sin JavaScript se guardan el motivo y el examen físico, y lo ya cargado no se pierde.</p></noscript>
+        {{-- Indicaciones generales (indicaciones): salen en la hoja de la receta. No se borran; se retiran y se reponen. --}}
+        <div x-data="{
+                filas: {{ Js::from($filasIndicaciones) }},
+                tiposActivos: {{ Js::from($tiposIndicacion) }},
+                // Los tipos activos, más el inactivo que esta fila ya tenía.
+                tiposPara(fila) { return fila.tipoInactivo ? [...this.tiposActivos, fila.tipoInactivo] : this.tiposActivos },
+                agregar() { this.filas.push({ uid: Date.now() + Math.random(), id: '', tipo_indicacion_id: '', descripcion: '', activo: true, tipoInactivo: null }) },
+                descartar(i) { this.filas.splice(i, 1) },
+            }" class="space-y-3">
+            <h3 class="font-medium text-gray-900 dark:text-gray-100">Indicaciones generales</h3>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Reposo, dieta, control… Salen en la hoja de la receta, para el paciente. Hasta {{ \App\Http\Controllers\Admin\ConsultaController::MAXIMO_INDICACIONES }}
+                vigentes, en el orden en que se muestran. Una indicación guardada no se borra: se retira, y se puede reponer. Los cambios se aplican al guardar.
+            </p>
+
+            {{-- Solo con JavaScript: indica que la lista viene completa (sin JS no se tocan las indicaciones guardadas). --}}
+            <template x-if="true"><input type="hidden" name="con_indicaciones" value="1"></template>
+
+            <template x-for="(fila, i) in filas" x-bind:key="fila.uid">
+                <div class="grid gap-3 rounded-md border p-3 sm:grid-cols-[12rem_1fr_auto] sm:items-start"
+                    x-bind:class="fila.activo ? 'border-gray-200 dark:border-gray-700' : 'border-dashed border-gray-300 bg-gray-50 dark:border-gray-600 dark:bg-gray-900/40'">
+                    <input type="hidden" x-bind:name="`indicaciones[${i}][id]`" x-bind:value="fila.id">
+                    <input type="hidden" x-bind:name="`indicaciones[${i}][activo]`" x-bind:value="fila.activo ? 1 : 0">
+                    <div x-bind:class="fila.activo ? '' : 'opacity-60'">
+                        <label x-bind:for="`indicacion_tipo_${i}`" class="block font-medium text-sm text-gray-700 dark:text-gray-300">
+                            Tipo (opcional)
+                            <span x-show="! fila.activo" class="ms-1 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-300">Retirado</span>
+                        </label>
+                        <select x-bind:id="`indicacion_tipo_${i}`" x-bind:name="`indicaciones[${i}][tipo_indicacion_id]`" x-model="fila.tipo_indicacion_id" class="{{ $clases }}">
+                            <option value="">Sin tipo</option>
+                            <template x-for="tipo in tiposPara(fila)" x-bind:key="tipo.id">
+                                <option x-bind:value="tipo.id" x-text="tipo.nombre" x-bind:selected="tipo.id === fila.tipo_indicacion_id"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div x-bind:class="fila.activo ? '' : 'opacity-60'">
+                        <label x-bind:for="`indicacion_descripcion_${i}`" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Indicación</label>
+                        <textarea rows="2" maxlength="500" required x-bind:id="`indicacion_descripcion_${i}`" x-bind:name="`indicaciones[${i}][descripcion]`" x-model="fila.descripcion" class="{{ $clases }}"></textarea>
+                    </div>
+                    <div class="sm:mt-7">
+                        {{-- Guardada: se retira o se repone. Nueva (todavía sin guardar): se descarta. --}}
+                        <button type="button" x-show="fila.id" x-on:click="fila.activo = ! fila.activo" x-text="fila.activo ? 'Retirar' : 'Reponer'"
+                            class="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200">Retirar</button>
+                        <button type="button" x-show="! fila.id" x-on:click="descartar(i)"
+                            class="text-sm font-medium text-red-600 hover:text-red-900 dark:text-red-400">Descartar</button>
+                    </div>
+                </div>
+            </template>
+
+            <p x-show="filas.length === 0" class="text-sm text-gray-500 dark:text-gray-400">Sin indicaciones generales.</p>
+
+            <button type="button" x-on:click="agregar()" class="text-sm font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
+                + Agregar indicación
+            </button>
+
+            @if ($erroresIndicaciones->isNotEmpty())
+                <x-input-error :messages="$erroresIndicaciones->all()" />
+            @endif
+        </div>
+        <noscript><p class="text-sm text-red-600">Para cargar la anamnesis, los diagnósticos y las indicaciones generales se necesita JavaScript habilitado. Sin JavaScript se guardan el motivo y el examen físico, y lo ya cargado no se pierde.</p></noscript>
     </x-admin.form>
 </x-admin.page>

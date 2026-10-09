@@ -58,11 +58,20 @@ class ConsultaPolicy
 
     public function update(User $usuario, Consulta $consulta): Response
     {
-        $profesional = $this->profesionalActivo($usuario);
-
-        return $usuario->tienePermiso('HISTORIA_CLINICA', 'EDITAR') && $profesional && (int) $profesional->id === (int) $consulta->profesional_id
+        return $usuario->tienePermiso('HISTORIA_CLINICA', 'EDITAR') && $this->esElQueAtiende($usuario, $consulta)
             ? Response::allow()
             : Response::deny(self::SOLO_EL_QUE_ATIENDE);
+    }
+
+    /**
+     * El usuario es el profesional ACTIVO que atiende la consulta. Es la regla de fondo para escribir
+     * en ella (y en sus recetas, RecetaPolicy): ni el Administrador escribe en la consulta de otro.
+     */
+    public function esElQueAtiende(User $usuario, Consulta $consulta): bool
+    {
+        $profesional = $this->profesionalActivo($usuario);
+
+        return $profesional !== null && (int) $profesional->id === (int) $consulta->profesional_id;
     }
 
     /** El turno se puede atender ahora: suyo, de este paciente, CONFIRMADO, de hoy y sin consulta. */

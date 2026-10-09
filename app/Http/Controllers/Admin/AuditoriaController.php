@@ -27,9 +27,9 @@ class AuditoriaController extends Controller
     public function index(Request $request): Response
     {
         $filtros = $this->filtros($request);
-        // Sin permiso de lectura clínica, el texto buscado no se compara con los eventos clínicos (si no,
-        // filtrando se podría deducir su contenido).
-        $veClinico = $request->user()->tienePermiso('HISTORIA_CLINICA', 'VER');
+        // El texto buscado no se compara con los eventos cuyo contenido el usuario no puede ver (clínicos sin
+        // VER sobre HISTORIA_CLINICA, recetas sin VER sobre RECETAS): filtrando se podría deducir su contenido.
+        $tablasOcultas = $this->tablasOcultas($request->user());
 
         $logs = LogAuditoria::query()
             ->with('usuario.persona')
@@ -43,7 +43,7 @@ class AuditoriaController extends Controller
                 ->where('registro_afectado_id', $filtros['q'])
                 ->orWhere(fn ($query) => $query
                     ->whereLike('detalle', "%{$filtros['q']}%")
-                    ->when(! $veClinico, fn ($query) => $query->whereNotIn('tabla_afectada', Auditoria::TABLAS_CLINICAS)))))
+                    ->when($tablasOcultas !== [], fn ($query) => $query->whereNotIn('tabla_afectada', $tablasOcultas)))))
             ->orderByDesc('fecha_hora')
             ->orderByDesc('id')
             ->paginate(20)
@@ -63,16 +63,17 @@ class AuditoriaController extends Controller
     {
         $log->load('usuario.persona');
 
-        // Contenido clínico: los valores (y el detalle) solo con VER sobre HISTORIA_CLINICA. Se conservan
-        // quién, cuándo, la acción y los nombres de los campos.
-        $contenidoOculto = in_array($log->tabla_afectada, Auditoria::TABLAS_CLINICAS, true)
-            && ! request()->user()->tienePermiso('HISTORIA_CLINICA', 'VER');
+        // Contenido clínico: los valores (y el detalle) solo con VER sobre el módulo de esa tabla (HISTORIA_CLINICA
+        // o RECETAS). Se conservan quién, cuándo, la acción y los nombres de los campos.
+        $moduloProtegido = Auditoria::permisoDeContenido($log->tabla_afectada);
+        $contenidoOculto = $moduloProtegido !== null && ! request()->user()->tienePermiso($moduloProtegido, 'VER');
 
         return view('admin.auditoria.show', [
             'log' => $log,
             'modulos' => $this->nombresDeModulos(),
             'cambios' => $contenidoOculto ? $this->soloCampos($log) : $this->cambios($log),
             'contenidoOculto' => $contenidoOculto,
+            'moduloOculto' => $contenidoOculto ? ($moduloProtegido === 'RECETAS' ? 'Recetas' : 'Historia Clínica') : null,
         ]);
     }
 
@@ -96,6 +97,19 @@ class AuditoriaController extends Controller
                 'nuevo' => array_key_exists($campo, $nuevo) ? $legible($campo, $nuevo[$campo]) : null,
             ])
             ->values()->all();
+    }
+
+    /**
+     * Tablas cuyo contenido el usuario no puede ver en la auditoría.
+     *
+     * @return list<string>
+     */
+    private function tablasOcultas(User $usuario): array
+    {
+        return [
+            ...($usuario->tienePermiso('HISTORIA_CLINICA', 'VER') ? [] : Auditoria::TABLAS_CLINICAS),
+            ...($usuario->tienePermiso('RECETAS', 'VER') ? [] : Auditoria::TABLAS_RECETAS),
+        ];
     }
 
     /**

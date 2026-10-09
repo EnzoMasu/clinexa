@@ -27,14 +27,6 @@ function lecturasDeConsultas(): array
         ->get()->map(fn ($e) => [$e->usuario_id, $e->registro_afectado_id])->all();
 }
 
-/** El <article> del contenido de la consulta dentro de una respuesta. */
-function articuloDe(string $html): string
-{
-    preg_match('#<article .*?</article>#s', $html, $coincidencia);
-
-    return trim($coincidencia[0] ?? '');
-}
-
 describe('fragmento del detalle', function () {
     test('con VER: 200 con el mismo contenido que la página completa', function () {
         $consulta = hcConsulta(['examen' => ['hallazgos' => 'Faringe eritematosa.', 'temperatura' => '38,2']]);

@@ -34,6 +34,7 @@
             'admin.categorias-gasto' => 'Categorías de gasto',
             'admin.cie10' => 'Catálogo CIE-10',
             'admin.tipos-bloque-anamnesis' => 'Tipos de bloque de anamnesis',
+            'admin.tipos-indicacion' => 'Tipos de indicación',
             'admin.paises' => 'Países',
             'admin.departamentos' => 'Departamentos',
             'admin.ciudades' => 'Ciudades',
@@ -90,7 +91,7 @@
                         </x-slot>
 
                         <x-slot name="content">
-                            {{-- Con scroll: con todos los permisos son 26 entradas más los encabezados. --}}
+                            {{-- Con scroll: con todos los permisos son 27 entradas más los encabezados. --}}
                             <div class="max-h-[75vh] overflow-y-auto">
                                 @foreach ($gruposAdmin as $grupo => $secciones)
                                     <div role="presentation" data-grupo-menu="{{ $grupo }}" @class([

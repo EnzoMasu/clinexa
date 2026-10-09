@@ -15,9 +15,12 @@ use App\Models\CatalogoCIE10;
 use App\Models\Consulta;
 use App\Models\Consultorio;
 use App\Models\Estado;
+use App\Models\ModuloSistema;
 use App\Models\Paciente;
+use App\Models\Permiso;
 use App\Models\Persona;
 use App\Models\Profesional;
+use App\Models\Receta;
 use App\Models\Sucursal;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\Turno;
@@ -144,4 +147,64 @@ function consultasSql(string $url, array $encabezados = []): int
     DB::disableQueryLog();
 
     return $cantidad;
+}
+
+/* ---- Recetas ---- */
+
+const HC_PERMISOS_RECETAS = ['RECETAS' => ['VER', 'CREAR', 'EDITAR']];
+
+/** Suma permisos al perfil del usuario, como ['RECETAS' => ['VER']]. */
+function hcDarPermisos(User $usuario, array $permisos): User
+{
+    foreach ($permisos as $codigo => $acciones) {
+        $modulo = ModuloSistema::where('codigo', $codigo)->sole();
+        foreach ($acciones as $accion) {
+            $usuario->perfilAcceso->permisos()->syncWithoutDetaching([Permiso::firstOrCreate(['modulo_sistema_id' => $modulo->id, 'accion' => $accion])->id]);
+        }
+    }
+
+    return $usuario->fresh();
+}
+
+/** Un renglón de medicamento como lo manda el formulario. */
+function hcRenglon(array $cambios = []): array
+{
+    return ['id' => '', 'medicamento' => 'Amoxicilina 500 mg', 'cantidad' => '1 caja x 21', 'dosis' => '1 comprimido', 'via' => 'Oral',
+        'frecuencia' => 'Cada 8 horas', 'duracion' => '7 días', 'observaciones' => 'Tomar con las comidas', ...$cambios];
+}
+
+/** Guarda un borrador de receta por el formulario, como el usuario logueado. */
+function hcGuardarReceta(Consulta $consulta, array $renglones = [], array $datos = [])
+{
+    return test()->post(route('admin.recetas.store', $consulta), ['con_detalles' => '1', 'detalles' => $renglones ?: [hcRenglon()], 'observaciones' => '', ...$datos]);
+}
+
+function hcReceta(Consulta $consulta, array $renglones = [], array $datos = []): Receta
+{
+    hcGuardarReceta($consulta, $renglones, $datos)->assertSessionHasNoErrors();
+
+    return Receta::latest('id')->firstOrFail();
+}
+
+/** Emite el borrador con la versión que se vio en la vista previa (o la actual). */
+function hcEmitir(Receta $receta, ?string $version = null)
+{
+    return test()->post(route('admin.recetas.emitir', $receta), ['version' => $version ?? $receta->fresh()->version()]);
+}
+
+/** El mismo usuario con otro perfil, que tiene solo estos permisos (una persona tiene un solo usuario). */
+function hcConPerfil(User $usuario, array $permisos): User
+{
+    $perfil = User::factory()->conPermisos($permisos)->make()->perfil_acceso_id;
+    $usuario->forceFill(['perfil_acceso_id' => $perfil])->save();
+
+    return $usuario->fresh();
+}
+
+/** El <article> del contenido de la consulta dentro de una respuesta. */
+function articuloDe(string $html): string
+{
+    preg_match('#<article .*?</article>#s', $html, $coincidencia);
+
+    return trim($coincidencia[0] ?? '');
 }

@@ -4,7 +4,11 @@
 
     Todo el contenido clínico va escapado ({{ }}); los saltos de línea los da whitespace-pre-line.
     Las secciones vacías se omiten. Requiere $consulta con historiaClinica.paciente.persona.tipoDocumento,
-    profesional.persona, turno, bloquesAnamnesis.tipoBloqueAnamnesis, examenFisico y diagnosticos.cie10.
+    profesional.persona, turno, bloquesAnamnesis.tipoBloqueAnamnesis, examenFisico, diagnosticos.cie10 e
+    indicaciones.tipoIndicacion y recetas.detalles.
+
+    Recetas: solo con VER sobre RECETAS, y sin acciones (Nueva receta, Editar, Imprimir, Anular van en la
+    página, fuera de este partial: el fragmento del popup es idéntico al artículo de la página).
 
     data-url-editar: la URL del formulario, solo si el usuario puede modificarla (el popup la usa
     para su botón "Editar"); no lleva contenido clínico.
@@ -23,6 +27,8 @@
     $bloques = $consulta->bloquesAnamnesis->sortBy(['orden', 'id']);
     // Vigentes primero (el principal arriba); los retirados al final, atenuados.
     $diagnosticos = $consulta->diagnosticos->sortBy([['activo', 'desc'], ['principal', 'desc'], ['id', 'asc']]);
+    $indicaciones = $consulta->indicaciones->sortBy(['orden', 'id']);
+    $recetas = auth()->user()?->tienePermiso('RECETAS', 'VER') ? $consulta->recetas->sortBy('id') : collect();
     $retirado = 'rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-300';
 @endphp
 
@@ -105,6 +111,51 @@
                         </div>
                         @if ($diagnostico->descripcion_adicional)
                             <p class="text-gray-700 dark:text-gray-300 whitespace-pre-line">{{ $diagnostico->descripcion_adicional }}</p>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
+    @if ($indicaciones->isNotEmpty())
+        <section>
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Indicaciones generales</h4>
+            <ul class="mt-1 space-y-1">
+                @foreach ($indicaciones as $indicacion)
+                    <li @class(['opacity-60' => ! $indicacion->activo])>
+                        @if ($indicacion->tipoIndicacion)
+                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ $indicacion->tipoIndicacion->nombre }}:</span>
+                        @endif
+                        <span class="whitespace-pre-line">{{ $indicacion->descripcion }}</span>
+                        @unless ($indicacion->activo)
+                            <span class="ms-1 {{ $retirado }}">Retirado</span>
+                        @endunless
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
+    @if ($recetas->isNotEmpty())
+        <section>
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Recetas</h4>
+            <ul class="mt-1 space-y-1">
+                @foreach ($recetas as $receta)
+                    <li @class(['opacity-60' => $receta->estaAnulada()]) data-receta-id="{{ $receta->id }}">
+                        <span class="font-mono text-xs font-semibold">{{ $receta->numero ?? 'Borrador' }}</span>
+                        @if ($receta->fecha)
+                            <span class="text-xs text-gray-600 dark:text-gray-400">{{ Fecha::mostrar($receta->fecha) }}</span>
+                        @endif
+                        <span @class([
+                            'ms-1 rounded-full px-2 py-0.5 text-xs font-semibold',
+                            'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200' => $receta->esBorrador(),
+                            'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200' => $receta->estaEmitida(),
+                            'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300' => $receta->estaAnulada(),
+                        ])>{{ $receta->etiquetaEstado() }}</span>
+                        <span class="ms-1">{{ $receta->detalles->sortBy(['orden', 'id'])->pluck('medicamento')->join('; ') }}</span>
+                        @if ($receta->estaAnulada() && $receta->motivo_anulacion)
+                            <div class="text-xs text-gray-600 dark:text-gray-400">Motivo de la anulación: {{ $receta->motivo_anulacion }}</div>
                         @endif
                     </li>
                 @endforeach

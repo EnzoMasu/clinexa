@@ -21,10 +21,12 @@ use App\Http\Controllers\Admin\PersonaController;
 use App\Http\Controllers\Admin\ProcedimientoController;
 use App\Http\Controllers\Admin\ProfesionalController;
 use App\Http\Controllers\Admin\ProveedorController;
+use App\Http\Controllers\Admin\RecetaController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
 use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TipoBloqueAnamnesisController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
+use App\Http\Controllers\Admin\TipoIndicacionController;
 use App\Http\Controllers\Admin\TipoRedSocialController;
 use App\Http\Controllers\Admin\TurnoController;
 use App\Http\Controllers\Admin\UsuarioController;
@@ -103,6 +105,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('tipos-red-social', TipoRedSocialController::class, 'TIPOS_RED_SOCIAL', 'tipoRedSocial', conBaja: true);
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
     $seccion('tipos-bloque-anamnesis', TipoBloqueAnamnesisController::class, 'TIPOS_BLOQUE_ANAMNESIS', 'tipoBloqueAnamnesis', conBaja: true);
+    $seccion('tipos-indicacion', TipoIndicacionController::class, 'TIPOS_INDICACION', 'tipoIndicacion', conBaja: true);
 
     // Geografía: las tres pantallas comparten el módulo GEOGRAFIA.
     $seccion('paises', PaisController::class, 'GEOGRAFIA', 'pais', conBaja: true);
@@ -158,6 +161,26 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         Route::middleware('permiso:HISTORIA_CLINICA,EDITAR')->group(function () {
             Route::get('consultas/{consulta}/edit', [ConsultaController::class, 'edit'])->name('consultas.edit');
             Route::put('consultas/{consulta}', [ConsultaController::class, 'update'])->name('consultas.update');
+        });
+
+        // Recetas de una consulta (RecetaPolicy: además, solo el profesional que la atiende escribe). VER: la
+        // vista previa y la hoja; CREAR: crear el borrador y emitirlo; EDITAR: editar el borrador y anular.
+        // No hay DELETE: una receta se anula.
+        Route::middleware('permiso:RECETAS,VER')->group(function () {
+            Route::get('recetas/{receta}/vista-previa', [RecetaController::class, 'vistaPrevia'])->name('recetas.vista-previa')->whereNumber('receta');
+            Route::get('recetas/{receta}/imprimir', [RecetaController::class, 'imprimir'])->name('recetas.imprimir')->whereNumber('receta');
+        });
+        Route::middleware('permiso:RECETAS,CREAR')->group(function () {
+            Route::get('consultas/{consulta}/recetas/create', [RecetaController::class, 'create'])->name('recetas.create')->whereNumber('consulta');
+            Route::post('consultas/{consulta}/recetas', [RecetaController::class, 'store'])->name('recetas.store')->whereNumber('consulta');
+            Route::post('recetas/{receta}/emitir', [RecetaController::class, 'emitir'])->name('recetas.emitir')->whereNumber('receta');
+        });
+        Route::middleware('permiso:RECETAS,EDITAR')->group(function () {
+            Route::get('recetas/{receta}/edit', [RecetaController::class, 'edit'])->name('recetas.edit')->whereNumber('receta');
+            Route::put('recetas/{receta}', [RecetaController::class, 'update'])->name('recetas.update')->whereNumber('receta');
+            Route::post('recetas/{receta}/anular', [RecetaController::class, 'anular'])->name('recetas.anular')->whereNumber('receta');
+            // Anular y corregir: además de EDITAR exige CREAR (RecetaPolicy::corregir).
+            Route::post('recetas/{receta}/corregir', [RecetaController::class, 'corregir'])->name('recetas.corregir')->whereNumber('receta');
         });
     });
 

@@ -11,12 +11,14 @@ use App\Models\Ciudad;
 use App\Models\Consulta;
 use App\Models\Consultorio;
 use App\Models\Departamento;
+use App\Models\DetalleReceta;
 use App\Models\Diagnostico;
 use App\Models\Disponibilidad;
 use App\Models\Especialidad;
 use App\Models\Estado;
 use App\Models\ExamenFisico;
 use App\Models\HistoriaClinica;
+use App\Models\Indicacion;
 use App\Models\MedioPago;
 use App\Models\ModuloSistema;
 use App\Models\OrigenTurno;
@@ -27,10 +29,12 @@ use App\Models\Persona;
 use App\Models\Procedimiento;
 use App\Models\Profesional;
 use App\Models\Proveedor;
+use App\Models\Receta;
 use App\Models\ResponsablePago;
 use App\Models\Sucursal;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
+use App\Models\TipoIndicacion;
 use App\Models\TipoRedSocial;
 use App\Models\Turno;
 use App\Models\User;
@@ -63,16 +67,34 @@ final class Auditoria
         CatalogoCIE10::class, MedioPago::class, CategoriaGasto::class,
         CategoriaProveedor::class, Procedimiento::class, Pais::class,
         Departamento::class, Ciudad::class, Consultorio::class,
-        OrigenTurno::class, Disponibilidad::class, Turno::class, TipoRedSocial::class, TipoBloqueAnamnesis::class,
+        OrigenTurno::class, Disponibilidad::class, Turno::class, TipoRedSocial::class, TipoBloqueAnamnesis::class, TipoIndicacion::class,
         // Historia clínica (módulo HISTORIA_CLINICA; la historia primero: es la tabla de sus lecturas).
-        HistoriaClinica::class, Consulta::class, BloqueAnamnesis::class, ExamenFisico::class, Diagnostico::class,
+        HistoriaClinica::class, Consulta::class, BloqueAnamnesis::class, ExamenFisico::class, Diagnostico::class, Indicacion::class,
+        // Recetas (módulo RECETAS; la receta primero: es la tabla de sus lecturas).
+        Receta::class, DetalleReceta::class,
     ];
 
     /**
      * Tablas con contenido clínico: en la pantalla de auditoría, sus valores solo los ve quien tiene
      * VER sobre HISTORIA_CLINICA (y el buscador no busca en ellos para los demás).
      */
-    public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos'];
+    public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos', 'indicaciones'];
+
+    /** Tablas de recetas: sus valores solo los ve quien tiene VER sobre RECETAS (misma regla, otro permiso). */
+    public const TABLAS_RECETAS = ['recetas', 'detalles_receta'];
+
+    /**
+     * Módulo cuyo VER hace falta para ver los valores de los eventos de esa tabla en la pantalla de
+     * auditoría, o null si no son contenido protegido.
+     */
+    public static function permisoDeContenido(string $tabla): ?string
+    {
+        return match (true) {
+            in_array($tabla, self::TABLAS_CLINICAS, true) => 'HISTORIA_CLINICA',
+            in_array($tabla, self::TABLAS_RECETAS, true) => 'RECETAS',
+            default => null,
+        };
+    }
 
     /** Minutos en los que no se repite un VER idéntico (mismo usuario, tabla y registro). */
     public const MINUTOS_SIN_REPETIR_VER = 5;
@@ -201,7 +223,7 @@ final class Auditoria
 
     /**
      * Acción de una edición según el estado nuevo: pasar a INACTIVO es DESACTIVAR, a BLOQUEADO es
-     * BLOQUEO; cualquier otro cambio (también reactivar) es EDITAR.
+     * BLOQUEO, a ANULADO es ANULAR; cualquier otro cambio (también reactivar) es EDITAR.
      *
      * @param  array<string, mixed>  $cambios
      */
@@ -214,6 +236,8 @@ final class Auditoria
         return match ((int) $cambios['estado_id']) {
             Estado::idDe(Estado::INACTIVO) => AccionAuditoria::DESACTIVAR,
             Estado::idDe(Estado::BLOQUEADO) => AccionAuditoria::BLOQUEO,
+            // Documentos (recetas): pasar a ANULADO es ANULAR.
+            Estado::idDe(Estado::ANULADO) => AccionAuditoria::ANULAR,
             default => AccionAuditoria::EDITAR,
         };
     }

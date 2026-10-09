@@ -134,6 +134,7 @@ describe('formularios', function () {
         ['admin.categorias-proveedor.create', 'categoria_proveedor.nombre'],
         ['admin.tipos-red-social.create', 'tipo_red_social.nombre'],
         ['admin.tipos-bloque-anamnesis.create', 'tipo_bloque_anamnesis.nombre'],
+        ['admin.tipos-indicacion.create', 'tipo_indicacion.nombre'],
         ['admin.perfiles-acceso.create', 'perfil_acceso.nombre'],
         ['admin.sucursales.create', 'sucursal.nombre'],
         ['admin.medios-pago.create', 'medio_pago.nombre'],

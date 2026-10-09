@@ -45,7 +45,8 @@ trait Auditable
             }
 
             $anterior = array_intersect_key($modelo->getRawOriginal(), $cambios);
-            Auditoria::registrar(Auditoria::accionDeEdicion($cambios), $modelo->getTable(), $modelo->getKey(), $anterior, $cambios);
+            $accion = Auditoria::accionDeEdicion($cambios);
+            Auditoria::registrar($accion, $modelo->getTable(), $modelo->getKey(), $anterior, $cambios, $modelo->detalleAuditoria($accion));
         });
     }
 
@@ -71,6 +72,12 @@ trait Auditable
         }
 
         return $this->getConnection()->transaction(fn () => parent::save($options));
+    }
+
+    /** Texto del campo "detalle" del evento (p. ej. el motivo al anular una receta), o null. */
+    public function detalleAuditoria(AccionAuditoria $accion): ?string
+    {
+        return null;
     }
 
     /** Campos propios del modelo que no se auditan (además de los excluidos para todos). */

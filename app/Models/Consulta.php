@@ -70,6 +70,9 @@ class Consulta extends Model
             'examenFisico' => fn (Collection $examenes) => $examenes->first()?->descripcion() ?? [],
             'diagnosticos' => fn (Collection $diagnosticos) => $diagnosticos->sortBy('id')->loadMissing('cie10')
                 ->map(fn (Diagnostico $diagnostico) => $diagnostico->descripcion())->values()->all(),
+            // "Reposo: 48 horas", "Control en 7 días (retirado)".
+            'indicaciones' => fn (Collection $indicaciones) => $indicaciones->sortBy(['orden', 'id'])->loadMissing('tipoIndicacion')
+                ->map(fn (Indicacion $indicacion) => $indicacion->descripcionAuditoria())->values()->all(),
         ];
     }
 
@@ -103,6 +106,18 @@ class Consulta extends Model
     public function diagnosticos(): HasMany
     {
         return $this->hasMany(Diagnostico::class);
+    }
+
+    /** Indicaciones generales (activas y retiradas), sin orden fijo: ordenar al mostrar. */
+    public function indicaciones(): HasMany
+    {
+        return $this->hasMany(Indicacion::class);
+    }
+
+    /** Recetas (borradores, emitidas y anuladas). */
+    public function recetas(): HasMany
+    {
+        return $this->hasMany(Receta::class);
     }
 
     /** "08/10/2026 14:30", en la hora local. */

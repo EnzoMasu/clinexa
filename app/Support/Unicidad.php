@@ -57,6 +57,8 @@ final class Unicidad
             'mensaje' => 'Ya hay un tipo de red social con este nombre.'],
         'tipo_bloque_anamnesis.nombre' => ['tabla' => 'tipos_bloque_anamnesis', 'columna' => 'nombre', 'modulo' => 'TIPOS_BLOQUE_ANAMNESIS',
             'mensaje' => 'Ya hay un tipo de bloque de anamnesis con este nombre.'],
+        'tipo_indicacion.nombre' => ['tabla' => 'tipos_indicacion', 'columna' => 'nombre', 'modulo' => 'TIPOS_INDICACION',
+            'mensaje' => 'Ya hay un tipo de indicación con este nombre.'],
         'categoria_proveedor.nombre' => ['tabla' => 'categorias_proveedor', 'columna' => 'nombre', 'modulo' => 'CATEGORIAS_PROVEEDOR',
             'mensaje' => 'Ya hay una categoría de proveedor con este nombre.'],
         'perfil_acceso.nombre' => ['tabla' => 'perfiles_acceso', 'columna' => 'nombre', 'modulo' => 'PERFILES_ACCESO',

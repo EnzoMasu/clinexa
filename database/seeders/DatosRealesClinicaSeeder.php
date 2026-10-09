@@ -15,6 +15,7 @@ use App\Models\ResponsablePago;
 use App\Models\Sucursal;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
+use App\Models\TipoIndicacion;
 use App\Models\TipoRedSocial;
 use Illuminate\Database\Seeder;
 
@@ -33,6 +34,8 @@ class DatosRealesClinicaSeeder extends Seeder
         'Enfermedad actual', 'Antecedentes personales', 'Antecedentes familiares', 'Hábitos',
         'Antecedentes ginecoobstétricos', 'Alergias', 'Otros',
     ];
+
+    public const TIPOS_INDICACION = ['Reposo', 'Dieta', 'Control', 'General'];
 
     public const CATEGORIAS_PROVEEDOR = ['Insumos médicos', 'Equipos médicos', 'Insumos de oficina', 'Artículos de limpieza', 'Servicios tercerizados'];
 
@@ -92,6 +95,12 @@ class DatosRealesClinicaSeeder extends Seeder
         if (! TipoBloqueAnamnesis::exists()) {
             foreach (self::TIPOS_BLOQUE_ANAMNESIS as $nombre) {
                 TipoBloqueAnamnesis::create(['nombre' => $nombre]);
+            }
+        }
+
+        if (! TipoIndicacion::exists()) {
+            foreach (self::TIPOS_INDICACION as $nombre) {
+                TipoIndicacion::create(['nombre' => $nombre]);
             }
         }
 
