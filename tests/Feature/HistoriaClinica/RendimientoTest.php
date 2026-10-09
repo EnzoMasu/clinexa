@@ -27,6 +27,8 @@ beforeEach(function () {
         $paciente = $n <= 30 ? $this->paciente : $pacientes[$n % 50];
         $consulta = Consulta::create(['historia_clinica_id' => $paciente->historiaClinica->id, 'profesional_id' => $n % 2 ? $this->profesional->id : $this->otroProfesional->id,
             'motivo_consulta' => "Consulta {$n}"]);
+        // Finalizadas, como las reales (las que cuentan en la historia y en el listado).
+        $consulta->forceFill(['estado_id' => \App\Models\Estado::idDe('FINALIZADO'), 'iniciada_en' => $consulta->fecha_hora, 'finalizada_en' => $consulta->fecha_hora])->save();
         Diagnostico::create(['consulta_id' => $consulta->id, 'codigo_cie10' => 'J06.9', 'tipo' => 'PRESUNTIVO', 'principal' => true]);
         Diagnostico::create(['consulta_id' => $consulta->id, 'codigo_cie10' => 'R51', 'tipo' => 'CONFIRMADO', 'principal' => false]);
     }
@@ -50,7 +52,7 @@ test('historia de un paciente: las mismas consultas SQL con 20 consultas en pant
     expect($completa)->toBeLessThan(25)->toBe($segunda);
 });
 
-test('listado de turnos con "Atender": sin una consulta por fila', function () {
+test('listado de turnos: sin una consulta por fila', function () {
     // 20 turnos de 30 minutos desde las 06:00.
     foreach (range(0, 19) as $n) {
         $inicio = Carbon::parse('06:00')->addMinutes(30 * $n);

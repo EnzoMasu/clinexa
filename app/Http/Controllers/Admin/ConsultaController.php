@@ -24,6 +24,46 @@ use Illuminate\View\View;
  */
 class ConsultaController extends Controller
 {
+    /** Entradas del historial de cambios que se muestran (las más recientes); el resto, en Auditoría. */
+    public const MAXIMO_HISTORIAL = 50;
+
+    private const AUTOGUARDADO = 'Borrador (autoguardado)';
+
+    /**
+     * Una consulta de 10 minutos deja decenas de autoguardados (uno cada 10 s mientras se escribe, y uno
+     * por sección en cada guardado). Para leer el historial, en cada racha de autoguardados seguidos del
+     * mismo usuario, los de una misma sección se ven como una sola entrada: [evento (el último de esa
+     * sección), desde (fecha del primero), cantidad]. Cualquier otro evento corta la racha. El log no cambia.
+     *
+     * @param  \Illuminate\Support\Collection<int, LogAuditoria>  $eventos
+     * @return \Illuminate\Support\Collection<int, array{evento: LogAuditoria, desde: mixed, cantidad: int}>
+     */
+    public static function agruparHistorial(\Illuminate\Support\Collection $eventos): \Illuminate\Support\Collection
+    {
+        $entradas = [];
+        $racha = []; // sección => índice de su entrada en $entradas
+        $autorRacha = null;
+        foreach ($eventos as $evento) {
+            $autor = [$evento->usuario_id, $evento->tabla_afectada, $evento->registro_afectado_id];
+            if ($evento->detalle !== self::AUTOGUARDADO || $autor !== $autorRacha) {
+                $racha = [];
+                $autorRacha = $evento->detalle === self::AUTOGUARDADO ? $autor : null;
+            }
+            if ($evento->detalle === self::AUTOGUARDADO) {
+                $seccion = implode(',', array_keys($evento->valor_nuevo ?? []));
+                if (isset($racha[$seccion])) {
+                    $entrada = $entradas[$racha[$seccion]];
+                    $entradas[$racha[$seccion]] = ['evento' => $evento, 'desde' => $entrada['desde'], 'cantidad' => $entrada['cantidad'] + 1];
+
+                    continue;
+                }
+                $racha[$seccion] = count($entradas);
+            }
+            $entradas[] = ['evento' => $evento, 'desde' => $evento->fecha_hora, 'cantidad' => 1];
+        }
+
+        return collect($entradas);
+    }
     /** Relaciones que muestra el contenido de una consulta (partial consultas._contenido). */
     private const RELACIONES_CONTENIDO = [
         'historiaClinica.paciente.persona.tipoDocumento', 'profesional.persona', 'turno',
@@ -66,6 +106,7 @@ class ConsultaController extends Controller
                 ->orderBy('fecha_hora')
                 ->orderBy('id')
                 ->get();
+            $historial = self::agruparHistorial($historial);
             // Ver el historial es leer el log de auditoría: queda registrado como un VER de AUDITORIA
             // (con qué consulta), con la misma regla anti-ruido que las demás lecturas.
             Auditoria::registrarLectura('AUDITORIA', null, detalle: "Historial de cambios de la consulta {$consulta->id}");
@@ -74,7 +115,8 @@ class ConsultaController extends Controller
         return view('admin.consultas.show', [
             'consulta' => $consulta,
             'puedeModificar' => Gate::allows('update', $consulta),
-            'historial' => $historial,
+            'historial' => $historial === null ? null : $historial->slice(-self::MAXIMO_HISTORIAL)->values(),
+            'cambiosEnTotal' => $historial?->count() ?? 0,
             'verRecetas' => $verRecetas,
             'puedeCrearReceta' => $verRecetas && Gate::allows('create', [Receta::class, $consulta]),
         ]);

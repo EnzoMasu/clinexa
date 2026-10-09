@@ -43,18 +43,15 @@ test('un usuario sin rol de profesional no puede crear, aunque tenga CREAR (ni e
     $this->actingAs($usuario);
     $antes = Consulta::count();
 
-    $this->get(route('admin.consultas.create', $this->historia))->assertForbidden()->assertSee('Solo un profesional activo puede atender consultas.');
-    hcGuardarNueva()->assertForbidden();
+    $this->post(route('admin.atencion.atender-sin-turno', $this->historia))->assertForbidden()->assertSee('Solo un profesional activo puede atender consultas.');
     $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk()->assertDontSee('Atender sin turno');
 
-    // Tampoco atiende un turno CONFIRMADO de hoy: ni el enlace, ni la URL directa, ni el envío.
+    // Tampoco atiende un turno CONFIRMADO de hoy: ni el botón, ni el envío directo.
     $turno = hcTurno(['hora_inicio' => '10:00', 'hora_fin' => '10:30']);
-    $atender = route('admin.consultas.create', [$this->historia, 'turno' => $turno->id]);
     if ($usuario->tienePermiso('TURNOS', 'VER')) {
-        $this->get(route('admin.turnos.index'))->assertOk()->assertDontSee($atender, false)->assertDontSee('>Atender</a>', false);
+        $this->get(route('admin.turnos.index'))->assertOk()->assertDontSee(route('admin.atencion.atender', $turno), false);
     }
-    $this->get($atender)->assertForbidden()->assertSee('Solo un profesional activo puede atender consultas.')->assertDontSee('name="motivo_consulta"', false);
-    hcGuardarNueva([], $turno)->assertForbidden();
+    $this->post(route('admin.atencion.atender', $turno))->assertForbidden()->assertSee('Solo un profesional activo puede atender consultas.');
 
     expect(Consulta::count())->toBe($antes)
         ->and($turno->fresh()->estado->codigo)->toBe('CONFIRMADO');
@@ -68,9 +65,8 @@ test('con solo VER se lee la historia y la consulta, pero no se crea ni se edita
     $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk()->assertDontSee('Atender sin turno');
     $this->get(route('admin.consultas.show', $this->consulta))->assertOk()->assertSee('Dolor de garganta')->assertDontSee(route('admin.consultas.edit', $this->consulta));
 
-    // El formulario no se muestra: ni el de alta ni el de edición (403, sin campos).
-    $this->get(route('admin.consultas.create', $this->historia))->assertForbidden()->assertDontSee('name="motivo_consulta"', false);
-    hcGuardarNueva()->assertForbidden();
+    // No inicia atenciones ni ve el formulario de edición (403, sin campos).
+    $this->post(route('admin.atencion.atender-sin-turno', $this->historia))->assertForbidden();
     $this->get(route('admin.consultas.edit', $this->consulta))->assertForbidden()->assertDontSee('name="motivo_consulta"', false)->assertDontSee('name="version"', false);
     hcActualizar($this->consulta, [...hcFilasGuardadas($this->consulta), 'motivo_consulta' => 'Intento con solo VER.'])->assertForbidden();
     expect($this->consulta->fresh()->motivo_consulta)->toBe('Dolor de garganta y fiebre desde ayer.');
@@ -92,13 +88,15 @@ test('el profesional dueño pero INACTIVO ya no modifica ni crea', function () {
     $this->actingAs($this->medico->fresh()); // cada pedido real carga el usuario de nuevo
 
     $this->get(route('admin.consultas.edit', $this->consulta))->assertForbidden()->assertSee(ConsultaPolicy::SOLO_EL_QUE_ATIENDE);
-    $this->get(route('admin.consultas.create', $this->historia))->assertForbidden();
+    $this->post(route('admin.atencion.atender-sin-turno', $this->historia))->assertForbidden();
+    expect(Consulta::count())->toBe(1);
 });
 
 test('paciente INACTIVO: no se crean consultas nuevas, pero el que atendió puede corregir la suya', function () {
     $this->paciente->update(['estado_id' => Estado::idDe(Estado::INACTIVO)]);
 
-    $this->get(route('admin.consultas.create', $this->historia))->assertForbidden()->assertSee('El paciente está inactivo');
+    $this->post(route('admin.atencion.atender-sin-turno', $this->historia))->assertForbidden()->assertSee('El paciente está inactivo');
+    expect(Consulta::count())->toBe(1);
     $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk()->assertDontSee('Atender sin turno');
 
     hcActualizar($this->consulta, [...hcFilasGuardadas($this->consulta), 'motivo_consulta' => 'Corregido.'])->assertRedirect();

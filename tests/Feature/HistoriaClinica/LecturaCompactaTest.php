@@ -143,9 +143,9 @@ describe('página compacta', function () {
             ->not->toMatch('#<details[^>]*\bopen\b#');
     });
 
-    test('con turno, el encabezado lo muestra; después de guardar se vuelve a la página con "Consulta guardada."', function () {
+    test('con turno, el encabezado lo muestra; al finalizar se va a la página con "Consulta finalizada." y al editar con "Consulta guardada."', function () {
         $turno = hcTurno();
-        hcGuardarNueva([], $turno)->assertRedirect()->assertSessionHas('status', 'Consulta guardada.');
+        hcGuardarNueva([], $turno)->assertRedirect()->assertSessionHas('status', 'Consulta finalizada.');
         $consulta = Consulta::sole();
 
         $this->get(route('admin.consultas.show', $consulta))->assertSee('Turno del 06/10/2026, 08:00')->assertDontSee('Sin turno (urgencia)');

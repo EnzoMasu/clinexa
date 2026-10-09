@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Admin\ConsultaController;
 use App\Models\BloqueAnamnesis;
 use App\Models\CatalogoCIE10;
 use App\Models\Consulta;
@@ -9,6 +8,8 @@ use App\Models\Estado;
 use App\Models\ExamenFisico;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\User;
+use App\Support\Atencion\Autoguardado;
+use App\Support\Atencion\FormularioConsulta;
 use Illuminate\Support\Carbon;
 
 beforeEach(fn () => hcEscenario());
@@ -44,25 +45,27 @@ describe('alta', function () {
         expect(ExamenFisico::count())->toBe(0);
     });
 
-    test('el formulario lleva novalidate y los tipos de bloque activos', function () {
+    test('la pantalla de atención lleva novalidate, va a Finalizar y ofrece solo los tipos de bloque activos', function () {
         TipoBloqueAnamnesis::create(['nombre' => 'Hábitos', 'estado_id' => Estado::idDe(Estado::INACTIVO)]);
+        $consulta = hcEnCurso();
 
-        $html = $this->get(route('admin.consultas.create', $this->historia))->assertOk()
-            ->assertViewHas('tiposBloqueActivos', fn ($tipos) => $tipos->values()->all() === ['Alergias', 'Enfermedad actual'])
+        $html = $this->get(route('admin.consultas.atencion', $consulta))->assertOk()
+            ->assertViewHas('datos', fn ($datos) => collect($datos['tiposBloque'])->pluck('nombre')->all() === ['Alergias', 'Enfermedad actual'])
             ->getContent();
-        expect($html)->toMatch('#<form method="POST" action="'.preg_quote(route('admin.consultas.store', $this->historia), '#').'" novalidate#');
+        expect($html)->toMatch('#<form id="form-consulta"[^>]*novalidate#')
+            ->toContain('action="'.route('admin.consultas.finalizar', $consulta).'"');
     });
 });
 
 describe('validaciones', function () {
     test('motivo obligatorio y de hasta 500 caracteres', function (string $motivo) {
         hcGuardarNueva(['motivo_consulta' => $motivo])->assertSessionHasErrors('motivo_consulta');
-        expect(Consulta::count())->toBe(0);
+        expect(Consulta::sole())->enCurso()->toBeTrue()->motivo_consulta->toBeNull();
     })->with(['vacío' => ['   '], 'largo' => [str_repeat('a', 501)]]);
 
     test('examen físico: rangos y formatos', function (string $campo, string $valor) {
         hcGuardarNueva(['examen' => [$campo => $valor]])->assertSessionHasErrors("examen.{$campo}");
-        expect(Consulta::count())->toBe(0);
+        expect(Consulta::sole())->enCurso()->toBeTrue()->motivo_consulta->toBeNull();
     })->with([
         'temperatura baja' => ['temperatura', '29,9'],
         'temperatura alta' => ['temperatura', '45,1'],
@@ -111,13 +114,13 @@ describe('validaciones', function () {
     test('anamnesis: hasta 30 bloques vigentes', function () {
         $fila = ['id' => '', 'tipo_bloque_anamnesis_id' => $this->alergias->id, 'contenido' => 'x'];
 
-        hcGuardarNueva(['anamnesis' => array_fill(0, ConsultaController::MAXIMO_BLOQUES + 1, $fila)])->assertSessionHasErrors('anamnesis');
-        hcGuardarNueva(['anamnesis' => array_fill(0, ConsultaController::MAXIMO_BLOQUES, $fila)])->assertSessionHasNoErrors();
+        hcGuardarNueva(['anamnesis' => array_fill(0, FormularioConsulta::MAXIMO_BLOQUES + 1, $fila)])->assertSessionHasErrors('anamnesis');
+        hcGuardarNueva(['anamnesis' => array_fill(0, FormularioConsulta::MAXIMO_BLOQUES, $fila)])->assertSessionHasNoErrors();
     });
 
     test('diagnósticos: hasta 10 vigentes', function () {
-        hcGuardarNueva(['diagnosticos' => diagnosticosDistintos(ConsultaController::MAXIMO_DIAGNOSTICOS + 1)])->assertSessionHasErrors('diagnosticos');
-        hcGuardarNueva(['diagnosticos' => diagnosticosDistintos(ConsultaController::MAXIMO_DIAGNOSTICOS)])->assertSessionHasNoErrors();
+        hcGuardarNueva(['diagnosticos' => diagnosticosDistintos(FormularioConsulta::MAXIMO_DIAGNOSTICOS + 1)])->assertSessionHasErrors('diagnosticos');
+        hcGuardarNueva(['diagnosticos' => diagnosticosDistintos(FormularioConsulta::MAXIMO_DIAGNOSTICOS)])->assertSessionHasNoErrors();
     });
 
     test('diagnósticos: sin repetir el código entre los vigentes', function () {
@@ -249,7 +252,7 @@ describe('sin JavaScript', function () {
     });
 
     test('las filas se dibujan con la marca dentro de un template x-if (solo con JS)', function () {
-        $html = $this->get(route('admin.consultas.create', $this->historia))->getContent();
+        $html = $this->get(route('admin.consultas.atencion', hcEnCurso()))->getContent();
 
         expect($html)->toContain('<template x-if="true"><input type="hidden" name="con_anamnesis" value="1"></template>')
             ->toContain('<template x-if="true"><input type="hidden" name="con_diagnosticos" value="1"></template>');
@@ -268,7 +271,7 @@ describe('concurrencia', function () {
         // Pestaña 2, con la versión vieja.
         hcActualizar($consulta, [...hcFilasGuardadas($consulta), 'motivo_consulta' => 'Pestaña 2.'], $vieja)
             ->assertRedirect(route('admin.consultas.edit', $consulta))
-            ->assertSessionHas('error', ConsultaController::MODIFICADA_EN_OTRA_VENTANA)
+            ->assertSessionHas('error', Autoguardado::VERSION_VIEJA)
             ->assertSessionHasInput('motivo_consulta', 'Pestaña 2.');
 
         expect($consulta->fresh()->motivo_consulta)->toBe('Pestaña 1.');
@@ -283,7 +286,7 @@ describe('concurrencia', function () {
         Carbon::setTestNow(now()->addSecond());
         hcActualizar($consulta, $datos, $vieja)->assertSessionHasNoErrors();
 
-        hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertSessionHas('error', ConsultaController::MODIFICADA_EN_OTRA_VENTANA);
+        hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertSessionHas('error', Autoguardado::VERSION_VIEJA);
     });
 
     test('dos guardados en el mismo segundo no se confunden (la versión tiene microsegundos)', function () {
@@ -292,7 +295,7 @@ describe('concurrencia', function () {
 
         Carbon::setTestNow(now()->addMicroseconds(5));
         hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertSessionHasNoErrors();
-        hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertSessionHas('error', ConsultaController::MODIFICADA_EN_OTRA_VENTANA);
+        hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertSessionHas('error', Autoguardado::VERSION_VIEJA);
     });
 });
 

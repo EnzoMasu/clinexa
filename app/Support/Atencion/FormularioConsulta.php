@@ -178,6 +178,8 @@ final class FormularioConsulta
                         $fail('La anamnesis puede tener hasta '.self::MAXIMO_BLOQUES.' bloques vigentes. Retire o descarte alguno.');
                     }
                 }],
+                // uid: la marca de la fila en la pantalla (el autoguardado devuelve el id de las nuevas por su uid).
+                'anamnesis.*.uid' => ['nullable', 'string', 'max:64'],
                 'anamnesis.*.id' => ['nullable', 'integer', $deEstaConsulta('bloques_anamnesis')],
                 'anamnesis.*.activo' => ['nullable', 'boolean'],
                 'anamnesis.*.tipo_bloque_anamnesis_id' => ['required', 'integer', function (string $atributo, mixed $valor, Closure $fail) use ($original) {
@@ -220,6 +222,7 @@ final class FormularioConsulta
                         $fail('Marque cuál de los diagnósticos vigentes es el principal.');
                     }
                 }],
+                'diagnosticos.*.uid' => ['nullable', 'string', 'max:64'],
                 'diagnosticos.*.id' => ['nullable', 'integer', $deEstaConsulta('diagnosticos')],
                 'diagnosticos.*.activo' => ['nullable', 'boolean'],
                 'diagnosticos.*.codigo_cie10' => ['required', 'string', 'max:10', function (string $atributo, mixed $valor, Closure $fail) use ($original) {
@@ -235,6 +238,7 @@ final class FormularioConsulta
                         $fail('La consulta puede tener hasta '.self::MAXIMO_INDICACIONES.' indicaciones generales vigentes. Retire o descarte alguna.');
                     }
                 }],
+                'indicaciones.*.uid' => ['nullable', 'string', 'max:64'],
                 'indicaciones.*.id' => ['nullable', 'integer', $deEstaConsulta('indicaciones')],
                 'indicaciones.*.activo' => ['nullable', 'boolean'],
                 'indicaciones.*.tipo_indicacion_id' => ['nullable', 'integer', function (string $atributo, mixed $valor, Closure $fail) use ($original) {

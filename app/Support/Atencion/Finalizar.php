@@ -35,19 +35,23 @@ final class Finalizar
                 throw new AccionRechazada(Autoguardado::VERSION_VIEJA);
             }
 
-            $turno = $consulta->turno_id ? Turno::whereKey($consulta->turno_id)->lockForUpdate()->firstOrFail() : null;
-            if ($turno && ! $turno->tieneEstado(Estado::EN_CONSULTA)) {
-                throw new AccionRechazada('No se finalizó: el turno cambió desde otra ventana ('.mb_strtolower($turno->estado->nombre).'). Revise la agenda.');
-            }
+            // El turno pasa a ATENDIDO solo si sigue EN_CONSULTA (la consulta se finaliza igual).
+            $turno = $consulta->turno_id ? Turno::whereKey($consulta->turno_id)->lockForUpdate()->first() : null;
 
             return Auditoria::conDetalle('Finalizar', function () use ($usuario, $consulta, $datos, $turno) {
                 GuardarSecciones::guardar($consulta, $datos, $usuario, [FormularioConsulta::PREPARACION, FormularioConsulta::CLINICO]);
                 $consulta->forceFill(['estado_id' => Estado::idDe(Estado::FINALIZADO), 'finalizada_en' => now()])->save();
-                $turno?->pasarA(Estado::ATENDIDO);
+                if ($turno?->tieneEstado(Estado::EN_CONSULTA)) {
+                    $turno->pasarA(Estado::ATENDIDO);
+                }
 
                 $borradores = $consulta->recetas()->where('estado_id', Estado::idDe(Estado::PENDIENTE))->count();
 
-                return $borradores > 0 ? ["Quedaron {$borradores} recetas en borrador sin emitir: revíselas en la sección Recetas."] : [];
+                return match (true) {
+                    $borradores === 1 => ['Quedó 1 receta en borrador sin emitir: revísela en la consulta.'],
+                    $borradores > 1 => ["Quedaron {$borradores} recetas en borrador sin emitir: revíselas en la consulta."],
+                    default => [],
+                };
             });
         });
     }

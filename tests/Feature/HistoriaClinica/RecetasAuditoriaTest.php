@@ -1,7 +1,7 @@
 <?php
 
 use App\Enums\AccionAuditoria;
-use App\Http\Controllers\Admin\ConsultaController;
+use App\Support\Atencion\Autoguardado;
 use App\Models\Indicacion;
 use App\Models\LogAuditoria;
 use App\Models\Receta;
@@ -218,7 +218,7 @@ describe('indicaciones generales', function () {
         hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => 'Reposo']]), $vieja)->assertSessionHasNoErrors();
 
         hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => 'Otra']]), $vieja)
-            ->assertSessionHas('error', ConsultaController::MODIFICADA_EN_OTRA_VENTANA);
+            ->assertSessionHas('error', Autoguardado::VERSION_VIEJA);
     });
 });
 

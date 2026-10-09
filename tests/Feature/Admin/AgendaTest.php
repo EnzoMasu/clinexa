@@ -73,6 +73,12 @@ describe('cálculo de horarios disponibles', function () {
         expect(horarios())->toBe(['08:00', '09:00', '09:30']);
     });
 
+    test('solo CANCELADO libera el horario: SALTADO, EN_CONSULTA, ATENDIDO y AUSENTE lo siguen ocupando', function (string $estado) {
+        turno(['hora_inicio' => '08:30', 'hora_fin' => '09:00', 'estado_id' => Estado::idDe($estado)]);
+
+        expect(horarios())->toBe(['08:00', '09:00', '09:30']);
+    })->with(['PENDIENTE', 'CONFIRMADO', 'SALTADO', 'EN_CONSULTA', 'ATENDIDO', 'AUSENTE']);
+
     test('un turno que cruza dos bloques los descarta a los dos', function () {
         turno(['hora_inicio' => '08:15', 'hora_fin' => '08:45']);
 
@@ -223,8 +229,12 @@ describe('cambios de estado', function () {
     })->with([
         ['PENDIENTE', 'confirmar', 'CONFIRMADO'],
         ['PENDIENTE', 'cancelar', 'CANCELADO'],
+        ['PENDIENTE', 'ausente', 'AUSENTE'],
         ['CONFIRMADO', 'ausente', 'AUSENTE'],
         ['CONFIRMADO', 'cancelar', 'CANCELADO'],
+        // SALTADO ("Por llamar de nuevo"): "Pasar a ausente" de la pantalla Consulta usa esta misma acción.
+        ['SALTADO', 'ausente', 'AUSENTE'],
+        ['SALTADO', 'cancelar', 'CANCELADO'],
     ]);
 
     test('transiciones inválidas: no cambia nada y avisa', function (string $desde, string $accion) {
@@ -233,10 +243,14 @@ describe('cambios de estado', function () {
         accion($turno, $accion)->assertSessionHas('error');
         expect($turno->fresh()->estado->codigo)->toBe($desde);
     })->with([
-        ['PENDIENTE', 'ausente'],
         ['CONFIRMADO', 'confirmar'],
         ['ATENDIDO', 'cancelar'],
+        ['ATENDIDO', 'ausente'],
         ['CANCELADO', 'confirmar'],
+        ['AUSENTE', 'cancelar'],
+        ['EN_CONSULTA', 'cancelar'],
+        ['EN_CONSULTA', 'ausente'],
+        ['EN_CONSULTA', 'confirmar'],
     ]);
 
     test('"atender" ya no es un cambio de estado: ATENDIDO solo se alcanza guardando la consulta', function (string $desde) {

@@ -48,7 +48,7 @@ test('HTML y JS en motivo, anamnesis, hallazgos y descripción adicional: escapa
     sinHtmlCrudo($this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk())
         ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false);
 
-    // Formulario de edición: motivo y hallazgos escapados en el textarea; anamnesis y diagnósticos como
+    // Pantalla de edición (consulta finalizada): motivo y hallazgos escapados en el textarea; anamnesis y diagnósticos como
     // JSON con < > " codificados para Alpine (dentro de JSON.parse('...'), por eso la barra doble).
     sinHtmlCrudo($this->get(route('admin.consultas.edit', $consulta))->assertOk())
         ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false)
@@ -59,7 +59,9 @@ test('HTML y JS en motivo, anamnesis, hallazgos y descripción adicional: escapa
 
     // Detalle de auditoría (con permiso clínico): cada lista antes/después, escapada.
     $this->actingAs(User::factory()->conPermisos(['AUDITORIA' => ['VER'], 'HISTORIA_CLINICA' => ['VER']])->create());
-    $eventos = LogAuditoria::where('tabla_afectada', 'consultas')->whereIn('accion', [AccionAuditoria::CREAR->value, AccionAuditoria::EDITAR->value])->orderBy('id')->get();
+    // Los de cada sección (el CREAR de "Atender" y el cambio de estado no llevan contenido).
+    $eventos = LogAuditoria::where('tabla_afectada', 'consultas')->where('accion', AccionAuditoria::EDITAR->value)->orderBy('id')->get()
+        ->filter(fn ($e) => array_intersect(['motivo_consulta', 'bloquesAnamnesis', 'examenFisico', 'diagnosticos'], array_keys($e->valor_nuevo)) !== [])->values();
     expect($eventos)->toHaveCount(4);
 
     $esperado = [
@@ -73,18 +75,25 @@ test('HTML y JS en motivo, anamnesis, hallazgos y descripción adicional: escapa
     }
 });
 
-test('un error de validación vuelve a mostrar lo escrito, escapado', function () {
-    $this->from(route('admin.consultas.create', $this->historia))
-        ->post(route('admin.consultas.store', $this->historia), [...hcDatos(['examen' => ['hallazgos' => $this->img, 'temperatura' => '99']]), 'motivo_consulta' => $this->script])
+test('un error de validación al finalizar vuelve a la pantalla de atención con lo escrito, escapado', function () {
+    $consulta = hcEnCurso();
+    hcFinalizar($consulta, [...hcDatos(['examen' => ['hallazgos' => $this->img, 'temperatura' => '99']]), 'motivo_consulta' => $this->script])
+        ->assertRedirect(route('admin.consultas.atencion', $consulta))
         ->assertSessionHasErrors('examen.temperatura');
 
-    sinHtmlCrudo($this->get(route('admin.consultas.create', $this->historia))->assertOk())
+    sinHtmlCrudo($this->get(route('admin.consultas.atencion', $consulta))->assertOk())
         ->assertSee('&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
         ->assertSee('&lt;img src=x onerror=alert(1)&gt;', false);
 });
 
-test('las vistas clínicas no usan {!! !!}', function () {
-    foreach (['consultas/show', 'consultas/_contenido', 'consultas/form', 'historias-clinicas/show', 'historias-clinicas/_tabla', 'atencion-sin-turno/index', 'atencion-sin-turno/_tabla', 'auditoria/show'] as $vista) {
-        expect(file_get_contents(resource_path("views/admin/{$vista}.blade.php")))->not->toContain('{!!');
+test('las vistas clínicas no usan {!! !!} ni x-html', function () {
+    $vistas = [
+        ...glob(resource_path('views/admin/{consultas,consultas/secciones,atencion,preparacion,historias-clinicas}/*.blade.php'), GLOB_BRACE),
+        resource_path('views/admin/auditoria/show.blade.php'),
+    ];
+    expect(count($vistas))->toBeGreaterThan(20);
+
+    foreach ($vistas as $vista) {
+        expect(file_get_contents($vista))->not->toContain('{!!')->not->toContain('x-html');
     }
 });

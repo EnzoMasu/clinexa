@@ -21,9 +21,9 @@ test('todos los formularios de alta de /admin llevan novalidate', function () {
     $altas = collect(Route::getRoutes()->getRoutes())
         ->map(fn ($ruta) => $ruta->getName())
         ->filter(fn (?string $nombre) => $nombre && str_starts_with($nombre, 'admin.') && str_ends_with($nombre, '.create'))
-        // La consulta y la receta dependen de una historia o una consulta y de un profesional: su novalidate se
-        // prueba en FormularioConsultaTest y RecetasTest.
-        ->reject(fn (string $nombre) => in_array($nombre, ['admin.consultas.create', 'admin.recetas.create'], true))
+        // La receta depende de una consulta y de un profesional: su novalidate se prueba en RecetasTest. La
+        // consulta no tiene alta (.create): se crea con Atender y su pantalla se prueba en FormularioConsultaTest.
+        ->reject(fn (string $nombre) => $nombre === 'admin.recetas.create')
         ->values();
 
     expect($altas)->not->toBeEmpty();

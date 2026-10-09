@@ -44,8 +44,9 @@
                         </span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $consulta->historiaClinica->paciente])</span>
                         <span class="text-xs text-gray-600 dark:text-gray-400">
-                            {{-- De otro día: con la fecha (hora de Paraguay). --}}
-                            En consulta desde {{ Fecha::mostrar($consulta->iniciada_en) === Fecha::mostrar(Fecha::hoy()) ? $hora($consulta->iniciada_en) : Fecha::mostrar($consulta->iniciada_en, conHora: true) }}
+                            {{-- De otro día (en hora de Paraguay, no en UTC): con la fecha. --}}
+                            @php($desde = Fecha::mostrar($consulta->iniciada_en, conHora: true))
+                            En consulta desde {{ str_starts_with($desde, Fecha::hoy()->format(Fecha::FORMATO)) ? substr($desde, -5) : $desde }}
                         </span>
                         <a href="{{ route('admin.consultas.atencion', $consulta) }}" class="{{ $botonPrincipal }}">Continuar</a>
                     </li>

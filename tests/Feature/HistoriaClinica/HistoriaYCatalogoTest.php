@@ -61,14 +61,15 @@ describe('historia automática y backfill', function () {
 });
 
 describe('módulos, permisos y catálogo', function () {
-    test('HISTORIA_CLINICA y TIPOS_BLOQUE_ANAMNESIS con ACTIVO/INACTIVO; la historia es sensible y solo usa VER, CREAR y EDITAR', function () {
+    test('TIPOS_BLOQUE_ANAMNESIS con ACTIVO/INACTIVO; HISTORIA_CLINICA con los estados de la consulta; la historia es sensible y solo usa VER, CREAR y EDITAR', function () {
         $admin = User::factory()->administrador()->create();
         (new ModulosSensiblesSeeder)->run();
 
-        foreach (['HISTORIA_CLINICA', 'TIPOS_BLOQUE_ANAMNESIS'] as $codigo) {
-            expect(Estado::delModulo($codigo)->pluck('codigo')->sort()->values()->all())->toBe(['ACTIVO', 'INACTIVO'])
-                ->and(Estado::inicialDe($codigo))->toBe(estadoId('ACTIVO'));
-        }
+        expect(Estado::delModulo('TIPOS_BLOQUE_ANAMNESIS')->pluck('codigo')->sort()->values()->all())->toBe(['ACTIVO', 'INACTIVO'])
+            ->and(Estado::inicialDe('TIPOS_BLOQUE_ANAMNESIS'))->toBe(estadoId('ACTIVO'));
+        // Las consultas usan el estado_modulo de HISTORIA_CLINICA (la historia en sí no tiene estado).
+        expect(Estado::delModulo('HISTORIA_CLINICA')->pluck('codigo')->sort()->values()->all())->toBe(['ANULADO', 'EN_CURSO', 'EN_PREPARACION', 'FINALIZADO'])
+            ->and(Estado::inicialDe('HISTORIA_CLINICA'))->toBe(estadoId('EN_PREPARACION'));
         expect(ModuloSistema::where('codigo', 'HISTORIA_CLINICA')->value('es_sensible'))->toBeTrue()
             ->and(Permiso::accionesDe('HISTORIA_CLINICA'))->toBe(['VER', 'CREAR', 'EDITAR'])
             ->and($admin->tienePermiso('HISTORIA_CLINICA', 'EDITAR'))->toBeTrue();

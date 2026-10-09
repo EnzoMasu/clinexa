@@ -83,6 +83,14 @@ test('un turno CANCELADO no ocupa el horario: se puede superponer con él', func
     expect(Turno::count())->toBe(3)->and(Turno::ocupanHorario()->count())->toBe(1);
 });
 
+test('solo CANCELADO libera: SALTADO, EN_CONSULTA, ATENDIDO y AUSENTE siguen ocupando el horario', function (string $estado) {
+    ($this->turno)(['estado_id' => Estado::idDe($estado)]);
+
+    expect(fn () => ($this->turno)())
+        ->toThrow(fn (QueryException $e) => expect($e->getCode())->toBe('23P01'));
+    expect(Turno::count())->toBe(1)->and(Turno::ocupanHorario()->count())->toBe(1);
+})->with(['SALTADO', 'EN_CONSULTA', 'ATENDIDO', 'AUSENTE']);
+
 test('al cancelar un turno, su horario se puede volver a dar', function () {
     $turno = ($this->turno)();
     $turno->update(['estado_id' => Estado::idDe(Estado::CANCELADO)]);
