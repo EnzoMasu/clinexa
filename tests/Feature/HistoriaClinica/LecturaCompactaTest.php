@@ -68,16 +68,16 @@ describe('fragmento del detalle', function () {
         $consulta = hcConsulta();
 
         foreach ([pedirDetalle($consulta), $this->get(route('admin.consultas.show', $consulta)), $this->get(route('admin.historias-clinicas.show', $this->historia)),
-            $this->get(route('admin.historias-clinicas.index')), $this->get(route('admin.consultas.edit', $consulta))] as $respuesta) {
+            $this->get(route('admin.historias-clinicas.index'))] as $respuesta) {
             $respuesta->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
             expect($respuesta->headers->get('Cache-Control'))->toContain('no-store')->toContain('private')->not->toContain('public');
         }
     });
 
-    test('"Editar" en el popup solo si puede modificarla: la URL viaja solo para el profesional que atiende', function () {
+    test('el popup no ofrece "Editar" a nadie: una consulta cerrada no se modifica', function () {
         $consulta = hcConsulta();
 
-        pedirDetalle($consulta)->assertSee('data-url-editar="'.route('admin.consultas.edit', $consulta).'"', false);
+        pedirDetalle($consulta)->assertOk()->assertDontSee('data-url-editar', false)->assertDontSee('/edit', false);
         $this->actingAs($this->otroMedico);
         pedirDetalle($consulta)->assertOk()->assertDontSee('data-url-editar', false);
     });
@@ -136,21 +136,21 @@ describe('página compacta', function () {
         [$auditor] = hcMedico(['apellidos' => 'Paredes', 'nombres' => 'Juan'], 'MP-9', ['HISTORIA_CLINICA' => ['VER'], 'AUDITORIA' => ['VER']]);
 
         $this->get(route('admin.consultas.show', $consulta))->assertOk()
-            ->assertSeeInOrder(['Editar', 'Volver a la historia', 'Duarte, Carmen', 'Ficha FP-0000001', '06/10/2026', 'Benítez, Rosa', 'Sin turno (urgencia)', 'Motivo de consulta']);
+            ->assertSeeInOrder(['Consulta cerrada: no puede modificarse.', 'Volver a la historia', 'Duarte, Carmen', 'Ficha FP-0000001', '06/10/2026', 'Benítez, Rosa', 'Sin turno (urgencia)', 'Motivo de consulta']);
 
         $html = $this->actingAs($auditor)->get(route('admin.consultas.show', $consulta))->assertOk()->assertDontSee('>Editar</a>', false)->getContent();
         expect($html)->toMatch('#<details class="[^"]*">\s*<summary[^>]*>Historial de cambios</summary>#')
             ->not->toMatch('#<details[^>]*\bopen\b#');
     });
 
-    test('con turno, el encabezado lo muestra; después de guardar se vuelve a la página con "Consulta guardada."', function () {
+    test('con turno, el encabezado lo muestra; al finalizar se va a la página con "Consulta finalizada."; después ya no se modifica (409)', function () {
         $turno = hcTurno();
-        hcGuardarNueva([], $turno)->assertRedirect()->assertSessionHas('status', 'Consulta guardada.');
+        hcGuardarNueva([], $turno)->assertRedirect()->assertSessionHas('status', 'Consulta finalizada.');
         $consulta = Consulta::sole();
 
         $this->get(route('admin.consultas.show', $consulta))->assertSee('Turno del 06/10/2026, 08:00')->assertDontSee('Sin turno (urgencia)');
 
-        hcActualizar($consulta, hcFilasGuardadas($consulta))->assertRedirect(route('admin.consultas.show', $consulta))->assertSessionHas('status', 'Consulta guardada.');
+        hcActualizar($consulta, hcFilasGuardadas($consulta))->assertStatus(409);
     });
 });
 

@@ -38,13 +38,27 @@
                         x-bind:class="hora === horario.hora_inicio
                             ? 'border-indigo-600 bg-indigo-600 text-white'
                             : 'border-gray-300 text-gray-900 hover:border-indigo-400 hover:bg-indigo-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-700'">
-                        <span class="block font-mono font-medium" x-text="`${horario.hora_inicio} – ${horario.hora_fin}`"></span>
+                        <span class="block font-mono font-medium text-current" x-text="`${horario.hora_inicio} – ${horario.hora_fin}`"></span>
                         <span class="block text-xs opacity-80" x-text="horario.consultorio"></span>
                     </button>
                 </template>
             </div>
             <x-input-error :messages="$errors->get('hora_inicio')" />
         </div>
+
+        {{-- Segundo turno del día con el mismo profesional: no se guarda hasta confirmar (lo valida el servidor). --}}
+        @if ($errors->has('agendar_igual') || old('agendar_igual'))
+            <div role="alert" class="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100">
+                @foreach ($errors->get('agendar_igual') as $aviso)
+                    <p class="font-medium">{{ $aviso }}</p>
+                @endforeach
+                <label class="inline-flex items-center gap-2">
+                    <input type="checkbox" name="agendar_igual" value="1" @checked(old('agendar_igual'))
+                        class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900">
+                    Agendar igual
+                </label>
+            </div>
+        @endif
 
         <div class="grid gap-6 sm:grid-cols-2">
             <x-admin.select name="procedimiento_id" label="Procedimiento (opcional)" :options="$procedimientos" nullable />

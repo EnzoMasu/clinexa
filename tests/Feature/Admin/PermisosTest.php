@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(180); // 24 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: alta, guardar, ver, detalle del popup, editar, actualizar) + atención sin turno (pantalla y buscador de pacientes) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
+    expect($rutas)->toHaveCount(190); // 24 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó) + atención (pantalla, autoguardado, finalizar, deshacer) + Preparación (lista, preparar, formulario, marcar lista, reabrir) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -37,7 +37,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     }
 
     $this->get('/dashboard')->assertOk()->assertDontSee('Administración');
-});
+})->group('lento'); // docs/pruebas.md: no corre en el comando rápido
 
 test('un usuario sin perfil asignado tampoco entra', function () {
     $this->actingAs(User::factory()->create(['perfil_acceso_id' => null]));
@@ -106,7 +106,7 @@ test('el Administrador ve los 5 grupos del menú, en orden y con sus secciones, 
         'Seguridad' => ['usuarios', 'perfiles-acceso', 'auditoria'],
         'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
         'Agenda' => ['turnos', 'disponibilidades', 'consultorios', 'origenes-turno'],
-        'Clínica' => ['historias-clinicas', 'atencion-sin-turno'],
+        'Clínica' => ['atencion', 'preparacion', 'historias-clinicas'],
         'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'paises', 'departamentos', 'ciudades'],
     ];
 
@@ -147,12 +147,13 @@ test('un perfil con permisos en un solo grupo no ve los encabezados de los grupo
 test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra a todo', function () {
     $admin = User::factory()->administrador()->create();
 
-    expect(ModuloSistema::count())->toBe(27)
+    expect(ModuloSistema::count())->toBe(28)
         ->and($admin->perfilAcceso->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 
-    // Salvo lo que además exige ser profesional activo (ConsultaPolicy::atender), que el Administrador
-    // no es por tener el perfil: el buscador de pacientes de Atención sin turno.
-    $soloProfesionales = ['admin.atencion-sin-turno.pacientes'];
+    // Salvo lo que además exige ser profesional activo (ConsultaPolicy), que el Administrador no es por
+    // tener el perfil: el buscador de pacientes de "Atender sin turno" y la vista de "Cerrar jornada".
+    // (La pantalla Consulta sí abre: le muestra el aviso de que es para profesionales.)
+    $soloProfesionales = ['admin.atencion.pacientes', 'admin.atencion.cerrar-jornada'];
 
     $this->actingAs($admin);
     foreach (collect(rutasAdmin())->where('metodo', 'GET')->reject(fn ($ruta) => str_contains($ruta['uri'], '/1')) as $ruta) {
@@ -160,7 +161,7 @@ test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra
             ? $this->get($ruta['uri'])->assertForbidden()
             : $this->get($ruta['uri'])->assertOk();
     }
-});
+})->group('lento'); // docs/pruebas.md: no corre en el comando rápido
 
 test('un módulo INACTIVO no da acceso aunque el perfil tenga el permiso', function () {
     $this->actingAs(User::factory()->administrador()->create());

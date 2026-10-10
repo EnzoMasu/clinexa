@@ -3,7 +3,7 @@
 <x-admin.table :headers="['Código', 'Nombre', 'Tipo', 'Duración', 'Estado']" :paginator="$procedimientos">
     @forelse ($procedimientos as $procedimiento)
         <tr>
-            <td class="px-6 py-4 font-mono font-medium">{{ $procedimiento->codigo }}</td>
+            <td class="px-6 py-4 dato font-medium">{{ $procedimiento->codigo }}</td>
             <td class="px-6 py-4">{{ $procedimiento->nombre }}</td>
             <td class="px-6 py-4">{{ $procedimiento->tipo }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ $procedimiento->duracion_estimada_minutos }} min</td>

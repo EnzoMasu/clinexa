@@ -171,4 +171,4 @@ test('rendimiento con 50.000 registros: 20 por página, consultas fijas y rápid
             ->and(count(DB::getQueryLog()))->toBeLessThan(15)
             ->and($segundos)->toBeLessThan(2.0);
     }
-});
+})->group('lento'); // docs/pruebas.md: no corre en el comando rápido

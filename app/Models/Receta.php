@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\AccionAuditoria;
 use App\Exceptions\RecetaInmutable;
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\ProtegidoPorCierre;
 use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -24,7 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class Receta extends Model
 {
-    use Auditable, TieneEstado;
+    use Auditable, TieneEstado, ProtegidoPorCierre;
 
     protected $table = 'recetas';
 
@@ -177,5 +178,22 @@ class Receta extends Model
         $siguiente = $mayor ? (int) substr($mayor, strlen(self::PREFIJO_NUMERO)) + 1 : 1;
 
         return self::PREFIJO_NUMERO.str_pad((string) $siguiente, self::DIGITOS_NUMERO, '0', STR_PAD_LEFT);
+    }
+
+    /** Regla de cierre (ProtegidoPorCierre): la consulta de la que cuelga, leída de la base. */
+    protected function consultaDeCierre(): ?Consulta
+    {
+        return $this->consulta_id ? Consulta::query()->select(['id', 'estado_id'])->find($this->consulta_id) : null;
+    }
+    /**
+     * Con la consulta cerrada, lo único permitido es anular una receta EMITIDA con su motivo (estado, fecha
+     * y motivo de anulación).
+     */
+    protected function permitidoConConsultaCerrada(): bool
+    {
+        return $this->exists
+            && Estado::find($this->getRawOriginal('estado_id'))?->codigo === Estado::EMITIDO
+            && Estado::find($this->estado_id)?->codigo === Estado::ANULADO
+            && array_diff(array_keys($this->getDirty()), self::CAMPOS_DE_ANULACION) === [];
     }
 }

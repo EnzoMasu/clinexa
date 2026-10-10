@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\AccionRechazada;
 use App\Http\Controllers\Controller;
 use App\Models\Estado;
 use App\Models\OrigenTurno;
@@ -10,6 +11,7 @@ use App\Models\Procedimiento;
 use App\Models\Profesional;
 use App\Models\Turno;
 use App\Support\Agenda;
+use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
 use App\Support\Fecha;
 use Illuminate\Database\QueryException;
@@ -45,7 +47,7 @@ class TurnoController extends Controller
             ->join('personas as persona_paciente', 'persona_paciente.id', '=', 'pacientes.persona_id')
             ->join('profesionales', 'profesionales.id', '=', 'turnos.profesional_id')
             ->join('personas as persona_profesional', 'persona_profesional.id', '=', 'profesionales.persona_id')
-            ->with(['paciente.persona.tipoDocumento', 'paciente.historiaClinica', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno', 'consulta'])
+            ->with(['paciente.persona.tipoDocumento', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno'])
             ->when($fecha, fn ($query) => $query->whereDate('turnos.fecha', $fecha))
             ->when($busqueda !== '' && ! $fecha, fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('persona_paciente.apellidos', "%{$busqueda}%")
@@ -74,17 +76,30 @@ class TurnoController extends Controller
         ]);
     }
 
+    /** El horario elegido ya empezó (o la fecha ya pasó): Fecha::yaLlego, la regla de los horarios libres. */
+    public const HORARIO_PASADO = 'Ese horario ya pasó. Elija uno posterior.';
+
     public function store(Request $request): RedirectResponse
     {
-        $datos = $this->validar($request);
+        ['segundoDelDia' => $segundoDelDia] = $datos = $this->validar($request);
+        unset($datos['segundoDelDia']);
 
         try {
             // En su propia transacción: si la base lo rechaza, se deshace solo esto (en PostgreSQL un
-            // error deja inutilizable la transacción en curso).
-            $turno = DB::transaction(fn () => Turno::create($datos));
+            // error deja inutilizable la transacción en curso). Un segundo turno del día con el mismo
+            // profesional (confirmado con "Agendar igual") lo dice en el detalle de su CREAR.
+            $crear = fn () => DB::transaction(fn () => Turno::create($datos));
+            $turno = $segundoDelDia ? Auditoria::conDetalle('Segundo turno del día confirmado', $crear) : $crear();
         } catch (QueryException $e) {
-            // La base rechazó la superposición: otro turno ocupó ese horario entre que se eligió y se guardó.
             if ($e->getCode() === self::SUPERPOSICION) {
+                // La base rechazó la superposición: otro turno se guardó entre la validación y el alta. Si es
+                // de la paciente (EXCLUDE turnos_sin_superposicion_paciente), el mismo aviso que la validación.
+                if (str_contains($e->getMessage(), 'turnos_sin_superposicion_paciente')) {
+                    $otro = Turno::superpuestoDeLaPaciente((int) $datos['paciente_id'], $datos['fecha'], $datos['hora_inicio'], $datos['hora_fin']);
+
+                    return back()->withInput()->withErrors(['hora_inicio' => $otro?->avisoSuperposicionPaciente() ?? 'La paciente ya tiene otro turno en ese horario.']);
+                }
+
                 return back()->withInput()->withErrors(['hora_inicio' => 'Ese horario se acaba de ocupar. Elija otro.']);
             }
             throw $e;
@@ -136,7 +151,7 @@ class TurnoController extends Controller
             fn (Profesional $profesional) => "Mat. {$profesional->matricula}");
     }
 
-    /** Confirmar, marcar ausente o cancelar, según las transiciones válidas del estado actual (atender es guardar la consulta). */
+    /** Botones manuales: confirmar, marcar ausente o cancelar, según las transiciones válidas del estado actual. */
     public function cambiarEstado(Request $request, Turno $turno): RedirectResponse
     {
         $accion = $request->validate(['accion' => ['required', Rule::in(array_keys(Turno::ACCIONES))]])['accion'];
@@ -145,7 +160,13 @@ class TurnoController extends Controller
             return back()->with('error', sprintf('No se puede %s un turno %s.', mb_strtolower(Turno::ACCIONES[$accion][1]), mb_strtolower($turno->estado->nombre)));
         }
 
-        $turno->update(['estado_id' => Estado::idDe(Turno::ACCIONES[$accion][0])]);
+        // pasarA revalida (transición y, para la ausencia, la hora del turno) y, si corresponde, anula la
+        // consulta EN_PREPARACION del turno.
+        try {
+            $turno->pasarA(Turno::ACCIONES[$accion][0]);
+        } catch (AccionRechazada $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('status', sprintf('Turno del %s a las %s: %s.',
             Fecha::mostrar($turno->fecha), substr($turno->hora_inicio, 0, 5), mb_strtolower($turno->fresh()->estado->nombre)));
@@ -158,19 +179,18 @@ class TurnoController extends Controller
     private function validar(Request $request): array
     {
         $activo = Estado::idDe(Estado::ACTIVO);
-        $hoy = Fecha::hoy()->format(Fecha::FORMATO);
 
         $validador = validator($request->all(), [
             'paciente_id' => ['required', 'integer', Rule::exists('pacientes', 'id')->where('estado_id', $activo)],
             'profesional_id' => ['required', 'integer', Rule::exists('profesionales', 'id')->where('estado_id', $activo)],
-            'fecha' => ['required', ...Fecha::regla(), "after_or_equal:{$hoy}"],
+            'fecha' => ['required', ...Fecha::regla()],
             'hora_inicio' => ['required', 'date_format:H:i'],
             'procedimiento_id' => ['nullable', 'integer', Rule::exists('procedimientos', 'id')->where('estado_id', $activo)],
             'origen_turno_id' => ['nullable', 'integer', Rule::exists('origenes_turno', 'id')->where('estado_id', $activo)],
             'observaciones' => ['nullable', 'string', 'max:2000'],
+            'agendar_igual' => ['nullable', 'boolean'],
         ], [
             ...Fecha::mensajes('fecha'),
-            'fecha.after_or_equal' => 'No se pueden dar turnos en fechas pasadas.',
             'hora_inicio.required' => 'Elija uno de los horarios libres.',
         ], [
             'paciente_id' => 'paciente', 'profesional_id' => 'profesional', 'hora_inicio' => 'horario',
@@ -178,23 +198,57 @@ class TurnoController extends Controller
         ]);
 
         $horario = null;
-        $validador->after(function (Validator $validador) use (&$horario) {
+        $segundoDelDia = false;
+        $validador->after(function (Validator $validador) use (&$horario, &$segundoDelDia) {
             if ($validador->errors()->isNotEmpty()) {
                 return;
             }
             $datos = $validador->getData();
+
+            // No se agenda en el pasado: la misma regla que el cálculo de horarios libres (Fecha::yaLlego). Un día
+            // anterior, o hoy un horario que ya empezó (en punto incluido), se rechaza con un aviso propio.
+            $fecha = Fecha::aIso($datos['fecha']);
+            if (Fecha::yaLlego($fecha, $datos['hora_inicio'])) {
+                $validador->errors()->add($fecha < Fecha::hoy()->format('Y-m-d') ? 'fecha' : 'hora_inicio', self::HORARIO_PASADO);
+
+                return;
+            }
+
             $horario = Agenda::horario(Profesional::findOrFail($datos['profesional_id']), Carbon::parse(Fecha::aIso($datos['fecha'])), $datos['hora_inicio']);
 
             if (! $horario) {
-                $validador->errors()->add('hora_inicio', 'Ese horario no está disponible para el profesional en esa fecha. Elija uno de los horarios libres.');
+                // Si lo que ocupa esa hora es un turno de la misma paciente (con este u otro profesional), el
+                // aviso es el de la paciente; si no, el horario simplemente no está libre.
+                $deLaPaciente = Turno::superpuestoDeLaPaciente((int) $datos['paciente_id'], $fecha, $datos['hora_inicio'],
+                    Carbon::parse($datos['hora_inicio'])->addMinute()->format('H:i'));
+                $validador->errors()->add('hora_inicio', $deLaPaciente?->avisoSuperposicionPaciente()
+                    ?? 'Ese horario no está disponible para el profesional en esa fecha. Elija uno de los horarios libres.');
+
+                return;
+            }
+
+            // La paciente no puede tener dos turnos activos que se superpongan, con ningún profesional.
+            $superpuesto = Turno::superpuestoDeLaPaciente((int) $datos['paciente_id'], $fecha, $horario['hora_inicio'], $horario['hora_fin']);
+            if ($superpuesto) {
+                $validador->errors()->add('hora_inicio', $superpuesto->avisoSuperposicionPaciente());
+
+                return;
+            }
+
+            // Otro turno activo ese día con el mismo profesional: se agenda solo con "Agendar igual".
+            $otro = Turno::otroDelDiaConElProfesional((int) $datos['paciente_id'], (int) $datos['profesional_id'], $fecha);
+            $segundoDelDia = $otro !== null;
+            if ($otro && ! filter_var($datos['agendar_igual'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $validador->errors()->add('agendar_igual', $otro->avisoSegundoDelDia());
             }
         });
 
         $datos = $validador->validate();
+        unset($datos['agendar_igual']);
 
         return [
-            ...$datos,
-            'fecha' => Fecha::aIso($datos['fecha']),
+            'segundoDelDia' => $segundoDelDia,
+            ...$datos,            'fecha' => Fecha::aIso($datos['fecha']),
             'hora_fin' => $horario['hora_fin'],
             'consultorio_id' => $horario['consultorio_id'],
         ];

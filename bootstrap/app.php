@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\ContextoAuditoriaWeb;
 use App\Http\Middleware\UsuarioActivo;
+use App\Http\Middleware\VerificarAlgunPermiso;
 use App\Http\Middleware\VerificarPermiso;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -27,6 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'permiso' => VerificarPermiso::class,
+            'permiso.alguno' => VerificarAlgunPermiso::class,
+            'consulta.abierta' => \App\Http\Middleware\ConsultaAbierta::class,
         ]);
 
         // El permiso se verifica antes de buscar el registro de la URL: sin permiso es 403,
@@ -35,7 +38,19 @@ return Application::configure(basePath: dirname(__DIR__))
             before: SubstituteBindings::class,
             prepend: VerificarPermiso::class,
         );
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: VerificarAlgunPermiso::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Paciente con consultas cerradas: en la web se vuelve a la pantalla con el aviso (en el campo de estado y
+        // arriba), sin perder lo escrito; nada se guarda.
+        $exceptions->render(function (\App\Exceptions\PacienteConConsultasCerradas $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 409);
+            }
+
+            return back()->withInput()->with('error', $e->getMessage())->withErrors(['estado_id' => $e->getMessage()]);
+        });
     })->create();

@@ -20,6 +20,7 @@ class Permiso extends Model
         'AUDITORIA' => ['VER', 'EXPORTAR'],
         'HISTORIA_CLINICA' => ['VER', 'CREAR', 'EDITAR'],
         'RECETAS' => ['VER', 'CREAR', 'EDITAR'],
+        'PREPARACION' => ['VER', 'CREAR', 'EDITAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

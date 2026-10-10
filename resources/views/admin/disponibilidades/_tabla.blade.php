@@ -8,7 +8,7 @@
             <td class="px-6 py-4 font-medium">{{ $disponibilidad->profesional->persona->nombre_completo }}</td>
             <td class="px-6 py-4">{{ $disponibilidad->consultorio->nombre_completo }}</td>
             <td class="px-6 py-4">{{ Disponibilidad::DIAS[$disponibilidad->dia_semana] }}</td>
-            <td class="px-6 py-4 whitespace-nowrap font-mono">{{ Disponibilidad::hora($disponibilidad->hora_desde) }} – {{ Disponibilidad::hora($disponibilidad->hora_hasta) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap dato">{{ Disponibilidad::hora($disponibilidad->hora_desde) }} – {{ Disponibilidad::hora($disponibilidad->hora_hasta) }}</td>
             <td class="px-6 py-4 whitespace-nowrap">{{ $disponibilidad->duracion_turno_minutos }} min</td>
             <td class="px-6 py-4 whitespace-nowrap">
                 {{ Fecha::mostrar($disponibilidad->vigencia_desde) }} – {{ $disponibilidad->vigencia_hasta ? Fecha::mostrar($disponibilidad->vigencia_hasta) : 'sin fin' }}

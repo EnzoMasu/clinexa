@@ -2,16 +2,20 @@
 
 <x-admin.page title="Consulta">
     <div class="mx-auto max-w-4xl space-y-4 p-4 text-sm sm:p-6">
-        <div class="flex flex-wrap items-center justify-end gap-3">
-            @if ($puedeModificar)
-                <a href="{{ route('admin.consultas.edit', $consulta) }}"
-                    class="inline-flex items-center rounded-md bg-gray-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white">Editar</a>
+        {{-- Una consulta cerrada (FINALIZADA) queda llaveada: no hay edición (docs/historia-clinica.md). --}}
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            @if ($consulta->finalizada())
+                <p role="status" class="rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 dark:bg-gray-700/60 dark:text-gray-200">
+                    Consulta cerrada: no puede modificarse.
+                </p>
+            @else
+                <span></span>
             @endif
             <a href="{{ route('admin.historias-clinicas.show', $consulta->historiaClinica) }}"
                 class="text-sm text-gray-600 hover:underline dark:text-gray-400">Volver a la historia</a>
         </div>
 
-        @include('admin.consultas._contenido', ['consulta' => $consulta, 'puedeModificar' => $puedeModificar])
+        @include('admin.consultas._contenido', ['consulta' => $consulta])
 
         {{--
             Acciones de las recetas: solo en la página (fuera del partial, que comparte el popup). Escribir
@@ -31,7 +35,7 @@
                         @foreach ($consulta->recetas->sortBy('id') as $receta)
                             <li class="flex flex-wrap items-center justify-between gap-2 py-2">
                                 <span>
-                                    <span class="font-mono text-xs font-semibold">{{ $receta->numero ?? 'Borrador' }}</span>
+                                    <span class="dato text-xs font-semibold">{{ $receta->numero ?? 'Borrador' }}</span>
                                     <span class="text-xs text-gray-600 dark:text-gray-400">· {{ $receta->etiquetaEstado() }}</span>
                                 </span>
                                 <span class="flex flex-wrap items-center gap-3 text-sm">
@@ -75,17 +79,26 @@
         @if ($historial !== null)
             <details class="rounded-md border border-gray-200 dark:border-gray-700">
                 <summary class="cursor-pointer select-none px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Historial de cambios</summary>
+                {{-- Cada racha de autoguardados seguidos del mismo usuario se ve como una entrada; hasta las últimas 50 entradas. --}}
+                @if ($cambiosEnTotal > $historial->count())
+                    <p class="px-4 pb-2 text-xs text-gray-500 dark:text-gray-400">Se muestran las últimas {{ $historial->count() }} de {{ $cambiosEnTotal }} entradas. El resto está en Auditoría.</p>
+                @endif
                 <x-admin.table :headers="['Fecha y hora', 'Usuario', 'Acción', 'Qué cambió']">
-                    @forelse ($historial as $evento)
+                    @forelse ($historial as ['evento' => $evento, 'desde' => $desde, 'cantidad' => $cantidad, 'secciones' => $secciones])
                         <tr>
-                            <td class="px-6 py-3 whitespace-nowrap font-mono text-sm">{{ Fecha::mostrar($evento->fecha_hora, conHora: true) }}</td>
+                            <td class="px-6 py-3 whitespace-nowrap dato text-sm">
+                                {{ $cantidad > 1 ? Fecha::mostrar($desde, conHora: true).' – '.substr(Fecha::mostrar($evento->fecha_hora, conHora: true), -5) : Fecha::mostrar($evento->fecha_hora, conHora: true) }}
+                            </td>
                             <td class="px-6 py-3">{{ $evento->usuario?->name ?? 'Sin usuario' }}</td>
-                            <td class="px-6 py-3">{{ $evento->accion->etiqueta() }}</td>
+                            <td class="px-6 py-3">
+                                {{ $evento->accion->etiqueta() }}@if ($evento->detalle) · {{ $evento->detalle }}@endif
+                                @if ($cantidad > 1)<span class="text-xs text-gray-500 dark:text-gray-400">({{ $cantidad }} guardados)</span>@endif
+                            </td>
                             <td class="px-6 py-3 text-gray-600 dark:text-gray-400">
                                 @if ($evento->tabla_afectada === 'recetas')
                                     Receta {{ $consulta->recetas->firstWhere('id', (int) $evento->registro_afectado_id)?->numero ?? 'en borrador' }}:
                                 @endif
-                                {{ collect(array_keys($evento->valor_nuevo ?? []))->map(fn ($campo) => ['bloquesAnamnesis' => 'anamnesis', 'examenFisico' => 'examen físico', 'diagnosticos' => 'diagnósticos', 'indicaciones' => 'indicaciones generales', 'motivo_consulta' => 'motivo', 'detalles' => 'medicamentos', 'estado_id' => 'estado', 'motivo_anulacion' => 'motivo de la anulación', 'numero' => 'número', 'emitida_en' => 'emisión', 'anulada_en' => 'anulación'][$campo] ?? $campo)->join(', ') }}
+                                {{ collect($secciones)->map(fn ($campo) => ['bloquesAnamnesis' => 'anamnesis', 'examenFisico' => 'examen físico', 'diagnosticos' => 'diagnósticos', 'indicaciones' => 'indicaciones generales', 'motivo_consulta' => 'motivo', 'detalles' => 'medicamentos', 'estado_id' => 'estado', 'motivo_anulacion' => 'motivo de la anulación', 'numero' => 'número', 'emitida_en' => 'emisión', 'anulada_en' => 'anulación'][$campo] ?? $campo)->join(', ') }}
                             </td>
                             <td class="px-6 py-3 text-right whitespace-nowrap">
                                 <a href="{{ route('admin.auditoria.show', $evento) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Ver detalle</a>

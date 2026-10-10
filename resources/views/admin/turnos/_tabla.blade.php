@@ -1,4 +1,3 @@
-@use('App\Models\Consulta')
 @use('App\Models\Turno')
 @use('App\Support\Fecha')
 @use('App\Support\Permisos')
@@ -9,7 +8,7 @@
     @forelse ($turnos as $turno)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($turno->fecha) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap font-mono">{{ substr($turno->hora_inicio, 0, 5) }} – {{ substr($turno->hora_fin, 0, 5) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap dato">{{ substr($turno->hora_inicio, 0, 5) }} – {{ substr($turno->hora_fin, 0, 5) }}</td>
             <td class="px-6 py-4">
                 <div class="font-medium">{{ $turno->paciente->persona->nombre_completo }}</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400">Ficha {{ $turno->paciente->nro_ficha }}</div>
@@ -24,18 +23,21 @@
             </td>
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$turno->estado" /></td>
             {{--
-                "Atender": abre la consulta del turno (CONFIRMADO, de hoy, sin consulta, del profesional del
-                usuario; lo decide ConsultaPolicy). Después, las transiciones válidas según el estado actual.
+                Botones manuales (Confirmar, Ausente, Cancelar) según las transiciones válidas del estado actual.
+                "Atender" y "No se presentó" están en la pantalla Consulta del profesional.
             --}}
-            @php($turno->paciente->historiaClinica?->setRelation('paciente', $turno->paciente))
             <td class="px-6 py-4 text-right whitespace-nowrap">
                 <div class="flex justify-end gap-3">
-                    @if ($turno->paciente->historiaClinica && Gate::allows('create', [Consulta::class, $turno->paciente->historiaClinica, $turno]))
-                        <a href="{{ route('admin.consultas.create', [$turno->paciente->historiaClinica, 'turno' => $turno->id]) }}"
-                            class="text-sm font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Atender</a>
-                    @endif
                     @if ($puedeCambiarEstado)
                         @foreach ($turno->accionesPosibles() as $accion)
+                            @if ($accion === 'ausente' && ! $turno->llegoSuHora())
+                                {{-- La ausencia solo desde la hora del turno (Turno::pasarA lo valida igual). --}}
+                                <span class="flex items-center gap-1.5">
+                                    <button type="button" disabled class="cursor-not-allowed text-sm font-medium text-gray-400 dark:text-gray-500">Ausente</button>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">Disponible desde {{ substr($turno->hora_inicio, 0, 5) }}</span>
+                                </span>
+                                @continue
+                            @endif
                             <form method="POST" action="{{ route('admin.turnos.estado', $turno) }}"
                                 @if ($accion === 'cancelar') x-data x-on:submit="if (! confirm(@js('¿Cancelar el turno del '.Fecha::mostrar($turno->fecha).' a las '.substr($turno->hora_inicio, 0, 5).'? El horario queda libre.'))) $event.preventDefault()" @endif>
                                 @csrf

@@ -2,6 +2,7 @@
 
 use App\Enums\AccionAuditoria;
 use App\Models\Consulta;
+use App\Models\Estado;
 use App\Models\LogAuditoria;
 use App\Models\User;
 use Illuminate\Support\Carbon;
@@ -16,27 +17,38 @@ function eventosDe(string $tabla, ?AccionAuditoria $accion = null)
 }
 
 describe('cambios: un solo historial, el de la consulta', function () {
-    test('al crear: CREAR de la consulta y un EDITAR por sección, con listas legibles; nada en las tablas hijas', function () {
+    test('al atender y finalizar: CREAR de la consulta ("Atender sin turno") y UN EDITAR "Finalizar" con todas las secciones (solo sus filas) y el estado; nada en las tablas hijas', function () {
         $consulta = hcConsulta();
 
-        expect(eventosDe('consultas', AccionAuditoria::CREAR)->sole()->valor_nuevo)->toMatchArray(['motivo_consulta' => 'Dolor de garganta y fiebre desde ayer.']);
+        $creacion = eventosDe('consultas', AccionAuditoria::CREAR)->sole();
+        expect($creacion->detalle)->toBe('Atender sin turno')
+            ->and($creacion->valor_nuevo)->toMatchArray(['historia_clinica_id' => $consulta->historia_clinica_id, 'turno_id' => null, 'estado_id' => Estado::idDe(Estado::EN_CURSO)])
+            ->and($creacion->valor_nuevo)->not->toHaveKey('motivo_consulta');
 
-        $ediciones = eventosDe('consultas', AccionAuditoria::EDITAR);
-        expect($ediciones->pluck('registro_afectado_id')->unique()->all())->toBe([(string) $consulta->id])
-            ->and($ediciones->map(fn ($e) => $e->valor_nuevo)->all())->toBe([
-                ['bloquesAnamnesis' => ['Enfermedad actual: Odinofagia de 24 horas.', 'Alergias: Penicilina.']],
-                ['examenFisico' => ['Presión arterial: 120/80 mmHg', 'Frecuencia cardíaca: 88 lpm', 'Temperatura: 38,2 °C', 'Peso: 61,5 kg', 'Talla: 165 cm']],
-                ['diagnosticos' => ['J06.9 — Rinofaringitis aguda (PRESUNTIVO, principal)']],
+        $finalizar = eventosDe('consultas', AccionAuditoria::EDITAR)->sole();
+        [$b1, $b2] = $consulta->bloquesAnamnesis()->orderBy('orden')->pluck('id')->all();
+        $d1 = $consulta->diagnosticos()->value('id');
+        expect($finalizar->detalle)->toBe('Finalizar')
+            ->and($finalizar->registro_afectado_id)->toBe((string) $consulta->id)
+            ->and($finalizar->valor_nuevo)->toBe([
+                'motivo_consulta' => 'Dolor de garganta y fiebre desde ayer.',
+                'bloquesAnamnesis' => ["Bloque #{$b1}" => '1. Enfermedad actual: Odinofagia de 24 horas.', "Bloque #{$b2}" => '2. Alergias: Penicilina.'],
+                'examenFisico' => ['Presión arterial' => '120/80 mmHg', 'Frecuencia cardíaca' => '88 lpm', 'Temperatura' => '38,2 °C', 'Peso' => '61,5 kg', 'Talla' => '165 cm'],
+                'diagnosticos' => ["Diagnóstico #{$d1}" => 'J06.9 — Rinofaringitis aguda (PRESUNTIVO, principal)'],
+                'estado_id' => Estado::idDe(Estado::FINALIZADO),
+                'finalizada_en' => '2026-10-06 12:00:00.000000',
             ])
-            ->and($ediciones->first()->valor_anterior)->toBe(['bloquesAnamnesis' => []]);
+            // Filas nuevas: no existían antes.
+            ->and($finalizar->valor_anterior['bloquesAnamnesis'])->toBe(["Bloque #{$b1}" => null, "Bloque #{$b2}" => null])
+            ->and($finalizar->valor_anterior['motivo_consulta'])->toBeNull();
 
         foreach (['bloques_anamnesis', 'examenes_fisicos', 'diagnosticos'] as $tabla) {
             expect(eventosDe($tabla))->toBeEmpty();
         }
     });
 
-    test('al editar: antes y después de lo que cambió (retirar, tipo, principal, descripción)', function () {
-        $consulta = hcConsulta();
+    test('al editar una consulta en curso: UN evento de autoguardado con solo las filas que cambiaron (retirar, tipo, principal, descripción)', function () {
+        $consulta = hcConsultaEnCurso();
         $antes = LogAuditoria::max('id');
         Carbon::setTestNow(now()->addMinute());
 
@@ -46,18 +58,43 @@ describe('cambios: un solo historial, el de la consulta', function () {
         $datos['diagnosticos'][0]['descripcion_adicional'] = 'Con placas.';
         hcActualizar($consulta, $datos)->assertSessionHasNoErrors();
 
-        $nuevos = LogAuditoria::where('id', '>', $antes)->where('accion', AccionAuditoria::EDITAR->value)->orderBy('id')->get();
-        expect($nuevos->pluck('tabla_afectada')->unique()->all())->toBe(['consultas'])
-            ->and($nuevos->map(fn ($e) => [$e->valor_anterior, $e->valor_nuevo])->all())->toBe([
-                [['bloquesAnamnesis' => ['Enfermedad actual: Odinofagia de 24 horas.', 'Alergias: Penicilina.']],
-                    ['bloquesAnamnesis' => ['Enfermedad actual: Odinofagia de 24 horas.', 'Alergias: Penicilina. (retirado)']]],
-                [['diagnosticos' => ['J06.9 — Rinofaringitis aguda (PRESUNTIVO, principal)']],
-                    ['diagnosticos' => ['J06.9 — Rinofaringitis aguda (CONFIRMADO, principal): Con placas.']]],
+        $b2 = $consulta->bloquesAnamnesis()->orderBy('orden')->skip(1)->value('id');
+        $d1 = $consulta->diagnosticos()->value('id');
+        $nuevo = LogAuditoria::where('id', '>', $antes)->where('accion', AccionAuditoria::EDITAR->value)->sole();
+        expect($nuevo->tabla_afectada)->toBe('consultas')->and($nuevo->detalle)->toBe('Borrador (autoguardado)')
+            ->and([$nuevo->valor_anterior, $nuevo->valor_nuevo])->toBe([
+                ['bloquesAnamnesis' => ["Bloque #{$b2}" => '2. Alergias: Penicilina.'], 'diagnosticos' => ["Diagnóstico #{$d1}" => 'J06.9 — Rinofaringitis aguda (PRESUNTIVO, principal)']],
+                ['bloquesAnamnesis' => ["Bloque #{$b2}" => '2. Alergias: Penicilina. (retirado)'], 'diagnosticos' => ["Diagnóstico #{$d1}" => 'J06.9 — Rinofaringitis aguda (CONFIRMADO, principal): Con placas.']],
             ]);
     });
 
+    test('con la cadena de eventos se reconstruye el estado de cada sección en cada momento', function () {
+        $consulta = hcEnCurso();
+        $bloque = fn ($uid, $texto, $id = '', $activo = '1') => ['uid' => $uid, 'id' => (string) $id, 'activo' => $activo, 'tipo_bloque_anamnesis_id' => $this->alergias->id, 'contenido' => $texto];
+        $id = hcAutoguardar($consulta, ['con_anamnesis' => '1', 'anamnesis' => [$bloque('n-1', 'Penicilina.')], 'examen' => ['peso' => '60']])->json('ids.anamnesis.n-1');
+        Carbon::setTestNow(now()->addSeconds(10));
+        hcAutoguardar($consulta, ['con_anamnesis' => '1', 'anamnesis' => [$bloque('g', 'Penicilina y AINES.', $id), $bloque('n-2', 'Látex.')], 'examen' => ['peso' => '60', 'talla' => '160']]);
+        Carbon::setTestNow(now()->addSeconds(10));
+        $id2 = $consulta->bloquesAnamnesis()->where('id', '!=', $id)->value('id');
+        hcAutoguardar($consulta, ['con_anamnesis' => '1', 'anamnesis' => [$bloque('g', 'Penicilina y AINES.', $id), $bloque('g2', 'Látex.', $id2, '0')], 'examen' => ['peso' => '61', 'talla' => '160']]);
+
+        // Reconstrucción: aplicar en orden los "después" de cada evento sobre un estado vacío.
+        $estado = [];
+        foreach (eventosDe('consultas', AccionAuditoria::EDITAR) as $evento) {
+            foreach ($evento->valor_nuevo as $seccion => $filas) {
+                if (is_array($filas)) {
+                    $estado[$seccion] = array_filter(array_replace($estado[$seccion] ?? [], $filas), fn ($texto) => $texto !== null);
+                }
+            }
+        }
+        $actual = $consulta->fresh()->relacionesAuditadas();
+        expect($estado['bloquesAnamnesis'])->toBe($actual['bloquesAnamnesis']($consulta->fresh()->bloquesAnamnesis))
+            ->and($estado['examenFisico'])->toBe($consulta->fresh()->examenFisico->descripcionPorCampo())
+            ->and($estado['bloquesAnamnesis'])->toBe(["Bloque #{$id}" => '1. Alergias: Penicilina y AINES.', "Bloque #{$id2}" => '2. Alergias: Látex. (retirado)'])
+            ->and(eventosDe('consultas', AccionAuditoria::EDITAR))->toHaveCount(3); // uno por guardado
+    });
     test('guardar sin cambios no deja registros', function () {
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
         $antes = LogAuditoria::where('accion', '!=', AccionAuditoria::VER->value)->count();
 
         hcActualizar($consulta, hcFilasGuardadas($consulta))->assertSessionHasNoErrors();
@@ -91,22 +128,30 @@ describe('historial de cambios en la consulta', function () {
 describe('contenido clínico en la pantalla de auditoría', function () {
     test('sin VER sobre la historia clínica: quién, cuándo, la acción y los campos, pero no los valores', function () {
         $consulta = hcConsulta();
-        $evento = eventosDe('consultas', AccionAuditoria::EDITAR)->first();
+        $evento = eventosDe('consultas', AccionAuditoria::EDITAR)->first(fn ($e) => array_key_exists('bloquesAnamnesis', $e->valor_nuevo));
 
         $this->actingAs(User::factory()->conPermisos(['AUDITORIA' => ['VER']])->create());
         $this->get(route('admin.auditoria.show', $evento))->assertOk()
             ->assertSee('Contenido clínico: se requiere permiso de lectura sobre Historia Clínica')
             ->assertSee('Benítez, Rosa')->assertSee('Editar')->assertSee('bloquesAnamnesis')->assertSee('consultas #'.$consulta->id)
-            ->assertDontSee('Odinofagia')->assertDontSee('Penicilina');
+            // Ni el texto ni la identificación de las filas cambiadas, ni el detalle del examen.
+            ->assertDontSee('Odinofagia')->assertDontSee('Penicilina')->assertDontSee('Bloque #')->assertDontSee('Diagnóstico #')
+            ->assertDontSee('38,2')->assertDontSee('J06.9');
 
-        // También el CREAR de la consulta (motivo) y el de la historia.
-        $this->get(route('admin.auditoria.show', eventosDe('consultas', AccionAuditoria::CREAR)->sole()))->assertOk()
+        // El mismo evento lleva el motivo: tampoco se ve.
+        $motivo = eventosDe('consultas', AccionAuditoria::EDITAR)->first(fn ($e) => array_key_exists('motivo_consulta', $e->valor_nuevo));
+        $this->get(route('admin.auditoria.show', $motivo))->assertOk()
             ->assertSee('motivo_consulta')->assertDontSee('Dolor de garganta');
+
+        // El buscador tampoco encuentra el evento por el texto ni por la identificación de una fila.
+        foreach (['Odinofagia', 'Bloque #', 'Penicilina'] as $texto) {
+            $this->get(route('admin.auditoria.index', ['q' => $texto]))->assertOk()->assertDontSee(route('admin.auditoria.show', $evento));
+        }
     });
 
     test('con VER sobre la historia clínica se ven los valores', function () {
         hcConsulta();
-        $evento = eventosDe('consultas', AccionAuditoria::EDITAR)->first();
+        $evento = eventosDe('consultas', AccionAuditoria::EDITAR)->first(fn ($e) => array_key_exists('bloquesAnamnesis', $e->valor_nuevo));
 
         $this->actingAs(User::factory()->conPermisos(['AUDITORIA' => ['VER'], 'HISTORIA_CLINICA' => ['VER']])->create());
         $this->get(route('admin.auditoria.show', $evento))->assertOk()
@@ -156,7 +201,6 @@ describe('lecturas (VER)', function () {
         $this->get(route('admin.historias-clinicas.index', ['q' => 'Duarte']), ['X-Requested-With' => 'XMLHttpRequest'])->assertOk(); // búsqueda en vivo: no
         $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk();
         $this->get(route('admin.consultas.show', $consulta))->assertOk();
-        $this->get(route('admin.consultas.edit', $consulta))->assertOk();
         // Repetidas dentro de 5 minutos: no se registran de nuevo.
         $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk();
         $this->get(route('admin.consultas.show', $consulta))->assertOk();

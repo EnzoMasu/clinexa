@@ -24,7 +24,7 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Otra marca: "tabla=consultas". Un listado registra su lectura en la tabla principal del módulo
  * (historias_clinicas para HISTORIA_CLINICA); con esta marca, en otra tabla del mismo módulo (la
- * pantalla Atención sin turno lista consultas). Tiene que ser una tabla auditada de ese módulo.
+ * pantalla Consulta lista consultas). Tiene que ser una tabla auditada de ese módulo.
  * Las marcas se pueden combinar: "permiso:MODULO,VER,lectura-ajax,tabla=consultas".
  */
 class VerificarPermiso

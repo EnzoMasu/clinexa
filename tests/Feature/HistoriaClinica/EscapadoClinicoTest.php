@@ -48,43 +48,55 @@ test('HTML y JS en motivo, anamnesis, hallazgos y descripción adicional: escapa
     sinHtmlCrudo($this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk())
         ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false);
 
-    // Formulario de edición: motivo y hallazgos escapados en el textarea; anamnesis y diagnósticos como
-    // JSON con < > " codificados para Alpine (dentro de JSON.parse('...'), por eso la barra doble).
-    sinHtmlCrudo($this->get(route('admin.consultas.edit', $consulta))->assertOk())
+    // Pantalla de atención de una consulta EN CURSO con el mismo contenido (la finalizada ya no se edita): motivo y
+    // hallazgos escapados en el textarea; anamnesis y diagnósticos como JSON con < > " codificados para Alpine
+    // (dentro de JSON.parse('...'), por eso la barra doble).
+    $enCurso = hcConsultaEnCurso([
+        'motivo_consulta' => "Motivo {$this->img}\nsegunda línea",
+        'anamnesis' => [['id' => '', 'tipo_bloque_anamnesis_id' => $this->alergias->id, 'contenido' => "Bloque {$this->script}"]],
+        'examen' => ['hallazgos' => "Hallazgo {$this->img}"],
+        'diagnosticos' => [['id' => '', 'codigo_cie10' => 'J06.9', 'tipo' => 'PRESUNTIVO', 'descripcion_adicional' => "Detalle {$this->script}"]],
+    ]);
+    sinHtmlCrudo($this->get(route('admin.consultas.atencion', $enCurso))->assertOk())
         ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false)
         ->assertSee('Hallazgo &lt;img src=x onerror=alert(1)&gt;', false)
         ->assertSee('Bloque \\\\u0022\\\\u003E\\\\u003Cscript\\\\u003Ealert(1)\\\\u003C\\\\\\/script\\\\u003E', false)
         ->assertSee('Detalle \\\\u0022\\\\u003E\\\\u003Cscript\\\\u003Ealert(1)', false)
         ->assertDontSee('x-html', false);
 
-    // Detalle de auditoría (con permiso clínico): cada lista antes/después, escapada.
+    // Detalle de auditoría (con permiso clínico): el EDITAR "Finalizar" lleva todas las secciones, cada
+    // fila como "identificación: texto", escapada.
     $this->actingAs(User::factory()->conPermisos(['AUDITORIA' => ['VER'], 'HISTORIA_CLINICA' => ['VER']])->create());
-    $eventos = LogAuditoria::where('tabla_afectada', 'consultas')->whereIn('accion', [AccionAuditoria::CREAR->value, AccionAuditoria::EDITAR->value])->orderBy('id')->get();
-    expect($eventos)->toHaveCount(4);
+    $evento = LogAuditoria::where('tabla_afectada', 'consultas')->where('registro_afectado_id', (string) $consulta->id)->where('detalle', 'Finalizar')->sole();
+    expect(array_keys($evento->valor_nuevo))->toContain('motivo_consulta', 'bloquesAnamnesis', 'examenFisico', 'diagnosticos');
 
-    $esperado = [
-        'Motivo &lt;img src=x onerror=alert(1)&gt;',
-        'Alergias: Bloque &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;',
-        'Hallazgos: Hallazgo &lt;img src=x onerror=alert(1)&gt;',
-        'J06.9 — Rinofaringitis aguda (PRESUNTIVO, principal): Detalle &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;',
-    ];
-    foreach ($eventos as $i => $evento) {
-        sinHtmlCrudo($this->get(route('admin.auditoria.show', $evento))->assertOk())->assertSee($esperado[$i], false);
-    }
+    sinHtmlCrudo($this->get(route('admin.auditoria.show', $evento))->assertOk())
+        ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false)
+        ->assertSee('1. Alergias: Bloque &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
+        ->assertSee('Hallazgos: Hallazgo &lt;img src=x onerror=alert(1)&gt;', false)
+        ->assertSee('J06.9 — Rinofaringitis aguda (PRESUNTIVO, principal): Detalle &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
+        ->assertSee('(no existía)');
 });
 
-test('un error de validación vuelve a mostrar lo escrito, escapado', function () {
-    $this->from(route('admin.consultas.create', $this->historia))
-        ->post(route('admin.consultas.store', $this->historia), [...hcDatos(['examen' => ['hallazgos' => $this->img, 'temperatura' => '99']]), 'motivo_consulta' => $this->script])
+test('un error de validación al finalizar vuelve a la pantalla de atención con lo escrito, escapado', function () {
+    $consulta = hcEnCurso();
+    hcFinalizar($consulta, [...hcDatos(['examen' => ['hallazgos' => $this->img, 'temperatura' => '99']]), 'motivo_consulta' => $this->script])
+        ->assertRedirect(route('admin.consultas.atencion', $consulta))
         ->assertSessionHasErrors('examen.temperatura');
 
-    sinHtmlCrudo($this->get(route('admin.consultas.create', $this->historia))->assertOk())
+    sinHtmlCrudo($this->get(route('admin.consultas.atencion', $consulta))->assertOk())
         ->assertSee('&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
         ->assertSee('&lt;img src=x onerror=alert(1)&gt;', false);
 });
 
-test('las vistas clínicas no usan {!! !!}', function () {
-    foreach (['consultas/show', 'consultas/_contenido', 'consultas/form', 'historias-clinicas/show', 'historias-clinicas/_tabla', 'atencion-sin-turno/index', 'atencion-sin-turno/_tabla', 'auditoria/show'] as $vista) {
-        expect(file_get_contents(resource_path("views/admin/{$vista}.blade.php")))->not->toContain('{!!');
+test('las vistas clínicas no usan {!! !!} ni x-html', function () {
+    $vistas = [
+        ...glob(resource_path('views/admin/{consultas,consultas/secciones,atencion,preparacion,historias-clinicas}/*.blade.php'), GLOB_BRACE),
+        resource_path('views/admin/auditoria/show.blade.php'),
+    ];
+    expect(count($vistas))->toBeGreaterThan(20);
+
+    foreach ($vistas as $vista) {
+        expect(file_get_contents($vista))->not->toContain('{!!')->not->toContain('x-html');
     }
 });

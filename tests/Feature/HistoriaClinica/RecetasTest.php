@@ -25,7 +25,7 @@ beforeEach(function () {
     $this->medico = hcDarPermisos($this->medico, HC_PERMISOS_RECETAS);
     $this->otroMedico = hcDarPermisos($this->otroMedico, HC_PERMISOS_RECETAS);
     $this->actingAs($this->medico);
-    $this->consulta = hcConsulta();
+    $this->consulta = hcConsultaEnCurso(); // las recetas se cargan con la consulta EN_CURSO
 });
 
 afterEach(fn () => Carbon::setTestNow());
@@ -201,8 +201,9 @@ describe('ciclo de vida', function () {
             ->and(fn () => Receta::find($receta->id)->forceFill(['numero' => 'RE-9999999'])->save())->toThrow(RecetaInmutable::class)
             ->and(fn () => $receta->detalles()->create([...hcRenglon(), 'orden' => 2]))->toThrow(RecetaInmutable::class)
             ->and(fn () => $detalle->update(['dosis' => 'otra']))->toThrow(RecetaInmutable::class)
-            ->and(fn () => $detalle->delete())->toThrow(RecetaInmutable::class)
-            ->and(fn () => Receta::find($receta->id)->delete())->toThrow(RecetaInmutable::class)
+            // Borrar: nada de la historia clínica se borra (el único borrado es quitar un renglón de un BORRADOR).
+            ->and(fn () => $detalle->delete())->toThrow(\App\Exceptions\RegistroClinicoNoSeBorra::class)
+            ->and(fn () => Receta::find($receta->id)->delete())->toThrow(\App\Exceptions\RegistroClinicoNoSeBorra::class)
             ->and(fn () => Receta::find($receta->id)->update(['estado_id' => Estado::idDe(Estado::PENDIENTE)]))->toThrow(RecetaInmutable::class);
 
         expect(DetalleReceta::count())->toBe(1)->and(Receta::find($receta->id)->observaciones)->toBeNull();
@@ -483,8 +484,7 @@ describe('hoja', function () {
         $this->get(route('admin.recetas.vista-previa', $receta))->assertSee('Iturbe')->assertDontSee('Yhaguy c/ Ruta 5');
 
         $this->consultorio->update(['sucursal_id' => $otraSucursal->id]);
-        hcGuardarNueva([], hcTurno(['hora_inicio' => '10:00', 'hora_fin' => '10:30']))->assertSessionHasNoErrors();
-        $conTurno = Consulta::latest('id')->first();
+        $conTurno = hcEnCurso(hcTurno(['hora_inicio' => '10:00', 'hora_fin' => '10:30'])); // las recetas, con la consulta en curso
         $this->get(route('admin.recetas.vista-previa', hcReceta($conTurno)))->assertSee('Yhaguy c/ Ruta 5')->assertSee('Plenitud Mujer');
     });
 });

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\ProtegidoPorCierre;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class HistoriaClinica extends Model
 {
-    use Auditable;
+    use Auditable, ProtegidoPorCierre;
 
     protected $table = 'historias_clinicas';
 
@@ -42,5 +43,11 @@ class HistoriaClinica extends Model
     public function consultas(): HasMany
     {
         return $this->hasMany(Consulta::class);
+    }
+
+    /** Regla de cierre (ProtegidoPorCierre): la historia no cuelga de una consulta; solo rige "nada se borra". */
+    protected function consultaDeCierre(): ?Consulta
+    {
+        return null;
     }
 }

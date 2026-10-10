@@ -71,6 +71,14 @@ class Persona extends Model
             }
         });
 
+        // Tampoco se desactiva la Persona de una paciente con consultas cerradas (la regla es de Paciente).
+        static::updating(function (Persona $persona) {
+            if ($persona->isDirty('estado_id') && (int) $persona->estado_id === Estado::idDe(Estado::INACTIVO)
+                && $persona->paciente?->tieneConsultasCerradas()) {
+                throw new \App\Exceptions\PacienteConConsultasCerradas;
+            }
+        });
+
         // users.email es una copia del email de la persona (el login de Laravel lo necesita en users):
         // si cambia acá, se actualiza el del usuario asociado.
         static::saved(function (Persona $persona) {
@@ -86,6 +94,12 @@ class Persona extends Model
     public static function emailDeUsuario(string $email): string
     {
         return mb_strtolower(trim($email));
+    }
+
+    /** Edad en años cumplidos a hoy (hora de Paraguay); null sin fecha de nacimiento. */
+    public function edad(): ?int
+    {
+        return $this->fecha_nacimiento ? (int) $this->fecha_nacimiento->diffInYears(\App\Support\Fecha::hoy()) : null;
     }
 
     public function tipoDocumento(): BelongsTo
@@ -109,6 +123,14 @@ class Persona extends Model
         $query->where('tipo_persona', 'FISICA')
             ->activos()
             ->whereDoesntHave('usuario');
+    }
+
+    /** "Rosa Benítez" (nombres y apellidos, en ese orden), para frases; razón social si es jurídica. */
+    protected function nombreYApellido(): Attribute
+    {
+        return Attribute::get(fn () => $this->tipo_persona === 'FISICA'
+            ? trim("{$this->nombres} {$this->apellidos}")
+            : $this->razon_social);
     }
 
     protected function nombreCompleto(): Attribute

@@ -10,6 +10,9 @@ use App\Models\Turno;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+// Grupo "lento" (docs/pruebas.md): Rendimiento: muchos registros de prueba. No corre en el comando rápido.
+uses()->group('lento');
+
 /*
  * 50 pacientes y 200 consultas (con diagnósticos): el listado y la historia hacen una cantidad fija
  * de consultas SQL, sin una por fila (N+1).
@@ -27,14 +30,23 @@ beforeEach(function () {
         $paciente = $n <= 30 ? $this->paciente : $pacientes[$n % 50];
         $consulta = Consulta::create(['historia_clinica_id' => $paciente->historiaClinica->id, 'profesional_id' => $n % 2 ? $this->profesional->id : $this->otroProfesional->id,
             'motivo_consulta' => "Consulta {$n}"]);
+        // En curso mientras se cargan; cada test las cierra (cerrarConsultas) antes de medir, como las reales.
+        $consulta->forceFill(['estado_id' => \App\Models\Estado::idDe('EN_CURSO'), 'iniciada_en' => $consulta->fecha_hora])->save();
         Diagnostico::create(['consulta_id' => $consulta->id, 'codigo_cie10' => 'J06.9', 'tipo' => 'PRESUNTIVO', 'principal' => true]);
         Diagnostico::create(['consulta_id' => $consulta->id, 'codigo_cie10' => 'R51', 'tipo' => 'CONFIRMADO', 'principal' => false]);
     }
 });
 
+/** Cierra (FINALIZADO) todas las consultas, una por una: una consulta cerrada ya no admite cambios. */
+function cerrarConsultas(): void
+{
+    Consulta::all()->each(fn (Consulta $c) => $c->forceFill(['estado_id' => \App\Models\Estado::idDe('FINALIZADO'), 'finalizada_en' => $c->fecha_hora])->save());
+}
+
 afterEach(fn () => Carbon::setTestNow());
 
 test('listado de historias: las mismas consultas SQL en la página 1 y en la 2 (20 historias cada una)', function () {
+    cerrarConsultas();
     $pagina1 = consultasSql(route('admin.historias-clinicas.index'));
     $pagina2 = consultasSql(route('admin.historias-clinicas.index', ['page' => 2]));
     $busqueda = consultasSql(route('admin.historias-clinicas.index', ['q' => 'a']), ['X-Requested-With' => 'XMLHttpRequest']);
@@ -44,13 +56,15 @@ test('listado de historias: las mismas consultas SQL en la página 1 y en la 2 (
 });
 
 test('historia de un paciente: las mismas consultas SQL con 20 consultas en pantalla que con 10', function () {
+    cerrarConsultas();
     $completa = consultasSql(route('admin.historias-clinicas.show', $this->historia)); // 20 de 30
     $segunda = consultasSql(route('admin.historias-clinicas.show', [$this->historia, 'page' => 2])); // 10 de 30
 
     expect($completa)->toBeLessThan(25)->toBe($segunda);
 });
 
-test('listado de turnos con "Atender": sin una consulta por fila', function () {
+test('listado de turnos: sin una consulta por fila', function () {
+    cerrarConsultas();
     // 20 turnos de 30 minutos desde las 06:00.
     foreach (range(0, 19) as $n) {
         $inicio = Carbon::parse('06:00')->addMinutes(30 * $n);
@@ -74,7 +88,8 @@ test('con 3 recetas por consulta: la página de la consulta y la historia hacen 
             }
         }
     }
-    // Dos consultas de la misma profesional (la que atiende: ve todas las acciones), con 1 y con 4 medicamentos por receta.
+    cerrarConsultas(); // las recetas se cargaron con las consultas en curso
+    // Dos consultas de la misma profesional, con 1 y con 4 medicamentos por receta.
     $suyas = Consulta::where('profesional_id', $this->profesional->id)->withCount('recetas')->with('recetas.detalles')->orderBy('id')->get();
     $conUno = $suyas->first(fn ($c) => $c->recetas->first()->detalles->count() === 1);
     $conCuatro = $suyas->first(fn ($c) => $c->recetas->first()->detalles->count() === 4);

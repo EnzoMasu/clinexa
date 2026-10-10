@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\ProtegidoPorCierre;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class ExamenFisico extends Model
 {
-    use Auditable;
+    use Auditable, ProtegidoPorCierre;
 
     protected $table = 'examenes_fisicos';
 
@@ -49,6 +50,8 @@ class ExamenFisico extends Model
         'talla',
         'saturacion_oxigeno',
         'hallazgos',
+        'signos_usuario_id',
+        'hallazgos_usuario_id',
     ];
 
     protected function casts(): array
@@ -66,6 +69,18 @@ class ExamenFisico extends Model
     public static function moduloAuditoria(): string
     {
         return 'HISTORIA_CLINICA';
+    }
+
+    /** Quién cargó (o cambió por última vez) los signos vitales. */
+    public function signosUsuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'signos_usuario_id');
+    }
+
+    /** Quién cargó (o cambió por última vez) los hallazgos. */
+    public function hallazgosUsuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'hallazgos_usuario_id');
     }
 
     public function consulta(): BelongsTo
@@ -90,10 +105,24 @@ class ExamenFisico extends Model
     }
 
     /** Para el log: ["Presión arterial: 120/80 mmHg", "Temperatura: 36,5 °C", ...], solo lo cargado. */
+    /** Para el log: nombre del campo => "Nombre: valor con unidad", solo los cargados. */
+    public function descripcionPorCampo(): array
+    {
+        return collect(array_keys(self::CAMPOS))
+            ->mapWithKeys(fn (string $campo) => [self::CAMPOS[$campo][0] => $this->valorTexto($campo)])
+            ->filter(fn ($texto) => $texto !== null)->all();
+    }
+
     public function descripcion(): array
     {
         return collect(array_keys(self::CAMPOS))
             ->map(fn (string $campo) => ($texto = $this->valorTexto($campo)) === null ? null : self::CAMPOS[$campo][0].': '.$texto)
             ->filter()->values()->all();
+    }
+
+    /** Regla de cierre (ProtegidoPorCierre): la consulta de la que cuelga, leída de la base. */
+    protected function consultaDeCierre(): ?Consulta
+    {
+        return $this->consulta_id ? Consulta::query()->select(['id', 'estado_id'])->find($this->consulta_id) : null;
     }
 }

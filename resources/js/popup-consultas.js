@@ -12,13 +12,14 @@
  * - Accesibilidad: diálogo modal, foco adentro mientras está abierto (y de vuelta a la fila al
  *   cerrar), Esc, flechas izquierda y derecha, y el fondo no se desplaza.
  */
+import fragmentoInerte from './fragmento-inerte';
+
 export default ({ ids, urlDetalle, urlPagina }) => ({
     ids,
     urlPagina,
     abierto: false,
     indice: -1,
     estado: 'cargando', // cargando | listo | error
-    urlEditar: null,
     peticion: null,
     origen: null,
 
@@ -49,7 +50,6 @@ export default ({ ids, urlDetalle, urlPagina }) => ({
         this.abierto = false;
         // El contenido clínico no queda en la página al cerrar.
         this.$refs.contenido.replaceChildren();
-        this.urlEditar = null;
         document.documentElement.style.overflow = '';
         this.origen?.focus();
     },
@@ -73,7 +73,6 @@ export default ({ ids, urlDetalle, urlPagina }) => ({
         const peticion = new AbortController();
         this.peticion = peticion;
         this.estado = 'cargando';
-        this.urlEditar = null;
         this.$refs.contenido.replaceChildren();
 
         try {
@@ -100,9 +99,8 @@ export default ({ ids, urlDetalle, urlPagina }) => ({
             if (this.peticion !== peticion) {
                 return;
             }
-            // Solo HTML que viene del servidor, ya escapado por Blade (sin scripts: innerHTML no los ejecuta).
-            this.$refs.contenido.innerHTML = html;
-            this.urlEditar = this.$refs.contenido.querySelector('[data-url-editar]')?.dataset.urlEditar ?? null;
+            // Solo HTML que viene del servidor, ya escapado por Blade; además sin scripts ni atributos on*.
+            this.$refs.contenido.replaceChildren(fragmentoInerte(html));
             this.estado = 'listo';
         } catch (error) {
             if (error.name !== 'AbortError' && this.peticion === peticion) {

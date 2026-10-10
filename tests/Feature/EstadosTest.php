@@ -8,21 +8,26 @@ use App\Models\Persona;
 use App\Models\User;
 use Database\Seeders\ModuloSistemaSeeder;
 
-test('la tabla estados tiene los 22 estados, con código y nombre', function () {
+test('la tabla estados tiene los 27 estados, con código y nombre (los del flujo de atención con su nombre legible)', function () {
     expect(Estado::orderBy('id')->pluck('codigo')->all())->toBe([
         'ACTIVO', 'INACTIVO', 'BLOQUEADO', 'PENDIENTE', 'CONFIRMADO', 'ATENDIDO', 'CANCELADO', 'AUSENTE',
         'REALIZADO', 'VIGENTE', 'VENCIDO', 'SUSPENDIDO', 'MANTENIMIENTO', 'FACTURADO', 'ANULADO', 'HISTORICO',
         'GENERADO', 'PAGADO', 'PARCIAL', 'EMITIDO', 'APROBADO', 'RECHAZADO',
-    ])->and(Estado::whereColumn('codigo', '!=', 'nombre')->count())->toBe(0);
+        'EN_CONSULTA', 'SALTADO', 'EN_PREPARACION', 'EN_CURSO', 'FINALIZADO',
+    ])->and(Estado::whereColumn('codigo', '!=', 'nombre')->pluck('nombre', 'codigo')->all())->toBe([
+        'EN_CONSULTA' => 'EN CONSULTA', 'EN_PREPARACION' => 'EN PREPARACIÓN', 'EN_CURSO' => 'EN CURSO',
+    ]);
 });
 
-test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Turnos y Recetas con su ciclo propio', function () {
+test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Turnos, Recetas y las consultas con su ciclo propio', function () {
     $this->seed(ModuloSistemaSeeder::class);
 
     foreach (ModuloSistema::with('estados')->get() as $modulo) {
         [$esperados, $inicial] = match ($modulo->codigo) {
             'USUARIOS' => [['ACTIVO', 'BLOQUEADO', 'INACTIVO'], 'ACTIVO'],
-            'TURNOS' => [['ATENDIDO', 'AUSENTE', 'CANCELADO', 'CONFIRMADO', 'PENDIENTE'], 'PENDIENTE'],
+            'TURNOS' => [['ATENDIDO', 'AUSENTE', 'CANCELADO', 'CONFIRMADO', 'EN_CONSULTA', 'PENDIENTE', 'SALTADO'], 'PENDIENTE'],
+            // Las consultas usan los estados de HISTORIA_CLINICA (la historia en sí no tiene estado).
+            'HISTORIA_CLINICA' => [['ANULADO', 'EN_CURSO', 'EN_PREPARACION', 'FINALIZADO'], 'EN_PREPARACION'],
             // Recetas: borrador (PENDIENTE, inicial), emitida y anulada.
             'RECETAS' => [['ANULADO', 'EMITIDO', 'PENDIENTE'], 'PENDIENTE'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],

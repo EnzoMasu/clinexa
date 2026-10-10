@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\ProtegidoPorCierre;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class Indicacion extends Model
 {
-    use Auditable;
+    use Auditable, ProtegidoPorCierre;
 
     protected $table = 'indicaciones';
 
@@ -52,5 +53,11 @@ class Indicacion extends Model
     public function descripcionAuditoria(): string
     {
         return ($this->tipoIndicacion ? "{$this->tipoIndicacion->nombre}: " : '').$this->descripcion.($this->activo ? '' : ' (retirado)');
+    }
+
+    /** Regla de cierre (ProtegidoPorCierre): la consulta de la que cuelga, leída de la base. */
+    protected function consultaDeCierre(): ?Consulta
+    {
+        return $this->consulta_id ? Consulta::query()->select(['id', 'estado_id'])->find($this->consulta_id) : null;
     }
 }

@@ -17,6 +17,26 @@ final class Fecha
     public const FORMATO_HORA = 'd/m/Y H:i';
 
     /** Hoy en la hora local de la clínica (no en UTC: entre las 21 y las 24 serían días distintos). */
+    /** Ahora en la hora local de la clínica. */
+    public static function ahora(): Carbon
+    {
+        return Carbon::now(config('app.zona_horaria_local'));
+    }
+
+    /**
+     * Si ese momento (fecha y hora locales, "Y-m-d" y "H:i") ya llegó: el día ya pasó, o es hoy y la hora,
+     * al minuto, es la de ahora o anterior (en punto cuenta como llegado). Regla ÚNICA de "ya es la hora /
+     * ya pasó" para: los horarios libres (no se ofrece uno que ya empezó), no agendar en el pasado y marcar
+     * la ausencia de un turno (solo desde su hora).
+     */
+    public static function yaLlego(string $fecha, string $hora): bool
+    {
+        $ahora = self::ahora();
+        $hoy = $ahora->format('Y-m-d');
+
+        return $fecha < $hoy || ($fecha === $hoy && substr($hora, 0, 5) <= $ahora->format('H:i'));
+    }
+
     public static function hoy(): Carbon
     {
         return Carbon::now(config('app.zona_horaria_local'))->startOfDay();

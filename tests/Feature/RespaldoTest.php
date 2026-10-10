@@ -6,6 +6,9 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 
+// Grupo "lento" (docs/pruebas.md): Respaldo (herramientas de PostgreSQL simuladas, archivos de prueba). No corre en el comando rápido.
+uses()->group('lento');
+
 /*
  * clinexa:respaldo con las herramientas de PostgreSQL simuladas (Process::fake): no corre pg_dump
  * ni se conecta a ninguna base. La conexión es inventada y apunta a un puerto cerrado: si algo

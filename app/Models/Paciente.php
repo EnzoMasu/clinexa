@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Exceptions\PacienteConConsultasCerradas;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\EsRolDePersona;
 use App\Models\Concerns\TieneEstado;
@@ -45,6 +46,32 @@ class Paciente extends Model
         static::created(function (Paciente $paciente) {
             $paciente->historiaClinica()->create(['fecha_apertura' => $paciente->fecha_alta]);
         });
+
+        // Una paciente con consultas cerradas no se desactiva, por ningún camino (formulario, botón,
+        // servicio, tinker). Reactivar y corregir sus datos, como siempre.
+        static::updating(function (Paciente $paciente) {
+            if ($paciente->pasaAInactivo() && $paciente->tieneConsultasCerradas()) {
+                throw new PacienteConConsultasCerradas;
+            }
+        });
+    }
+
+    /**
+     * Tiene al menos una consulta FINALIZADA (cerrada). EN_PREPARACION, EN_CURSO y ANULADA no cuentan.
+     * Es la regla única: la usan este modelo y el de su Persona.
+     */
+    public function tieneConsultasCerradas(): bool
+    {
+        return Consulta::query()
+            ->whereHas('historiaClinica', fn ($query) => $query->where('paciente_id', $this->id))
+            ->where('estado_id', Estado::idDe(Estado::FINALIZADO))
+            ->exists();
+    }
+
+    /** El cambio en curso la pasa a INACTIVO. */
+    private function pasaAInactivo(): bool
+    {
+        return $this->isDirty('estado_id') && (int) $this->estado_id === Estado::idDe(Estado::INACTIVO);
     }
 
     public function historiaClinica(): HasOne

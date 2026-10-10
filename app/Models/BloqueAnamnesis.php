@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\ProtegidoPorCierre;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class BloqueAnamnesis extends Model
 {
-    use Auditable;
+    use Auditable, ProtegidoPorCierre;
 
     protected $table = 'bloques_anamnesis';
 
@@ -22,6 +23,8 @@ class BloqueAnamnesis extends Model
         'contenido',
         'orden',
         'activo',
+        'usuario_id',
+        'modificado_por_id',
     ];
 
     protected function casts(): array
@@ -42,6 +45,18 @@ class BloqueAnamnesis extends Model
         return $this->belongsTo(Consulta::class);
     }
 
+    /** Quién lo cargó. */
+    public function usuario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'usuario_id');
+    }
+
+    /** El último que cambió su contenido (si no fue quien lo cargó). */
+    public function modificadoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'modificado_por_id');
+    }
+
     public function tipoBloqueAnamnesis(): BelongsTo
     {
         return $this->belongsTo(TipoBloqueAnamnesis::class);
@@ -51,5 +66,11 @@ class BloqueAnamnesis extends Model
     public function descripcion(): string
     {
         return "{$this->tipoBloqueAnamnesis->nombre}: {$this->contenido}".($this->activo ? '' : ' (retirado)');
+    }
+
+    /** Regla de cierre (ProtegidoPorCierre): la consulta de la que cuelga, leída de la base. */
+    protected function consultaDeCierre(): ?Consulta
+    {
+        return $this->consulta_id ? Consulta::query()->select(['id', 'estado_id'])->find($this->consulta_id) : null;
     }
 }

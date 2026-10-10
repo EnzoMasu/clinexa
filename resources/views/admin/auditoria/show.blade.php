@@ -2,10 +2,15 @@
 @use('App\Support\Fecha')
 
 @php
-    // Listas (permisos de un perfil, especialidades, ...) una por renglón.
+    // Listas (permisos de un perfil, especialidades, ...) una por renglón. Las secciones de la consulta
+    // guardan solo las filas que cambiaron, como "identificación => texto": "Bloque #12: 1. Alergias: …";
+    // una fila que no existía (antes) o se quitó, "(no existía)".
+    $texto = fn ($item) => $item === null ? '(no existía)' : (is_scalar($item) ? (string) $item : json_encode($item, JSON_UNESCAPED_UNICODE));
     $mostrar = fn ($valor) => match (true) {
         $valor === null => '—',
-        is_array($valor) => $valor === [] ? '(ninguno)' : implode("\n", array_map(fn ($item) => is_scalar($item) ? (string) $item : json_encode($item, JSON_UNESCAPED_UNICODE), $valor)),
+        is_array($valor) && $valor === [] => '(ninguno)',
+        is_array($valor) && array_is_list($valor) => implode("\n", array_map($texto, $valor)),
+        is_array($valor) => implode("\n", array_map(fn ($fila, $item) => "{$fila}: ".$texto($item), array_keys($valor), $valor)),
         is_bool($valor) => $valor ? 'sí' : 'no',
         default => (string) $valor,
     };
@@ -65,7 +70,7 @@
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
                         @foreach ($cambios as $cambio)
                             <tr>
-                                <td class="px-4 py-2 font-mono align-top">{{ $cambio['campo'] }}</td>
+                                <td class="px-4 py-2 dato align-top">{{ $cambio['campo'] }}</td>
                                 @if ($contenidoOculto)
                                     <td colspan="2" class="px-4 py-2 align-top italic text-gray-500 dark:text-gray-400">Oculto</td>
                                 @else

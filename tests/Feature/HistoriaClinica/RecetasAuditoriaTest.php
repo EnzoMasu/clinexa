@@ -1,7 +1,7 @@
 <?php
 
 use App\Enums\AccionAuditoria;
-use App\Http\Controllers\Admin\ConsultaController;
+use App\Support\Atencion\Autoguardado;
 use App\Models\Indicacion;
 use App\Models\LogAuditoria;
 use App\Models\Receta;
@@ -19,7 +19,7 @@ beforeEach(function () {
     hcEscenario();
     $this->medico = hcDarPermisos($this->medico, HC_PERMISOS_RECETAS);
     $this->actingAs($this->medico);
-    $this->consulta = hcConsulta();
+    $this->consulta = hcConsultaEnCurso(); // las recetas se cargan con la consulta EN_CURSO
     $this->reposo = TipoIndicacion::create(['nombre' => 'Reposo']);
 });
 
@@ -153,7 +153,7 @@ describe('indicaciones generales', function () {
     test('retirar y reponer; los retirados no cuentan para el máximo de 10', function () {
         hcActualizar($this->consulta, conIndicaciones(array_fill(0, 10, ['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => 'Algo'])))->assertSessionHasNoErrors();
         Carbon::setTestNow(now()->addMinute());
-        hcActualizar($this->consulta, conIndicaciones(array_fill(0, 11, ['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => 'Algo'])))->assertSessionHasErrors('indicaciones');
+        hcActualizar($this->consulta, conIndicaciones(array_fill(0, 11, ['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => 'Algo'])))->assertStatus(422)->assertJsonValidationErrors('indicaciones');
 
         $guardadas = Indicacion::orderBy('orden')->get();
         $filas = $guardadas->map(fn ($i) => ['id' => (string) $i->id, 'activo' => '1', 'tipo_indicacion_id' => '', 'descripcion' => 'Algo'])->all();
@@ -170,20 +170,22 @@ describe('indicaciones generales', function () {
         expect(Indicacion::where('activo', true)->count())->toBe(10);
     });
 
-    test('descripción obligatoria y de hasta 500; un tipo inactivo solo vale en la fila que ya lo tenía', function () {
-        hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => ' ']]))->assertSessionHasErrors('indicaciones.0.descripcion');
-        hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => str_repeat('a', 501)]]))->assertSessionHasErrors('indicaciones.0.descripcion');
+    test('descripción obligatoria (al finalizar; en el borrador la fila queda incompleta) y de hasta 500; un tipo inactivo solo vale en la fila que ya lo tenía', function () {
+        hcActualizar($this->consulta, conIndicaciones([['uid' => 'n-1', 'id' => '', 'tipo_indicacion_id' => '', 'descripcion' => ' ']]))->assertOk()->assertJsonPath('incompletas.indicaciones', ['n-1']);
+        hcFinalizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => ' ']]))->assertSessionHasErrors('indicaciones.0.descripcion');
+        expect($this->consulta->fresh()->enCurso())->toBeTrue()->and(Indicacion::count())->toBe(0);
+        hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => str_repeat('a', 501)]]))->assertStatus(422)->assertJsonValidationErrors('indicaciones.0.descripcion');
 
         hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => $this->reposo->id, 'descripcion' => 'Reposo']]))->assertSessionHasNoErrors();
         $this->reposo->desactivar();
         $guardada = Indicacion::sole();
         Carbon::setTestNow(now()->addMinute());
-        $this->get(route('admin.consultas.edit', $this->consulta))->assertSee('Reposo (inactivo)');
+        $this->get(route('admin.consultas.atencion', $this->consulta))->assertSee('Reposo (inactivo)');
         hcActualizar($this->consulta, conIndicaciones([['id' => (string) $guardada->id, 'activo' => '1', 'tipo_indicacion_id' => $this->reposo->id, 'descripcion' => 'Reposo 3 días']]))->assertSessionHasNoErrors();
         hcActualizar($this->consulta, conIndicaciones([
             ['id' => (string) $guardada->id, 'activo' => '1', 'tipo_indicacion_id' => $this->reposo->id, 'descripcion' => 'Reposo 3 días'],
             ['id' => '', 'tipo_indicacion_id' => $this->reposo->id, 'descripcion' => 'Otra'],
-        ]))->assertSessionHasErrors('indicaciones.1.tipo_indicacion_id');
+        ]))->assertStatus(422)->assertJsonValidationErrors('indicaciones.1.tipo_indicacion_id');
     });
 
     test('sin JavaScript (sin la marca) no se pierden filas', function () {
@@ -195,21 +197,22 @@ describe('indicaciones generales', function () {
         hcActualizar($this->consulta, $datos)->assertSessionHasNoErrors();
 
         expect(Indicacion::where('activo', true)->count())->toBe(1);
-        $this->get(route('admin.consultas.edit', $this->consulta))->assertSee('<template x-if="true"><input type="hidden" name="con_indicaciones" value="1"></template>', false);
+        $this->get(route('admin.consultas.atencion', $this->consulta))->assertSee('<template x-if="true"><input type="hidden" name="con_indicaciones" value="1"></template>', false);
     });
 
-    test('auditoría: EDITAR de la consulta con la lista legible, sin eventos propios; oculto sin VER sobre la historia clínica', function () {
+    test('auditoría: EDITAR de la consulta con la fila legible, sin eventos propios; oculto sin VER sobre la historia clínica', function () {
         Carbon::setTestNow(now()->addMinute());
         hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => $this->reposo->id, 'descripcion' => 'Reposo 48 horas']]))->assertSessionHasNoErrors();
 
         $evento = LogAuditoria::where('tabla_afectada', 'consultas')->get()->first(fn ($e) => isset($e->valor_nuevo['indicaciones']));
-        expect($evento->valor_anterior)->toBe(['indicaciones' => []])->and($evento->valor_nuevo)->toBe(['indicaciones' => ['Reposo: Reposo 48 horas']])
+        $fila = 'Indicación #'.$this->consulta->indicaciones()->value('id');
+        expect($evento->valor_anterior)->toBe(['indicaciones' => [$fila => null]])->and($evento->valor_nuevo)->toBe(['indicaciones' => [$fila => '1. Reposo: Reposo 48 horas']])
             ->and(LogAuditoria::where('tabla_afectada', 'indicaciones')->count())->toBe(0)
             ->and(Auditoria::TABLAS_CLINICAS)->toContain('indicaciones')
             ->and(Auditoria::TABLAS_RECETAS)->toBe(['recetas', 'detalles_receta']);
 
         $this->actingAs(User::factory()->conPermisos(['AUDITORIA' => ['VER'], 'RECETAS' => ['VER']])->create());
-        $this->get(route('admin.auditoria.show', $evento))->assertOk()->assertSee('se requiere permiso de lectura sobre Historia Clínica')->assertDontSee('Reposo 48 horas');
+        $this->get(route('admin.auditoria.show', $evento))->assertOk()->assertSee('se requiere permiso de lectura sobre Historia Clínica')->assertDontSee('Reposo 48 horas')->assertDontSee('Indicación #');
     });
 
     test('concurrencia de la consulta: las indicaciones también cambian la versión', function () {
@@ -218,7 +221,7 @@ describe('indicaciones generales', function () {
         hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => 'Reposo']]), $vieja)->assertSessionHasNoErrors();
 
         hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => 'Otra']]), $vieja)
-            ->assertSessionHas('error', ConsultaController::MODIFICADA_EN_OTRA_VENTANA);
+            ->assertStatus(409)->assertJson(['message' => Autoguardado::VERSION_VIEJA]);
     });
 });
 

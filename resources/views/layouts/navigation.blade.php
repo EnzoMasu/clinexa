@@ -21,9 +21,12 @@
             'admin.consultorios' => 'Consultorios',
             'admin.origenes-turno' => 'Orígenes de turno',
         ],
+        // Clínica: "Consulta" es la pantalla del profesional (agenda de hoy, en consulta, atender sin turno);
+        // "Preparación", la de enfermería (anamnesis y signos vitales de los turnos de hoy).
         'Clínica' => [
+            'admin.atencion' => 'Consulta',
+            'admin.preparacion' => 'Preparación',
             'admin.historias-clinicas' => 'Historias clínicas',
-            'admin.atencion-sin-turno' => 'Atención sin turno',
         ],
         'Catálogos' => [
             'admin.especialidades' => 'Especialidades',
