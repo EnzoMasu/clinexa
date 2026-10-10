@@ -81,7 +81,7 @@ describe('crear, editar y desactivar', function () {
     test('pasar un usuario a BLOQUEADO se registra como BLOQUEO', function () {
         $otro = User::factory()->create();
 
-        $this->put(route('admin.usuarios.update', $otro), ['perfil_acceso_id' => $this->admin->perfil_acceso_id, 'estado_id' => estadoId('BLOQUEADO')])->assertSessionHasNoErrors();
+        $this->put(route('admin.usuarios.update', $otro), ['perfiles' => $otro->perfiles->modelKeys(), 'estado_id' => estadoId('BLOQUEADO')])->assertSessionHasNoErrors();
 
         expect(logsDe('users', $otro->id)->sole())->accion->toBe(AccionAuditoria::BLOQUEO)
             ->valor_nuevo->toMatchArray(['estado_id' => estadoId('BLOQUEADO')]); // y lo demás que cambió en el mismo guardado
@@ -104,10 +104,10 @@ describe('campos sensibles', function () {
 
     test('dar de alta un usuario no guarda su contraseña ni tokens', function () {
         $persona = Persona::factory()->create();
-        $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfil_acceso_id' => $this->admin->perfil_acceso_id]);
+        $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfiles' => $this->admin->perfiles->modelKeys()]);
 
         $crear = logsDe('users')->where('accion', AccionAuditoria::CREAR)->sole();
-        expect($crear->valor_nuevo)->toHaveKeys(['persona_id', 'email', 'perfil_acceso_id'])
+        expect($crear->valor_nuevo)->toHaveKeys(['persona_id', 'email'])
             ->not->toHaveKeys(['password', 'remember_token']);
     });
 

@@ -25,11 +25,11 @@ function rutasAdmin(): array
 }
 
 test('un usuario con un perfil sin permisos no entra a ninguna sección de /admin', function () {
-    $usuario = User::factory()->create(['perfil_acceso_id' => PerfilAcceso::create(['nombre' => 'Sin permisos'])->id]);
+    $usuario = User::factory()->conPerfiles([PerfilAcceso::create(['nombre' => 'Sin permisos'])])->create();
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(190); // 24 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó) + atención (pantalla, autoguardado, finalizar, deshacer) + Preparación (lista, preparar, formulario, marcar lista, reabrir) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
+    expect($rutas)->toHaveCount(191); // 24 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + matriz de permisos (solo lectura) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó) + atención (pantalla, autoguardado, finalizar, deshacer) + Preparación (lista, preparar, formulario, marcar lista, reabrir) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -39,11 +39,12 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->get('/dashboard')->assertOk()->assertDontSee('Administración');
 })->group('lento'); // docs/pruebas.md: no corre en el comando rápido
 
-test('un usuario sin perfil asignado tampoco entra', function () {
-    $this->actingAs(User::factory()->create(['perfil_acceso_id' => null]));
+test('un usuario sin ningún perfil activo no entra: se le cierra la sesión con el motivo', function () {
+    $this->actingAs(User::factory()->sinPerfiles()->create());
 
-    $this->get(route('admin.personas.index'))->assertForbidden();
-    $this->get(route('admin.usuarios.index'))->assertForbidden();
+    $this->get(route('admin.personas.index'))->assertRedirect(route('login'))
+        ->assertSessionHasErrors(['email' => 'Su usuario no tiene ningún perfil de acceso activo. Contacte al administrador.']);
+    $this->assertGuest();
 });
 
 test('la vista 403 explica el motivo', function () {
@@ -103,7 +104,7 @@ test('el Administrador ve los 5 grupos del menú, en orden y con sus secciones, 
     $this->actingAs(User::factory()->administrador()->create());
 
     $grupos = [
-        'Seguridad' => ['usuarios', 'perfiles-acceso', 'auditoria'],
+        'Seguridad' => ['usuarios', 'perfiles-acceso', 'matriz-permisos', 'auditoria'],
         'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
         'Agenda' => ['turnos', 'disponibilidades', 'consultorios', 'origenes-turno'],
         'Clínica' => ['atencion', 'preparacion', 'historias-clinicas'],
@@ -148,7 +149,7 @@ test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra
     $admin = User::factory()->administrador()->create();
 
     expect(ModuloSistema::count())->toBe(28)
-        ->and($admin->perfilAcceso->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
+        ->and($admin->perfiles->sole()->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 
     // Salvo lo que además exige ser profesional activo (ConsultaPolicy), que el Administrador no es por
     // tener el perfil: el buscador de pacientes de "Atender sin turno" y la vista de "Cerrar jornada".

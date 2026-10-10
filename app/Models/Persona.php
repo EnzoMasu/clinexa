@@ -73,6 +73,11 @@ class Persona extends Model
 
         // Tampoco se desactiva la Persona de una paciente con consultas cerradas (la regla es de Paciente).
         static::updating(function (Persona $persona) {
+            // Tampoco la persona del último administrador activo (sin ella, su usuario no entra).
+            if ($persona->isDirty('estado_id') && (int) $persona->estado_id === Estado::idDe(Estado::INACTIVO)
+                && $persona->usuario?->esUltimoAdministrador()) {
+                throw new \App\Exceptions\UltimoAdministrador;
+            }
             if ($persona->isDirty('estado_id') && (int) $persona->estado_id === Estado::idDe(Estado::INACTIVO)
                 && $persona->paciente?->tieneConsultasCerradas()) {
                 throw new \App\Exceptions\PacienteConConsultasCerradas;

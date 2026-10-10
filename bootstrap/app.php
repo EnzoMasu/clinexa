@@ -42,6 +42,12 @@ return Application::configure(basePath: dirname(__DIR__))
             before: SubstituteBindings::class,
             prepend: VerificarAlgunPermiso::class,
         );
+        // Y antes del permiso, UsuarioActivo: a quien ya no puede entrar (bloqueado, inactivo, sin ningún
+        // perfil activo) se le cierra la sesión con el motivo, en lugar de un 403.
+        $middleware->prependToPriorityList(
+            before: VerificarPermiso::class,
+            prepend: UsuarioActivo::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Paciente con consultas cerradas: en la web se vuelve a la pantalla con el aviso (en el campo de estado y
@@ -52,5 +58,13 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return back()->withInput()->with('error', $e->getMessage())->withErrors(['estado_id' => $e->getMessage()]);
+        });
+        // Último administrador (quitarle el perfil, desactivarlo o bloquearlo): igual, con el aviso arriba.
+        $exceptions->render(function (\App\Exceptions\UltimoAdministrador $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 409);
+            }
+
+            return back()->withInput()->with('error', $e->getMessage());
         });
     })->create();

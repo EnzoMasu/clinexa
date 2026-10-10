@@ -1,7 +1,7 @@
 @use('App\Support\Fecha')
 @use('App\Support\Permisos')
 
-<x-admin.table :headers="['Nombre', 'Documento', 'Correo', 'Perfil de acceso', 'Estado', 'Último acceso']" :paginator="$usuarios">
+<x-admin.table :headers="['Nombre', 'Documento', 'Correo', 'Perfiles de acceso', 'Estado', 'Último acceso']" :paginator="$usuarios">
     @forelse ($usuarios as $usuario)
         <tr>
             <td class="px-6 py-4 font-medium">{{ $usuario->persona->nombre_completo }}</td>
@@ -10,7 +10,13 @@
                 <span class="dato">{{ $usuario->persona->nro_documento }}</span>
             </td>
             <td class="px-6 py-4">{{ $usuario->email }}</td>
-            <td class="px-6 py-4">{{ $usuario->perfilAcceso?->nombre ?? '—' }}</td>
+            <td class="px-6 py-4">
+                @forelse ($usuario->perfiles->sortBy('nombre') as $perfil)
+                    <span class="block">{{ $perfil->nombre }}@unless ($perfil->estaActivo()) <span class="text-xs text-gray-600 dark:text-gray-400">(inactivo)</span>@endunless</span>
+                @empty
+                    —
+                @endforelse
+            </td>
             <td class="px-6 py-4">
                 <x-admin.estado-badge :estado="$usuario->estado" />
                 @if (! $usuario->persona->estaActivo())

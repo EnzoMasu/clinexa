@@ -219,7 +219,7 @@ function hcDarPermisos(User $usuario, array $permisos): User
     foreach ($permisos as $codigo => $acciones) {
         $modulo = ModuloSistema::where('codigo', $codigo)->sole();
         foreach ($acciones as $accion) {
-            $usuario->perfilAcceso->permisos()->syncWithoutDetaching([Permiso::firstOrCreate(['modulo_sistema_id' => $modulo->id, 'accion' => $accion])->id]);
+            $usuario->perfiles()->firstOrFail()->permisos()->syncWithoutDetaching([Permiso::firstOrCreate(['modulo_sistema_id' => $modulo->id, 'accion' => $accion])->id]);
         }
     }
 
@@ -252,11 +252,10 @@ function hcEmitir(Receta $receta, ?string $version = null)
     return test()->post(route('admin.recetas.emitir', $receta), ['version' => $version ?? $receta->fresh()->version()]);
 }
 
-/** El mismo usuario con otro perfil, que tiene solo estos permisos (una persona tiene un solo usuario). */
+/** El mismo usuario con otro perfil (en lugar de los suyos), que tiene solo estos permisos (una persona tiene un solo usuario). */
 function hcConPerfil(User $usuario, array $permisos): User
 {
-    $perfil = User::factory()->conPermisos($permisos)->make()->perfil_acceso_id;
-    $usuario->forceFill(['perfil_acceso_id' => $perfil])->save();
+    $usuario->perfiles()->sync([\Database\Factories\UserFactory::perfilConPermisos($permisos)->id]);
 
     return $usuario->fresh();
 }

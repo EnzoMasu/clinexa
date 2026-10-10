@@ -186,6 +186,6 @@ test('el rol PropietarioEquipo ya no aparece en ningún lado', function () {
     $this->get('/dashboard')->assertOk()->assertDontSee('Propietarios de equipo')->assertSee('Categorías de proveedor');
 
     // El Administrador tiene exactamente las 5 acciones de los módulos que quedan.
-    expect(PerfilAcceso::where('nombre', PerfilAcceso::ADMINISTRADOR)->sole()->permisos()->count())
+    expect(PerfilAcceso::where('codigo', PerfilAcceso::ADMINISTRADOR)->sole()->permisos()->count())
         ->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 });

@@ -98,7 +98,7 @@ test('rechaza acciones o módulos inválidos y nombres repetidos', function () {
 });
 
 test('la pantalla del perfil Administrador muestra la matriz completa y bloqueada', function () {
-    $admin = PerfilAcceso::where('nombre', PerfilAcceso::ADMINISTRADOR)->sole();
+    $admin = PerfilAcceso::where('codigo', PerfilAcceso::ADMINISTRADOR)->sole();
 
     $respuesta = $this->get(route('admin.perfiles-acceso.edit', $admin))->assertOk()
         ->assertSee('tiene siempre todos los permisos');
@@ -114,11 +114,11 @@ test('la pantalla del perfil Administrador muestra la matriz completa y bloquead
 });
 
 test('editar el Administrador cambia la descripción pero no sus permisos', function () {
-    $admin = PerfilAcceso::where('nombre', PerfilAcceso::ADMINISTRADOR)->sole();
+    $admin = PerfilAcceso::where('codigo', PerfilAcceso::ADMINISTRADOR)->sole();
 
     // Aunque alguien mande la matriz a mano (sin pasar por el formulario), se ignora.
     $this->put(route('admin.perfiles-acceso.update', $admin), [
-        'nombre' => PerfilAcceso::ADMINISTRADOR,
+        'nombre' => 'Administrador',
         'descripcion' => 'Dirección de la clínica',
         'permisos' => [$this->personas->id => ['VER']],
     ])->assertSessionHasNoErrors()->assertRedirect(route('admin.perfiles-acceso.index'));
@@ -128,11 +128,11 @@ test('editar el Administrador cambia la descripción pero no sus permisos', func
 });
 
 test('guardar el Administrador completa los permisos si le faltaba alguno', function () {
-    $admin = PerfilAcceso::where('nombre', PerfilAcceso::ADMINISTRADOR)->sole();
+    $admin = PerfilAcceso::where('codigo', PerfilAcceso::ADMINISTRADOR)->sole();
     $admin->permisos()->detach($admin->permisos()->limit(7)->pluck('permisos.id'));
     $nuevo = ModuloSistema::create(['codigo' => 'AGENDA', 'nombre' => 'Agenda']);
 
-    $this->put(route('admin.perfiles-acceso.update', $admin), ['nombre' => PerfilAcceso::ADMINISTRADOR])
+    $this->put(route('admin.perfiles-acceso.update', $admin), ['nombre' => 'Administrador'])
         ->assertSessionHasNoErrors();
 
     expect($admin->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES)) // incluye las 5 del módulo nuevo
@@ -140,12 +140,12 @@ test('guardar el Administrador completa los permisos si le faltaba alguno', func
 });
 
 test('el nombre del perfil Administrador no se puede cambiar', function () {
-    $admin = PerfilAcceso::where('nombre', PerfilAcceso::ADMINISTRADOR)->sole();
+    $admin = PerfilAcceso::where('codigo', PerfilAcceso::ADMINISTRADOR)->sole();
 
     $this->put(route('admin.perfiles-acceso.update', $admin), ['nombre' => 'Superusuario'])
         ->assertSessionHasErrors(['nombre' => 'El nombre del perfil Administrador no se puede cambiar.']);
 
-    expect($admin->fresh()->nombre)->toBe(PerfilAcceso::ADMINISTRADOR);
+    expect($admin->fresh()->nombre)->toBe('Administrador');
 });
 
 test('los demás perfiles siguen teniendo la matriz editable', function () {

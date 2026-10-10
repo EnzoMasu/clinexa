@@ -4,28 +4,38 @@ namespace App\Models;
 
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
+use App\Support\PerfilesPredefinidos;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PerfilAcceso extends Model
 {
     use Auditable, TieneEstado;
 
     /**
-     * Perfil con acceso total. Se identifica por nombre, por eso el nombre no se puede cambiar,
-     * y sus permisos no se editan desde el panel: siempre tiene todas las acciones en todos los módulos.
+     * Código del perfil con acceso total. Sus permisos no se editan desde el panel (siempre tiene todas las
+     * acciones en todos los módulos, también los futuros), no se desactiva y su nombre no cambia.
      */
-    public const ADMINISTRADOR = 'Administrador';
+    public const ADMINISTRADOR = PerfilesPredefinidos::ADMINISTRADOR;
 
     protected $table = 'perfiles_acceso';
 
+    // codigo y predefinido los ponen la migración y PerfilesPredefinidos; el formulario no los envía.
     protected $fillable = [
+        'codigo',
         'nombre',
         'descripcion',
+        'predefinido',
         'estado_id',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'predefinido' => 'boolean',
+        ];
+    }
 
     public static function moduloEstado(): string
     {
@@ -47,23 +57,38 @@ class PerfilAcceso extends Model
         return $this->belongsToMany(Permiso::class, 'perfil_permiso', 'perfil_acceso_id', 'permiso_id');
     }
 
-    public function users(): HasMany
+    /** Los usuarios que tienen este perfil (usuario_perfil). */
+    public function users(): BelongsToMany
     {
-        return $this->hasMany(User::class, 'perfil_acceso_id');
+        return $this->belongsToMany(User::class, 'usuario_perfil', 'perfil_acceso_id', 'usuario_id')->withTimestamps();
+    }
+
+    /** Sus permisos como ["MÓDULO:ACCIÓN", ...] (para comparar contra los de un usuario). */
+    public function clavesPermisos(): array
+    {
+        return $this->permisos()->with('moduloSistema')->get()
+            ->map(fn (Permiso $permiso) => "{$permiso->moduloSistema->codigo}:{$permiso->accion}")->all();
     }
 
     public function esAdministrador(): bool
     {
-        return $this->nombre === self::ADMINISTRADOR;
+        return $this->codigo === self::ADMINISTRADOR;
     }
 
     /**
      * Crea el perfil Administrador si no existe y le asigna las 5 acciones en todos los módulos,
      * creando los permisos que falten. Se puede llamar las veces que sea: completa, nunca quita.
+     * Se lo busca por código; si todavía no tiene, adopta el que se llama "Administrador".
      */
     public static function asegurarAdministrador(): self
     {
-        $perfil = self::firstOrCreate(['nombre' => self::ADMINISTRADOR], ['descripcion' => 'Acceso total al sistema']);
+        $nombre = PerfilesPredefinidos::NOMBRES[self::ADMINISTRADOR];
+        $perfil = self::where('codigo', self::ADMINISTRADOR)->first()
+            ?? self::whereNull('codigo')->where('nombre', $nombre)->first()
+            ?? new self(['nombre' => $nombre, 'descripcion' => PerfilesPredefinidos::DESCRIPCIONES[self::ADMINISTRADOR]]);
+        if (! $perfil->exists || $perfil->codigo === null) {
+            $perfil->fill(['codigo' => self::ADMINISTRADOR, 'predefinido' => true])->save();
+        }
 
         // El perfil Administrador no se puede desactivar: si por algún motivo quedó inactivo, se reactiva.
         if (! $perfil->estaActivo()) {

@@ -79,8 +79,7 @@ class CrearAdmin extends Command
                 'persona_id' => $persona->id,
                 'email' => $email,
                 'password' => Str::password(32),
-                'perfil_acceso_id' => $perfil->id,
-            ]);
+            ])->perfiles()->attach($perfil->id);
         });
 
         $status = User::where('email', $email)->sole()->enviarLinkContrasena();

@@ -12,6 +12,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PerfilAccesoController extends Controller
@@ -55,7 +56,7 @@ class PerfilAccesoController extends Controller
         // se vuelven a asegurar los permisos completos, así nunca queda un admin sin acceso.
         if ($perfilAcceso->esAdministrador()) {
             $datos = $request->validate([
-                'nombre' => ['required', Rule::in([PerfilAcceso::ADMINISTRADOR])],
+                'nombre' => ['required', Rule::in([$perfilAcceso->nombre])],
                 'descripcion' => ['nullable', 'string', 'max:200'],
             ], ['nombre.in' => 'El nombre del perfil Administrador no se puede cambiar.'], ['descripcion' => 'descripción']);
 
@@ -90,7 +91,7 @@ class PerfilAccesoController extends Controller
         $perfilAcceso->desactivar();
 
         return redirect()->route('admin.perfiles-acceso.index')
-            ->with('status', 'Perfil de acceso desactivado. Sus usuarios ya no pueden ingresar al sistema.');
+            ->with('status', 'Perfil de acceso desactivado. Sus usuarios pierden sus permisos; quien no tenga otro perfil activo ya no puede ingresar al sistema.');
     }
 
     private function datosFormulario(PerfilAcceso $perfil): array
@@ -127,10 +128,34 @@ class PerfilAccesoController extends Controller
     }
 
     /**
+     * Sin escalada de privilegios: los permisos que se AGREGAN al perfil (no los que ya tenía) tienen que ser
+     * permisos que quien edita ya tiene. El Administrador tiene todo.
+     */
+    private function validarSinEscalada(Request $request, ?PerfilAcceso $perfil): void
+    {
+        $codigos = ModuloSistema::pluck('codigo', 'id');
+        $pedidos = collect((array) $request->input('permisos', []))
+            ->flatMap(fn ($acciones, $moduloId) => collect((array) $acciones)
+                ->filter(fn ($accion) => in_array($accion, Permiso::accionesDe($codigos[$moduloId] ?? ''), true))
+                ->map(fn ($accion) => ($codigos[$moduloId] ?? '?').":{$accion}"))
+            ->unique()->values()->all();
+        $agregados = array_values(array_diff($pedidos, $perfil?->clavesPermisos() ?? []));
+
+        if (! $request->user()->tieneTodos($agregados)) {
+            $ajenos = array_diff($agregados, array_keys($request->user()->permisosEfectivos()));
+            throw ValidationException::withMessages([
+                'permisos' => 'No puede agregar permisos que usted no tiene: '.implode(', ', array_map(fn ($clave) => str_replace(':', ': ', $clave), $ajenos)).'.',
+            ]);
+        }
+    }
+
+    /**
      * Valida el formulario completo y devuelve solo los campos del perfil (la matriz se procesa aparte).
      */
     private function validar(Request $request, ?PerfilAcceso $perfil = null): array
     {
+        $this->validarSinEscalada($request, $perfil);
+
         $datos = $request->validate([
             'nombre' => ['required', 'string', 'max:50', Rule::unique('perfiles_acceso')->ignore($perfil)],
             'descripcion' => ['nullable', 'string', 'max:200'],

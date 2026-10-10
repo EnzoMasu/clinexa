@@ -138,7 +138,7 @@ test('matriz de perfiles: en Auditoría solo se asignan VER y EXPORTAR; CREAR se
     expect($perfil->fresh()->permisos->pluck('accion')->all())->toBe(['VER'])
         ->and(Permiso::accionesDe('AUDITORIA'))->toBe(['VER', 'EXPORTAR'])
         // El Administrador mantiene las 5 en todos los módulos.
-        ->and(PerfilAcceso::where('nombre', PerfilAcceso::ADMINISTRADOR)->sole()->permisos()->count())
+        ->and(PerfilAcceso::where('codigo', PerfilAcceso::ADMINISTRADOR)->sole()->permisos()->count())
         ->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 });
 

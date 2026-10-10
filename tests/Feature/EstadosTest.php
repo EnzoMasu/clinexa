@@ -63,7 +63,7 @@ test('solo se puede asignar un estado habilitado para el módulo', function () {
     // BLOQUEADO existe, pero solo está habilitado para Usuarios.
     $this->put(route('admin.especialidades.update', $especialidad), ['nombre' => 'Cardiología', 'estado_id' => estadoId('BLOQUEADO')])
         ->assertSessionHasErrors('estado_id');
-    $this->put(route('admin.usuarios.update', $usuario), ['perfil_acceso_id' => $usuario->perfil_acceso_id ?? PerfilAcceso::first()->id, 'estado_id' => estadoId('BLOQUEADO')])
+    $this->put(route('admin.usuarios.update', $usuario), ['perfiles' => $usuario->perfiles->modelKeys(), 'estado_id' => estadoId('BLOQUEADO')])
         ->assertSessionHasNoErrors();
 
     expect($especialidad->fresh()->estado->codigo)->toBe('ACTIVO')
@@ -88,18 +88,18 @@ test('el badge muestra el nombre del estado', function () {
 
 test('un usuario con el perfil de acceso INACTIVO no puede entrar', function () {
     $perfil = PerfilAcceso::create(['nombre' => 'Recepción']);
-    $usuario = User::factory()->create(['perfil_acceso_id' => $perfil->id]);
+    $usuario = User::factory()->conPerfiles([$perfil])->create();
     $perfil->desactivar();
 
     $this->post('/login', ['email' => $usuario->email, 'password' => 'password'])
-        ->assertSessionHasErrors(['email' => 'Su perfil de acceso está inactivo. Contacte al administrador.']);
+        ->assertSessionHasErrors(['email' => 'Su usuario no tiene ningún perfil de acceso activo. Contacte al administrador.']);
     $this->assertGuest();
 });
 
 test('el perfil Administrador no se puede desactivar', function () {
     $admin = User::factory()->administrador()->create();
     $this->actingAs($admin);
-    $perfil = $admin->perfilAcceso;
+    $perfil = $admin->perfiles->sole();
 
     $this->patch(route('admin.perfiles-acceso.desactivar', $perfil))
         ->assertSessionHas('error', 'El perfil Administrador no se puede desactivar.');
@@ -116,8 +116,8 @@ test('al crear usuarios solo se ofrecen perfiles activos', function () {
     $inactivo->desactivar();
 
     $this->get(route('admin.usuarios.create'))->assertOk()->assertDontSee('Perfil viejo');
-    $this->post(route('admin.usuarios.store'), ['persona_id' => Persona::latest('id')->first()->id, 'perfil_acceso_id' => $inactivo->id])
-        ->assertSessionHasErrors('perfil_acceso_id');
+    $this->post(route('admin.usuarios.store'), ['persona_id' => Persona::latest('id')->first()->id, 'perfiles' => [$inactivo->id]])
+        ->assertSessionHasErrors('perfiles.0');
 });
 
 test('un módulo INACTIVO (estado_id) no da permisos', function () {

@@ -29,9 +29,9 @@ test('crea la persona y el usuario administrador con todos los permisos, y le ma
     $this->artisan('clinexa:crear-admin', ['email' => 'Admin@Clinexa.test', ...opcionesPersona()])->assertSuccessful();
 
     $admin = User::where('email', 'admin@clinexa.test')->sole();
-    $perfil = PerfilAcceso::where('nombre', PerfilAcceso::ADMINISTRADOR)->sole();
+    $perfil = PerfilAcceso::where('codigo', PerfilAcceso::ADMINISTRADOR)->sole();
 
-    expect($admin->perfil_acceso_id)->toBe($perfil->id)
+    expect($admin->perfiles->modelKeys())->toBe([$perfil->id])
         ->and($perfil->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES))
         ->and($admin->persona)
             ->nro_documento->toBe('1234567')

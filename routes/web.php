@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\DepartamentoController;
 use App\Http\Controllers\Admin\DisponibilidadController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\HistoriaClinicaController;
+use App\Http\Controllers\Admin\MatrizPermisosController;
 use App\Http\Controllers\Admin\MedioPagoController;
 use App\Http\Controllers\Admin\OrigenTurnoController;
 use App\Http\Controllers\Admin\PacienteController;
@@ -95,6 +96,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     });
 
     $seccion('perfiles-acceso', PerfilAccesoController::class, 'PERFILES_ACCESO', 'perfilAcceso', conBaja: true);
+    // Matriz de permisos: perfiles × módulos, solo lectura (PERFILES_ACCESO es sensible: registra VER).
+    Route::get('matriz-permisos', [MatrizPermisosController::class, 'index'])->name('matriz-permisos.index')
+        ->middleware('permiso:PERFILES_ACCESO,VER');
     $seccion('personas', PersonaController::class, 'PERSONAS', 'persona', conBaja: true);
     $seccion('especialidades', EspecialidadController::class, 'ESPECIALIDADES', 'especialidad', conBaja: true);
     $seccion('sucursales', SucursalController::class, 'SUCURSALES', 'sucursal', conBaja: true);

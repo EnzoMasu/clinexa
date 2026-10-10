@@ -51,6 +51,7 @@ test('intento fallido con un correo inexistente: sin usuario, con el correo inte
 });
 
 test('cuenta bloqueada con la contraseña correcta: intento fallido con el motivo, sin inicio ni cierre de sesión', function () {
+    User::factory()->administrador()->create(); // el último administrador activo no se bloquea
     $this->usuario->update(['estado_id' => estadoId('BLOQUEADO')]);
 
     $this->post(route('login'), ['email' => 'liz@example.com', 'password' => 'password'])->assertSessionHasErrors('email');
@@ -72,6 +73,7 @@ test('cierre de sesión', function () {
 
 test('si el sistema cierra la sesión (cuenta bloqueada mientras estaba adentro), el cierre lleva el motivo', function () {
     $this->actingAs($this->usuario);
+    User::factory()->administrador()->create(); // el último administrador activo no se bloquea
     $this->usuario->update(['estado_id' => estadoId('BLOQUEADO')]);
 
     $this->get('/dashboard')->assertRedirect(route('login'));
