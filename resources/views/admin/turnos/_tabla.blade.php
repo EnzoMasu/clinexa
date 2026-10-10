@@ -8,7 +8,7 @@
     @forelse ($turnos as $turno)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($turno->fecha) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap font-mono">{{ substr($turno->hora_inicio, 0, 5) }} – {{ substr($turno->hora_fin, 0, 5) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap dato">{{ substr($turno->hora_inicio, 0, 5) }} – {{ substr($turno->hora_fin, 0, 5) }}</td>
             <td class="px-6 py-4">
                 <div class="font-medium">{{ $turno->paciente->persona->nombre_completo }}</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400">Ficha {{ $turno->paciente->nro_ficha }}</div>

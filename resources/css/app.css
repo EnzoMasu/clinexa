@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer components {
+    /*
+     * Datos en monoespaciado (horas, fechas, códigos, documentos, fichas, matrículas): siempre con el par de
+     * colores de texto, oscuro en modo claro y claro en modo oscuro. Sin color propio, un dato fuera de una
+     * tabla heredaba el negro del navegador y en modo oscuro casi no se leía. Para un dato secundario,
+     * agregar además un color propio (p. ej. text-gray-500 dark:text-gray-400), que pisa a este.
+     * El test ContrasteModoOscuroTest exige usar esta clase o un color explícito para modo oscuro.
+     */
+    .dato {
+        @apply font-mono text-gray-900 dark:text-gray-100;
+    }
+}

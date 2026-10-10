@@ -59,7 +59,7 @@
                             <template x-for="cie10 in resultados" x-bind:key="cie10.codigo">
                                 <li>
                                     <button type="button" x-on:click="elegir(cie10)" class="block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700">
-                                        <span class="font-mono font-medium" x-text="cie10.codigo"></span> — <span x-text="cie10.descripcion"></span>
+                                        <span class="dato font-medium" x-text="cie10.codigo"></span> — <span x-text="cie10.descripcion"></span>
                                     </button>
                                 </li>
                             </template>

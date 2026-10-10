@@ -38,7 +38,7 @@
                         x-bind:class="hora === horario.hora_inicio
                             ? 'border-indigo-600 bg-indigo-600 text-white'
                             : 'border-gray-300 text-gray-900 hover:border-indigo-400 hover:bg-indigo-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-700'">
-                        <span class="block font-mono font-medium" x-text="`${horario.hora_inicio} – ${horario.hora_fin}`"></span>
+                        <span class="block dato font-medium" x-text="`${horario.hora_inicio} – ${horario.hora_fin}`"></span>
                         <span class="block text-xs opacity-80" x-text="horario.consultorio"></span>
                     </button>
                 </template>

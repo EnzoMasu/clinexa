@@ -22,7 +22,7 @@
         <ul class="mx-4 my-3 divide-y divide-gray-200 rounded-md border border-gray-200 text-sm dark:divide-gray-700 dark:border-gray-700">
             @foreach ($turnos as $turno)
                 <li class="grid gap-x-4 gap-y-2 px-4 py-2.5 sm:grid-cols-[4rem_1fr_14rem_9rem_7rem] sm:items-center">
-                    <span class="font-mono text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
+                    <span class="dato text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
                     @include('admin.atencion._paciente', ['paciente' => $turno->paciente])
                     <span class="truncate text-gray-700 dark:text-gray-300">{{ $turno->profesional->persona->nombre_completo }}</span>
                     <span class="flex flex-wrap gap-1">

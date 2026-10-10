@@ -31,7 +31,7 @@
                         @foreach ($consulta->recetas->sortBy('id') as $receta)
                             <li class="flex flex-wrap items-center justify-between gap-2 py-2">
                                 <span>
-                                    <span class="font-mono text-xs font-semibold">{{ $receta->numero ?? 'Borrador' }}</span>
+                                    <span class="dato text-xs font-semibold">{{ $receta->numero ?? 'Borrador' }}</span>
                                     <span class="text-xs text-gray-600 dark:text-gray-400">· {{ $receta->etiquetaEstado() }}</span>
                                 </span>
                                 <span class="flex flex-wrap items-center gap-3 text-sm">
@@ -82,7 +82,7 @@
                 <x-admin.table :headers="['Fecha y hora', 'Usuario', 'Acción', 'Qué cambió']">
                     @forelse ($historial as ['evento' => $evento, 'desde' => $desde, 'cantidad' => $cantidad, 'secciones' => $secciones])
                         <tr>
-                            <td class="px-6 py-3 whitespace-nowrap font-mono text-sm">
+                            <td class="px-6 py-3 whitespace-nowrap dato text-sm">
                                 {{ $cantidad > 1 ? Fecha::mostrar($desde, conHora: true).' – '.substr(Fecha::mostrar($evento->fecha_hora, conHora: true), -5) : Fecha::mostrar($evento->fecha_hora, conHora: true) }}
                             </td>
                             <td class="px-6 py-3">{{ $evento->usuario?->name ?? 'Sin usuario' }}</td>

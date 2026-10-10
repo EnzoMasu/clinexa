@@ -12,7 +12,7 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ $registro->persona->tipoDocumento->codigo }}</span>
-                <span class="font-mono">{{ $registro->persona->nro_documento }}</span>
+                <span class="dato">{{ $registro->persona->nro_documento }}</span>
             </td>
             <td class="px-6 py-4 text-gray-600 dark:text-gray-400">{{ $registro->categorias->sortBy('nombre')->pluck('nombre')->join(', ') ?: '—' }}</td>
             {{-- Contactos activos (precargado con withCount: sin una consulta por fila). --}}

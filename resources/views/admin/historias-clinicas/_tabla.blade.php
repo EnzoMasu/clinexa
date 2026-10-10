@@ -3,11 +3,11 @@
 <x-admin.table :headers="['Nro. ficha', 'Paciente', 'Documento', 'Consultas', 'Última consulta', 'Estado del paciente']" :paginator="$historias">
     @forelse ($historias as $historia)
         <tr>
-            <td class="px-6 py-4 font-mono font-medium">{{ $historia->paciente->nro_ficha }}</td>
+            <td class="px-6 py-4 dato font-medium">{{ $historia->paciente->nro_ficha }}</td>
             <td class="px-6 py-4 font-medium">{{ $historia->paciente->persona->nombre_completo }}</td>
             <td class="px-6 py-4 whitespace-nowrap">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ $historia->paciente->persona->tipoDocumento->codigo }}</span>
-                <span class="font-mono">{{ $historia->paciente->persona->nro_documento }}</span>
+                <span class="dato">{{ $historia->paciente->persona->nro_documento }}</span>
             </td>
             {{-- Conteo y última fecha precargados (withCount / withMax): sin una consulta por fila. --}}
             <td class="px-6 py-4 text-gray-600 dark:text-gray-400">{{ $historia->consultas_count ?: '—' }}</td>

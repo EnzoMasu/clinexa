@@ -70,7 +70,7 @@
                     <tbody class="divide-y divide-gray-200 dark:divide-gray-700 text-gray-900 dark:text-gray-100">
                         @foreach ($cambios as $cambio)
                             <tr>
-                                <td class="px-4 py-2 font-mono align-top">{{ $cambio['campo'] }}</td>
+                                <td class="px-4 py-2 dato align-top">{{ $cambio['campo'] }}</td>
                                 @if ($contenidoOculto)
                                     <td colspan="2" class="px-4 py-2 align-top italic text-gray-500 dark:text-gray-400">Oculto</td>
                                 @else

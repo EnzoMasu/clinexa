@@ -35,7 +35,7 @@
             <ul @class([$lista, 'border-blue-300 dark:border-blue-700' => $enCurso->count() > 1])>
                 @foreach ($enCurso as $consulta)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-                        <span class="w-24 font-mono text-xs">
+                        <span class="w-24 dato text-xs">
                             @if ($consulta->turno)
                                 Turno {{ substr($consulta->turno->hora_inicio, 0, 5) }}
                             @else
@@ -64,7 +64,7 @@
             <ul class="{{ $lista }}">
                 @foreach ($agenda as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-                        <span class="w-24 font-mono text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
+                        <span class="w-24 dato text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                         <span class="flex items-center gap-2">
                             @if ($turno->estado->codigo === Estado::CONFIRMADO)
@@ -109,7 +109,7 @@
             <ul class="{{ $lista }}">
                 @foreach ($porLlamar as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-                        <span class="w-24 font-mono text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
+                        <span class="w-24 dato text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                         @include('admin.preparacion._estado', ['consulta' => $turno->consulta])
                         <span class="flex flex-wrap items-center gap-2">
@@ -166,7 +166,7 @@
             <ul class="{{ $lista }} mt-2">
                 @foreach ($ausentes as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
-                        <span class="w-24 font-mono text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
+                        <span class="w-24 dato text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                     </li>
                 @endforeach

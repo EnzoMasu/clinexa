@@ -33,7 +33,7 @@
                 <dt class="text-gray-500 dark:text-gray-400">Documento</dt>
                 <dd class="font-medium text-gray-900 dark:text-gray-100">
                     <span class="text-xs text-gray-500 dark:text-gray-400">{{ $persona->tipoDocumento->codigo }}</span>
-                    <span class="font-mono">{{ $persona->nro_documento }}</span>
+                    <span class="dato">{{ $persona->nro_documento }}</span>
                 </dd>
             </div>
             <div>
@@ -80,7 +80,7 @@
                             <a href="{{ route('admin.consultas.show', $consulta) }}" data-consulta-id="{{ $consulta->id }}"
                                 x-on:click="abrir({{ $consulta->id }}, $event)"
                                 class="grid gap-x-4 gap-y-1 px-4 py-2.5 text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-700/50 dark:focus:bg-gray-700/50 sm:grid-cols-[9.5rem_12rem_1fr_auto] sm:items-center">
-                                <span class="font-mono text-xs whitespace-nowrap">{{ $consulta->fechaHoraTexto() }}</span>
+                                <span class="dato text-xs whitespace-nowrap">{{ $consulta->fechaHoraTexto() }}</span>
                                 <span class="truncate">{{ $consulta->profesional->persona->nombre_completo }}</span>
                                 {{-- Motivo cortado en el servidor (el completo no viaja en esta página) y en una línea. --}}
                                 <span class="truncate text-gray-600 dark:text-gray-400">
@@ -94,7 +94,7 @@
                                     @endif
                                     {{ Str::limit($consulta->motivo_consulta, 90) }}
                                 </span>
-                                <span class="font-mono text-xs whitespace-nowrap">
+                                <span class="dato text-xs whitespace-nowrap">
                                     @forelse ($codigos->take(3) as $codigo)
                                         <span @class(['font-semibold' => $loop->first && $consulta->diagnosticos->first()->principal])>{{ $codigo }}</span>@unless ($loop->last), @endunless
                                     @empty

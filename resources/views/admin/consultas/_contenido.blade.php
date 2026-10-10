@@ -42,7 +42,7 @@
         <p class="text-xs text-gray-600 dark:text-gray-400">
             Ficha {{ $paciente->nro_ficha }}
             · {{ $paciente->persona->tipoDocumento->codigo }} {{ $paciente->persona->nro_documento }}
-            · <span class="font-mono">{{ $consulta->fechaHoraTexto() }}</span>
+            · <span class="dato">{{ $consulta->fechaHoraTexto() }}</span>
             · {{ $consulta->profesional->persona->nombre_completo }}
             · @if ($consulta->turno)
                 Turno del {{ Fecha::mostrar($consulta->turno->fecha) }}, {{ substr($consulta->turno->hora_inicio, 0, 5) }}
@@ -155,7 +155,7 @@
             <ul class="mt-1 space-y-1">
                 @foreach ($recetas as $receta)
                     <li @class(['opacity-60' => $receta->estaAnulada()]) data-receta-id="{{ $receta->id }}">
-                        <span class="font-mono text-xs font-semibold">{{ $receta->numero ?? 'Borrador' }}</span>
+                        <span class="dato text-xs font-semibold">{{ $receta->numero ?? 'Borrador' }}</span>
                         @if ($receta->fecha)
                             <span class="text-xs text-gray-600 dark:text-gray-400">{{ Fecha::mostrar($receta->fecha) }}</span>
                         @endif

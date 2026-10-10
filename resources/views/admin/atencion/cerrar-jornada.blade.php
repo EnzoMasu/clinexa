@@ -22,7 +22,7 @@
             <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 text-sm dark:divide-gray-700 dark:border-gray-700">
                 @foreach ($turnos as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
-                        <span class="w-36 font-mono text-xs">{{ Fecha::mostrar($turno->fecha) }} {{ substr($turno->hora_inicio, 0, 5) }}</span>
+                        <span class="w-36 dato text-xs">{{ Fecha::mostrar($turno->fecha) }} {{ substr($turno->hora_inicio, 0, 5) }}</span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                         <x-admin.estado-badge :estado="$turno->estado" />
                     </li>

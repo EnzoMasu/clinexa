@@ -5,7 +5,7 @@
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ $persona->tipoDocumento->codigo }}</span>
-                <span class="font-mono font-medium">{{ $persona->nro_documento }}</span>
+                <span class="dato font-medium">{{ $persona->nro_documento }}</span>
             </td>
             <td class="px-6 py-4">
                 <div class="font-medium">{{ $persona->nombre_completo }}</div>

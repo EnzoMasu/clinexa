@@ -3,7 +3,7 @@
 <x-admin.table :headers="['Código', 'Nombre', 'Habilitado en', 'Estado']" :paginator="$tiposDocumento">
     @forelse ($tiposDocumento as $tipoDocumento)
         <tr>
-            <td class="px-6 py-4 font-mono font-medium">{{ $tipoDocumento->codigo }}</td>
+            <td class="px-6 py-4 dato font-medium">{{ $tipoDocumento->codigo }}</td>
             <td class="px-6 py-4">{{ $tipoDocumento->nombre }}</td>
             {{-- Módulos que aceptan el tipo (tipo_documento_modulo); "predeterminado" = el que viene elegido. --}}
             <td class="px-6 py-4 text-gray-600 dark:text-gray-400">

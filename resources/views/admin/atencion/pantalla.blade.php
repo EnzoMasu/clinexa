@@ -130,7 +130,7 @@
                                 @foreach ($consulta->recetas->sortBy('id') as $receta)
                                     <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                                         <span>
-                                            <span class="font-mono text-xs font-semibold">{{ $receta->numero ?? 'Borrador' }}</span>
+                                            <span class="dato text-xs font-semibold">{{ $receta->numero ?? 'Borrador' }}</span>
                                             <span class="text-xs text-gray-600 dark:text-gray-400">· {{ $receta->etiquetaEstado() }} · {{ $receta->detalles->count() }} {{ $receta->detalles->count() === 1 ? 'medicamento' : 'medicamentos' }}</span>
                                         </span>
                                         <span class="flex flex-wrap gap-3 text-xs">

@@ -7,7 +7,7 @@
             <td class="px-6 py-4 font-medium">{{ $usuario->persona->nombre_completo }}</td>
             <td class="px-6 py-4 whitespace-nowrap">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ $usuario->persona->tipoDocumento->codigo }}</span>
-                <span class="font-mono">{{ $usuario->persona->nro_documento }}</span>
+                <span class="dato">{{ $usuario->persona->nro_documento }}</span>
             </td>
             <td class="px-6 py-4">{{ $usuario->email }}</td>
             <td class="px-6 py-4">{{ $usuario->perfilAcceso?->nombre ?? '—' }}</td>
