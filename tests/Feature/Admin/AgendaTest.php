@@ -290,6 +290,102 @@ describe('no agendar en el pasado (la misma regla que los horarios libres: Fecha
     });
 });
 
+describe('misma paciente, dos turnos', function () {
+    beforeEach(function () {
+        // Martes 06/10: la Dra. Benítez de 08:00 a 10:00 (consultorio 1) y la Dra. Insfrán de 08:00 a 10:00 (consultorio 2).
+        disponibilidad(['profesional_id' => $this->otroProfesional->id, 'consultorio_id' => $this->consultorio2->id]);
+    });
+
+    function darTurnoA(Profesional $profesional, string $hora, array $extra = [])
+    {
+        return test()->from(route('admin.turnos.create'))->post(route('admin.turnos.store'), datosTurno(['profesional_id' => $profesional->id, 'hora_inicio' => $hora, ...$extra]));
+    }
+
+    test('superposición con OTRO profesional: bloquea con el nombre y la hora del turno que ya tiene', function () {
+        darTurnoA($this->profesional, '08:30')->assertSessionHasNoErrors();
+
+        darTurnoA($this->otroProfesional, '08:30')->assertSessionHasErrors(['hora_inicio' => 'La paciente ya tiene un turno con Rosa Benítez a las 08:30.']);
+        expect(Turno::count())->toBe(1);
+    });
+
+    test('superposición con el MISMO profesional: el aviso es el de la paciente', function () {
+        darTurnoA($this->profesional, '08:30')->assertSessionHasNoErrors();
+
+        darTurnoA($this->profesional, '08:30', ['agendar_igual' => '1'])->assertSessionHasErrors(['hora_inicio' => 'La paciente ya tiene un turno con Rosa Benítez a las 08:30.']);
+        expect(Turno::count())->toBe(1);
+    });
+
+    test('turnos contiguos no se superponen: 08:00–08:30 con una profesional y 08:30 con la otra, sin aviso', function () {
+        darTurnoA($this->profesional, '08:00')->assertSessionHasNoErrors();
+
+        darTurnoA($this->otroProfesional, '08:30')->assertSessionHasNoErrors()->assertSessionMissing('errors');
+        expect(Turno::count())->toBe(2);
+    });
+
+    test('mismo día y mismo profesional: pide confirmación; sin la casilla no guarda, con "Agendar igual" sí', function () {
+        darTurnoA($this->profesional, '08:00')->assertSessionHasNoErrors();
+
+        darTurnoA($this->profesional, '09:00')->assertRedirect(route('admin.turnos.create'))
+            ->assertSessionHasErrors(['agendar_igual' => 'La paciente ya tiene turno con Rosa Benítez el 06/10/2026 a las 08:00.']);
+        expect(Turno::count())->toBe(1);
+
+        // El formulario muestra el aviso con la casilla.
+        $this->get(route('admin.turnos.create'))->assertSee('La paciente ya tiene turno con Rosa Benítez el 06/10/2026 a las 08:00.')
+            ->assertSee('name="agendar_igual"', false)->assertSee('Agendar igual');
+
+        darTurnoA($this->profesional, '09:00', ['agendar_igual' => '1'])->assertSessionHasNoErrors()->assertRedirect(route('admin.turnos.index'));
+        expect(Turno::count())->toBe(2);
+    });
+
+    test('si el otro turno es de hoy, el aviso dice "hoy"', function () {
+        disponibilidad(['dia_semana' => 'LUN', 'hora_desde' => '10:00', 'hora_hasta' => '12:00']);
+        darTurnoA($this->profesional, '10:00', ['fecha' => '05/10/2026'])->assertSessionHasNoErrors();
+
+        darTurnoA($this->profesional, '11:00', ['fecha' => '05/10/2026'])
+            ->assertSessionHasErrors(['agendar_igual' => 'La paciente ya tiene turno con Rosa Benítez hoy a las 10:00.']);
+    });
+
+    test('con OTRO profesional el mismo día (sin superposición) no hay aviso', function () {
+        darTurnoA($this->profesional, '08:00')->assertSessionHasNoErrors();
+        darTurnoA($this->otroProfesional, '09:00')->assertSessionHasNoErrors();
+        expect(Turno::count())->toBe(2);
+    });
+
+    test('CANCELADO y AUSENTE no bloquean ni piden confirmación; ATENDIDO sí cuenta', function (string $estado, bool $cuenta) {
+        turno(['profesional_id' => $this->otroProfesional->id, 'consultorio_id' => $this->consultorio2->id, 'hora_inicio' => '08:30', 'hora_fin' => '09:00', 'estado_id' => Estado::idDe($estado)]);
+        turno(['hora_inicio' => '09:30', 'hora_fin' => '10:00', 'estado_id' => Estado::idDe($estado)]);
+
+        $superpuesto = darTurnoA($this->profesional, '08:30');
+        $cuenta ? $superpuesto->assertSessionHasErrors('hora_inicio') : $superpuesto->assertSessionHasNoErrors();
+
+        if (! $cuenta) {
+            // Tampoco el de la misma profesional a las 09:30 pide confirmación (no es un turno activo).
+            expect(Turno::where('profesional_id', $this->profesional->id)->whereNotIn('estado_id', [Estado::idDe($estado)])->count())->toBe(1);
+        }
+    })->with([
+        'CANCELADO' => ['CANCELADO', false],
+        'AUSENTE' => ['AUSENTE', false],
+        'ATENDIDO' => ['ATENDIDO', true],
+    ]);
+
+    test('auditoría: el CREAR del segundo turno del día confirmado lo dice en el detalle; uno común, no', function () {
+        // La auditoría registra dentro de un pedido web con usuario (como en la aplicación).
+        darTurnoA($this->profesional, '08:00')->assertSessionHasNoErrors();
+        darTurnoA($this->profesional, '09:00', ['agendar_igual' => '1'])->assertSessionHasNoErrors();
+
+        $altas = \App\Models\LogAuditoria::where('tabla_afectada', 'turnos')->where('accion', 'CREAR')->orderBy('id')->get();
+        expect($altas)->toHaveCount(2)
+            ->and($altas[0]->detalle)->toBeNull()
+            ->and($altas[1]->detalle)->toBe('Segundo turno del día confirmado')
+            ->and($altas[1]->registro_afectado_id)->toBe((string) Turno::where('hora_inicio', 'like', '09:00%')->value('id'));
+    });
+
+    test('la casilla sin necesidad no cambia nada: un turno común marcado "Agendar igual" no lleva el detalle', function () {
+        darTurnoA($this->profesional, '08:00', ['agendar_igual' => '1'])->assertSessionHasNoErrors();
+        expect(\App\Models\LogAuditoria::where('tabla_afectada', 'turnos')->where('accion', 'CREAR')->sole()->detalle)->toBeNull();
+    });
+});
+
 describe('cambios de estado', function () {
     function accion(Turno $turno, string $accion)
     {

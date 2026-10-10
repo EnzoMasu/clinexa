@@ -117,6 +117,14 @@ class Persona extends Model
             ->whereDoesntHave('usuario');
     }
 
+    /** "Rosa Benítez" (nombres y apellidos, en ese orden), para frases; razón social si es jurídica. */
+    protected function nombreYApellido(): Attribute
+    {
+        return Attribute::get(fn () => $this->tipo_persona === 'FISICA'
+            ? trim("{$this->nombres} {$this->apellidos}")
+            : $this->razon_social);
+    }
+
     protected function nombreCompleto(): Attribute
     {
         return Attribute::get(fn () => $this->tipo_persona === 'FISICA'
