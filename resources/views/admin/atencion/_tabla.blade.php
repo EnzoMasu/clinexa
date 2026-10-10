@@ -128,10 +128,8 @@
                                 </form>
                             @endif
                             @if ($puedePasarAusente)
-                                <form method="POST" action="{{ route('admin.turnos.estado', $turno) }}">
+                                <form method="POST" action="{{ route('admin.atencion.pasar-ausente', $turno) }}">
                                     @csrf
-                                    @method('PATCH')
-                                    <input type="hidden" name="accion" value="ausente">
                                     <button type="submit" class="{{ $boton }}">Pasar a ausente</button>
                                 </form>
                             @endif

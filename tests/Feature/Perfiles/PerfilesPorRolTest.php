@@ -26,14 +26,14 @@ beforeEach(function () {
 });
 
 /** Un usuario nuevo con solo ese perfil predefinido. */
-function usuarioCon(string $codigo, array $persona = []): User
+function perfilesPorRolUsuario(string $codigo, array $persona = []): User
 {
     return User::factory()->conPersona($persona ?: ['apellidos' => 'Prueba', 'nombres' => $codigo])
         ->conPerfiles([PerfilAcceso::where('codigo', $codigo)->sole()])->create();
 }
 
 /** El mismo usuario, ahora con solo ese perfil predefinido (en lugar de los de prueba). */
-function soloCon(User $usuario, string $codigo): User
+function perfilesPorRolSoloCon(User $usuario, string $codigo): User
 {
     $usuario->perfiles()->sync([PerfilAcceso::where('codigo', $codigo)->sole()->id]);
 
@@ -41,7 +41,7 @@ function soloCon(User $usuario, string $codigo): User
 }
 
 /** Las secciones con listado (index) y su módulo, para recorrer la matriz. */
-function seccionesConListado(): array
+function perfilesPorRolSecciones(): array
 {
     return [
         'usuarios' => 'USUARIOS', 'perfiles-acceso' => 'PERFILES_ACCESO', 'matriz-permisos' => 'PERFILES_ACCESO', 'auditoria' => 'AUDITORIA',
@@ -56,11 +56,11 @@ function seccionesConListado(): array
 }
 
 test('cada perfil predefinido: abre los listados que su matriz tiene (VER) y el resto da 403; ve en el menú solo esos', function (string $codigo) {
-    $this->actingAs(usuarioCon($codigo));
+    $this->actingAs(perfilesPorRolUsuario($codigo));
     $matriz = PerfilesPredefinidos::MATRIZ[$codigo];
     $menu = $this->get('/dashboard')->assertOk()->getContent();
 
-    foreach (seccionesConListado() as $seccion => $modulo) {
+    foreach (perfilesPorRolSecciones() as $seccion => $modulo) {
         $puede = in_array('VER', $matriz[$modulo] ?? [], true);
         $respuesta = $this->get(route("admin.{$seccion}.index"));
         expect($respuesta->status())->toBe($puede ? 200 : 403, "{$codigo}: {$seccion}");
@@ -69,10 +69,10 @@ test('cada perfil predefinido: abre los listados que su matriz tiene (VER) y el 
 })->with(array_keys(PerfilesPredefinidos::MATRIZ));
 
 test('cada perfil: el alta (CREAR) de cada sección solo si su matriz la tiene', function (string $codigo) {
-    $this->actingAs(usuarioCon($codigo));
+    $this->actingAs(perfilesPorRolUsuario($codigo));
     $matriz = PerfilesPredefinidos::MATRIZ[$codigo];
 
-    foreach (seccionesConListado() as $seccion => $modulo) {
+    foreach (perfilesPorRolSecciones() as $seccion => $modulo) {
         if (! \Illuminate\Support\Facades\Route::has("admin.{$seccion}.create") || in_array($seccion, ['turnos', 'personas'], true)) {
             continue; // turnos y personas: en sus propios tests (el formulario pide datos previos)
         }
@@ -83,7 +83,7 @@ test('cada perfil: el alta (CREAR) de cada sección solo si su matriz la tiene',
 
 describe('Médico', function () {
     beforeEach(function () {
-        $this->medico = soloCon($this->medico, 'MEDICO');
+        $this->medico = perfilesPorRolSoloCon($this->medico, 'MEDICO');
         $this->actingAs($this->medico);
     });
 
@@ -112,12 +112,66 @@ describe('Médico', function () {
         $this->get(route('admin.consultas.show', $consulta))->assertOk();
     });
 
-    test('atender sin turno, preparar, "No se presentó" y cerrar la jornada', function () {
+    test('atender sin turno y preparar', function () {
         $this->get(route('admin.atencion.pacientes', ['q' => 'Duarte']))->assertOk();
         $this->post(route('admin.preparacion.preparar', hcTurno(['hora_inicio' => '10:00', 'hora_fin' => '10:30'])))->assertRedirect();
-        $this->from(route('admin.atencion.index'))->post(route('admin.atencion.no-se-presento', hcTurno()))->assertSessionHasNoErrors();
-        $this->get(route('admin.atencion.cerrar-jornada'))->assertOk();
         hcEnCurso();
+    });
+
+    test('sin EDITAR sobre Turnos, hace "No se presentó", "Pasar a ausente" y "Cerrar jornada" de SUS turnos', function () {
+        expect($this->medico->tienePermiso('TURNOS', 'EDITAR'))->toBeFalse();
+        $turno = hcTurno();
+        $this->get(route('admin.atencion.index'))->assertOk()->assertSee(route('admin.atencion.no-se-presento', $turno));
+
+        $this->from(route('admin.atencion.index'))->post(route('admin.atencion.no-se-presento', $turno))->assertSessionHasNoErrors()->assertSessionMissing('error');
+        expect($turno->fresh()->estado->codigo)->toBe(Estado::SALTADO);
+        $this->get(route('admin.atencion.index'))->assertSee(route('admin.atencion.pasar-ausente', $turno));
+
+        $this->from(route('admin.atencion.index'))->post(route('admin.atencion.pasar-ausente', $turno))->assertSessionHasNoErrors()->assertSessionMissing('error');
+        expect($turno->fresh()->estado->codigo)->toBe(Estado::AUSENTE);
+
+        // Cerrar jornada: el de ayer pasa a ausente; el de esta tarde (aún no es su hora) queda.
+        $ayer = hcTurno(['fecha' => '2026-10-05', 'estado_id' => Estado::idDe(Estado::PENDIENTE)]);
+        $tarde = hcTurno(['hora_inicio' => '15:00', 'hora_fin' => '15:30']);
+        $this->get(route('admin.atencion.cerrar-jornada'))->assertOk();
+        $this->post(route('admin.atencion.cerrar-jornada.confirmar'))->assertSessionHas('status', 'Jornada cerrada: 1 turno pasó a ausente.');
+        expect($ayer->fresh()->estado->codigo)->toBe(Estado::AUSENTE)->and($tarde->fresh()->estado->codigo)->toBe(Estado::CONFIRMADO);
+    });
+
+    test('se mantienen las reglas de hora y estado de "No se presentó" y "Pasar a ausente"', function () {
+        // Antes de su hora: se rechaza con el aviso y no cambia nada.
+        $tarde = hcTurno(['hora_inicio' => '15:00', 'hora_fin' => '15:30']);
+        $this->from(route('admin.atencion.index'))->post(route('admin.atencion.no-se-presento', $tarde))->assertSessionHas('error', $tarde->avisoAunNoEsSuHora());
+        // Pasar a ausente solo un turno por llamar de nuevo (SALTADO) de hoy.
+        $this->post(route('admin.atencion.pasar-ausente', $confirmado = hcTurno()))->assertForbidden();
+        $this->post(route('admin.atencion.pasar-ausente', $deAyer = hcTurno(['fecha' => '2026-10-05', 'estado_id' => Estado::idDe(Estado::SALTADO)])))->assertForbidden();
+
+        expect($tarde->fresh()->estado->codigo)->toBe(Estado::CONFIRMADO)
+            ->and($confirmado->fresh()->estado->codigo)->toBe(Estado::CONFIRMADO)
+            ->and($deAyer->fresh()->estado->codigo)->toBe(Estado::SALTADO);
+    });
+
+    test('403 con turnos de otro profesional; cerrar jornada no los toca', function () {
+        $ajeno = hcTurno(['profesional_id' => $this->otroProfesional->id]);
+        $ajenoSaltado = hcTurno(['profesional_id' => $this->otroProfesional->id, 'hora_inicio' => '08:30', 'hora_fin' => '09:00', 'estado_id' => Estado::idDe(Estado::SALTADO)]);
+
+        $this->post(route('admin.atencion.no-se-presento', $ajeno))->assertForbidden();
+        $this->post(route('admin.atencion.pasar-ausente', $ajenoSaltado))->assertForbidden();
+        $this->post(route('admin.atencion.cerrar-jornada.confirmar'))->assertSessionHas('status', 'No había turnos para cerrar.');
+
+        expect($ajeno->fresh()->estado->codigo)->toBe(Estado::CONFIRMADO)->and($ajenoSaltado->fresh()->estado->codigo)->toBe(Estado::SALTADO);
+    });
+
+    test('los botones manuales de la pantalla Turnos (Confirmar, Cancelar, Ausente): 403 y no los ve', function () {
+        $turno = hcTurno(['estado_id' => Estado::idDe(Estado::PENDIENTE)]);
+        $ajeno = hcTurno(['profesional_id' => $this->otroProfesional->id, 'estado_id' => Estado::idDe(Estado::PENDIENTE)]);
+
+        foreach (['confirmar', 'cancelar', 'ausente'] as $accion) {
+            $this->patch(route('admin.turnos.estado', $turno), ['accion' => $accion])->assertForbidden();
+            $this->patch(route('admin.turnos.estado', $ajeno), ['accion' => $accion])->assertForbidden();
+        }
+        $this->get(route('admin.turnos.index'))->assertOk()->assertDontSee(route('admin.turnos.estado', $turno));
+        expect($turno->fresh()->estado->codigo)->toBe(Estado::PENDIENTE)->and($ajeno->fresh()->estado->codigo)->toBe(Estado::PENDIENTE);
     });
 
     test('sin Usuarios, Perfiles ni Auditoría (ni escribir en agenda, pacientes o personas)', function () {
@@ -130,7 +184,7 @@ describe('Médico', function () {
 
 describe('Enfermería', function () {
     beforeEach(function () {
-        $this->enfermera = usuarioCon('ENFERMERIA', ['apellidos' => 'Ortiz', 'nombres' => 'Nidia']);
+        $this->enfermera = perfilesPorRolUsuario('ENFERMERIA', ['apellidos' => 'Ortiz', 'nombres' => 'Nidia']);
         $this->actingAs($this->enfermera);
     });
 
@@ -179,7 +233,7 @@ describe('Recepción', function () {
             'profesional_id' => $this->profesional->id, 'consultorio_id' => $this->consultorio->id, 'dia_semana' => 'MAR',
             'hora_desde' => '08:00', 'hora_hasta' => '12:00', 'duracion_turno_minutos' => 30, 'vigencia_desde' => '2026-01-01',
         ]);
-        $this->actingAs(usuarioCon('RECEPCION', ['apellidos' => 'Acosta', 'nombres' => 'Mirna']));
+        $this->actingAs(perfilesPorRolUsuario('RECEPCION', ['apellidos' => 'Acosta', 'nombres' => 'Mirna']));
     });
 
     test('alta de persona y de paciente, con sus selectores', function () {
@@ -219,6 +273,8 @@ describe('Recepción', function () {
             ->assertSessionHasNoErrors();
         $turno = Turno::latest('id')->sole();
 
+        // Recepción conserva los botones de la pantalla Turnos (EDITAR sobre TURNOS), de cualquier profesional.
+        $this->get(route('admin.turnos.index'))->assertSee(route('admin.turnos.estado', $turno));
         $this->from(route('admin.turnos.index'))->patch(route('admin.turnos.estado', $turno), ['accion' => 'confirmar'])->assertSessionHasNoErrors();
         expect($turno->fresh()->estado->codigo)->toBe(Estado::CONFIRMADO);
         $this->from(route('admin.turnos.index'))->patch(route('admin.turnos.estado', $turno), ['accion' => 'cancelar'])->assertSessionHasNoErrors();
@@ -242,7 +298,7 @@ describe('perfiles de lectura', function () {
     test('Gerencia, Supervisión médica y Auditor leen y no escriben', function (string $codigo) {
         $this->actingAs($this->medico);
         $consulta = hcConsulta();
-        $this->actingAs(usuarioCon($codigo));
+        $this->actingAs(perfilesPorRolUsuario($codigo));
 
         $this->get(route('admin.auditoria.index'))->assertOk();
         foreach (['admin.turnos.create', 'admin.disponibilidades.create', 'admin.consultorios.create', 'admin.pacientes.create', 'admin.usuarios.create'] as $ruta) {
@@ -267,12 +323,12 @@ describe('perfiles de lectura', function () {
             ->first(fn ($log) => str_contains(json_encode($log->valor_nuevo, JSON_UNESCAPED_UNICODE) ?: '', 'MOTIVO-CONFIDENCIAL'));
         expect($evento)->not->toBeNull();
 
-        $this->actingAs(usuarioCon('AUDITOR'));
+        $this->actingAs(perfilesPorRolUsuario('AUDITOR'));
         $this->get(route('admin.auditoria.index'))->assertOk()->assertDontSee('MOTIVO-CONFIDENCIAL');
         $this->get(route('admin.auditoria.show', $evento))->assertOk()->assertDontSee('MOTIVO-CONFIDENCIAL');
-        $this->actingAs(usuarioCon('GERENCIA'));
+        $this->actingAs(perfilesPorRolUsuario('GERENCIA'));
         $this->get(route('admin.auditoria.show', $evento))->assertOk()->assertDontSee('MOTIVO-CONFIDENCIAL');
-        $this->actingAs(usuarioCon('SUPERVISION_MEDICA'));
+        $this->actingAs(perfilesPorRolUsuario('SUPERVISION_MEDICA'));
         $this->get(route('admin.auditoria.show', $evento))->assertOk()->assertSee('MOTIVO-CONFIDENCIAL');
     });
 });

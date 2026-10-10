@@ -160,10 +160,14 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             ->middleware('permiso:HISTORIA_CLINICA,VER,tabla=consultas');
         Route::get('consulta/pacientes', [AtencionController::class, 'pacientes'])->name('atencion.pacientes')
             ->middleware('permiso:HISTORIA_CLINICA,CREAR');
-        Route::middleware('permiso:TURNOS,EDITAR')->group(function () {
+        // Las acciones del profesional sobre SUS turnos desde la pantalla Consulta: CREAR sobre HISTORIA_CLINICA
+        // (ConsultaPolicy exige además que sea el profesional activo del turno). Los botones manuales de la
+        // pantalla Turnos (confirmar, cancelar, ausente) siguen con EDITAR sobre TURNOS.
+        Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
             Route::get('consulta/cerrar-jornada', [AtencionController::class, 'vistaCerrarJornada'])->name('atencion.cerrar-jornada');
             Route::post('consulta/cerrar-jornada', [AtencionController::class, 'cerrarJornada'])->name('atencion.cerrar-jornada.confirmar');
             Route::post('turnos/{turno}/no-se-presento', [AtencionController::class, 'noSePresento'])->name('atencion.no-se-presento')->whereNumber('turno');
+            Route::post('turnos/{turno}/pasar-ausente', [AtencionController::class, 'pasarAusente'])->name('atencion.pasar-ausente')->whereNumber('turno');
         });
         Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
             Route::post('turnos/{turno}/atender', [AtencionController::class, 'atender'])->name('atencion.atender')->whereNumber('turno');

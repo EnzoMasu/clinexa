@@ -233,13 +233,14 @@ describe('No se presentó', function () {
             ->and(eventosDelRegistro('turnos', $turno->id))->toContain(['EDITAR', 'No se presentó']);
     })->with(['PENDIENTE', 'CONFIRMADO']);
 
-    test('no aplica a un turno de otro profesional, de otro día, ya saltado o sin EDITAR sobre Turnos', function () {
+    test('no aplica a un turno de otro profesional, de otro día, ya saltado o sin CREAR sobre la historia clínica', function () {
         $this->post(route('admin.atencion.no-se-presento', hcTurno(['profesional_id' => $this->otroProfesional->id])))->assertForbidden();
         $this->post(route('admin.atencion.no-se-presento', hcTurno(['fecha' => '2026-10-07', 'hora_inicio' => '09:00', 'hora_fin' => '09:30'])))->assertForbidden();
         $this->post(route('admin.atencion.no-se-presento', $saltado = hcTurno(['hora_inicio' => '10:00', 'hora_fin' => '10:30', 'estado_id' => Estado::idDe(Estado::SALTADO)])))->assertForbidden();
         expect(codigoTurno($saltado))->toBe('SALTADO');
 
-        $this->actingAs(hcConPerfil($this->medico, HC_PERMISOS_MEDICO)); // sin EDITAR sobre Turnos
+        // Sin CREAR sobre la historia clínica (aunque tenga EDITAR sobre Turnos): no.
+        $this->actingAs(hcConPerfil($this->medico, ['HISTORIA_CLINICA' => ['VER', 'EDITAR'], 'TURNOS' => ['VER', 'EDITAR']]));
         $this->post(route('admin.atencion.no-se-presento', hcTurno(['hora_inicio' => '11:00', 'hora_fin' => '11:30'])))->assertForbidden();
     });
 });
