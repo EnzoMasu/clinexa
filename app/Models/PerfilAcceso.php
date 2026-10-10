@@ -60,7 +60,7 @@ class PerfilAcceso extends Model
     /** Los usuarios que tienen este perfil (usuario_perfil). */
     public function users(): BelongsToMany
     {
-        return $this->belongsToMany(User::class, 'usuario_perfil', 'perfil_acceso_id', 'usuario_id')->withTimestamps();
+        return $this->belongsToMany(User::class, 'usuario_perfil', 'perfil_acceso_id', 'usuario_id')->using(UsuarioPerfil::class)->withTimestamps();
     }
 
     /** Sus permisos como ["MÓDULO:ACCIÓN", ...] (para comparar contra los de un usuario). */

@@ -262,23 +262,59 @@ test('un admin no puede desactivarse ni bloquearse a sí mismo', function () {
     expect($this->admin->fresh()->estado->codigo)->toBe('ACTIVO');
 });
 
-test('el último administrador no puede quitarse su propio perfil Administrador', function () {
+test('un usuario no puede cambiarse su propio perfil de acceso: ni quitarse ni sumarse uno', function () {
     $perfilAdmin = $this->admin->perfiles->sole();
 
-    $this->from(route('admin.usuarios.edit', $this->admin))->put(route('admin.usuarios.update', $this->admin), [
-        'perfiles' => [$this->perfil->id], 'estado_id' => estadoId('ACTIVO'),
-    ])->assertRedirect(route('admin.usuarios.edit', $this->admin))->assertSessionHas('error', \App\Exceptions\UltimoAdministrador::MENSAJE);
+    foreach ([[$this->perfil->id], [$perfilAdmin->id, $this->perfil->id], []] as $perfiles) {
+        $this->put(route('admin.usuarios.update', $this->admin), ['perfiles' => $perfiles, 'estado_id' => estadoId('ACTIVO')])
+            ->assertSessionHas('error', 'No puede cambiar su propio perfil de acceso.');
+    }
 
     expect($this->admin->fresh()->perfiles->modelKeys())->toBe([$perfilAdmin->id]);
 });
 
-test('un usuario puede sumarse un perfil (sin escalar): editarse conserva lo que manda', function () {
+test('editarse a uno mismo sin mandar los perfiles (casillas deshabilitadas) los conserva', function () {
     $perfilAdmin = $this->admin->perfiles->sole();
 
-    $this->put(route('admin.usuarios.update', $this->admin), ['perfiles' => [$perfilAdmin->id, $this->perfil->id], 'estado_id' => estadoId('ACTIVO')])
+    $this->put(route('admin.usuarios.update', $this->admin), ['estado_id' => estadoId('ACTIVO')])
         ->assertSessionHasNoErrors()->assertSessionMissing('error');
 
-    expect($this->admin->fresh()->perfiles->modelKeys())->toEqualCanonicalizing([$perfilAdmin->id, $this->perfil->id]);
+    expect($this->admin->fresh()->perfiles->modelKeys())->toBe([$perfilAdmin->id]);
+});
+
+test('tampoco por el modelo: en un pedido web, asignarse o quitarse un perfil propio se rechaza', function () {
+    $perfilAdmin = $this->admin->perfiles->sole();
+    // Una ruta cualquiera que, dentro del pedido, intenta cambiar los perfiles del usuario logueado.
+    \Illuminate\Support\Facades\Route::middleware('web')->get('/prueba-perfiles-propios/{caso}', function (string $caso) use ($perfilAdmin) {
+        $usuario = auth()->user();
+        match ($caso) {
+            'attach' => $usuario->perfiles()->attach(test()->perfil->id),
+            'detach' => $usuario->perfiles()->detach($perfilAdmin->id),
+            'sync' => $usuario->perfiles()->sync([test()->perfil->id]),
+        };
+
+        return 'cambiado';
+    });
+
+    foreach (['attach', 'detach', 'sync'] as $caso) {
+        $this->from('/dashboard')->get("/prueba-perfiles-propios/{$caso}")->assertRedirect('/dashboard')
+            ->assertSessionHas('error', \App\Exceptions\PerfilesPropios::MENSAJE);
+    }
+    expect($this->admin->fresh()->perfiles->modelKeys())->toBe([$perfilAdmin->id]);
+});
+
+test('el formulario muestra los perfiles propios deshabilitados con la nota, y los de otros editables', function () {
+    $html = $this->get(route('admin.usuarios.edit', $this->admin))->assertOk()
+        ->assertSee('No puede cambiar su propio perfil de acceso')
+        ->getContent();
+    // El atributo disabled (no la clase disabled:...).
+    expect($html)->toMatch('/<fieldset[^>]*\sdisabled[\s>]/')->toMatch('/name="perfiles\[\]"[^>]*\sdisabled[\s>]/');
+
+    $otro = User::factory()->conPerfiles([$this->perfil])->create();
+    $html = $this->get(route('admin.usuarios.edit', $otro))->assertOk()
+        ->assertDontSee('No puede cambiar su propio perfil de acceso')
+        ->getContent();
+    expect($html)->not->toMatch('/name="perfiles\[\]"[^>]*\sdisabled[\s>]/')->not->toMatch('/<fieldset[^>]*\sdisabled[\s>]/');
 });
 
 test('el formulario muestra una casilla por perfil activo, con los del usuario tildados', function () {

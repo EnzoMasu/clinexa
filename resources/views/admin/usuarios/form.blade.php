@@ -61,13 +61,20 @@
                     ayuda="Solo aparecen personas físicas activas que todavía no tienen usuario. El email del usuario es el de la persona." />
             @endif
 
-            {{-- Perfiles (usuario_perfil): puede tener varios; sus permisos se suman. --}}
-            <fieldset class="space-y-2" aria-describedby="perfiles-nota">
+            {{-- Perfiles (usuario_perfil): puede tener varios; sus permisos se suman. Los propios no se cambian. --}}
+            @php($propio = $usuario->exists && $usuario->is(auth()->user()))
+            <fieldset class="space-y-2" aria-describedby="perfiles-nota" @disabled($propio)>
                 <legend class="font-medium text-sm text-gray-700 dark:text-gray-300">Perfiles de acceso</legend>
+                @if ($propio)
+                    <p id="perfil-propio-nota" class="text-sm text-gray-600 dark:text-gray-400">
+                        No puede cambiar su propio perfil de acceso, para no quedarse sin permisos de administración por error.
+                        Si hace falta, solicítelo a otro administrador.
+                    </p>
+                @endif
                 @forelse ($perfiles as $perfil)
                     <label class="flex items-center gap-2 text-sm text-gray-900 dark:text-gray-100">
-                        <input type="checkbox" name="perfiles[]" value="{{ $perfil->id }}" @checked(in_array($perfil->id, $tildados, true))
-                            class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800">
+                        <input type="checkbox" name="perfiles[]" value="{{ $perfil->id }}" @checked(in_array($perfil->id, $tildados, true)) @disabled($propio)
+                            class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800 disabled:opacity-60 disabled:cursor-not-allowed">
                         {{ $perfil->nombre }}
                         @unless ($perfil->estaActivo())
                             <x-admin.estado-badge :estado="$perfil->estado" />

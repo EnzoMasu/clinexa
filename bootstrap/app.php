@@ -59,8 +59,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return back()->withInput()->with('error', $e->getMessage())->withErrors(['estado_id' => $e->getMessage()]);
         });
-        // Último administrador (quitarle el perfil, desactivarlo o bloquearlo): igual, con el aviso arriba.
-        $exceptions->render(function (\App\Exceptions\UltimoAdministrador $e, \Illuminate\Http\Request $request) {
+        // Último administrador (quitarle el perfil, desactivarlo o bloquearlo) o cambiar los perfiles propios:
+        // igual, con el aviso arriba.
+        $exceptions->render(function (\App\Exceptions\UltimoAdministrador|\App\Exceptions\PerfilesPropios $e, \Illuminate\Http\Request $request) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => $e->getMessage()], 409);
             }

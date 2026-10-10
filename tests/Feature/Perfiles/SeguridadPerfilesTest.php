@@ -98,7 +98,7 @@ describe('sin escalada de privilegios', function () {
         expect($usuario->fresh()->perfiles->modelKeys())->toBe([$this->recepcion->id]);
     });
 
-    test('no puede asignar un perfil con permisos que no tiene: ni a otro, ni al crear, ni a sí mismo', function (string $perfil) {
+    test('no puede asignar un perfil con permisos que no tiene: ni a otro, ni al crear; con su propio usuario tampoco (no edita sus perfiles)', function (string $perfil) {
         $ajeno = PerfilAcceso::where('codigo', $perfil)->sole();
         $usuario = User::factory()->create();
         $mensaje = "No puede asignar el perfil «{$ajeno->nombre}»: tiene permisos que usted no tiene.";
@@ -107,8 +107,9 @@ describe('sin escalada de privilegios', function () {
             ->assertSessionHasErrors(['perfiles' => $mensaje]);
         $this->post(route('admin.usuarios.store'), ['persona_id' => Persona::factory()->create()->id, 'perfiles' => [$ajeno->id]])
             ->assertSessionHasErrors(['perfiles' => $mensaje]);
+        // Saltarse la regla con su propio usuario: nadie cambia sus propios perfiles.
         $this->put(route('admin.usuarios.update', $this->gestor), ['perfiles' => [...$this->gestor->perfiles->modelKeys(), $ajeno->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
-            ->assertSessionHasErrors(['perfiles' => $mensaje]);
+            ->assertSessionHas('error', \App\Exceptions\PerfilesPropios::MENSAJE);
 
         expect($usuario->fresh()->perfiles->pluck('codigo')->all())->not->toContain($perfil)
             ->and($this->gestor->fresh()->perfiles->pluck('codigo')->all())->not->toContain($perfil);
@@ -237,9 +238,18 @@ describe('auditoría', function () {
     });
 
     test('un intento rechazado (escalada o último administrador) no deja eventos', function () {
+        $gestor = User::factory()->conPerfiles([UserFactory::perfilConPermisos(['USUARIOS' => ['VER', 'EDITAR']], 'Gestión de usuarios')])->create();
+        $vacio = PerfilAcceso::create(['nombre' => 'Sin permisos']);
+        $otro = User::factory()->create();
+        $this->actingAs($gestor);
         $antes = LogAuditoria::max('id');
-        $this->put(route('admin.usuarios.update', $this->admin), ['perfiles' => [$this->recepcion->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
+
+        $this->put(route('admin.usuarios.update', $this->admin), ['perfiles' => [$vacio->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
             ->assertSessionHas('error', UltimoAdministrador::MENSAJE);
+        $this->put(route('admin.usuarios.update', $otro), ['perfiles' => [$this->recepcion->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
+            ->assertSessionHasErrors('perfiles');
+        $this->put(route('admin.usuarios.update', $gestor), ['perfiles' => [$vacio->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
+            ->assertSessionHas('error', \App\Exceptions\PerfilesPropios::MENSAJE);
 
         expect(LogAuditoria::where('id', '>', $antes ?? 0)->where('tabla_afectada', 'users')->exists())->toBeFalse()
             ->and($this->admin->fresh()->perfiles->modelKeys())->toBe([PerfilAcceso::where('codigo', 'ADMINISTRADOR')->value('id')]);

@@ -119,7 +119,7 @@ class User extends Authenticatable
      */
     public function perfiles(): BelongsToMany
     {
-        return $this->belongsToMany(PerfilAcceso::class, 'usuario_perfil', 'usuario_id', 'perfil_acceso_id')->withTimestamps();
+        return $this->belongsToMany(PerfilAcceso::class, 'usuario_perfil', 'usuario_id', 'perfil_acceso_id')->using(UsuarioPerfil::class)->withTimestamps();
     }
 
     /** En el log, los perfiles como lista de nombres ordenada (como las categorías de un proveedor). */

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\PerfilesPropios;
 use App\Exceptions\UltimoAdministrador;
 use App\Http\Controllers\Controller;
 use App\Models\Estado;
@@ -111,11 +112,22 @@ class UsuarioController extends Controller
 
     /**
      * Solo se editan perfiles y estado: la persona no cambia una vez creado el usuario (para no
-     * mezclar identidades) y el nombre/email se editan en la persona. Los perfiles propios también se
-     * pueden cambiar, con las mismas reglas: sin escalar privilegios y sin dejar el sistema sin administrador.
+     * mezclar identidades) y el nombre/email se editan en la persona. Nadie cambia sus propios perfiles
+     * (tampoco por el modelo: UsuarioPerfil); a los demás, sin escalar privilegios y sin dejar el sistema
+     * sin administrador.
      */
     public function update(Request $request, User $usuario): RedirectResponse
     {
+        if ($usuario->is($request->user())) {
+            $propios = $usuario->perfiles()->pluck('perfiles_acceso.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
+            // En el formulario los perfiles propios vienen deshabilitados (no se envían): se completan con los actuales.
+            $enviados = collect((array) $request->input('perfiles', $propios))->map(fn ($id) => (int) $id)->sort()->values()->all();
+            if ($enviados !== $propios) {
+                return back()->withInput()->with('error', PerfilesPropios::MENSAJE);
+            }
+            $request->merge(['perfiles' => $propios]);
+        }
+
         $datos = $request->validate([
             ...$this->reglasPerfiles($usuario),
             'estado_id' => User::reglaEstado(),
