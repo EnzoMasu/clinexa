@@ -40,7 +40,7 @@ function formularioPersona(Persona $persona, array $cambios = []): array
     ];
 }
 
-function estadoDe($modelo): string
+function estadoDelRegistro($modelo): string
 {
     return $modelo->fresh()->estado->codigo;
 }
@@ -55,7 +55,7 @@ describe('con una consulta FINALIZADA', function () {
             ->assertSessionHas('error', PacienteConConsultasCerradas::MENSAJE)
             ->assertSessionHasErrors(['estado_id' => PacienteConConsultasCerradas::MENSAJE]);
 
-        expect(estadoDe($this->paciente))->toBe(Estado::ACTIVO);
+        expect(estadoDelRegistro($this->paciente))->toBe(Estado::ACTIVO);
     });
 
     test('el botón Desactivar del listado tampoco', function () {
@@ -64,13 +64,13 @@ describe('con una consulta FINALIZADA', function () {
             ->assertRedirect(route('admin.pacientes.index'))->assertSessionHas('error', PacienteConConsultasCerradas::MENSAJE);
 
         $this->get(route('admin.pacientes.index'))->assertSee(PacienteConConsultasCerradas::MENSAJE);
-        expect(estadoDe($this->paciente))->toBe(Estado::ACTIVO);
+        expect(estadoDelRegistro($this->paciente))->toBe(Estado::ACTIVO);
     });
 
     test('desde el modelo (servicio, tinker): ni update ni desactivar()', function () {
         expect(fn () => $this->paciente->fresh()->update(['estado_id' => Estado::idDe(Estado::INACTIVO)]))->toThrow(PacienteConConsultasCerradas::class, PacienteConConsultasCerradas::MENSAJE)
             ->and(fn () => $this->paciente->fresh()->desactivar())->toThrow(PacienteConConsultasCerradas::class);
-        expect(estadoDe($this->paciente))->toBe(Estado::ACTIVO);
+        expect(estadoDelRegistro($this->paciente))->toBe(Estado::ACTIVO);
     });
 
     test('su Persona tampoco se desactiva: ni por el formulario, ni por el botón, ni por el modelo', function () {
@@ -84,7 +84,7 @@ describe('con una consulta FINALIZADA', function () {
             ->assertSessionHas('error', PacienteConConsultasCerradas::MENSAJE);
         expect(fn () => $persona->fresh()->desactivar())->toThrow(PacienteConConsultasCerradas::class);
 
-        expect(estadoDe($persona))->toBe(Estado::ACTIVO);
+        expect(estadoDelRegistro($persona))->toBe(Estado::ACTIVO);
     });
 
     test('corregir sus datos de identidad y contacto sigue funcionando y deja su evento de auditoría', function () {
@@ -112,10 +112,10 @@ describe('sin consultas cerradas', function () {
     test('sin consultas: se desactiva y se reactiva como siempre', function () {
         $this->actingAs($this->admin);
         $this->put(route('admin.pacientes.update', $this->paciente), formularioPaciente($this->paciente, Estado::INACTIVO))->assertSessionHasNoErrors();
-        expect(estadoDe($this->paciente))->toBe(Estado::INACTIVO);
+        expect(estadoDelRegistro($this->paciente))->toBe(Estado::INACTIVO);
 
         $this->put(route('admin.pacientes.update', $this->paciente), formularioPaciente($this->paciente, Estado::ACTIVO))->assertSessionHasNoErrors();
-        expect(estadoDe($this->paciente))->toBe(Estado::ACTIVO);
+        expect(estadoDelRegistro($this->paciente))->toBe(Estado::ACTIVO);
     });
 
     test('con consultas EN_PREPARACION, EN_CURSO o ANULADA no se bloquea', function (string $estado) {
@@ -127,12 +127,12 @@ describe('sin consultas cerradas', function () {
         expect($this->paciente->tieneConsultasCerradas())->toBeFalse();
 
         $this->paciente->fresh()->desactivar();
-        expect(estadoDe($this->paciente))->toBe(Estado::INACTIVO);
+        expect(estadoDelRegistro($this->paciente))->toBe(Estado::INACTIVO);
     })->with(['EN_PREPARACION', 'EN_CURSO', 'ANULADO']);
 
     test('la Persona de una paciente sin consultas cerradas se desactiva como siempre', function () {
         $this->paciente->persona->fresh()->desactivar();
-        expect(estadoDe($this->paciente->persona))->toBe(Estado::INACTIVO);
+        expect(estadoDelRegistro($this->paciente->persona))->toBe(Estado::INACTIVO);
     });
 });
 
@@ -142,5 +142,5 @@ test('reactivar una paciente inactiva que ya tenía consultas cerradas sí se pu
     \Illuminate\Support\Facades\DB::table('pacientes')->where('id', $this->paciente->id)->update(['estado_id' => Estado::idDe(Estado::INACTIVO)]);
 
     $this->actingAs($this->admin)->put(route('admin.pacientes.update', $this->paciente), formularioPaciente($this->paciente, Estado::ACTIVO))->assertSessionHasNoErrors();
-    expect(estadoDe($this->paciente))->toBe(Estado::ACTIVO);
+    expect(estadoDelRegistro($this->paciente))->toBe(Estado::ACTIVO);
 });
