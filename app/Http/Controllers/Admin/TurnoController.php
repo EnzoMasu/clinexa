@@ -75,6 +75,9 @@ class TurnoController extends Controller
         ]);
     }
 
+    /** El horario elegido ya empezó (o la fecha ya pasó): Fecha::yaLlego, la regla de los horarios libres. */
+    public const HORARIO_PASADO = 'Ese horario ya pasó. Elija uno posterior.';
+
     public function store(Request $request): RedirectResponse
     {
         $datos = $this->validar($request);
@@ -165,19 +168,17 @@ class TurnoController extends Controller
     private function validar(Request $request): array
     {
         $activo = Estado::idDe(Estado::ACTIVO);
-        $hoy = Fecha::hoy()->format(Fecha::FORMATO);
 
         $validador = validator($request->all(), [
             'paciente_id' => ['required', 'integer', Rule::exists('pacientes', 'id')->where('estado_id', $activo)],
             'profesional_id' => ['required', 'integer', Rule::exists('profesionales', 'id')->where('estado_id', $activo)],
-            'fecha' => ['required', ...Fecha::regla(), "after_or_equal:{$hoy}"],
+            'fecha' => ['required', ...Fecha::regla()],
             'hora_inicio' => ['required', 'date_format:H:i'],
             'procedimiento_id' => ['nullable', 'integer', Rule::exists('procedimientos', 'id')->where('estado_id', $activo)],
             'origen_turno_id' => ['nullable', 'integer', Rule::exists('origenes_turno', 'id')->where('estado_id', $activo)],
             'observaciones' => ['nullable', 'string', 'max:2000'],
         ], [
             ...Fecha::mensajes('fecha'),
-            'fecha.after_or_equal' => 'No se pueden dar turnos en fechas pasadas.',
             'hora_inicio.required' => 'Elija uno de los horarios libres.',
         ], [
             'paciente_id' => 'paciente', 'profesional_id' => 'profesional', 'hora_inicio' => 'horario',
@@ -190,6 +191,16 @@ class TurnoController extends Controller
                 return;
             }
             $datos = $validador->getData();
+
+            // No se agenda en el pasado: la misma regla que el cálculo de horarios libres (Fecha::yaLlego). Un día
+            // anterior, o hoy un horario que ya empezó (en punto incluido), se rechaza con un aviso propio.
+            $fecha = Fecha::aIso($datos['fecha']);
+            if (Fecha::yaLlego($fecha, $datos['hora_inicio'])) {
+                $validador->errors()->add($fecha < Fecha::hoy()->format('Y-m-d') ? 'fecha' : 'hora_inicio', self::HORARIO_PASADO);
+
+                return;
+            }
+
             $horario = Agenda::horario(Profesional::findOrFail($datos['profesional_id']), Carbon::parse(Fecha::aIso($datos['fecha'])), $datos['hora_inicio']);
 
             if (! $horario) {

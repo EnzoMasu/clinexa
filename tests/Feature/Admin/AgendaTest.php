@@ -187,7 +187,8 @@ describe('alta de turno', function () {
 
     test('no se dan turnos en fechas pasadas', function () {
         $this->post(route('admin.turnos.store'), datosTurno(['fecha' => '29/09/2026']))
-            ->assertSessionHasErrors(['fecha' => 'No se pueden dar turnos en fechas pasadas.']);
+            ->assertSessionHasErrors(['fecha' => 'Ese horario ya pasó. Elija uno posterior.']);
+        expect(Turno::count())->toBe(0);
     });
 
     test('paciente y profesional tienen que estar activos', function () {
@@ -212,6 +213,80 @@ describe('alta de turno', function () {
         // Una persona sin el rol no aparece.
         Persona::factory()->create(['apellidos' => 'Duarte', 'nombres' => 'SinRol']);
         expect($this->getJson(route('admin.turnos.pacientes', ['q' => 'Duarte']))->json())->toHaveCount(1);
+    });
+});
+
+describe('no agendar en el pasado (la misma regla que los horarios libres: Fecha::yaLlego)', function () {
+    beforeEach(function () {
+        // Hoy es lunes 05/10/2026: franja del lunes de 08:00 a 10:00 y otra de 22:00 a 23:30.
+        disponibilidad(['dia_semana' => 'LUN']);
+        disponibilidad(['dia_semana' => 'LUN', 'hora_desde' => '22:00', 'hora_hasta' => '23:30']);
+        // Y la madrugada del martes, de 00:00 a 02:00.
+        disponibilidad(['dia_semana' => 'MAR', 'hora_desde' => '00:00', 'hora_hasta' => '02:00']);
+    });
+
+    /** Reloj en esa fecha y hora LOCALES (Paraguay). */
+    function alasLocal(string $fechaHora): void
+    {
+        Carbon::setTestNow(Carbon::parse($fechaHora, config('app.zona_horaria_local'))->utc());
+    }
+
+    function darTurno(string $fecha, string $hora)
+    {
+        return test()->from(route('admin.turnos.create'))->post(route('admin.turnos.store'), datosTurno(['fecha' => $fecha, 'hora_inicio' => $hora]));
+    }
+
+    test('hoy a las 09:00: 08:30 ya pasó; 09:00 en punto también; 09:30 sí', function () {
+        alasLocal('2026-10-05 09:00:00');
+
+        darTurno('05/10/2026', '08:30')->assertSessionHasErrors(['hora_inicio' => 'Ese horario ya pasó. Elija uno posterior.']);
+        darTurno('05/10/2026', '09:00')->assertSessionHasErrors(['hora_inicio' => 'Ese horario ya pasó. Elija uno posterior.']);
+        darTurno('05/10/2026', '09:30')->assertSessionHasNoErrors();
+        expect(Turno::pluck('hora_inicio')->map(fn ($h) => substr($h, 0, 5))->all())->toBe(['09:30']);
+    });
+
+    test('un minuto antes de la hora de inicio todavía se puede dar', function () {
+        alasLocal('2026-10-05 08:59:00');
+        darTurno('05/10/2026', '09:00')->assertSessionHasNoErrors();
+    });
+
+    test('es la misma regla que los horarios libres: lo que se rechaza es justo lo que no se ofrece', function () {
+        alasLocal('2026-10-05 09:00:00');
+        $libres = horarios('2026-10-05');
+        expect($libres)->toBe(['09:30', '22:00', '22:30', '23:00']);
+
+        foreach (['08:00', '08:30', '09:00', '09:30'] as $hora) {
+            $respuesta = darTurno('05/10/2026', $hora);
+            in_array($hora, $libres, true) ? $respuesta->assertSessionHasNoErrors() : $respuesta->assertSessionHasErrors('hora_inicio');
+        }
+    });
+
+    test('borde de las 22:30 del lunes (01:30 UTC del martes): sigue siendo lunes; 22:30 ya pasó, 23:00 no; el martes, libre', function () {
+        alasLocal('2026-10-05 22:30:00');
+        expect(now()->format('Y-m-d H:i'))->toBe('2026-10-06 01:30');
+
+        darTurno('05/10/2026', '22:30')->assertSessionHasErrors(['hora_inicio' => 'Ese horario ya pasó. Elija uno posterior.']);
+        darTurno('05/10/2026', '23:00')->assertSessionHasNoErrors();
+        darTurno('06/10/2026', '00:30')->assertSessionHasNoErrors();
+    });
+
+    test('borde de las 00:30 del martes (03:30 UTC): el lunes ya pasó entero; 00:30 en punto ya pasó, 01:00 no', function () {
+        alasLocal('2026-10-06 00:30:00');
+
+        darTurno('05/10/2026', '23:00')->assertSessionHasErrors(['fecha' => 'Ese horario ya pasó. Elija uno posterior.']);
+        darTurno('06/10/2026', '00:30')->assertSessionHasErrors(['hora_inicio' => 'Ese horario ya pasó. Elija uno posterior.']);
+        darTurno('06/10/2026', '01:00')->assertSessionHasNoErrors();
+    });
+
+    test('cambiar el estado de un turno cuyo horario ya pasó no dispara la validación', function () {
+        $turno = turno(['fecha' => '2026-10-05', 'hora_inicio' => '08:00', 'hora_fin' => '08:30', 'estado_id' => Estado::idDe(Estado::PENDIENTE)]);
+        alasLocal('2026-10-05 09:00:00');
+
+        $this->from(route('admin.turnos.index'))->patch(route('admin.turnos.estado', $turno), ['accion' => 'confirmar'])
+            ->assertSessionHasNoErrors()->assertSessionHas('status');
+        $this->from(route('admin.turnos.index'))->patch(route('admin.turnos.estado', $turno), ['accion' => 'cancelar'])
+            ->assertSessionHasNoErrors()->assertSessionHas('status');
+        expect($turno->fresh()->estado->codigo)->toBe('CANCELADO');
     });
 });
 
