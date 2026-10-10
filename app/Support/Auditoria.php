@@ -186,6 +186,89 @@ final class Auditoria
         }
     }
 
+    /**
+     * Corre $accion juntando sus EDITAR: los de un mismo registro (y usuario) quedan en UN solo evento con
+     * todas las secciones que cambiaron (el antes, el primero de cada una; el después, el último). Lo que
+     * al final quedó igual que al principio no se registra; si no queda nada, no hay evento. Se registra al
+     * terminar, dentro de la transacción del llamador; si $accion falla, no se registra nada. Anidado, el
+     * de afuera es el que agrupa.
+     */
+    public static function agrupar(\Closure $accion): mixed
+    {
+        $contexto = app(ContextoAuditoria::class);
+        if ($contexto->agrupados !== null) {
+            return $accion();
+        }
+
+        $contexto->agrupados = [];
+        try {
+            $resultado = $accion();
+            $agrupados = $contexto->agrupados;
+        } finally {
+            $contexto->agrupados = null;
+        }
+
+        foreach ($agrupados as $grupo) {
+            [$anterior, $nuevo] = self::sinCambiosNetos($grupo['anterior'], $grupo['nuevo']);
+            if ($nuevo !== [] || $anterior !== []) {
+                self::registrar(AccionAuditoria::EDITAR, $grupo['tabla'], $grupo['registro'], $anterior, $nuevo, $grupo['detalle'], $grupo['usuario']);
+            }
+        }
+
+        return $resultado;
+    }
+
+    /** Suma un EDITAR al grupo de su registro (ver agrupar). */
+    private static function sumarAlGrupo(ContextoAuditoria $contexto, string $tabla, int|string|null $registroId, array $anterior, array $nuevo, ?string $detalle, int|false|null $usuarioId): void
+    {
+        $usuario = $usuarioId === false ? Auth::id() : $usuarioId;
+        $clave = $tabla.'|'.$registroId.'|'.$usuario;
+        $grupo = $contexto->agrupados[$clave] ?? ['tabla' => $tabla, 'registro' => $registroId, 'usuario' => $usuario, 'detalle' => $detalle, 'anterior' => [], 'nuevo' => []];
+
+        foreach ($anterior as $campo => $valor) {
+            // El primer "antes" de cada campo (o fila, en las secciones por filas) es el que vale.
+            if (is_array($valor) && is_array($grupo['anterior'][$campo] ?? null) && ! array_is_list($valor)) {
+                $grupo['anterior'][$campo] += $valor;
+            } elseif (! array_key_exists($campo, $grupo['anterior'])) {
+                $grupo['anterior'][$campo] = $valor;
+            }
+        }
+        foreach ($nuevo as $campo => $valor) {
+            if (is_array($valor) && is_array($grupo['nuevo'][$campo] ?? null) && ! array_is_list($valor)) {
+                $grupo['nuevo'][$campo] = array_replace($grupo['nuevo'][$campo], $valor);
+            } else {
+                $grupo['nuevo'][$campo] = $valor;
+            }
+        }
+        $contexto->agrupados[$clave] = $grupo;
+    }
+
+    /**
+     * Quita lo que terminó igual que empezó (un campo, o una fila de una sección).
+     *
+     * @return array{0: array, 1: array}
+     */
+    private static function sinCambiosNetos(array $anterior, array $nuevo): array
+    {
+        foreach ($nuevo as $campo => $valor) {
+            $antes = $anterior[$campo] ?? null;
+            if (is_array($valor) && is_array($antes) && ! array_is_list($valor) && ! array_is_list($antes)) {
+                foreach ($valor as $fila => $texto) {
+                    if (array_key_exists($fila, $antes) && $antes[$fila] === $texto) {
+                        unset($nuevo[$campo][$fila], $anterior[$campo][$fila]);
+                    }
+                }
+                if ($nuevo[$campo] === [] && ($anterior[$campo] ?? []) === []) {
+                    unset($nuevo[$campo], $anterior[$campo]);
+                }
+            } elseif (array_key_exists($campo, $anterior) && $antes === $valor) {
+                unset($nuevo[$campo], $anterior[$campo]);
+            }
+        }
+
+        return [$anterior, $nuevo];
+    }
+
     /** Se registran cambios de datos: dentro de un pedido web y con un usuario autenticado. */
     public static function activa(): bool
     {
@@ -213,8 +296,14 @@ final class Auditoria
         ?string $detalle = null,
         int|false|null $usuarioId = false,
     ): void {
+        $contexto = app(ContextoAuditoria::class);
         $detalle ??= in_array($accion, [AccionAuditoria::CREAR, AccionAuditoria::EDITAR, AccionAuditoria::ANULAR], true)
-            ? app(ContextoAuditoria::class)->detalle : null;
+            ? $contexto->detalle : null;
+        if ($accion === AccionAuditoria::EDITAR && $contexto->agrupados !== null) {
+            self::sumarAlGrupo($contexto, $tabla, $registroId, $anterior ?? [], $nuevo ?? [], $detalle, $usuarioId);
+
+            return;
+        }
 
         DB::table('logs_auditoria')->insert([
             'usuario_id' => $usuarioId === false ? Auth::id() : $usuarioId,

@@ -30,6 +30,14 @@ class ContextoAuditoria
      */
     public ?string $detalle = null;
 
+    /**
+     * Mientras corre Auditoria::agrupar(): los EDITAR de un mismo registro (tabla, id y usuario) se juntan
+     * acá y se registran al final como UN solo evento, con todas las secciones que cambiaron. Null fuera.
+     *
+     * @var array<string, array{tabla: string, registro: int|string|null, usuario: int|false|null, detalle: ?string, anterior: array, nuevo: array}>|null
+     */
+    public ?array $agrupados = null;
+
     /** @var array<string, bool>|null códigos de los módulos sensibles, cargados una vez por pedido */
     public ?array $sensibles = null;
 }

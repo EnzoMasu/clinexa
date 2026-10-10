@@ -5,6 +5,7 @@ namespace App\Support\Atencion;
 use App\Exceptions\AccionRechazada;
 use App\Models\Consulta;
 use App\Models\User;
+use App\Support\Auditoria;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -28,7 +29,7 @@ final class GuardarCambios
                 throw new AccionRechazada(Autoguardado::VERSION_VIEJA);
             }
 
-            GuardarSecciones::guardar($consulta, $datos, $usuario, [FormularioConsulta::PREPARACION, FormularioConsulta::CLINICO]);
+            Auditoria::conDetalle('Guardar cambios', fn () => GuardarSecciones::guardar($consulta, $datos, $usuario, [FormularioConsulta::PREPARACION, FormularioConsulta::CLINICO]));
             $consulta->touch(); // nueva versión aunque solo hayan cambiado las secciones
         });
     }

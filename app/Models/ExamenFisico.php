@@ -104,6 +104,14 @@ class ExamenFisico extends Model
     }
 
     /** Para el log: ["Presión arterial: 120/80 mmHg", "Temperatura: 36,5 °C", ...], solo lo cargado. */
+    /** Para el log: nombre del campo => "Nombre: valor con unidad", solo los cargados. */
+    public function descripcionPorCampo(): array
+    {
+        return collect(array_keys(self::CAMPOS))
+            ->mapWithKeys(fn (string $campo) => [self::CAMPOS[$campo][0] => $this->valorTexto($campo)])
+            ->filter(fn ($texto) => $texto !== null)->all();
+    }
+
     public function descripcion(): array
     {
         return collect(array_keys(self::CAMPOS))

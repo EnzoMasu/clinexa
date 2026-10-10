@@ -75,12 +75,12 @@
         @if ($historial !== null)
             <details class="rounded-md border border-gray-200 dark:border-gray-700">
                 <summary class="cursor-pointer select-none px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Historial de cambios</summary>
-                {{-- Los autoguardados seguidos del mismo usuario y sección se ven juntos; hasta las últimas 50 entradas. --}}
+                {{-- Cada racha de autoguardados seguidos del mismo usuario se ve como una entrada; hasta las últimas 50 entradas. --}}
                 @if ($cambiosEnTotal > $historial->count())
                     <p class="px-4 pb-2 text-xs text-gray-500 dark:text-gray-400">Se muestran las últimas {{ $historial->count() }} de {{ $cambiosEnTotal }} entradas. El resto está en Auditoría.</p>
                 @endif
                 <x-admin.table :headers="['Fecha y hora', 'Usuario', 'Acción', 'Qué cambió']">
-                    @forelse ($historial as ['evento' => $evento, 'desde' => $desde, 'cantidad' => $cantidad])
+                    @forelse ($historial as ['evento' => $evento, 'desde' => $desde, 'cantidad' => $cantidad, 'secciones' => $secciones])
                         <tr>
                             <td class="px-6 py-3 whitespace-nowrap font-mono text-sm">
                                 {{ $cantidad > 1 ? Fecha::mostrar($desde, conHora: true).' – '.substr(Fecha::mostrar($evento->fecha_hora, conHora: true), -5) : Fecha::mostrar($evento->fecha_hora, conHora: true) }}
@@ -94,7 +94,7 @@
                                 @if ($evento->tabla_afectada === 'recetas')
                                     Receta {{ $consulta->recetas->firstWhere('id', (int) $evento->registro_afectado_id)?->numero ?? 'en borrador' }}:
                                 @endif
-                                {{ collect(array_keys($evento->valor_nuevo ?? []))->map(fn ($campo) => ['bloquesAnamnesis' => 'anamnesis', 'examenFisico' => 'examen físico', 'diagnosticos' => 'diagnósticos', 'indicaciones' => 'indicaciones generales', 'motivo_consulta' => 'motivo', 'detalles' => 'medicamentos', 'estado_id' => 'estado', 'motivo_anulacion' => 'motivo de la anulación', 'numero' => 'número', 'emitida_en' => 'emisión', 'anulada_en' => 'anulación'][$campo] ?? $campo)->join(', ') }}
+                                {{ collect($secciones)->map(fn ($campo) => ['bloquesAnamnesis' => 'anamnesis', 'examenFisico' => 'examen físico', 'diagnosticos' => 'diagnósticos', 'indicaciones' => 'indicaciones generales', 'motivo_consulta' => 'motivo', 'detalles' => 'medicamentos', 'estado_id' => 'estado', 'motivo_anulacion' => 'motivo de la anulación', 'numero' => 'número', 'emitida_en' => 'emisión', 'anulada_en' => 'anulación'][$campo] ?? $campo)->join(', ') }}
                             </td>
                             <td class="px-6 py-3 text-right whitespace-nowrap">
                                 <a href="{{ route('admin.auditoria.show', $evento) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Ver detalle</a>

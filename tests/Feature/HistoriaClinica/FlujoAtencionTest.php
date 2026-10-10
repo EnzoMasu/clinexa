@@ -14,6 +14,7 @@ use App\Models\Turno;
 use App\Models\User;
 use App\Support\Atencion\CerrarJornada;
 use App\Support\Atencion\DeshacerAtencion;
+use App\Support\Atencion\Finalizar;
 use Illuminate\Support\Carbon;
 
 beforeEach(function () {
@@ -411,16 +412,96 @@ describe('Finalizar', function () {
         expect(codigoConsulta($consulta))->toBe('EN_CURSO');
     });
 
-    test('solo el profesional de la consulta, y solo EN_CURSO', function () {
+    test('solo el profesional de la consulta: otro profesional recibe 403, también fuera de EN_CURSO', function () {
         $turno = hcTurno();
         $this->post(route('admin.preparacion.preparar', $turno));
         $preparacion = Consulta::sole();
-        hcFinalizar($preparacion, hcDatos())->assertForbidden();
 
         $consulta = hcEnCurso();
         $this->actingAs($this->otroMedico);
         hcFinalizar($consulta, hcDatos())->assertForbidden();
+        hcFinalizar($preparacion, hcDatos())->assertForbidden();
         expect(codigoConsulta($consulta))->toBe('EN_CURSO');
+    });
+
+    test('fuera de EN_CURSO (Deshacer atención en otra pestaña): 409 con el aviso y no finaliza', function (bool $conTurno) {
+        $turno = $conTurno ? hcTurno() : null;
+        $consulta = hcEnCurso($turno);
+        $version = $consulta->version(); // la pestaña de la atención quedó abierta con esta versión
+
+        // Otra pestaña deshace la atención: con turno vuelve a preparación; sin turno se anula.
+        $this->post(route('admin.consultas.deshacer', $consulta))->assertRedirect();
+        expect(codigoConsulta($consulta))->toBe($conTurno ? 'EN_PREPARACION' : 'ANULADO');
+        $eventos = LogAuditoria::where('accion', '!=', 'VER')->count();
+
+        hcFinalizar($consulta, hcDatos(), $version)->assertStatus(409)->assertSee(Finalizar::NO_EN_CURSO);
+
+        expect(codigoConsulta($consulta))->toBe($conTurno ? 'EN_PREPARACION' : 'ANULADO')
+            ->and($consulta->fresh()->motivo_consulta)->toBeNull()
+            ->and(LogAuditoria::where('accion', '!=', 'VER')->count())->toBe($eventos);
+        if ($turno) {
+            expect(codigoTurno($turno))->toBe('PENDIENTE');
+        }
+    })->with(['con turno' => [true], 'sin turno' => [false]]);
+
+    test('si la consulta deja de estar en curso entre el pedido y el bloqueo, el servicio también da 409', function () {
+        $consulta = hcEnCurso(hcTurno());
+        // Otra pestaña deshace justo antes de que Finalizar bloquee la consulta.
+        $hecho = false;
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Database\Events\TransactionBeginning::class, function () use ($consulta, &$hecho) {
+            if (! $hecho) {
+                $hecho = true;
+                Consulta::whereKey($consulta->id)->toBase()->update(['estado_id' => Estado::idDe(Estado::EN_PREPARACION)]);
+            }
+        });
+
+        hcFinalizar($consulta, hcDatos())->assertStatus(409);
+        expect($consulta->fresh()->motivo_consulta)->toBeNull();
+    });
+});
+
+describe('Finalizar con el turno cambiado', function () {
+    test('si el turno ya no estaba EN_CONSULTA: se finaliza, el turno no cambia, aviso visible y el detalle lo dice', function () {
+        $turno = hcTurno(['hora_inicio' => '10:00', 'hora_fin' => '10:30']);
+        $consulta = hcEnCurso($turno);
+        // El turno cambió por otra vía (no se puede desde la aplicación: se simula en la base).
+        Turno::whereKey($turno->id)->toBase()->update(['estado_id' => Estado::idDe(Estado::PENDIENTE)]);
+
+        $aviso = 'El turno de las 10:00 estaba en estado PENDIENTE y no se marcó como atendido. Revíselo en Turnos.';
+        hcFinalizar($consulta, hcDatos())->assertRedirect(route('admin.consultas.show', $consulta))
+            ->assertSessionHas('status', 'Consulta finalizada.')->assertSessionHas('aviso', $aviso);
+
+        expect(codigoConsulta($consulta))->toBe('FINALIZADO')
+            ->and(codigoTurno($turno))->toBe('PENDIENTE')
+            ->and(LogAuditoria::where('tabla_afectada', 'consultas')->where('accion', 'EDITAR')->sole()->detalle)->toBe('Finalizar (turno PENDIENTE, sin cambios)')
+            ->and(LogAuditoria::where('tabla_afectada', 'turnos')->where('registro_afectado_id', (string) $turno->id)->where('detalle', 'like', 'Finalizar%')->count())->toBe(0);
+
+        // El aviso se ve en la página a la que vuelve (una sola vez: es un mensaje "flash").
+        $this->get(route('admin.consultas.show', $consulta))->assertSee($aviso);
+        $this->get(route('admin.consultas.show', $consulta))->assertDontSee($aviso);
+    });
+
+    test('con el turno EN_CONSULTA: el detalle dice que pasó a ATENDIDO y no hay aviso', function () {
+        $turno = hcTurno();
+        $consulta = hcEnCurso($turno);
+
+        hcFinalizar($consulta, hcDatos())->assertSessionHas('status', 'Consulta finalizada.')->assertSessionMissing('aviso');
+
+        expect(codigoTurno($turno))->toBe('ATENDIDO')
+            ->and(LogAuditoria::where('tabla_afectada', 'consultas')->where('accion', 'EDITAR')->sole()->detalle)->toBe('Finalizar (turno ATENDIDO)');
+    });
+
+    test('Turnos sigue sin ningún botón que lleve a ATENDIDO, aunque el turno tenga su consulta finalizada', function () {
+        $this->medico = hcDarPermisos($this->medico, ['TURNOS' => ['VER', 'EDITAR']]);
+        $this->actingAs($this->medico);
+        $turno = hcTurno();
+        $consulta = hcEnCurso($turno);
+        Turno::whereKey($turno->id)->toBase()->update(['estado_id' => Estado::idDe(Estado::PENDIENTE)]);
+        hcFinalizar($consulta, hcDatos());
+
+        $html = $this->get(route('admin.turnos.index'))->assertOk()->getContent();
+        expect($html)->not->toContain('value="atendido"')->not->toContain('>Atendido</button>')
+            ->and(collect(Turno::ACCIONES)->pluck(0)->all())->not->toContain(Estado::ATENDIDO);
     });
 });
 

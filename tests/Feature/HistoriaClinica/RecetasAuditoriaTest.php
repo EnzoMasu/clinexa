@@ -198,18 +198,19 @@ describe('indicaciones generales', function () {
         $this->get(route('admin.consultas.edit', $this->consulta))->assertSee('<template x-if="true"><input type="hidden" name="con_indicaciones" value="1"></template>', false);
     });
 
-    test('auditoría: EDITAR de la consulta con la lista legible, sin eventos propios; oculto sin VER sobre la historia clínica', function () {
+    test('auditoría: EDITAR de la consulta con la fila legible, sin eventos propios; oculto sin VER sobre la historia clínica', function () {
         Carbon::setTestNow(now()->addMinute());
         hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => $this->reposo->id, 'descripcion' => 'Reposo 48 horas']]))->assertSessionHasNoErrors();
 
         $evento = LogAuditoria::where('tabla_afectada', 'consultas')->get()->first(fn ($e) => isset($e->valor_nuevo['indicaciones']));
-        expect($evento->valor_anterior)->toBe(['indicaciones' => []])->and($evento->valor_nuevo)->toBe(['indicaciones' => ['Reposo: Reposo 48 horas']])
+        $fila = 'Indicación #'.$this->consulta->indicaciones()->value('id');
+        expect($evento->valor_anterior)->toBe(['indicaciones' => [$fila => null]])->and($evento->valor_nuevo)->toBe(['indicaciones' => [$fila => '1. Reposo: Reposo 48 horas']])
             ->and(LogAuditoria::where('tabla_afectada', 'indicaciones')->count())->toBe(0)
             ->and(Auditoria::TABLAS_CLINICAS)->toContain('indicaciones')
             ->and(Auditoria::TABLAS_RECETAS)->toBe(['recetas', 'detalles_receta']);
 
         $this->actingAs(User::factory()->conPermisos(['AUDITORIA' => ['VER'], 'RECETAS' => ['VER']])->create());
-        $this->get(route('admin.auditoria.show', $evento))->assertOk()->assertSee('se requiere permiso de lectura sobre Historia Clínica')->assertDontSee('Reposo 48 horas');
+        $this->get(route('admin.auditoria.show', $evento))->assertOk()->assertSee('se requiere permiso de lectura sobre Historia Clínica')->assertDontSee('Reposo 48 horas')->assertDontSee('Indicación #');
     });
 
     test('concurrencia de la consulta: las indicaciones también cambian la versión', function () {

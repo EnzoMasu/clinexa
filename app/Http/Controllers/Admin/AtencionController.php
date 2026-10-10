@@ -9,6 +9,7 @@ use App\Models\Estado;
 use App\Models\HistoriaClinica;
 use App\Models\Paciente;
 use App\Models\Turno;
+use App\Policies\ConsultaPolicy;
 use App\Support\Atencion\AtenderSinTurno;
 use App\Support\Atencion\Atender;
 use App\Support\Atencion\Autoguardado;
@@ -184,9 +185,14 @@ class AtencionController extends Controller
 
     public function finalizar(Request $request, Consulta $consulta): RedirectResponse
     {
-        abort_if($consulta->anulada(), 404);
         if ($consulta->finalizada()) {
             return redirect()->route('admin.consultas.show', $consulta)->with('status', 'Consulta finalizada.'); // doble envío
+        }
+        // Fuera de EN_CURSO (Deshacer en otra pestaña: volvió a preparación o se anuló): conflicto, no se
+        // finaliza. Solo se lo dice al profesional de la consulta; a otro, 403 como siempre.
+        if (! $consulta->enCurso()) {
+            abort_unless(app(ConsultaPolicy::class)->esElQueAtiende($request->user(), $consulta), 403, ConsultaPolicy::SOLO_EL_QUE_ATIENDE);
+            abort(409, Finalizar::NO_EN_CURSO);
         }
         Gate::authorize('finalizar', $consulta);
         [$datos] = FormularioConsulta::validar($request, $consulta, [FormularioConsulta::PREPARACION, FormularioConsulta::CLINICO], final: true);

@@ -87,6 +87,26 @@ trait Auditable
     }
 
     /**
+     * De dos mapas identificación => texto, solo las filas distintas: [antes, después] (null donde la fila
+     * no existía).
+     *
+     * @return array{0: array<string, ?string>, 1: array<string, ?string>}
+     */
+    private static function filasCambiadas(array $antes, array $despues): array
+    {
+        $anterior = [];
+        $nuevo = [];
+        foreach (array_unique([...array_keys($antes), ...array_keys($despues)]) as $fila) {
+            if (($antes[$fila] ?? null) !== ($despues[$fila] ?? null)) {
+                $anterior[$fila] = $antes[$fila] ?? null;
+                $nuevo[$fila] = $despues[$fila] ?? null;
+            }
+        }
+
+        return [$anterior, $nuevo];
+    }
+
+    /**
      * Cómo se muestra cada relación pivote en el log (lista legible, ordenada), por nombre de relación.
      *
      * @return array<string, \Closure(Collection): array>
@@ -94,6 +114,17 @@ trait Auditable
     public function relacionesAuditadas(): array
     {
         return [];
+    }
+
+    /**
+     * true: las relaciones auditadas se describen como mapa "identificación legible" => texto (p. ej.
+     * "Bloque #12" => "1. Alergias: Penicilina.") y en el log quedan solo las filas que cambiaron: en el
+     * antes su texto anterior (null si es nueva) y en el después el nuevo. Aplicando los "después" en orden
+     * se reconstruye el estado en cada momento. false (por defecto): la lista entera de antes y de después.
+     */
+    public function auditaFilasCambiadas(): bool
+    {
+        return false;
     }
 
     /**
@@ -130,6 +161,7 @@ trait Auditable
             $despues = $describir($this->{$relacion}()->get());
 
             if ($antes !== $despues) {
+                [$antes, $despues] = $this->auditaFilasCambiadas() ? self::filasCambiadas($antes, $despues) : [$antes, $despues];
                 Auditoria::registrar(AccionAuditoria::EDITAR, $this->getTable(), $this->getKey(), [$relacion => $antes], [$relacion => $despues]);
             }
 

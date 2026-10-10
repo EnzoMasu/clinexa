@@ -128,18 +128,23 @@ test('hasta 30 pedidos por minuto por usuario: el 31 es 429; a otro usuario no l
     hcAutoguardar($this->consulta, ['examen' => ['frecuencia_cardiaca' => '99']])->assertOk();
 });
 
-test('auditoría: cada guardado efectivo es un EDITAR "Borrador (autoguardado)" por sección; sin cambios, nada; nunca un VER', function () {
+test('auditoría: cada guardado efectivo es UN EDITAR "Borrador (autoguardado)" con todas las secciones que cambiaron; sin cambios, nada; nunca un VER', function () {
     $antes = LogAuditoria::max('id');
 
     hcAutoguardar($this->consulta, ['motivo_consulta' => 'Cefalea.', 'examen' => ['peso' => '60']])->assertOk();
-    $eventos = LogAuditoria::where('id', '>', $antes)->orderBy('id')->get();
-    expect($eventos->map(fn ($e) => [$e->tabla_afectada, $e->accion, $e->detalle])->all())->toBe([
-        ['consultas', AccionAuditoria::EDITAR, 'Borrador (autoguardado)'],
-        ['consultas', AccionAuditoria::EDITAR, 'Borrador (autoguardado)'],
-    ])->and($eventos->pluck('usuario_id')->unique()->all())->toBe([$this->medico->id]);
+    $evento = LogAuditoria::where('id', '>', $antes)->sole();
+    expect([$evento->tabla_afectada, $evento->accion, $evento->detalle, $evento->usuario_id])
+        ->toBe(['consultas', AccionAuditoria::EDITAR, 'Borrador (autoguardado)', $this->medico->id])
+        ->and($evento->valor_anterior)->toBe(['motivo_consulta' => null, 'examenFisico' => ['Peso' => null]])
+        ->and($evento->valor_nuevo)->toBe(['motivo_consulta' => 'Cefalea.', 'examenFisico' => ['Peso' => '60 kg']]);
+
+    // Cambia solo una fila de una sección: el evento lleva solo esa fila.
+    $antes = LogAuditoria::max('id');
+    hcAutoguardar($this->consulta, ['motivo_consulta' => 'Cefalea.', 'examen' => ['peso' => '60', 'talla' => '158']])->assertOk();
+    expect(LogAuditoria::where('id', '>', $antes)->sole()->valor_nuevo)->toBe(['examenFisico' => ['Talla' => '158 cm']]);
 
     $antes = LogAuditoria::max('id');
-    hcAutoguardar($this->consulta, ['motivo_consulta' => 'Cefalea.', 'examen' => ['peso' => '60']])->assertOk();
+    hcAutoguardar($this->consulta, ['motivo_consulta' => 'Cefalea.', 'examen' => ['peso' => '60', 'talla' => '158']])->assertOk();
     expect(LogAuditoria::where('id', '>', $antes)->count())->toBe(0);
 });
 

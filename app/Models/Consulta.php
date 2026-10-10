@@ -117,17 +117,28 @@ class Consulta extends Model
      * En el log, cada lista legible: "Alergias: penicilina", "J06.9 — Rinofaringitis aguda
      * (CONFIRMADO, principal)", "Presión arterial: 120/80".
      */
+    /** En el log, solo las filas que cambiaron (ver Auditable::auditaFilasCambiadas). */
+    public function auditaFilasCambiadas(): bool
+    {
+        return true;
+    }
+
+    /**
+     * Cada sección como mapa "identificación legible" => texto. Las filas con orden lo llevan al principio
+     * ("2. Alergias: Penicilina."), así el orden también se puede reconstruir.
+     */
     public function relacionesAuditadas(): array
     {
         return [
             'bloquesAnamnesis' => fn (Collection $bloques) => $bloques->sortBy(['orden', 'id'])->loadMissing('tipoBloqueAnamnesis')
-                ->map(fn (BloqueAnamnesis $bloque) => $bloque->descripcion())->values()->all(),
-            'examenFisico' => fn (Collection $examenes) => $examenes->first()?->descripcion() ?? [],
+                ->mapWithKeys(fn (BloqueAnamnesis $bloque) => ["Bloque #{$bloque->id}" => "{$bloque->orden}. ".$bloque->descripcion()])->all(),
+            // "Temperatura" => "Temperatura: 38,2 °C".
+            'examenFisico' => fn (Collection $examenes) => $examenes->first()?->descripcionPorCampo() ?? [],
             'diagnosticos' => fn (Collection $diagnosticos) => $diagnosticos->sortBy('id')->loadMissing('cie10')
-                ->map(fn (Diagnostico $diagnostico) => $diagnostico->descripcion())->values()->all(),
-            // "Reposo: 48 horas", "Control en 7 días (retirado)".
+                ->mapWithKeys(fn (Diagnostico $diagnostico) => ["Diagnóstico #{$diagnostico->id}" => $diagnostico->descripcion()])->all(),
+            // "1. Reposo: 48 horas", "2. Control en 7 días (retirado)".
             'indicaciones' => fn (Collection $indicaciones) => $indicaciones->sortBy(['orden', 'id'])->loadMissing('tipoIndicacion')
-                ->map(fn (Indicacion $indicacion) => $indicacion->descripcionAuditoria())->values()->all(),
+                ->mapWithKeys(fn (Indicacion $indicacion) => ["Indicación #{$indicacion->id}" => "{$indicacion->orden}. ".$indicacion->descripcionAuditoria()])->all(),
         ];
     }
 

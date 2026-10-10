@@ -57,22 +57,18 @@ test('HTML y JS en motivo, anamnesis, hallazgos y descripción adicional: escapa
         ->assertSee('Detalle \\\\u0022\\\\u003E\\\\u003Cscript\\\\u003Ealert(1)', false)
         ->assertDontSee('x-html', false);
 
-    // Detalle de auditoría (con permiso clínico): cada lista antes/después, escapada.
+    // Detalle de auditoría (con permiso clínico): el EDITAR "Finalizar" lleva todas las secciones, cada
+    // fila como "identificación: texto", escapada.
     $this->actingAs(User::factory()->conPermisos(['AUDITORIA' => ['VER'], 'HISTORIA_CLINICA' => ['VER']])->create());
-    // Los de cada sección (el CREAR de "Atender" y el cambio de estado no llevan contenido).
-    $eventos = LogAuditoria::where('tabla_afectada', 'consultas')->where('accion', AccionAuditoria::EDITAR->value)->orderBy('id')->get()
-        ->filter(fn ($e) => array_intersect(['motivo_consulta', 'bloquesAnamnesis', 'examenFisico', 'diagnosticos'], array_keys($e->valor_nuevo)) !== [])->values();
-    expect($eventos)->toHaveCount(4);
+    $evento = LogAuditoria::where('tabla_afectada', 'consultas')->where('accion', AccionAuditoria::EDITAR->value)->sole();
+    expect(array_keys($evento->valor_nuevo))->toContain('motivo_consulta', 'bloquesAnamnesis', 'examenFisico', 'diagnosticos');
 
-    $esperado = [
-        'Motivo &lt;img src=x onerror=alert(1)&gt;',
-        'Alergias: Bloque &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;',
-        'Hallazgos: Hallazgo &lt;img src=x onerror=alert(1)&gt;',
-        'J06.9 — Rinofaringitis aguda (PRESUNTIVO, principal): Detalle &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;',
-    ];
-    foreach ($eventos as $i => $evento) {
-        sinHtmlCrudo($this->get(route('admin.auditoria.show', $evento))->assertOk())->assertSee($esperado[$i], false);
-    }
+    sinHtmlCrudo($this->get(route('admin.auditoria.show', $evento))->assertOk())
+        ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false)
+        ->assertSee('1. Alergias: Bloque &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
+        ->assertSee('Hallazgos: Hallazgo &lt;img src=x onerror=alert(1)&gt;', false)
+        ->assertSee('J06.9 — Rinofaringitis aguda (PRESUNTIVO, principal): Detalle &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
+        ->assertSee('(no existía)');
 });
 
 test('un error de validación al finalizar vuelve a la pantalla de atención con lo escrito, escapado', function () {

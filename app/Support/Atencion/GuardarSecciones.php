@@ -5,11 +5,13 @@ namespace App\Support\Atencion;
 use App\Models\Consulta;
 use App\Models\ExamenFisico;
 use App\Models\User;
+use App\Support\Auditoria;
 
 /**
  * Guarda las secciones de una consulta con los datos ya validados (FormularioConsulta), solo las de los
- * grupos que el usuario puede escribir. Cada sección queda en la auditoría como EDITAR de la consulta,
- * con la lista de antes y la de después (si cambió). Nada se borra: las filas se retiran.
+ * grupos que el usuario puede escribir. Todo lo que cambió queda en la auditoría como UN solo EDITAR de
+ * la consulta (Auditoria::agrupar), con cada sección que cambió y, de cada una, solo las filas que
+ * cambiaron (Consulta::auditaFilasCambiadas). Sin cambios, ningún evento. Nada se borra: las filas se retiran.
  *
  * Autoría: cada bloque de anamnesis guarda quién lo creó (usuario_id) y el último que cambió su contenido
  * (modificado_por_id); el examen guarda quién cargó los signos vitales y quién los hallazgos.
@@ -23,6 +25,15 @@ final class GuardarSecciones
      * @return array<string, array<string, int>> lista => [uid => id] de las filas creadas
      */
     public static function guardar(Consulta $consulta, array $datos, User $usuario, array $grupos): array
+    {
+        return Auditoria::agrupar(fn () => self::guardarSecciones($consulta, $datos, $usuario, $grupos));
+    }
+
+    /**
+     * @param  list<string>  $grupos
+     * @return array<string, array<string, int>>
+     */
+    private static function guardarSecciones(Consulta $consulta, array $datos, User $usuario, array $grupos): array
     {
         $creadas = [];
         $preparacion = in_array(FormularioConsulta::PREPARACION, $grupos, true);

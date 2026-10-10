@@ -30,40 +30,36 @@ class ConsultaController extends Controller
     private const AUTOGUARDADO = 'Borrador (autoguardado)';
 
     /**
-     * Una consulta de 10 minutos deja decenas de autoguardados (uno cada 10 s mientras se escribe, y uno
-     * por sección en cada guardado). Para leer el historial, en cada racha de autoguardados seguidos del
-     * mismo usuario, los de una misma sección se ven como una sola entrada: [evento (el último de esa
-     * sección), desde (fecha del primero), cantidad]. Cualquier otro evento corta la racha. El log no cambia.
+     * Una consulta deja varios autoguardados (uno por guardado efectivo, cada uno con todas las secciones
+     * que cambiaron). Para leer el historial, cada racha de autoguardados seguidos del mismo usuario se ve
+     * como UNA entrada: [evento (el último), desde (fecha del primero), cantidad (guardados), secciones (las
+     * que cambiaron en toda la racha)]. Cualquier otro evento (Preparar, Atender, Finalizar, otro usuario...)
+     * corta la racha. Los eventos con el formato anterior (uno por sección) se agrupan igual. El log no cambia.
      *
      * @param  \Illuminate\Support\Collection<int, LogAuditoria>  $eventos
-     * @return \Illuminate\Support\Collection<int, array{evento: LogAuditoria, desde: mixed, cantidad: int}>
+     * @return \Illuminate\Support\Collection<int, array{evento: LogAuditoria, desde: mixed, cantidad: int, secciones: list<string>}>
      */
     public static function agruparHistorial(\Illuminate\Support\Collection $eventos): \Illuminate\Support\Collection
     {
         $entradas = [];
-        $racha = []; // sección => índice de su entrada en $entradas
         $autorRacha = null;
         foreach ($eventos as $evento) {
+            $secciones = array_keys($evento->valor_nuevo ?? []);
             $autor = [$evento->usuario_id, $evento->tabla_afectada, $evento->registro_afectado_id];
-            if ($evento->detalle !== self::AUTOGUARDADO || $autor !== $autorRacha) {
-                $racha = [];
-                $autorRacha = $evento->detalle === self::AUTOGUARDADO ? $autor : null;
-            }
-            if ($evento->detalle === self::AUTOGUARDADO) {
-                $seccion = implode(',', array_keys($evento->valor_nuevo ?? []));
-                if (isset($racha[$seccion])) {
-                    $entrada = $entradas[$racha[$seccion]];
-                    $entradas[$racha[$seccion]] = ['evento' => $evento, 'desde' => $entrada['desde'], 'cantidad' => $entrada['cantidad'] + 1];
+            if ($evento->detalle === self::AUTOGUARDADO && $autor === $autorRacha) {
+                $entrada = array_pop($entradas);
+                $entradas[] = ['evento' => $evento, 'desde' => $entrada['desde'], 'cantidad' => $entrada['cantidad'] + 1,
+                    'secciones' => array_values(array_unique([...$entrada['secciones'], ...$secciones]))];
 
-                    continue;
-                }
-                $racha[$seccion] = count($entradas);
+                continue;
             }
-            $entradas[] = ['evento' => $evento, 'desde' => $evento->fecha_hora, 'cantidad' => 1];
+            $autorRacha = $evento->detalle === self::AUTOGUARDADO ? $autor : null;
+            $entradas[] = ['evento' => $evento, 'desde' => $evento->fecha_hora, 'cantidad' => 1, 'secciones' => $secciones];
         }
 
         return collect($entradas);
     }
+
     /** Relaciones que muestra el contenido de una consulta (partial consultas._contenido). */
     private const RELACIONES_CONTENIDO = [
         'historiaClinica.paciente.persona.tipoDocumento', 'profesional.persona', 'turno',
