@@ -30,6 +30,14 @@
                 <div class="flex justify-end gap-3">
                     @if ($puedeCambiarEstado)
                         @foreach ($turno->accionesPosibles() as $accion)
+                            @if ($accion === 'ausente' && ! $turno->llegoSuHora())
+                                {{-- La ausencia solo desde la hora del turno (Turno::pasarA lo valida igual). --}}
+                                <span class="flex items-center gap-1.5">
+                                    <button type="button" disabled class="cursor-not-allowed text-sm font-medium text-gray-400 dark:text-gray-500">Ausente</button>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">Disponible desde {{ substr($turno->hora_inicio, 0, 5) }}</span>
+                                </span>
+                                @continue
+                            @endif
                             <form method="POST" action="{{ route('admin.turnos.estado', $turno) }}"
                                 @if ($accion === 'cancelar') x-data x-on:submit="if (! confirm(@js('¿Cancelar el turno del '.Fecha::mostrar($turno->fecha).' a las '.substr($turno->hora_inicio, 0, 5).'? El horario queda libre.'))) $event.preventDefault()" @endif>
                                 @csrf

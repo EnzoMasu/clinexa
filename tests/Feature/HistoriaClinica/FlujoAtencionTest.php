@@ -248,7 +248,7 @@ describe('Cerrar jornada', function () {
     test('vista previa y cierre: los PENDIENTE, CONFIRMADO y SALTADO de hoy y de días anteriores pasan a AUSENTE; sus preparaciones se anulan', function () {
         $hoy = hcTurno();
         $ayer = hcTurno(['fecha' => '2026-10-05', 'estado_id' => Estado::idDe(Estado::PENDIENTE)]);
-        $saltado = hcTurno(['hora_inicio' => '10:00', 'hora_fin' => '10:30', 'estado_id' => Estado::idDe(Estado::SALTADO)]);
+        $saltado = hcTurno(['hora_inicio' => '07:00', 'hora_fin' => '07:30', 'estado_id' => Estado::idDe(Estado::SALTADO)]);
         $manana = hcTurno(['fecha' => '2026-10-07']);
         $atendido = hcTurno(['hora_inicio' => '11:00', 'hora_fin' => '11:30', 'estado_id' => Estado::idDe(Estado::ATENDIDO)]);
         $ajeno = hcTurno(['profesional_id' => $this->otroProfesional->id, 'consultorio_id' => $this->consultorio->id, 'hora_inicio' => '12:00', 'hora_fin' => '12:30']);
@@ -256,7 +256,7 @@ describe('Cerrar jornada', function () {
         $preparacion = Consulta::where('turno_id', $hoy->id)->sole();
 
         $this->get(route('admin.atencion.cerrar-jornada'))->assertOk()
-            ->assertSee('Estos 3 turnos pasarán a ausente')->assertSeeInOrder(['05/10/2026 08:00', '06/10/2026 08:00', '06/10/2026 10:00']);
+            ->assertSee('Estos 3 turnos pasarán a ausente')->assertSeeInOrder(['05/10/2026 08:00', '06/10/2026 07:00', '06/10/2026 08:00']);
 
         $this->post(route('admin.atencion.cerrar-jornada.confirmar'))->assertRedirect(route('admin.atencion.index'))
             ->assertSessionHas('status', 'Jornada cerrada: 3 turnos pasaron a ausente.');

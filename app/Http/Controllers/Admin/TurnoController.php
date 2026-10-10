@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\AccionRechazada;
 use App\Http\Controllers\Controller;
 use App\Models\Estado;
 use App\Models\OrigenTurno;
@@ -145,8 +146,13 @@ class TurnoController extends Controller
             return back()->with('error', sprintf('No se puede %s un turno %s.', mb_strtolower(Turno::ACCIONES[$accion][1]), mb_strtolower($turno->estado->nombre)));
         }
 
-        // pasarA revalida y, si corresponde, anula la consulta EN_PREPARACION del turno.
-        $turno->pasarA(Turno::ACCIONES[$accion][0]);
+        // pasarA revalida (transición y, para la ausencia, la hora del turno) y, si corresponde, anula la
+        // consulta EN_PREPARACION del turno.
+        try {
+            $turno->pasarA(Turno::ACCIONES[$accion][0]);
+        } catch (AccionRechazada $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('status', sprintf('Turno del %s a las %s: %s.',
             Fecha::mostrar($turno->fecha), substr($turno->hora_inicio, 0, 5), mb_strtolower($turno->fresh()->estado->nombre)));

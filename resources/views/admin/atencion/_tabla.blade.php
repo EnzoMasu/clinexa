@@ -88,10 +88,18 @@
                                 </form>
                             @endif
                             @if ($puedePasarAusente)
-                                <form method="POST" action="{{ route('admin.atencion.no-se-presento', $turno) }}">
-                                    @csrf
-                                    <button type="submit" class="{{ $boton }}">No se presentó</button>
-                                </form>
+                                @if ($turno->llegoSuHora())
+                                    <form method="POST" action="{{ route('admin.atencion.no-se-presento', $turno) }}">
+                                        @csrf
+                                        <button type="submit" class="{{ $boton }}">No se presentó</button>
+                                    </form>
+                                @else
+                                    {{-- Antes de la hora del turno: deshabilitado; la actualización automática lo habilita. --}}
+                                    <span class="flex items-center gap-1.5">
+                                        <button type="button" disabled class="{{ $boton }} cursor-not-allowed opacity-50">No se presentó</button>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">Disponible desde {{ substr($turno->hora_inicio, 0, 5) }}</span>
+                                    </span>
+                                @endif
                             @endif
                         </span>
                     </li>

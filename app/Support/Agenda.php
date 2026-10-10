@@ -20,7 +20,8 @@ use Illuminate\Support\Collection;
  * 4. Se descartan los bloques que se pisan con un turno no CANCELADO del profesional, o del
  *    consultorio con otro profesional (la base los rechazaría igual).
  * 5. No hay horarios en el pasado: fechas anteriores a hoy no tienen ninguno y, si es hoy, solo
- *    los que todavía no empezaron (hora de Paraguay).
+ *    los que todavía no empezaron (hora de Paraguay). La regla es Fecha::yaLlego, la misma que valida el
+ *    alta y los cambios de un turno (TurnoController) y la ausencia desde la hora del turno.
  */
 final class Agenda
 {
@@ -30,8 +31,7 @@ final class Agenda
     public static function horariosDisponibles(Profesional $profesional, CarbonInterface $fecha): Collection
     {
         $fecha = Carbon::parse($fecha->format('Y-m-d'));
-        $ahora = Carbon::now(config('app.zona_horaria_local'));
-        $hoy = $ahora->format('Y-m-d');
+        $hoy = Fecha::hoy()->format('Y-m-d');
 
         if (! $profesional->estaActivo() || $fecha->format('Y-m-d') < $hoy) {
             return collect();
@@ -57,11 +57,9 @@ final class Agenda
                 ->orWhereIn('consultorio_id', $disponibilidades->pluck('consultorio_id')))
             ->get(['profesional_id', 'consultorio_id', 'hora_inicio', 'hora_fin']);
 
-        $ahoraHora = $fecha->format('Y-m-d') === $hoy ? $ahora->format('H:i') : null;
-
         return $disponibilidades
             ->flatMap(fn (Disponibilidad $disponibilidad) => self::bloques($disponibilidad))
-            ->reject(fn (array $bloque) => $ahoraHora !== null && $bloque['hora_inicio'] <= $ahoraHora)
+            ->reject(fn (array $bloque) => Fecha::yaLlego($fecha->format('Y-m-d'), $bloque['hora_inicio']))
             ->reject(fn (array $bloque) => $ocupados->contains(fn (Turno $turno) => ($turno->profesional_id === $profesional->id || $turno->consultorio_id === $bloque['consultorio_id'])
                 && self::sePisan($bloque['hora_inicio'], $bloque['hora_fin'], Disponibilidad::hora($turno->hora_inicio), Disponibilidad::hora($turno->hora_fin))))
             ->sortBy('hora_inicio')

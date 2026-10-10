@@ -26,6 +26,8 @@ final class CerrarJornada
 
     public const CON_CONSULTAS_EN_CURSO = 'Tiene consultas en curso: finalícelas antes de cerrar la jornada.';
 
+    public const AUN_NO_ES_SU_HORA = 'Aún no es su hora. Si no se va a atender, cancélelos desde Turnos.';
+
     /**
      * Lo que cerraría (la vista previa).
      *
@@ -41,8 +43,13 @@ final class CerrarJornada
             ->get();
     }
 
-    /** Devuelve cuántos turnos cerró. */
-    public static function ejecutar(User $usuario): int
+    /**
+     * Pasa a AUSENTE los turnos sin cerrar cuya hora ya llegó (Turno::llegoSuHora); los de hoy que todavía
+     * no llegaron a su hora quedan como están. Devuelve [cerrados, pendientes de su hora].
+     *
+     * @return array{0: int, 1: int}
+     */
+    public static function ejecutar(User $usuario): array
     {
         return DB::transaction(function () use ($usuario) {
             Gate::forUser($usuario)->authorize('cerrarJornada', Consulta::class);
@@ -55,15 +62,17 @@ final class CerrarJornada
             $turnos = Turno::whereKey(self::turnosSinCerrar($profesionalId)->modelKeys())->lockForUpdate()->get();
 
             return Auditoria::conDetalle('Cierre de jornada', function () use ($turnos) {
-                $cerrados = 0;
+                [$cerrados, $pendientes] = [0, 0];
                 foreach ($turnos as $turno) {
-                    if ($turno->puedePasarA(Estado::AUSENTE)) {
+                    if (! $turno->llegoSuHora()) {
+                        $pendientes++;
+                    } elseif ($turno->puedePasarA(Estado::AUSENTE)) {
                         $turno->pasarA(Estado::AUSENTE); // también anula su consulta EN_PREPARACION
                         $cerrados++;
                     }
                 }
 
-                return $cerrados;
+                return [$cerrados, $pendientes];
             });
         });
     }

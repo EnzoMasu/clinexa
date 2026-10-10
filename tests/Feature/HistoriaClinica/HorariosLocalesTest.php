@@ -88,9 +88,13 @@ describe('00:30 del miércoles (03:30 UTC): ya es miércoles', function () {
         $this->get(route('admin.atencion.index'))->assertSee('En consulta desde 06/10/2026 22:30');
     });
 
-    test('cerrar la jornada a las 00:30 cierra también el martes (día anterior) y el miércoles', function () {
-        $this->get(route('admin.atencion.cerrar-jornada'))->assertSeeInOrder(['06/10/2026 21:00', '07/10/2026 08:00']);
-        $this->post(route('admin.atencion.cerrar-jornada.confirmar'))->assertSessionHas('status', 'Jornada cerrada: 2 turnos pasaron a ausente.');
-        expect($this->martes->fresh()->estado->codigo)->toBe(Estado::AUSENTE);
+    test('cerrar la jornada a las 00:30 cierra el martes (día anterior); el del miércoles a las 08:00 todavía no es su hora', function () {
+        $this->get(route('admin.atencion.cerrar-jornada'))
+            ->assertSeeInOrder(['Este turno pasará a ausente', '06/10/2026 21:00', 'Todavía no llegaron a su hora', 'Aún no es su hora. Si no se va a atender, cancélelos desde Turnos.', '07/10/2026 08:00']);
+        $this->post(route('admin.atencion.cerrar-jornada.confirmar'))
+            ->assertSessionHas('status', 'Jornada cerrada: 1 turno pasó a ausente.')
+            ->assertSessionHas('aviso', '1 turno todavía no llegó a su hora y quedó pendiente. Aún no es su hora. Si no se va a atender, cancélelos desde Turnos.');
+        expect($this->martes->fresh()->estado->codigo)->toBe(Estado::AUSENTE)
+            ->and($this->miercoles->fresh()->estado->codigo)->toBe(Estado::CONFIRMADO);
     });
 });

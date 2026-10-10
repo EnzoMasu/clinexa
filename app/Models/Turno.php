@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Exceptions\AccionRechazada;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use DomainException;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Support\Fecha;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -40,6 +42,11 @@ class Turno extends Model
      * Botones manuales del listado de Turnos (EDITAR sobre TURNOS): acción => [estado al que lleva, texto].
      * Nunca llevan a SALTADO, EN_CONSULTA ni ATENDIDO: eso lo hacen la pantalla Consulta y sus servicios.
      */
+    /** Estados de ausencia: solo desde la hora del turno (pasarA). */
+    public const SOLO_DESDE_SU_HORA = [Estado::AUSENTE, Estado::SALTADO];
+
+    public const AUN_NO_ES_SU_HORA = 'Todavía no llegó la hora del turno (%s). Solo puede marcar la ausencia desde esa hora.';
+
     public const ACCIONES = [
         'confirmar' => [Estado::CONFIRMADO, 'Confirmar'],
         'ausente' => [Estado::AUSENTE, 'Ausente'],
@@ -135,12 +142,28 @@ class Turno extends Model
      * CANCELADO o AUSENTE, su consulta EN_PREPARACION (si la hay) pasa a ANULADO en la misma transacción:
      * los datos se conservan, pero no aparece en listados, historial ni conteos.
      */
+    /** La hora del turno ya llegó (en punto, inclusive; hora de Paraguay). Ver Fecha::yaLlego. */
+    public function llegoSuHora(): bool
+    {
+        return Fecha::yaLlego($this->fecha->format('Y-m-d'), $this->hora_inicio);
+    }
+
+    /** Aviso para quien intenta marcar la ausencia antes de la hora del turno. */
+    public function avisoAunNoEsSuHora(): string
+    {
+        return sprintf(self::AUN_NO_ES_SU_HORA, substr($this->hora_inicio, 0, 5));
+    }
+
     public function pasarA(string $estado): void
     {
         if (! $this->puedePasarA($estado)) {
             throw new DomainException(sprintf('Un turno %s no puede pasar a %s.', mb_strtolower((string) $this->estado?->nombre), mb_strtolower(Estado::where('codigo', $estado)->value('nombre') ?? $estado)));
         }
-
+        // La ausencia (AUSENTE, o SALTADO por "No se presentó") solo desde la hora del turno: el único
+        // lugar que lo decide, para todos los caminos (botón manual, Consulta, Cerrar jornada).
+        if (in_array($estado, self::SOLO_DESDE_SU_HORA, true) && ! $this->llegoSuHora()) {
+            throw new AccionRechazada($this->avisoAunNoEsSuHora());
+        }
         DB::transaction(function () use ($estado) {
             $this->update(['estado_id' => Estado::idDe($estado)]);
             $this->unsetRelation('estado');

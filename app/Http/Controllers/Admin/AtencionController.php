@@ -127,8 +127,12 @@ class AtencionController extends Controller
         Gate::authorize('cerrarJornada', Consulta::class);
         $profesional = $request->user()->profesional;
 
+        // Los que todavía no llegaron a su hora no se cierran: se muestran aparte.
+        [$turnos, $aunNoEsSuHora] = CerrarJornada::turnosSinCerrar($profesional->id)->partition(fn (Turno $turno) => $turno->llegoSuHora());
+
         return view('admin.atencion.cerrar-jornada', [
-            'turnos' => CerrarJornada::turnosSinCerrar($profesional->id),
+            'turnos' => $turnos->values(),
+            'aunNoEsSuHora' => $aunNoEsSuHora->values(),
             'conConsultasEnCurso' => Consulta::where('profesional_id', $profesional->id)->where('estado_id', Estado::idDe(Estado::EN_CURSO))->exists(),
         ]);
     }
@@ -136,11 +140,13 @@ class AtencionController extends Controller
     public function cerrarJornada(Request $request): RedirectResponse
     {
         return $this->accion(function () use ($request) {
-            $cerrados = CerrarJornada::ejecutar($request->user());
+            [$cerrados, $pendientes] = CerrarJornada::ejecutar($request->user());
 
             return redirect()->route('admin.atencion.index')->with('status', $cerrados === 0
                 ? 'No había turnos para cerrar.'
-                : "Jornada cerrada: {$cerrados} ".($cerrados === 1 ? 'turno pasó' : 'turnos pasaron').' a ausente.');
+                : "Jornada cerrada: {$cerrados} ".($cerrados === 1 ? 'turno pasó' : 'turnos pasaron').' a ausente.')
+                ->with('aviso', $pendientes === 0 ? null
+                    : ($pendientes === 1 ? '1 turno todavía no llegó a su hora y quedó pendiente. ' : "{$pendientes} turnos todavía no llegaron a su hora y quedaron pendientes. ").CerrarJornada::AUN_NO_ES_SU_HORA);
         });
     }
 

@@ -222,7 +222,8 @@ describe('cambios de estado', function () {
     }
 
     test('transiciones válidas', function (string $desde, string $accion, string $hasta) {
-        $turno = turno(['estado_id' => Estado::idDe($desde)]);
+        // La ausencia solo desde la hora del turno: para "ausente", un turno de hoy que ya empezó (08:00).
+        $turno = turno(['estado_id' => Estado::idDe($desde), ...($accion === 'ausente' ? ['fecha' => '2026-10-05'] : [])]);
 
         accion($turno, $accion)->assertRedirect(route('admin.turnos.index'))->assertSessionHas('status');
         expect($turno->fresh()->estado->codigo)->toBe($hasta);
