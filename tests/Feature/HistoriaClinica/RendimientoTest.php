@@ -10,6 +10,9 @@ use App\Models\Turno;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+// Grupo "lento" (docs/pruebas.md): Rendimiento: muchos registros de prueba. No corre en el comando rápido.
+uses()->group('lento');
+
 /*
  * 50 pacientes y 200 consultas (con diagnósticos): el listado y la historia hacen una cantidad fija
  * de consultas SQL, sin una por fila (N+1).

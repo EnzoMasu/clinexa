@@ -37,7 +37,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     }
 
     $this->get('/dashboard')->assertOk()->assertDontSee('Administración');
-});
+})->group('lento'); // docs/pruebas.md: no corre en el comando rápido
 
 test('un usuario sin perfil asignado tampoco entra', function () {
     $this->actingAs(User::factory()->create(['perfil_acceso_id' => null]));
@@ -161,7 +161,7 @@ test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra
             ? $this->get($ruta['uri'])->assertForbidden()
             : $this->get($ruta['uri'])->assertOk();
     }
-});
+})->group('lento'); // docs/pruebas.md: no corre en el comando rápido
 
 test('un módulo INACTIVO no da acceso aunque el perfil tenga el permiso', function () {
     $this->actingAs(User::factory()->administrador()->create());

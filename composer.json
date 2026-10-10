@@ -51,6 +51,16 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
+        "test:rapido": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php vendor/bin/pest --parallel --exclude-testsuite=Postgres --exclude-group=lento"
+        ],
+        "test:completo": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
+            "@php vendor/bin/pest"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

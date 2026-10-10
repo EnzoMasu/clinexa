@@ -135,4 +135,4 @@ test('mutación: si se rompe el escapado, el test lo detecta (y el proyecto qued
         '{{ $turno->profesional->persona->nombre_completo }}', '{!! $turno->profesional->persona->nombre_completo !!}',
         fn ($t) => $t->actingAs($t->enfermera)->get(route('admin.preparacion.index', ['profesional' => $t->otroProfesional->id]))->getContent(),
     ],
-]);
+])->group('lento'); // docs/pruebas.md: no corre en el comando rápido

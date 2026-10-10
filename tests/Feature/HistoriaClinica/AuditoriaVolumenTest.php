@@ -18,6 +18,9 @@ use App\Models\LogAuditoria;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
+// Grupo "lento" (docs/pruebas.md): Volumen de auditoría: simula una consulta de 10 minutos. No corre en el comando rápido.
+uses()->group('lento');
+
 beforeEach(function () {
     hcEscenario();
     $this->enfermera = User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->create();

@@ -16,6 +16,9 @@ use App\Models\Turno;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 
+// Grupo "lento" (docs/pruebas.md): Rendimiento del flujo de atención. No corre en el comando rápido.
+uses()->group('lento');
+
 beforeEach(function () {
     hcEscenario();
     $this->medico = hcDarPermisos($this->medico, ['TURNOS' => ['VER', 'EDITAR'], 'PREPARACION' => ['VER', 'CREAR', 'EDITAR']]);
