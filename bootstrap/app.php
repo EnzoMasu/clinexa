@@ -44,5 +44,13 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Paciente con consultas cerradas: en la web se vuelve a la pantalla con el aviso (en el campo de estado y
+        // arriba), sin perder lo escrito; nada se guarda.
+        $exceptions->render(function (\App\Exceptions\PacienteConConsultasCerradas $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 409);
+            }
+
+            return back()->withInput()->with('error', $e->getMessage())->withErrors(['estado_id' => $e->getMessage()]);
+        });
     })->create();

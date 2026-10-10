@@ -71,6 +71,14 @@ class Persona extends Model
             }
         });
 
+        // Tampoco se desactiva la Persona de una paciente con consultas cerradas (la regla es de Paciente).
+        static::updating(function (Persona $persona) {
+            if ($persona->isDirty('estado_id') && (int) $persona->estado_id === Estado::idDe(Estado::INACTIVO)
+                && $persona->paciente?->tieneConsultasCerradas()) {
+                throw new \App\Exceptions\PacienteConConsultasCerradas;
+            }
+        });
+
         // users.email es una copia del email de la persona (el login de Laravel lo necesita en users):
         // si cambia acá, se actualiza el del usuario asociado.
         static::saved(function (Persona $persona) {
