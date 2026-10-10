@@ -41,7 +41,8 @@ describe('historia automática y backfill', function () {
         $pacientes = collect(['2025-01-10', '2026-03-05', '2026-09-30'])->map(fn ($alta, $i) => tap(
             Paciente::create(['persona_id' => Persona::factory()->create()->id, 'nro_ficha' => 'FP-000002'.$i]),
             fn ($p) => $p->forceFill(['fecha_alta' => $alta])->save()));
-        HistoriaClinica::query()->delete(); // como antes de la migración: pacientes sin historia
+        // Como antes de la migración: pacientes sin historia. Por la tabla (el modelo no deja borrar historias).
+        \Illuminate\Support\Facades\DB::table('historias_clinicas')->delete();
 
         $migracion->up();
 

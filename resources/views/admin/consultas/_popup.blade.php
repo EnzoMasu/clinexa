@@ -34,7 +34,6 @@
                 </div>
                 <div class="flex items-center gap-3">
                     <a x-bind:href="urlDe(urlPagina)" class="text-sm text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Abrir página completa</a>
-                    <a x-show="urlEditar" x-bind:href="urlEditar" class="{{ $boton }}">Editar</a>
                 </div>
             </div>
         </div>

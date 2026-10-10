@@ -10,34 +10,34 @@ beforeEach(function () {
     $this->consulta = hcConsulta(); // de la Dra. Benítez
 });
 
-test('el profesional que atiende modifica su consulta', function () {
-    $this->get(route('admin.consultas.edit', $this->consulta))->assertOk();
-    hcActualizar($this->consulta, [...hcFilasGuardadas($this->consulta), 'motivo_consulta' => 'Fiebre alta.'])
-        ->assertRedirect(route('admin.consultas.show', $this->consulta));
+test('el profesional que atiende escribe su consulta EN CURSO; la FINALIZADA queda cerrada también para él (409)', function () {
+    $enCurso = hcConsultaEnCurso();
+    hcActualizar($enCurso, ['motivo_consulta' => 'Fiebre alta.'])->assertOk();
+    expect($enCurso->fresh()->motivo_consulta)->toBe('Fiebre alta.');
 
-    expect($this->consulta->fresh()->motivo_consulta)->toBe('Fiebre alta.');
+    hcActualizar($this->consulta, [...hcFilasGuardadas($this->consulta), 'motivo_consulta' => 'Otro.'])
+        ->assertStatus(409)->assertJson(['message' => \App\Exceptions\ConsultaCerrada::MENSAJE]);
+    expect($this->consulta->fresh()->motivo_consulta)->toBe('Dolor de garganta y fiebre desde ayer.');
+    $this->get(route('admin.consultas.show', $this->consulta))->assertOk()->assertSee('Consulta cerrada: no puede modificarse.')->assertDontSee('>Editar<', false);
 });
 
-test('otro profesional con EDITAR recibe 403 con el aviso, y no cambia nada', function () {
+test('otro profesional (con EDITAR) recibe 403 con el aviso en una consulta en curso ajena, y no cambia nada', function () {
+    $enCurso = hcConsultaEnCurso();
     $this->actingAs($this->otroMedico);
 
-    $this->get(route('admin.consultas.edit', $this->consulta))->assertForbidden()->assertSee(ConsultaPolicy::SOLO_EL_QUE_ATIENDE);
-    hcActualizar($this->consulta, [...hcFilasGuardadas($this->consulta), 'motivo_consulta' => 'Otro motivo.'])
-        ->assertForbidden()->assertSee(ConsultaPolicy::SOLO_EL_QUE_ATIENDE);
-
-    expect($this->consulta->fresh()->motivo_consulta)->toBe('Dolor de garganta y fiebre desde ayer.');
-    // En la vista de lectura no tiene el botón Editar.
-    $this->get(route('admin.consultas.show', $this->consulta))->assertOk()->assertDontSee(route('admin.consultas.edit', $this->consulta));
+    hcActualizar($enCurso, ['motivo_consulta' => 'Otro motivo.'])->assertForbidden();
+    $this->get(route('admin.consultas.atencion', $enCurso))->assertForbidden()->assertSee(ConsultaPolicy::SOLO_EL_QUE_ATIENDE);
+    expect($enCurso->fresh()->motivo_consulta)->toBe('Dolor de garganta y fiebre desde ayer.');
 });
 
-test('el Administrador que no es el profesional recibe 403', function () {
+test('el Administrador que no es el profesional: 403 en una consulta en curso; la lectura, sin edición', function () {
+    $enCurso = hcConsultaEnCurso();
     $this->actingAs(User::factory()->administrador()->create());
 
-    $this->get(route('admin.consultas.show', $this->consulta))->assertOk()->assertDontSee(route('admin.consultas.edit', $this->consulta));
-    $this->get(route('admin.consultas.edit', $this->consulta))->assertForbidden()->assertSee(ConsultaPolicy::SOLO_EL_QUE_ATIENDE);
-    hcActualizar($this->consulta, hcFilasGuardadas($this->consulta))->assertForbidden();
+    $this->get(route('admin.consultas.show', $this->consulta))->assertOk()->assertSee('Consulta cerrada: no puede modificarse.');
+    hcActualizar($enCurso, ['motivo_consulta' => 'x'])->assertForbidden();
+    expect($enCurso->fresh()->motivo_consulta)->toBe('Dolor de garganta y fiebre desde ayer.');
 });
-
 test('un usuario sin rol de profesional no puede crear, aunque tenga CREAR (ni el Administrador)', function (string $quien) {
     $usuario = $quien === 'administrador' ? User::factory()->administrador()->create() : User::factory()->conPermisos(HC_PERMISOS_MEDICO)->create();
     $this->actingAs($usuario);
@@ -63,11 +63,10 @@ test('con solo VER se lee la historia y la consulta, pero no se crea ni se edita
 
     $this->get(route('admin.historias-clinicas.index'))->assertOk()->assertSee('Duarte, Carmen');
     $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk()->assertDontSee('Atender sin turno');
-    $this->get(route('admin.consultas.show', $this->consulta))->assertOk()->assertSee('Dolor de garganta')->assertDontSee(route('admin.consultas.edit', $this->consulta));
+    $this->get(route('admin.consultas.show', $this->consulta))->assertOk()->assertSee('Dolor de garganta')->assertDontSee('name="motivo_consulta"', false);
 
-    // No inicia atenciones ni ve el formulario de edición (403, sin campos).
+    // No inicia atenciones ni escribe (sin CREAR ni EDITAR: 403 antes de mirar la consulta).
     $this->post(route('admin.atencion.atender-sin-turno', $this->historia))->assertForbidden();
-    $this->get(route('admin.consultas.edit', $this->consulta))->assertForbidden()->assertDontSee('name="motivo_consulta"', false)->assertDontSee('name="version"', false);
     hcActualizar($this->consulta, [...hcFilasGuardadas($this->consulta), 'motivo_consulta' => 'Intento con solo VER.'])->assertForbidden();
     expect($this->consulta->fresh()->motivo_consulta)->toBe('Dolor de garganta y fiebre desde ayer.');
     $this->getJson(route('admin.historias-clinicas.cie10', ['q' => 'J06']))->assertForbidden();
@@ -83,24 +82,25 @@ test('sin VER no se entra a nada de la historia clínica', function () {
     $this->get(route('admin.pacientes.index'))->assertOk()->assertDontSee('Historia clínica');
 });
 
-test('el profesional dueño pero INACTIVO ya no modifica ni crea', function () {
+test('el profesional dueño pero INACTIVO ya no escribe su consulta en curso ni crea', function () {
+    $enCurso = hcConsultaEnCurso();
     $this->profesional->update(['estado_id' => Estado::idDe(Estado::INACTIVO)]);
     $this->actingAs($this->medico->fresh()); // cada pedido real carga el usuario de nuevo
 
-    $this->get(route('admin.consultas.edit', $this->consulta))->assertForbidden()->assertSee(ConsultaPolicy::SOLO_EL_QUE_ATIENDE);
+    hcActualizar($enCurso, ['motivo_consulta' => 'x'])->assertForbidden();
+    $this->get(route('admin.consultas.atencion', $enCurso))->assertForbidden()->assertSee(ConsultaPolicy::SOLO_EL_QUE_ATIENDE);
     $this->post(route('admin.atencion.atender-sin-turno', $this->historia))->assertForbidden();
-    expect(Consulta::count())->toBe(1);
+    expect(Consulta::count())->toBe(2);
 });
 
-test('paciente INACTIVO: no se crean consultas nuevas, pero el que atendió puede corregir la suya', function () {
-    $this->paciente->update(['estado_id' => Estado::idDe(Estado::INACTIVO)]);
+test('paciente INACTIVO (sin consultas cerradas): no se le crean consultas nuevas', function () {
+    // Una paciente con consultas cerradas no se puede desactivar: esta no tiene ninguna.
+    $otra = \App\Models\Paciente::create(['persona_id' => \App\Models\Persona::factory()->create(['apellidos' => 'Gómez', 'nombres' => 'Ana'])->id, 'nro_ficha' => 'FP-0000002']);
+    $otra->update(['estado_id' => Estado::idDe(Estado::INACTIVO)]);
 
-    $this->post(route('admin.atencion.atender-sin-turno', $this->historia))->assertForbidden()->assertSee('El paciente está inactivo');
+    $this->post(route('admin.atencion.atender-sin-turno', $otra->historiaClinica))->assertForbidden()->assertSee('El paciente está inactivo');
     expect(Consulta::count())->toBe(1);
-    $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk()->assertDontSee('Atender sin turno');
-
-    hcActualizar($this->consulta, [...hcFilasGuardadas($this->consulta), 'motivo_consulta' => 'Corregido.'])->assertRedirect();
-    expect($this->consulta->fresh()->motivo_consulta)->toBe('Corregido.');
+    $this->get(route('admin.historias-clinicas.show', $otra->historiaClinica))->assertOk()->assertDontSee('Atender sin turno');
 });
 
 test('el enlace "Historia clínica" del listado de Pacientes aparece con VER', function () {

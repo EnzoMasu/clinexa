@@ -17,9 +17,11 @@ use Illuminate\Auth\Access\Response;
  *
  * - PREPARACIÓN (bloques de anamnesis y signos vitales): (a) el profesional ACTIVO de la consulta con
  *   CREAR o EDITAR sobre HISTORIA_CLINICA, o (b) cualquier usuario con EDITAR sobre PREPARACION; solo
- *   mientras la consulta está EN_PREPARACION o EN_CURSO. Ya FINALIZADA: solo (a), con EDITAR.
+ *   mientras la consulta está EN_PREPARACION o EN_CURSO.
  * - CLÍNICO (motivo, hallazgos, diagnósticos, indicaciones y recetas): solo el profesional ACTIVO de la
- *   consulta (ni el Administrador), mientras está EN_CURSO; FINALIZADA, con EDITAR ("Guardar cambios").
+ *   consulta (ni el Administrador), mientras está EN_CURSO.
+ * - Cerrada (FINALIZADA o ANULADA): nadie escribe. La regla de fondo está en los modelos
+ *   (ProtegidoPorCierre) y las rutas responden 409 (middleware consulta.abierta).
  *
  * Las acciones del flujo (preparar, atender, no se presentó, cerrar jornada, deshacer, finalizar)
  * también se deciden acá; los servicios de App\Support\Atencion las revalidan dentro de su transacción.
@@ -128,7 +130,7 @@ class ConsultaPolicy
                 : Response::deny('No tiene permiso para cargar la preparación de esta consulta.');
         }
 
-        return $consulta->finalizada() ? $this->update($usuario, $consulta) : Response::deny('Esta consulta ya no se puede modificar.');
+        return Response::deny(\App\Exceptions\ConsultaCerrada::MENSAJE);
     }
 
     /** Escribir el grupo CLÍNICO (motivo, hallazgos, diagnósticos, indicaciones y recetas) de esta consulta. */
@@ -141,16 +143,9 @@ class ConsultaPolicy
                 : Response::deny(self::SOLO_EL_QUE_ATIENDE);
         }
 
-        return $consulta->finalizada() ? $this->update($usuario, $consulta) : Response::deny('Esta consulta todavía no está en curso.');
+        return Response::deny($consulta->enPreparacion() ? 'Esta consulta todavía no está en curso.' : \App\Exceptions\ConsultaCerrada::MENSAJE);
     }
 
-    /** Modificar una consulta FINALIZADA ("Guardar cambios"): solo el profesional que la atendió, ACTIVO y con EDITAR. */
-    public function update(User $usuario, Consulta $consulta): Response
-    {
-        return $usuario->tienePermiso('HISTORIA_CLINICA', 'EDITAR') && $this->esElQueAtiende($usuario, $consulta) && ! $consulta->anulada()
-            ? Response::allow()
-            : Response::deny(self::SOLO_EL_QUE_ATIENDE);
-    }
 
     /** Marcar como lista o reabrir la preparación: quien escribe el grupo PREPARACIÓN, solo EN_PREPARACION. */
     public function marcarLista(User $usuario, Consulta $consulta): Response

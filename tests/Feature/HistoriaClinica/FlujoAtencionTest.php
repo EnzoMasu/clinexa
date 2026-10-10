@@ -368,14 +368,15 @@ describe('Finalizar', function () {
             ->assertViewHas('seccionesConError', ['motivo']);
     });
 
-    test('doble envío: el segundo vuelve a la lectura con el mismo mensaje, sin eventos nuevos', function () {
+    test('doble envío: el segundo encuentra la consulta cerrada (409) y no escribe nada ni deja eventos', function () {
         $consulta = hcEnCurso();
         $version = $consulta->version();
         hcFinalizar($consulta, hcDatos(), $version)->assertSessionHasNoErrors();
         $eventos = LogAuditoria::where('accion', '!=', 'VER')->count();
 
-        hcFinalizar($consulta, hcDatos(), $version)->assertRedirect(route('admin.consultas.show', $consulta))->assertSessionHas('status', 'Consulta finalizada.');
-        expect(LogAuditoria::where('accion', '!=', 'VER')->count())->toBe($eventos);
+        hcFinalizar($consulta, hcDatos(['motivo_consulta' => 'Otro.']), $version)->assertStatus(409)->assertSee(\App\Exceptions\ConsultaCerrada::MENSAJE);
+        expect(LogAuditoria::where('accion', '!=', 'VER')->count())->toBe($eventos)
+            ->and($consulta->fresh()->motivo_consulta)->toBe('Dolor de garganta y fiebre desde ayer.');
     });
 
     test('todo en una transacción: si falla el turno al pasar a ATENDIDO, la consulta queda EN_CURSO y sin lo enviado', function () {
@@ -391,16 +392,25 @@ describe('Finalizar', function () {
             ->and(codigoTurno($turno))->toBe('EN_CONSULTA');
     });
 
-    test('una receta en borrador no impide finalizar: solo avisa', function () {
+    test('con una receta en borrador no se finaliza: hay que emitirla o anularla antes; después sí', function (string $resolver) {
         $this->medico = hcDarPermisos($this->medico, HC_PERMISOS_RECETAS);
         $this->actingAs($this->medico);
         $consulta = hcEnCurso();
-        hcReceta($consulta);
+        $receta = hcReceta($consulta);
+        $eventos = LogAuditoria::where('tabla_afectada', 'consultas')->where('accion', '!=', 'VER')->count();
 
-        hcFinalizar($consulta, hcDatos())->assertSessionHas('status', 'Consulta finalizada.')
-            ->assertSessionHas('aviso', 'Quedó 1 receta en borrador sin emitir: revísela en la consulta.');
+        hcFinalizar($consulta, hcDatos())->assertRedirect(route('admin.consultas.atencion', $consulta))
+            ->assertSessionHas('error', Finalizar::CON_BORRADORES);
+        expect(codigoConsulta($consulta))->toBe('EN_CURSO')
+            ->and($consulta->fresh()->motivo_consulta)->toBeNull()
+            ->and(LogAuditoria::where('tabla_afectada', 'consultas')->where('accion', '!=', 'VER')->count())->toBe($eventos);
+
+        $resolver === 'emitir'
+            ? hcEmitir($receta)->assertSessionHasNoErrors()
+            : $this->post(route('admin.recetas.anular', $receta), ['motivo' => 'Ya no hace falta'])->assertSessionHasNoErrors();
+        hcFinalizar($consulta, hcDatos())->assertSessionHas('status', 'Consulta finalizada.')->assertSessionMissing('aviso');
         expect(codigoConsulta($consulta))->toBe('FINALIZADO');
-    });
+    })->with(['emitiéndola' => ['emitir'], 'anulándola' => ['anular']]);
 
     test('con una versión vieja (otra ventana guardó) no finaliza', function () {
         $consulta = hcEnCurso();
@@ -434,7 +444,8 @@ describe('Finalizar', function () {
         expect(codigoConsulta($consulta))->toBe($conTurno ? 'EN_PREPARACION' : 'ANULADO');
         $eventos = LogAuditoria::where('accion', '!=', 'VER')->count();
 
-        hcFinalizar($consulta, hcDatos(), $version)->assertStatus(409)->assertSee(Finalizar::NO_EN_CURSO);
+        // Con turno vuelve a preparación ("ya no está en curso"); sin turno se anula y queda cerrada.
+        hcFinalizar($consulta, hcDatos(), $version)->assertStatus(409)->assertSee($conTurno ? Finalizar::NO_EN_CURSO : \App\Exceptions\ConsultaCerrada::MENSAJE);
 
         expect(codigoConsulta($consulta))->toBe($conTurno ? 'EN_PREPARACION' : 'ANULADO')
             ->and($consulta->fresh()->motivo_consulta)->toBeNull()
@@ -505,32 +516,21 @@ describe('Finalizar con el turno cambiado', function () {
     });
 });
 
-describe('editar una consulta finalizada', function () {
-    test('la misma pantalla, con el aviso y "Guardar cambios" (sin autoguardado)', function () {
+describe('una consulta finalizada queda cerrada', function () {
+    test('no hay edición: ni rutas, ni botón; la lectura dice que está cerrada', function () {
         $consulta = hcConsulta();
+        $rutas = collect(\Illuminate\Support\Facades\Route::getRoutes()->getRoutes())->map(fn ($r) => $r->getName())->filter()->values();
 
-        $html = $this->get(route('admin.consultas.edit', $consulta))->assertOk()
-            ->assertSee('Consulta finalizada: los cambios quedan registrados en el historial')
-            ->assertSee('Guardar cambios')->assertDontSee('Finalizar consulta')->assertDontSee('Guardar ahora')
-            ->getContent();
-        expect($html)->toContain('autoguardado: false')->toContain('action="'.route('admin.consultas.update', $consulta).'"');
-
-        hcActualizar($consulta, [...hcFilasGuardadas($consulta), 'motivo_consulta' => 'Corregido.'])
-            ->assertRedirect(route('admin.consultas.show', $consulta))->assertSessionHas('status', 'Consulta guardada.');
-        expect($consulta->fresh()->motivo_consulta)->toBe('Corregido.');
-        hcAutoguardar($consulta, ['motivo_consulta' => 'x'])->assertStatus(409);
+        expect($rutas)->not->toContain('admin.consultas.edit')->not->toContain('admin.consultas.update')
+            ->and(class_exists(\App\Support\Atencion\GuardarCambios::class))->toBeFalse();
+        $this->get(route('admin.consultas.show', $consulta))->assertOk()
+            ->assertSee('Consulta cerrada: no puede modificarse.')->assertDontSee('Guardar cambios')->assertDontSee('>Editar<', false);
+        $this->get('/admin/consultas/'.$consulta->id.'/edit')->assertNotFound();
+        $this->put('/admin/consultas/'.$consulta->id, hcFilasGuardadas($consulta))->assertStatus(405);
     });
 
-    test('solo el profesional con EDITAR: con CREAR sin EDITAR no edita', function () {
+    test('la pantalla de atención de una finalizada manda a la lectura', function () {
         $consulta = hcConsulta();
-        $this->actingAs(hcConPerfil($this->medico, ['HISTORIA_CLINICA' => ['VER', 'CREAR']]));
-
-        $this->get(route('admin.consultas.edit', $consulta))->assertForbidden();
-        hcActualizar($consulta, [...hcFilasGuardadas($consulta), 'motivo_consulta' => 'No.'])->assertForbidden();
-    });
-
-    test('una consulta abierta en "Editar" va a la pantalla de atención', function () {
-        $consulta = hcEnCurso();
-        $this->get(route('admin.consultas.edit', $consulta))->assertRedirect(route('admin.consultas.atencion', $consulta));
+        $this->get(route('admin.consultas.atencion', $consulta))->assertRedirect(route('admin.consultas.show', $consulta));
     });
 });

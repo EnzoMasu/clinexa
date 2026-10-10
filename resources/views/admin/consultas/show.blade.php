@@ -2,16 +2,20 @@
 
 <x-admin.page title="Consulta">
     <div class="mx-auto max-w-4xl space-y-4 p-4 text-sm sm:p-6">
-        <div class="flex flex-wrap items-center justify-end gap-3">
-            @if ($puedeModificar)
-                <a href="{{ route('admin.consultas.edit', $consulta) }}"
-                    class="inline-flex items-center rounded-md bg-gray-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white">Editar</a>
+        {{-- Una consulta cerrada (FINALIZADA) queda llaveada: no hay edición (docs/historia-clinica.md). --}}
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            @if ($consulta->finalizada())
+                <p role="status" class="rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 dark:bg-gray-700/60 dark:text-gray-200">
+                    Consulta cerrada: no puede modificarse.
+                </p>
+            @else
+                <span></span>
             @endif
             <a href="{{ route('admin.historias-clinicas.show', $consulta->historiaClinica) }}"
                 class="text-sm text-gray-600 hover:underline dark:text-gray-400">Volver a la historia</a>
         </div>
 
-        @include('admin.consultas._contenido', ['consulta' => $consulta, 'puedeModificar' => $puedeModificar])
+        @include('admin.consultas._contenido', ['consulta' => $consulta])
 
         {{--
             Acciones de las recetas: solo en la página (fuera del partial, que comparte el popup). Escribir

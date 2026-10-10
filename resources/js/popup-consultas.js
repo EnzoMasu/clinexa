@@ -14,13 +14,12 @@
  */
 import fragmentoInerte from './fragmento-inerte';
 
-export default ({ ids, urlDetalle, urlPagina, sinEditar = false }) => ({
+export default ({ ids, urlDetalle, urlPagina }) => ({
     ids,
     urlPagina,
     abierto: false,
     indice: -1,
     estado: 'cargando', // cargando | listo | error
-    urlEditar: null,
     peticion: null,
     origen: null,
 
@@ -51,7 +50,6 @@ export default ({ ids, urlDetalle, urlPagina, sinEditar = false }) => ({
         this.abierto = false;
         // El contenido clínico no queda en la página al cerrar.
         this.$refs.contenido.replaceChildren();
-        this.urlEditar = null;
         document.documentElement.style.overflow = '';
         this.origen?.focus();
     },
@@ -75,7 +73,6 @@ export default ({ ids, urlDetalle, urlPagina, sinEditar = false }) => ({
         const peticion = new AbortController();
         this.peticion = peticion;
         this.estado = 'cargando';
-        this.urlEditar = null;
         this.$refs.contenido.replaceChildren();
 
         try {
@@ -104,8 +101,6 @@ export default ({ ids, urlDetalle, urlPagina, sinEditar = false }) => ({
             }
             // Solo HTML que viene del servidor, ya escapado por Blade; además sin scripts ni atributos on*.
             this.$refs.contenido.replaceChildren(fragmentoInerte(html));
-            // sinEditar: el panel de historial de la pantalla de atención abre las consultas anteriores solo para leer.
-            this.urlEditar = sinEditar ? null : (this.$refs.contenido.querySelector('[data-url-editar]')?.dataset.urlEditar ?? null);
             this.estado = 'listo';
         } catch (error) {
             if (error.name !== 'AbortError' && this.peticion === peticion) {

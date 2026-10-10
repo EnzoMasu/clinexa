@@ -185,7 +185,7 @@ describe('recetas según el estado de la consulta', function () {
         $this->post(route('admin.preparacion.preparar', $turno));
         $consulta = Consulta::where('turno_id', $turno->id)->sole();
 
-        $this->get(route('admin.recetas.create', $consulta))->assertForbidden()->assertSee('Las recetas se cargan con la consulta en curso o finalizada.');
+        $this->get(route('admin.recetas.create', $consulta))->assertForbidden()->assertSee(\App\Policies\RecetaPolicy::SOLO_EN_CURSO);
         hcGuardarReceta($consulta)->assertForbidden();
         expect(Receta::count())->toBe(0);
     });

@@ -20,14 +20,14 @@ afterEach(fn () => Carbon::setTestNow());
 
 test('la versión de la consulta guarda los microsegundos, y la pestaña vieja se rechaza', function () {
     Carbon::setTestNow(Carbon::parse('2026-10-06 12:00:00.123456', 'UTC'));
-    $consulta = hcConsulta();
+    $consulta = hcConsultaEnCurso(); // se edita en curso: una finalizada queda cerrada
     $vieja = $consulta->fresh()->version();
     expect($vieja)->toEndWith('.123456');
 
     Carbon::setTestNow(Carbon::parse('2026-10-06 12:00:00.123999', 'UTC')); // mismo segundo
-    hcActualizar($consulta, [...hcFilasGuardadas($consulta), 'motivo_consulta' => 'Pestaña 1.'], $vieja)->assertSessionHasNoErrors();
+    hcActualizar($consulta, [...hcFilasGuardadas($consulta), 'motivo_consulta' => 'Pestaña 1.'], $vieja)->assertOk();
     hcActualizar($consulta, [...hcFilasGuardadas($consulta), 'motivo_consulta' => 'Pestaña 2.'], $vieja)
-        ->assertSessionHas('error', Autoguardado::VERSION_VIEJA);
+        ->assertStatus(409)->assertJson(['message' => Autoguardado::VERSION_VIEJA]);
 
     expect($consulta->fresh()->motivo_consulta)->toBe('Pestaña 1.');
 });

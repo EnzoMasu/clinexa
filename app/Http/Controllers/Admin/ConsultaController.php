@@ -110,7 +110,6 @@ class ConsultaController extends Controller
 
         return view('admin.consultas.show', [
             'consulta' => $consulta,
-            'puedeModificar' => Gate::allows('update', $consulta),
             'historial' => $historial === null ? null : $historial->slice(-self::MAXIMO_HISTORIAL)->values(),
             'cambiosEnTotal' => $historial?->count() ?? 0,
             'verRecetas' => $verRecetas,
@@ -137,7 +136,6 @@ class ConsultaController extends Controller
 
         return response()->view('admin.consultas._contenido', [
             'consulta' => $consulta,
-            'puedeModificar' => Gate::allows('update', $consulta),
         ])->header('Vary', 'X-Requested-With');
     }
 

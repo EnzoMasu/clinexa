@@ -2,6 +2,7 @@
 
 namespace App\Support\Atencion;
 
+use App\Exceptions\ConsultaCerrada;
 use App\Models\Consulta;
 use App\Models\User;
 use App\Support\Auditoria;
@@ -26,14 +27,16 @@ final class Autoguardado
 {
     public const VERSION_VIEJA = 'Esta consulta se modificó desde otra ventana. Recargue la página.';
 
-    public const NO_ABIERTA = 'Esta consulta ya no se puede modificar: no está en preparación ni en curso.';
-
     /**
      * @return array{version: string, guardado: string, incompletas: array<string, list<string>>, ids: array<string, array<string, int>>}
      */
     public static function ejecutar(User $usuario, Consulta $consulta, Request $request): array
     {
-        abort_unless($consulta->abierta(), 409, self::NO_ABIERTA);
+        // Solo EN_PREPARACION y EN_CURSO; cerrada (FINALIZADA o ANULADA): 409 (también lo frena antes el
+        // middleware consulta.abierta, y de fondo los modelos).
+        if (! $consulta->abierta()) {
+            throw new ConsultaCerrada;
+        }
 
         $grupos = self::grupos($usuario, $consulta);
         abort_if($grupos === [], 403, 'No tiene permiso para modificar esta consulta.');
@@ -46,7 +49,9 @@ final class Autoguardado
 
         $ids = DB::transaction(function () use ($usuario, $consulta, $datos, $grupos, $version) {
             $actual = Apoyo::consultaBloqueada($consulta);
-            abort_unless($actual->abierta(), 409, self::NO_ABIERTA);
+            if (! $actual->abierta()) {
+                throw new ConsultaCerrada; // se cerró entre el pedido y el bloqueo
+            }
             abort_if($actual->version() !== $version, 409, self::VERSION_VIEJA);
 
             $ids = Auditoria::conDetalle('Borrador (autoguardado)', fn () => GuardarSecciones::guardar($consulta, $datos, $usuario, $grupos));

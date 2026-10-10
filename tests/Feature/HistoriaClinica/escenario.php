@@ -157,11 +157,25 @@ function hcConsulta(array $cambios = []): Consulta
     return Consulta::latest('id')->firstOrFail();
 }
 
-/** Edita la consulta mandando su versión actual (salvo que se indique otra). */
+/**
+ * Una consulta EN_CURSO de la Dra. Benítez (sin turno) con el contenido de hcDatos, cargado por el
+ * autoguardado: la que se sigue editando. (Una consulta FINALIZADA queda cerrada: no se edita.)
+ */
+function hcConsultaEnCurso(array $cambios = []): Consulta
+{
+    $consulta = hcEnCurso();
+    hcAutoguardar($consulta, hcDatos($cambios))->assertOk();
+
+    return $consulta->fresh();
+}
+
+/**
+ * Cambia secciones de una consulta EN_CURSO por el autoguardado (JSON), con su versión actual (salvo que se
+ * indique otra): es el único camino de edición. Una consulta cerrada responde 409.
+ */
 function hcActualizar(Consulta $consulta, array $datos, ?string $version = null)
 {
-    return test()->from(route('admin.consultas.edit', $consulta))
-        ->put(route('admin.consultas.update', $consulta), [...$datos, 'version' => $version ?? $consulta->fresh()->version()]);
+    return hcAutoguardar($consulta, $datos, $version);
 }
 
 /** Las filas guardadas, como el formulario las volvería a mandar (para editar). */

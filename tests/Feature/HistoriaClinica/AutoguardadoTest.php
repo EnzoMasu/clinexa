@@ -86,11 +86,11 @@ test('versión vieja (otra ventana guardó): 409 con el aviso, sin pisar nada', 
 
 test('409 si la consulta ya no está en preparación ni en curso (finalizada o anulada)', function () {
     hcFinalizar($this->consulta, hcDatos())->assertSessionHasNoErrors();
-    hcAutoguardar($this->consulta, ['motivo_consulta' => 'Tarde.'])->assertStatus(409)->assertJson(['message' => Autoguardado::NO_ABIERTA]);
+    hcAutoguardar($this->consulta, ['motivo_consulta' => 'Tarde.'])->assertStatus(409)->assertJson(['message' => \App\Exceptions\ConsultaCerrada::MENSAJE]);
 
     $anulada = hcEnCurso();
     $this->post(route('admin.consultas.deshacer', $anulada));
-    hcAutoguardar($anulada, ['examen' => ['peso' => '60']])->assertNotFound();
+    hcAutoguardar($anulada, ['examen' => ['peso' => '60']])->assertStatus(409)->assertJson(['message' => \App\Exceptions\ConsultaCerrada::MENSAJE]);
 });
 
 test('sin sesión, 401; otro profesional, 403; sin CSRF, 419 (la pantalla lo muestra sin navegar)', function () {

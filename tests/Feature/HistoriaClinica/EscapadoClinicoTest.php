@@ -48,9 +48,16 @@ test('HTML y JS en motivo, anamnesis, hallazgos y descripción adicional: escapa
     sinHtmlCrudo($this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk())
         ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false);
 
-    // Pantalla de edición (consulta finalizada): motivo y hallazgos escapados en el textarea; anamnesis y diagnósticos como
-    // JSON con < > " codificados para Alpine (dentro de JSON.parse('...'), por eso la barra doble).
-    sinHtmlCrudo($this->get(route('admin.consultas.edit', $consulta))->assertOk())
+    // Pantalla de atención de una consulta EN CURSO con el mismo contenido (la finalizada ya no se edita): motivo y
+    // hallazgos escapados en el textarea; anamnesis y diagnósticos como JSON con < > " codificados para Alpine
+    // (dentro de JSON.parse('...'), por eso la barra doble).
+    $enCurso = hcConsultaEnCurso([
+        'motivo_consulta' => "Motivo {$this->img}\nsegunda línea",
+        'anamnesis' => [['id' => '', 'tipo_bloque_anamnesis_id' => $this->alergias->id, 'contenido' => "Bloque {$this->script}"]],
+        'examen' => ['hallazgos' => "Hallazgo {$this->img}"],
+        'diagnosticos' => [['id' => '', 'codigo_cie10' => 'J06.9', 'tipo' => 'PRESUNTIVO', 'descripcion_adicional' => "Detalle {$this->script}"]],
+    ]);
+    sinHtmlCrudo($this->get(route('admin.consultas.atencion', $enCurso))->assertOk())
         ->assertSee('Motivo &lt;img src=x onerror=alert(1)&gt;', false)
         ->assertSee('Hallazgo &lt;img src=x onerror=alert(1)&gt;', false)
         ->assertSee('Bloque \\\\u0022\\\\u003E\\\\u003Cscript\\\\u003Ealert(1)\\\\u003C\\\\\\/script\\\\u003E', false)
@@ -60,7 +67,7 @@ test('HTML y JS en motivo, anamnesis, hallazgos y descripción adicional: escapa
     // Detalle de auditoría (con permiso clínico): el EDITAR "Finalizar" lleva todas las secciones, cada
     // fila como "identificación: texto", escapada.
     $this->actingAs(User::factory()->conPermisos(['AUDITORIA' => ['VER'], 'HISTORIA_CLINICA' => ['VER']])->create());
-    $evento = LogAuditoria::where('tabla_afectada', 'consultas')->where('accion', AccionAuditoria::EDITAR->value)->sole();
+    $evento = LogAuditoria::where('tabla_afectada', 'consultas')->where('registro_afectado_id', (string) $consulta->id)->where('detalle', 'Finalizar')->sole();
     expect(array_keys($evento->valor_nuevo))->toContain('motivo_consulta', 'bloquesAnamnesis', 'examenFisico', 'diagnosticos');
 
     sinHtmlCrudo($this->get(route('admin.auditoria.show', $evento))->assertOk())

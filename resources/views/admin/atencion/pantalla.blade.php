@@ -15,10 +15,10 @@
     $idsHistorial = $historial->pluck('id')->values()->all();
 @endphp
 
-<x-admin.page :title="$enCurso ? 'Atención' : 'Editar consulta'" sin-recorte>
+<x-admin.page title="Atención" sin-recorte>
     <div x-data="consultaAutoguardado({
-            url: {{ Js::from($enCurso ? route('admin.consultas.autoguardado', $consulta) : null) }},
-            autoguardado: {{ Js::from($enCurso) }},
+            url: {{ Js::from(route('admin.consultas.autoguardado', $consulta)) }},
+            autoguardado: true,
             panel: {{ Js::from($panelInicial) }},
             panelesConError: {{ Js::from($seccionesConError) }},
         })" x-on:keydown.escape.window="historialAbierto = false">
@@ -26,30 +26,16 @@
         <div class="sticky top-0 z-30 space-y-3 rounded-t-lg border-b border-gray-200 bg-white px-6 py-3 dark:border-gray-700 dark:bg-gray-800">
             @include('admin.consultas._barra-paciente')
 
-            @unless ($enCurso)
-                <p role="status" class="rounded-md bg-amber-50 p-2 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
-                    Consulta finalizada: los cambios quedan registrados en el historial.
-                </p>
-            @endunless
 
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <span class="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
-                    @if ($enCurso)
-                        <span>En consulta desde {{ substr(Fecha::mostrar($consulta->iniciada_en, conHora: true), -5) }}</span>
-                        @include('admin.consultas._guardado')
-                    @else
-                        <span>{{ $consulta->fechaHoraTexto() }}</span>
-                    @endif
+                    <span>En consulta desde {{ substr(Fecha::mostrar($consulta->iniciada_en, conHora: true), -5) }}</span>
+                    @include('admin.consultas._guardado')
                 </span>
                 <span class="flex flex-wrap items-center gap-2">
-                    @if ($enCurso)
-                        <button type="submit" form="form-consulta" class="{{ $botonPrincipal }}">Finalizar consulta</button>
-                        <button type="submit" form="form-deshacer" class="{{ $boton }}">Deshacer atención</button>
-                        <a href="{{ route('admin.atencion.index') }}" class="{{ $boton }}">Volver a la lista</a>
-                    @else
-                        <button type="submit" form="form-consulta" class="{{ $botonPrincipal }}">Guardar cambios</button>
-                        <a href="{{ route('admin.consultas.show', $consulta) }}" class="{{ $boton }}">Cancelar</a>
-                    @endif
+                    <button type="submit" form="form-consulta" class="{{ $botonPrincipal }}">Finalizar consulta</button>
+                    <button type="submit" form="form-deshacer" class="{{ $boton }}">Deshacer atención</button>
+                    <a href="{{ route('admin.atencion.index') }}" class="{{ $boton }}">Volver a la lista</a>
                 </span>
             </div>
 
@@ -87,13 +73,10 @@
 
         <div class="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <form id="form-consulta" x-ref="formulario" method="POST" novalidate
-                action="{{ $enCurso ? route('admin.consultas.finalizar', $consulta) : route('admin.consultas.update', $consulta) }}"
+                action="{{ route('admin.consultas.finalizar', $consulta) }}"
                 x-on:input="cambio()" x-on:change="cambio()" x-on:click="$event.target.closest('button[type=button]') && cambio()"
                 x-on:submit="enviar($event)" class="min-w-0 space-y-6">
                 @csrf
-                @unless ($enCurso)
-                    @method('PUT')
-                @endunless
                 {{-- Control de concurrencia: el autoguardado la actualiza en cada guardado. --}}
                 <input type="hidden" name="version" value="{{ $consulta->version() }}">
 
@@ -158,7 +141,7 @@
                 contenido se pide al abrir el popup (sin "Editar"). En pantallas chicas, detrás de "Historial".
             --}}
             <aside id="historial-paciente" x-bind:class="historialAbierto ? '' : 'hidden lg:block'" class="hidden space-y-3 lg:block"
-                x-data="popupConsultas({ ids: {{ Js::from($idsHistorial) }}, urlDetalle: {{ Js::from(route('admin.consultas.detalle', ['consulta' => '__ID__'])) }}, urlPagina: {{ Js::from(route('admin.consultas.show', ['consulta' => '__ID__'])) }}, sinEditar: true })"
+                x-data="popupConsultas({ ids: {{ Js::from($idsHistorial) }}, urlDetalle: {{ Js::from(route('admin.consultas.detalle', ['consulta' => '__ID__'])) }}, urlPagina: {{ Js::from(route('admin.consultas.show', ['consulta' => '__ID__'])) }} })"
                 x-on:keydown.window="teclado($event)" aria-labelledby="titulo-historial">
                 <h3 id="titulo-historial" class="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Historial del paciente</h3>
                 @if ($historial->isEmpty())
@@ -188,15 +171,13 @@
             </aside>
         </div>
 
-        @if ($enCurso)
-            {{-- Deshacer: solo si todavía no hay contenido clínico (lo comprueba el servidor). --}}
+        {{-- Deshacer: solo si todavía no hay contenido clínico (lo comprueba el servidor). --}}
             <form id="form-deshacer" method="POST" action="{{ route('admin.consultas.deshacer', $consulta) }}"
                 x-on:submit="if (! confirm({{ Js::from($consulta->turno_id
                     ? '¿Deshacer la atención? El paciente vuelve a la agenda y se conserva lo cargado en la preparación.'
                     : '¿Deshacer la atención? Esta consulta sin turno se anula.') }})) { $event.preventDefault() } else { enviandoFormulario = true }">
                 @csrf
             </form>
-        @endif
 
         @include('admin.consultas._cartel-guardado')
     </div>

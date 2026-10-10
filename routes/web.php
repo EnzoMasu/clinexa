@@ -170,18 +170,15 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             ->middleware('permiso:HISTORIA_CLINICA,VER');
         // Finalizar y deshacer: el profesional de la consulta (ConsultaPolicy).
         Route::middleware('permiso.alguno:HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR')->group(function () {
-            Route::post('consultas/{consulta}/finalizar', [AtencionController::class, 'finalizar'])->name('consultas.finalizar')->whereNumber('consulta');
-            Route::post('consultas/{consulta}/deshacer', [AtencionController::class, 'deshacer'])->name('consultas.deshacer')->whereNumber('consulta');
+            Route::post('consultas/{consulta}/finalizar', [AtencionController::class, 'finalizar'])->name('consultas.finalizar')->whereNumber('consulta')->middleware('consulta.abierta');
+            Route::post('consultas/{consulta}/deshacer', [AtencionController::class, 'deshacer'])->name('consultas.deshacer')->whereNumber('consulta')->middleware('consulta.abierta');
         });
         // Autoguardado (preparación y atención): lo usan la enfermería (PREPARACION) y el profesional; qué
         // campos puede escribir cada uno lo decide ConsultaPolicy. Hasta 30 pedidos por minuto por usuario.
         Route::patch('consultas/{consulta}/autoguardado', [AtencionController::class, 'autoguardar'])->name('consultas.autoguardado')->whereNumber('consulta')
-            ->middleware(['permiso.alguno:PREPARACION.EDITAR,HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR', 'throttle:autoguardado']);
-        // Consulta FINALIZADA: "Editar" abre la misma pantalla con "Guardar cambios" (sin autoguardado).
-        Route::middleware('permiso:HISTORIA_CLINICA,EDITAR')->group(function () {
-            Route::get('consultas/{consulta}/edit', [AtencionController::class, 'editar'])->name('consultas.edit')->whereNumber('consulta');
-            Route::put('consultas/{consulta}', [AtencionController::class, 'actualizar'])->name('consultas.update')->whereNumber('consulta');
-        });
+            ->middleware(['permiso.alguno:PREPARACION.EDITAR,HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR', 'throttle:autoguardado', 'consulta.abierta']);
+        // Una consulta FINALIZADA (o ANULADA) queda cerrada: no hay edición. Toda ruta de escritura sobre una
+        // consulta o sus recetas lleva consulta.abierta (409 si está cerrada); docs/historia-clinica.md.
 
         // Preparación: la lista de turnos de hoy (VER sobre PREPARACION) y el formulario de anamnesis y signos
         // vitales, que usan la enfermería (PREPARACION) o el profesional del turno (HISTORIA_CLINICA).
@@ -190,28 +187,29 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             ->middleware('permiso.alguno:PREPARACION.CREAR,HISTORIA_CLINICA.CREAR');
         Route::middleware('permiso.alguno:PREPARACION.EDITAR,HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR')->group(function () {
             Route::get('consultas/{consulta}/preparacion', [PreparacionController::class, 'formulario'])->name('preparacion.formulario')->whereNumber('consulta');
-            Route::post('consultas/{consulta}/preparacion/lista', [PreparacionController::class, 'marcarLista'])->name('preparacion.lista')->whereNumber('consulta');
-            Route::post('consultas/{consulta}/preparacion/reabrir', [PreparacionController::class, 'reabrir'])->name('preparacion.reabrir')->whereNumber('consulta');
+            Route::post('consultas/{consulta}/preparacion/lista', [PreparacionController::class, 'marcarLista'])->name('preparacion.lista')->whereNumber('consulta')->middleware('consulta.abierta');
+            Route::post('consultas/{consulta}/preparacion/reabrir', [PreparacionController::class, 'reabrir'])->name('preparacion.reabrir')->whereNumber('consulta')->middleware('consulta.abierta');
         });
 
         // Recetas de una consulta (RecetaPolicy: además, solo el profesional que la atiende escribe). VER: la
         // vista previa y la hoja; CREAR: crear el borrador y emitirlo; EDITAR: editar el borrador y anular.
-        // No hay DELETE: una receta se anula.
+        // No hay DELETE: una receta se anula. Todo menos anular lleva consulta.abierta: con la consulta cerrada,
+        // lo único que se puede hacer con una receta es anularla (si está EMITIDA).
         Route::middleware('permiso:RECETAS,VER')->group(function () {
             Route::get('recetas/{receta}/vista-previa', [RecetaController::class, 'vistaPrevia'])->name('recetas.vista-previa')->whereNumber('receta');
             Route::get('recetas/{receta}/imprimir', [RecetaController::class, 'imprimir'])->name('recetas.imprimir')->whereNumber('receta');
         });
         Route::middleware('permiso:RECETAS,CREAR')->group(function () {
-            Route::get('consultas/{consulta}/recetas/create', [RecetaController::class, 'create'])->name('recetas.create')->whereNumber('consulta');
-            Route::post('consultas/{consulta}/recetas', [RecetaController::class, 'store'])->name('recetas.store')->whereNumber('consulta');
-            Route::post('recetas/{receta}/emitir', [RecetaController::class, 'emitir'])->name('recetas.emitir')->whereNumber('receta');
+            Route::get('consultas/{consulta}/recetas/create', [RecetaController::class, 'create'])->name('recetas.create')->whereNumber('consulta')->middleware('consulta.abierta');
+            Route::post('consultas/{consulta}/recetas', [RecetaController::class, 'store'])->name('recetas.store')->whereNumber('consulta')->middleware('consulta.abierta');
+            Route::post('recetas/{receta}/emitir', [RecetaController::class, 'emitir'])->name('recetas.emitir')->whereNumber('receta')->middleware('consulta.abierta');
         });
         Route::middleware('permiso:RECETAS,EDITAR')->group(function () {
-            Route::get('recetas/{receta}/edit', [RecetaController::class, 'edit'])->name('recetas.edit')->whereNumber('receta');
-            Route::put('recetas/{receta}', [RecetaController::class, 'update'])->name('recetas.update')->whereNumber('receta');
+            Route::get('recetas/{receta}/edit', [RecetaController::class, 'edit'])->name('recetas.edit')->whereNumber('receta')->middleware('consulta.abierta');
+            Route::put('recetas/{receta}', [RecetaController::class, 'update'])->name('recetas.update')->whereNumber('receta')->middleware('consulta.abierta');
             Route::post('recetas/{receta}/anular', [RecetaController::class, 'anular'])->name('recetas.anular')->whereNumber('receta');
             // Anular y corregir: además de EDITAR exige CREAR (RecetaPolicy::corregir).
-            Route::post('recetas/{receta}/corregir', [RecetaController::class, 'corregir'])->name('recetas.corregir')->whereNumber('receta');
+            Route::post('recetas/{receta}/corregir', [RecetaController::class, 'corregir'])->name('recetas.corregir')->whereNumber('receta')->middleware('consulta.abierta');
         });
     });
 

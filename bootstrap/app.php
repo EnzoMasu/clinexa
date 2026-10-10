@@ -29,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'permiso' => VerificarPermiso::class,
             'permiso.alguno' => VerificarAlgunPermiso::class,
+            'consulta.abierta' => \App\Http\Middleware\ConsultaAbierta::class,
         ]);
 
         // El permiso se verifica antes de buscar el registro de la URL: sin permiso es 403,

@@ -18,7 +18,6 @@ use App\Support\Atencion\DatosFormulario;
 use App\Support\Atencion\DeshacerAtencion;
 use App\Support\Atencion\Finalizar;
 use App\Support\Atencion\FormularioConsulta;
-use App\Support\Atencion\GuardarCambios;
 use App\Support\Atencion\NoSePresento;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
@@ -166,20 +165,9 @@ class AtencionController extends Controller
         }
         Gate::authorize('escribirClinico', $consulta);
 
-        return $this->vistaAtencion($request, $consulta, enCurso: true);
+        return $this->vistaAtencion($request, $consulta);
     }
 
-    /** Editar una consulta FINALIZADA: la misma pantalla, sin autoguardado, con "Guardar cambios". */
-    public function editar(Request $request, Consulta $consulta): View|RedirectResponse
-    {
-        abort_if($consulta->anulada(), 404);
-        if ($consulta->abierta()) {
-            return redirect()->route('admin.consultas.atencion', $consulta);
-        }
-        Gate::authorize('update', $consulta);
-
-        return $this->vistaAtencion($request, $consulta, enCurso: false);
-    }
 
     /** Autoguardado (PATCH, JSON). */
     public function autoguardar(Request $request, Consulta $consulta): JsonResponse
@@ -191,11 +179,9 @@ class AtencionController extends Controller
 
     public function finalizar(Request $request, Consulta $consulta): RedirectResponse
     {
-        if ($consulta->finalizada()) {
-            return redirect()->route('admin.consultas.show', $consulta)->with('status', 'Consulta finalizada.'); // doble envío
-        }
-        // Fuera de EN_CURSO (Deshacer en otra pestaña: volvió a preparación o se anuló): conflicto, no se
-        // finaliza. Solo se lo dice al profesional de la consulta; a otro, 403 como siempre.
+        // Cerrada (FINALIZADA o ANULADA): 409 antes de llegar acá (middleware consulta.abierta). En preparación
+        // (Deshacer en otra pestaña): conflicto, no se finaliza. Solo se lo dice al profesional de la consulta;
+        // a otro, 403 como siempre.
         if (! $consulta->enCurso()) {
             abort_unless(app(ConsultaPolicy::class)->esElQueAtiende($request->user(), $consulta), 403, ConsultaPolicy::SOLO_EL_QUE_ATIENDE);
             abort(409, Finalizar::NO_EN_CURSO);
@@ -211,19 +197,6 @@ class AtencionController extends Controller
         }, conDatos: true);
     }
 
-    /** "Guardar cambios" de una consulta FINALIZADA. */
-    public function actualizar(Request $request, Consulta $consulta): RedirectResponse
-    {
-        abort_if($consulta->anulada(), 404);
-        Gate::authorize('update', $consulta);
-        [$datos] = FormularioConsulta::validar($request, $consulta, [FormularioConsulta::PREPARACION, FormularioConsulta::CLINICO], final: true);
-
-        return $this->accion(function () use ($request, $consulta, $datos) {
-            GuardarCambios::ejecutar($request->user(), $consulta, $datos, (string) $request->input('version'));
-
-            return redirect()->route('admin.consultas.show', $consulta)->with('status', 'Consulta guardada.');
-        }, conDatos: true);
-    }
 
     public function deshacer(Request $request, Consulta $consulta): RedirectResponse
     {
@@ -236,7 +209,7 @@ class AtencionController extends Controller
         });
     }
 
-    private function vistaAtencion(Request $request, Consulta $consulta, bool $enCurso): View
+    private function vistaAtencion(Request $request, Consulta $consulta): View
     {
         $verRecetas = $request->user()->tienePermiso('RECETAS', 'VER');
         $consulta->load([...self::RELACIONES_PANTALLA, ...DatosFormulario::RELACIONES, ...($verRecetas ? ['recetas.detalles'] : [])]);
@@ -263,7 +236,6 @@ class AtencionController extends Controller
 
         return view('admin.atencion.pantalla', [
             'consulta' => $consulta,
-            'enCurso' => $enCurso,
             'datos' => DatosFormulario::de($consulta),
             'historial' => $historial,
             'verRecetas' => $verRecetas,

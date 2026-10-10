@@ -14,7 +14,7 @@ beforeEach(function () {
     hcEscenario();
     $this->medico = hcDarPermisos($this->medico, HC_PERMISOS_RECETAS);
     $this->actingAs($this->medico);
-    $this->consulta = hcConsulta();
+    $this->consulta = hcConsultaEnCurso(); // las recetas se cargan con la consulta EN_CURSO
 });
 
 afterEach(fn () => Carbon::setTestNow());

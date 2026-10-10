@@ -11,15 +11,13 @@
     Recetas: solo con VER sobre RECETAS, y sin acciones (Nueva receta, Editar, Imprimir, Anular van en la
     página, fuera de este partial: el fragmento del popup es idéntico al artículo de la página).
 
-    data-url-editar: la URL del formulario, solo si el usuario puede modificarla (el popup la usa
-    para su botón "Editar"); no lleva contenido clínico.
+    Sin acciones de edición: una consulta cerrada no se modifica (docs/historia-clinica.md).
 --}}
 @php
     use App\Models\ExamenFisico;
     use App\Support\Atencion\DatosFormulario;
     use App\Support\Fecha;
 
-    $puedeModificar ??= false;
     $paciente = $consulta->historiaClinica->paciente;
     $examen = $consulta->examenFisico;
     // Signos vitales cargados, en el orden del formulario: sigla => [valor con unidad, nombre completo].
@@ -35,8 +33,7 @@
     $retirado = 'rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-300';
 @endphp
 
-<article class="space-y-4 text-sm text-gray-900 dark:text-gray-100" data-consulta-id="{{ $consulta->id }}"
-    @if ($puedeModificar) data-url-editar="{{ route('admin.consultas.edit', $consulta) }}" @endif>
+<article class="space-y-4 text-sm text-gray-900 dark:text-gray-100" data-consulta-id="{{ $consulta->id }}">
     <header>
         <h3 class="text-base font-semibold">{{ $paciente->persona->nombre_completo }}</h3>
         <p class="text-xs text-gray-600 dark:text-gray-400">

@@ -3,6 +3,7 @@
 namespace App\Support\Atencion;
 
 use App\Exceptions\AccionRechazada;
+use App\Exceptions\ConsultaCerrada;
 use App\Models\Consulta;
 use App\Models\Estado;
 use App\Models\Turno;
@@ -17,11 +18,14 @@ use Illuminate\Support\Facades\Gate;
  * EN_CONSULTA; si cambió por otra vía, la consulta se finaliza igual, el turno queda como está, el evento
  * lo dice en su detalle y el profesional recibe un aviso. Todo queda en UN EDITAR "Finalizar" de la
  * consulta (secciones que cambiaron y estado). Si la consulta ya no está EN_CURSO (Deshacer en otra
- * pestaña), 409 y no se finaliza. Un segundo envío encuentra la consulta finalizada y no hace nada.
- * Devuelve los avisos: el del turno y el de las recetas en borrador (no bloquean).
+ * pestaña), 409 y no se finaliza. Un segundo envío encuentra la consulta cerrada: 409 (ConsultaCerrada),
+ * sin escribir nada. Con recetas en BORRADOR no se finaliza: hay que emitirlas o anularlas antes (después,
+ * con la consulta cerrada, ya no se podría). Devuelve los avisos (el del turno).
  */
 final class Finalizar
 {
+    public const CON_BORRADORES = 'Tiene recetas en borrador. Emítalas o anúlelas antes de finalizar.';
+
     public const NO_EN_CURSO = 'Esta consulta ya no está en curso (se deshizo la atención desde otra ventana). No se finalizó: vuelva a la lista.';
 
     /**
@@ -32,13 +36,16 @@ final class Finalizar
     {
         return DB::transaction(function () use ($usuario, $consulta, $datos, $version) {
             $consulta = Apoyo::consultaBloqueada($consulta);
-            if ($consulta->finalizada()) {
-                return []; // doble envío
+            if (! $consulta->abierta()) {
+                throw new ConsultaCerrada; // segundo envío, o anulada desde otra pestaña
             }
             abort_unless($consulta->enCurso(), 409, self::NO_EN_CURSO);
             Gate::forUser($usuario)->authorize('finalizar', $consulta);
             if ($consulta->version() !== $version) {
                 throw new AccionRechazada(Autoguardado::VERSION_VIEJA);
+            }
+            if ($consulta->recetas()->where('estado_id', Estado::idDe(Estado::PENDIENTE))->exists()) {
+                throw new AccionRechazada(self::CON_BORRADORES);
             }
 
             $turno = $consulta->turno_id ? Turno::with('estado')->whereKey($consulta->turno_id)->lockForUpdate()->first() : null;
@@ -56,16 +63,9 @@ final class Finalizar
                     $turno->pasarA(Estado::ATENDIDO);
                 }
 
-                $avisos = $turno && ! $atiende
+                return $turno && ! $atiende
                     ? ['El turno de las '.substr($turno->hora_inicio, 0, 5)." estaba en estado {$turno->estado->nombre} y no se marcó como atendido. Revíselo en Turnos."]
                     : [];
-                $borradores = $consulta->recetas()->where('estado_id', Estado::idDe(Estado::PENDIENTE))->count();
-
-                return [...$avisos, ...match (true) {
-                    $borradores === 1 => ['Quedó 1 receta en borrador sin emitir: revísela en la consulta.'],
-                    $borradores > 1 => ["Quedaron {$borradores} recetas en borrador sin emitir: revíselas en la consulta."],
-                    default => [],
-                }];
             }));
         });
     }

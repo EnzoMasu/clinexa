@@ -267,7 +267,7 @@ describe('pantalla de atención', function () {
         $this->get(route('admin.consultas.atencion', $consulta))->assertOk()
             ->assertSee('Historial del paciente')->assertSeeInOrder(['Control número 22', 'Control número 21', 'Control número 03'])
             ->assertDontSee('Control número 02')->assertDontSee('Control número 01')
-            ->assertSee('sinEditar: true', false)->assertSee('Ver historia completa')
+            ->assertDontSee('sinEditar', false)->assertDontSee('urlEditar', false)->assertSee('Ver historia completa')
             ->assertViewHas('historial', fn ($historial) => $historial->count() === 20);
     });
 

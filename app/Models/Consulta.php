@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\ProtegidoPorCierre;
 use App\Models\Concerns\TieneEstado;
 use App\Support\Fecha;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,7 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  */
 class Consulta extends Model
 {
-    use Auditable, TieneEstado;
+    use Auditable, TieneEstado, ProtegidoPorCierre;
 
     protected $table = 'consultas';
 
@@ -196,5 +197,20 @@ class Consulta extends Model
     public function fechaHoraTexto(): string
     {
         return Fecha::mostrar($this->fechaAtencion(), conHora: true);
+    }
+
+    /** Ids de los estados de una consulta cerrada (FINALIZADO, ANULADO). */
+    public static function estadosCerrados(): array
+    {
+        return [Estado::idDe(Estado::FINALIZADO), Estado::idDe(Estado::ANULADO)];
+    }
+
+    /**
+     * Regla de cierre (ProtegidoPorCierre): la propia consulta, si ya está guardada (se mira su estado
+     * guardado). Crear una consulta no es modificar una cerrada.
+     */
+    protected function consultaDeCierre(): ?Consulta
+    {
+        return $this->exists ? $this : null;
     }
 }

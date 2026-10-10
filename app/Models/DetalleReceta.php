@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Exceptions\RecetaInmutable;
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\ProtegidoPorCierre;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class DetalleReceta extends Model
 {
-    use Auditable;
+    use Auditable, ProtegidoPorCierre;
 
     protected $table = 'detalles_receta';
 
@@ -77,5 +78,19 @@ class DetalleReceta extends Model
     public function descripcionAuditoria(): string
     {
         return collect(array_keys(self::CAMPOS))->map(fn (string $campo) => $this->{$campo})->filter(fn ($valor) => filled($valor))->join(' · ');
+    }
+
+    /** Regla de cierre (ProtegidoPorCierre): la consulta de su receta, leída de la base. */
+    protected function consultaDeCierre(): ?Consulta
+    {
+        $consultaId = Receta::query()->whereKey($this->receta_id)->value('consulta_id');
+
+        return $consultaId ? Consulta::query()->select(['id', 'estado_id'])->find($consultaId) : null;
+    }
+
+    /** "Quitar" un renglón: solo de una receta en BORRADOR (el único borrado permitido en la historia clínica). */
+    protected function sePuedeBorrar(): bool
+    {
+        return (bool) Receta::find($this->receta_id)?->esBorrador();
     }
 }

@@ -51,10 +51,12 @@ function cargarDia(int $n): void
             }
             if ($estado === 'ATENDIDO') {
                 $consulta = new Consulta(['historia_clinica_id' => $paciente->historiaClinica->id, 'turno_id' => $turno->id, 'profesional_id' => $t->profesional->id, 'motivo_consulta' => 'Control']);
-                $consulta->forceFill(['estado_id' => Estado::idDe(Estado::FINALIZADO), 'iniciada_en' => now(), 'finalizada_en' => now()])->save();
+                // En curso: se le cargan los diagnósticos y recién después se cierra (cerrada no admite cambios).
+                $consulta->forceFill(['estado_id' => Estado::idDe(Estado::EN_CURSO), 'iniciada_en' => now()])->save();
                 foreach (['J06.9', 'R51', 'Z00.0', 'J06.9'] as $j => $codigo) {
                     Diagnostico::create(['consulta_id' => $consulta->id, 'codigo_cie10' => $codigo, 'tipo' => 'PRESUNTIVO', 'principal' => $j === 0, 'activo' => $j < 3]);
                 }
+                $consulta->forceFill(['estado_id' => Estado::idDe(Estado::FINALIZADO), 'finalizada_en' => now()])->save();
             }
         }
     }
@@ -63,8 +65,9 @@ function cargarDia(int $n): void
     foreach (range(1, $n) as $k) {
         $dias++;
         $consulta = new Consulta(['historia_clinica_id' => $t->historia->id, 'profesional_id' => $k % 2 ? $t->profesional->id : $t->otroProfesional->id, 'motivo_consulta' => "Anterior {$dias}"]);
-        $consulta->forceFill(['estado_id' => Estado::idDe(Estado::FINALIZADO), 'fecha_hora' => now()->subDays($dias), 'iniciada_en' => now()->subDays($dias), 'finalizada_en' => now()->subDays($dias)])->save();
+        $consulta->forceFill(['estado_id' => Estado::idDe(Estado::EN_CURSO), 'fecha_hora' => now()->subDays($dias), 'iniciada_en' => now()->subDays($dias)])->save();
         Diagnostico::create(['consulta_id' => $consulta->id, 'codigo_cie10' => 'R51', 'tipo' => 'PRESUNTIVO', 'principal' => true]);
+        $consulta->forceFill(['estado_id' => Estado::idDe(Estado::FINALIZADO), 'finalizada_en' => now()->subDays($dias)])->save();
     }
 }
 

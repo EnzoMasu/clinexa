@@ -22,6 +22,8 @@ use Illuminate\Auth\Access\Response;
  */
 class RecetaPolicy
 {
+    public const SOLO_EN_CURSO = 'Las recetas se cargan con la consulta en curso.';
+
     public function __construct(private readonly ConsultaPolicy $consultas) {}
 
     public function create(User $usuario, Consulta $consulta): Response
@@ -62,8 +64,9 @@ class RecetaPolicy
 
     /**
      * El rechazo por permisos de RECETAS, por no ser el profesional que atiende o por el estado de la
-     * consulta, o null si pasa. Crear, editar, emitir y corregir: solo con la consulta EN_CURSO o
-     * FINALIZADA (en preparación todavía no hay consulta; anulada, ya no). Anular: en cualquier estado.
+     * consulta, o null si pasa. Crear, editar, emitir y corregir: solo con la consulta EN_CURSO (en
+     * preparación todavía no hay consulta; cerrada, ya no se modifica). Anular: en cualquier estado. Por eso
+     * "Anular y corregir" no crea un reemplazo en una consulta cerrada: allí solo se anula.
      */
     private function deLaConsulta(User $usuario, Consulta $consulta, array $acciones, bool $exigeConsultaEnCurso = true): ?Response
     {
@@ -72,8 +75,8 @@ class RecetaPolicy
                 return Response::deny('No tiene permiso para esta acción sobre las recetas.');
             }
         }
-        if ($exigeConsultaEnCurso && ! $consulta->enCurso() && ! $consulta->finalizada()) {
-            return Response::deny('Las recetas se cargan con la consulta en curso o finalizada.');
+        if ($exigeConsultaEnCurso && ! $consulta->enCurso()) {
+            return Response::deny(self::SOLO_EN_CURSO);
         }
 
         return $this->consultas->esElQueAtiende($usuario, $consulta) ? null : Response::deny(ConsultaPolicy::SOLO_EL_QUE_ATIENDE);

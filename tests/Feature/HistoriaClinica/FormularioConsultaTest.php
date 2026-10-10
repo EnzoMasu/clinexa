@@ -150,18 +150,18 @@ describe('validaciones', function () {
 
     test('las filas de otra consulta no se pueden tocar', function () {
         $ajena = hcConsulta();
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
         $bloqueAjeno = $ajena->bloquesAnamnesis()->first();
 
         hcActualizar($consulta, [...hcFilasGuardadas($consulta), 'anamnesis' => [['id' => (string) $bloqueAjeno->id, 'activo' => '1', 'tipo_bloque_anamnesis_id' => $this->alergias->id, 'contenido' => 'Pisado']]])
-            ->assertSessionHasErrors('anamnesis.0.id');
+            ->assertStatus(422)->assertJsonValidationErrors('anamnesis.0.id');
         expect($bloqueAjeno->fresh()->contenido)->toBe('Odinofagia de 24 horas.');
     });
 });
 
 describe('retirar y reponer', function () {
     test('un bloque y un diagnóstico guardados se retiran (no se borran) y se reponen', function () {
-        $consulta = hcConsulta(['diagnosticos' => diagnosticosDistintos(2), 'diagnostico_principal' => '0']);
+        $consulta = hcConsultaEnCurso(['diagnosticos' => diagnosticosDistintos(2), 'diagnostico_principal' => '0']);
         $datos = hcFilasGuardadas($consulta);
 
         // Retira el primer bloque y el diagnóstico principal; el principal pasa al otro.
@@ -187,7 +187,7 @@ describe('retirar y reponer', function () {
     });
 
     test('los retirados no cuentan: ni para los repetidos, ni para el máximo, ni para el principal', function () {
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
         $datos = hcFilasGuardadas($consulta);
         $datos['diagnosticos'][0]['activo'] = '0'; // J06.9 retirado
         $datos['diagnosticos'][] = ['id' => '', 'activo' => '1', 'codigo_cie10' => 'J06.9', 'tipo' => 'CONFIRMADO', 'descripcion_adicional' => ''];
@@ -213,7 +213,7 @@ describe('retirar y reponer', function () {
     });
 
     test('una fila guardada que no viene en el envío queda como estaba', function () {
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
         $datos = hcFilasGuardadas($consulta);
         array_shift($datos['anamnesis']);
 
@@ -222,25 +222,25 @@ describe('retirar y reponer', function () {
     });
 
     test('un tipo de bloque y un código CIE-10 que se desactivaron siguen valiendo en la fila que ya los tenía', function () {
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
         $this->alergias->desactivar();
         CatalogoCIE10::whereKey('J06.9')->update(['estado_id' => Estado::idDe(Estado::INACTIVO)]);
 
         // El formulario los ofrece en su fila, marcados como inactivos.
-        $this->get(route('admin.consultas.edit', $consulta))->assertOk()->assertSee('Alergias (inactivo)');
+        $this->get(route('admin.consultas.atencion', $consulta))->assertOk()->assertSee('Alergias (inactivo)');
 
         hcActualizar($consulta, [...hcFilasGuardadas($consulta), 'motivo_consulta' => 'Editado.'])->assertSessionHasNoErrors();
 
         // Pero no en una fila nueva.
         $datos = hcFilasGuardadas($consulta);
         $datos['diagnosticos'][] = ['id' => '', 'activo' => '1', 'codigo_cie10' => 'J06.9', 'tipo' => 'CONFIRMADO'];
-        hcActualizar($consulta, $datos)->assertSessionHasErrors('diagnosticos.1.codigo_cie10');
+        hcActualizar($consulta, $datos)->assertStatus(422)->assertJsonValidationErrors('diagnosticos.1.codigo_cie10');
     });
 });
 
 describe('sin JavaScript', function () {
     test('sin las marcas de las listas no se pierden ni se tocan los bloques ni los diagnósticos', function () {
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
 
         // Sin JS el formulario no dibuja las filas: llega solo lo que no depende de Alpine.
         hcActualizar($consulta, ['motivo_consulta' => 'Sin JS.', 'examen' => ['temperatura' => '37']])->assertSessionHasNoErrors();
@@ -261,7 +261,7 @@ describe('sin JavaScript', function () {
 
 describe('concurrencia', function () {
     test('el segundo guardado desde una pestaña vieja se rechaza', function () {
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
         $vieja = $consulta->fresh()->version(); // las dos pestañas se abren con esta versión
 
         // Pestaña 1 guarda (un segundo después).
@@ -270,15 +270,13 @@ describe('concurrencia', function () {
 
         // Pestaña 2, con la versión vieja.
         hcActualizar($consulta, [...hcFilasGuardadas($consulta), 'motivo_consulta' => 'Pestaña 2.'], $vieja)
-            ->assertRedirect(route('admin.consultas.edit', $consulta))
-            ->assertSessionHas('error', Autoguardado::VERSION_VIEJA)
-            ->assertSessionHasInput('motivo_consulta', 'Pestaña 2.');
+            ->assertStatus(409)->assertJson(['message' => Autoguardado::VERSION_VIEJA]);
 
         expect($consulta->fresh()->motivo_consulta)->toBe('Pestaña 1.');
     });
 
     test('también si solo cambiaron las secciones (la consulta se marca como modificada igual)', function () {
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
         $vieja = $consulta->fresh()->version();
 
         $datos = hcFilasGuardadas($consulta);
@@ -286,16 +284,16 @@ describe('concurrencia', function () {
         Carbon::setTestNow(now()->addSecond());
         hcActualizar($consulta, $datos, $vieja)->assertSessionHasNoErrors();
 
-        hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertSessionHas('error', Autoguardado::VERSION_VIEJA);
+        hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertStatus(409)->assertJson(['message' => Autoguardado::VERSION_VIEJA]);
     });
 
     test('dos guardados en el mismo segundo no se confunden (la versión tiene microsegundos)', function () {
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
         $vieja = $consulta->fresh()->version();
 
         Carbon::setTestNow(now()->addMicroseconds(5));
         hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertSessionHasNoErrors();
-        hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertSessionHas('error', Autoguardado::VERSION_VIEJA);
+        hcActualizar($consulta, hcFilasGuardadas($consulta), $vieja)->assertStatus(409)->assertJson(['message' => Autoguardado::VERSION_VIEJA]);
     });
 });
 

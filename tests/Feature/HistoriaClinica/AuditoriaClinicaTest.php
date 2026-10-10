@@ -47,8 +47,8 @@ describe('cambios: un solo historial, el de la consulta', function () {
         }
     });
 
-    test('al editar: UN evento "Guardar cambios" con solo las filas que cambiaron (retirar, tipo, principal, descripción)', function () {
-        $consulta = hcConsulta();
+    test('al editar una consulta en curso: UN evento de autoguardado con solo las filas que cambiaron (retirar, tipo, principal, descripción)', function () {
+        $consulta = hcConsultaEnCurso();
         $antes = LogAuditoria::max('id');
         Carbon::setTestNow(now()->addMinute());
 
@@ -61,7 +61,7 @@ describe('cambios: un solo historial, el de la consulta', function () {
         $b2 = $consulta->bloquesAnamnesis()->orderBy('orden')->skip(1)->value('id');
         $d1 = $consulta->diagnosticos()->value('id');
         $nuevo = LogAuditoria::where('id', '>', $antes)->where('accion', AccionAuditoria::EDITAR->value)->sole();
-        expect($nuevo->tabla_afectada)->toBe('consultas')->and($nuevo->detalle)->toBe('Guardar cambios')
+        expect($nuevo->tabla_afectada)->toBe('consultas')->and($nuevo->detalle)->toBe('Borrador (autoguardado)')
             ->and([$nuevo->valor_anterior, $nuevo->valor_nuevo])->toBe([
                 ['bloquesAnamnesis' => ["Bloque #{$b2}" => '2. Alergias: Penicilina.'], 'diagnosticos' => ["Diagnóstico #{$d1}" => 'J06.9 — Rinofaringitis aguda (PRESUNTIVO, principal)']],
                 ['bloquesAnamnesis' => ["Bloque #{$b2}" => '2. Alergias: Penicilina. (retirado)'], 'diagnosticos' => ["Diagnóstico #{$d1}" => 'J06.9 — Rinofaringitis aguda (CONFIRMADO, principal): Con placas.']],
@@ -94,7 +94,7 @@ describe('cambios: un solo historial, el de la consulta', function () {
             ->and(eventosDe('consultas', AccionAuditoria::EDITAR))->toHaveCount(3); // uno por guardado
     });
     test('guardar sin cambios no deja registros', function () {
-        $consulta = hcConsulta();
+        $consulta = hcConsultaEnCurso();
         $antes = LogAuditoria::where('accion', '!=', AccionAuditoria::VER->value)->count();
 
         hcActualizar($consulta, hcFilasGuardadas($consulta))->assertSessionHasNoErrors();
@@ -201,7 +201,6 @@ describe('lecturas (VER)', function () {
         $this->get(route('admin.historias-clinicas.index', ['q' => 'Duarte']), ['X-Requested-With' => 'XMLHttpRequest'])->assertOk(); // búsqueda en vivo: no
         $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk();
         $this->get(route('admin.consultas.show', $consulta))->assertOk();
-        $this->get(route('admin.consultas.edit', $consulta))->assertOk();
         // Repetidas dentro de 5 minutos: no se registran de nuevo.
         $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk();
         $this->get(route('admin.consultas.show', $consulta))->assertOk();
