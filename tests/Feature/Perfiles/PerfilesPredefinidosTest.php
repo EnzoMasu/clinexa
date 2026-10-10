@@ -17,7 +17,7 @@ use Database\Seeders\PerfilesPredefinidosSeeder;
 
 beforeEach(fn () => (new ModuloSistemaSeeder)->run());
 
-function permisosDe(string $codigo): array
+function permisosDelPredefinido(string $codigo): array
 {
     return PerfilAcceso::where('codigo', $codigo)->sole()->clavesPermisos();
 }
@@ -30,7 +30,7 @@ test('el seeder crea los 10 perfiles con su código, su nombre y su matriz', fun
 
     foreach (PerfilesPredefinidos::MATRIZ as $codigo => $matriz) {
         $esperado = collect($matriz)->flatMap(fn ($acciones, $modulo) => array_map(fn ($accion) => "{$modulo}:{$accion}", $acciones))->all();
-        expect(permisosDe($codigo))->toEqualCanonicalizing($esperado);
+        expect(permisosDelPredefinido($codigo))->toEqualCanonicalizing($esperado);
     }
     expect(PerfilAcceso::where('codigo', 'ADMINISTRADOR')->sole()->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 });
@@ -119,13 +119,13 @@ test('ningún perfil salvo el Administrador escribe en Usuarios ni en Perfiles d
     (new PerfilesPredefinidosSeeder)->run();
 
     foreach (array_keys(PerfilesPredefinidos::MATRIZ) as $codigo) {
-        expect(collect(permisosDe($codigo))->filter(fn ($clave) => preg_match('/^(USUARIOS|PERFILES_ACCESO):/', $clave))->all())->toBe([], $codigo);
+        expect(collect(permisosDelPredefinido($codigo))->filter(fn ($clave) => preg_match('/^(USUARIOS|PERFILES_ACCESO):/', $clave))->all())->toBe([], $codigo);
     }
 });
 
 test('lo clínico solo lo tienen Médico, Enfermería (preparación) y Supervisión médica (lectura)', function () {
     (new PerfilesPredefinidosSeeder)->run();
-    $clinico = fn (string $codigo) => collect(permisosDe($codigo))->filter(fn ($c) => preg_match('/^(HISTORIA_CLINICA|RECETAS|PREPARACION):/', $c))->sort()->values()->all();
+    $clinico = fn (string $codigo) => collect(permisosDelPredefinido($codigo))->filter(fn ($c) => preg_match('/^(HISTORIA_CLINICA|RECETAS|PREPARACION):/', $c))->sort()->values()->all();
 
     expect($clinico('ENFERMERIA'))->toBe(['PREPARACION:CREAR', 'PREPARACION:EDITAR', 'PREPARACION:VER'])
         ->and($clinico('SUPERVISION_MEDICA'))->toBe(['HISTORIA_CLINICA:VER', 'RECETAS:VER']);
@@ -140,11 +140,11 @@ test('un módulo nuevo se suma a los perfiles indicados una vez, desde su migrac
 
     PerfilesPredefinidos::sumarModulo('CAJA_DIARIA', ['CAJA' => ['VER', 'CREAR'], 'GERENCIA' => ['VER']]);
 
-    expect(permisosDe('CAJA'))->toContain('CAJA_DIARIA:VER', 'CAJA_DIARIA:CREAR')
-        ->and(permisosDe('GERENCIA'))->toContain('CAJA_DIARIA:VER')->not->toContain('CAJA_DIARIA:CREAR')
-        ->and(permisosDe('MEDICO'))->not->toContain('CAJA_DIARIA:VER')
+    expect(permisosDelPredefinido('CAJA'))->toContain('CAJA_DIARIA:VER', 'CAJA_DIARIA:CREAR')
+        ->and(permisosDelPredefinido('GERENCIA'))->toContain('CAJA_DIARIA:VER')->not->toContain('CAJA_DIARIA:CREAR')
+        ->and(permisosDelPredefinido('MEDICO'))->not->toContain('CAJA_DIARIA:VER')
         // El Administrador lo recibe completo, como todo módulo nuevo.
-        ->and(permisosDe('ADMINISTRADOR'))->toContain(...array_map(fn ($a) => "CAJA_DIARIA:{$a}", Permiso::ACCIONES));
+        ->and(permisosDelPredefinido('ADMINISTRADOR'))->toContain(...array_map(fn ($a) => "CAJA_DIARIA:{$a}", Permiso::ACCIONES));
     expect($nuevo->exists)->toBeTrue();
 });
 
