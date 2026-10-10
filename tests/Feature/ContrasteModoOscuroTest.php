@@ -13,6 +13,8 @@
  *   adentro) ya trae dark:text-; p. ej. <x-admin.input class="font-mono"> usa x-text-input, que lo trae.
  * - La hoja de la receta (recetas/hoja.blade.php) se excluye: se imprime en papel blanco y no tiene modo
  *   oscuro.
+ * - text-current hereda A PROPÓSITO el color del padre (p. ej. el horario dentro del botón elegido, que
+ *   es blanco sobre índigo): se acepta porque es explícito; el padre es el que tiene que tener color.
  * Y, para no tener falsos negativos, el lector se prueba con ejemplos buenos y malos.
  */
 
@@ -73,7 +75,7 @@ function monoSinColorOscuro(string $html): array
 {
     return collect(etiquetasDe($html))
         ->filter(fn (array $e) => preg_match('/(^|\s)font-mono(\s|$)/', clasesDe($e[1])))
-        ->reject(fn (array $e) => str_contains(clasesDe($e[1]), 'dark:text-'))
+        ->reject(fn (array $e) => str_contains(clasesDe($e[1]), 'dark:text-') || preg_match('/(^|\s)text-current(\s|$)/', clasesDe($e[1])))
         ->reject(fn (array $e) => str_starts_with($e[0], 'x-') && componenteConColor($e[0]))
         ->map(fn (array $e) => trim(preg_replace('/\s+/', ' ', $e[1])))
         ->values()->all();
@@ -91,6 +93,7 @@ test('el lector detecta los casos malos y deja pasar los buenos (sin falsos posi
         <span class="font-mono text-gray-600 dark:text-gray-400" x-text="a > b ? 'x' : 'y'">secundario</span>
         <x-admin.input name="codigo" :value="$pais->codigo" class="uppercase font-mono" />
         <p class="text-sm">sin monoespaciado</p>
+        <button class="bg-indigo-600 text-white"><span class="font-mono text-current">08:00</span></button>
         HTML;
 
     expect(monoSinColorOscuro($malo))->toHaveCount(3)
