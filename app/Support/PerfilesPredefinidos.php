@@ -72,11 +72,20 @@ class PerfilesPredefinidos
 
     /**
      * Perfiles existentes, sin código, que se adoptan como el predefinido (en vez de crear otro), además del
-     * que tenga su nombre visible. Se adopta tal cual: sus permisos no cambian (se muestra la diferencia).
+     * que tenga su nombre visible. Al adoptarlo se le pone el código y el nombre visible; sus permisos quedan
+     * como están, salvo en los de COMPLETA_AL_ADOPTAR.
      */
     public const ADOPTA = [
+        self::ENFERMERIA => ['Enfermera'],
         self::RECEPCION => ['Recepcionista'],
     ];
+
+    /**
+     * Al adoptarlos, se les SUMA lo que les falte de la matriz (nunca se les quita nada). Pasa una sola vez:
+     * después de adoptado el perfil tiene código y no se vuelve a adoptar, así que el seeder no repite ni pisa
+     * lo que se cambie desde la pantalla.
+     */
+    public const COMPLETA_AL_ADOPTAR = [self::RECEPCION];
 
     private const VER = ['VER'];
 
@@ -100,11 +109,13 @@ class PerfilesPredefinidos
             'MEDIOS_PAGO' => self::VER, 'CATEGORIAS_GASTO' => self::VER, 'CIE10' => self::VER, 'TIPOS_BLOQUE_ANAMNESIS' => self::VER,
             'TIPOS_INDICACION' => self::VER, 'GEOGRAFIA' => self::VER, 'AUDITORIA' => self::VER,
         ],
-        // TURNOS: VER y EDITAR (para "No se presentó" y cerrar la jornada). Los catálogos que usa la consulta
-        // (CIE-10, tipos de bloque y de indicación) se cargan sin permiso de su módulo: no hacen falta.
+        // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
+        // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones
+        // de la pantalla Turnos (EDITAR sobre TURNOS) no los tiene. Los catálogos que usa la consulta (CIE-10,
+        // tipos de bloque y de indicación) se cargan sin permiso de su módulo: no hacen falta.
         self::MEDICO => [
             'HISTORIA_CLINICA' => self::VER_CREAR_EDITAR, 'RECETAS' => self::VER_CREAR_EDITAR, 'PREPARACION' => self::VER_CREAR_EDITAR,
-            'TURNOS' => ['VER', 'EDITAR'], 'DISPONIBILIDAD' => self::VER, 'CONSULTORIOS' => self::VER, 'PACIENTES' => self::VER,
+            'TURNOS' => self::VER, 'DISPONIBILIDAD' => self::VER, 'CONSULTORIOS' => self::VER, 'PACIENTES' => self::VER,
         ],
         self::ENFERMERIA => [
             'PREPARACION' => self::VER_CREAR_EDITAR,
@@ -175,9 +186,13 @@ class PerfilesPredefinidos
                     continue;
                 }
                 if ($accion === 'adoptar') {
-                    // Se le pone el código (y el nombre visible, si está libre); los permisos quedan como están.
+                    // Se le pone el código (y el nombre visible, si está libre). Los permisos quedan como están,
+                    // salvo los de COMPLETA_AL_ADOPTAR, que suman lo que les falte de la matriz.
                     $nombreLibre = ! PerfilAcceso::where('nombre', self::NOMBRES[$codigo])->whereKeyNot($perfil->id)->exists();
                     $perfil->update(['codigo' => $codigo, 'predefinido' => true, ...($nombreLibre ? ['nombre' => self::NOMBRES[$codigo]] : [])]);
+                    if (in_array($codigo, self::COMPLETA_AL_ADOPTAR, true)) {
+                        $perfil->permisos()->syncWithoutDetaching(self::permisoIds(self::MATRIZ[$codigo]));
+                    }
                 } elseif ($accion === 'crear') {
                     // Si otro perfil (con código) ya usa el nombre visible, se crea con "(predefinido)".
                     $nombre = PerfilAcceso::where('nombre', self::NOMBRES[$codigo])->exists() ? self::NOMBRES[$codigo].' (predefinido)' : self::NOMBRES[$codigo];

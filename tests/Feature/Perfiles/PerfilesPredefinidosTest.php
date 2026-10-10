@@ -67,28 +67,87 @@ test('no pisa lo que se cambió desde la pantalla: ni permisos, ni nombre, ni es
         ->and(PerfilAcceso::where('nombre', 'Médico')->exists())->toBeFalse(); // no creó otro "Médico"
 });
 
-test('adopta el perfil Recepcionista existente como RECEPCION, sin cambiarle los permisos', function () {
-    $recepcionista = PerfilAcceso::create(['nombre' => 'Recepcionista', 'descripcion' => 'El de siempre']);
-    $recepcionista->permisos()->attach(Permiso::firstOrCreate(['modulo_sistema_id' => ModuloSistema::where('codigo', 'ORIGENES_TURNO')->sole()->id, 'accion' => 'EDITAR'])->id);
+/** Un perfil sin código con estos permisos, como ['ORIGENES_TURNO' => ['EDITAR']] (como los de la base real). */
+function perfilesPredefinidosExistente(string $nombre, array $permisos): PerfilAcceso
+{
+    return Database\Factories\UserFactory::perfilConPermisos($permisos, $nombre);
+}
+
+test('adopta Recepcionista como RECEPCION: lo renombra y SOLO le suma lo que le falta de la matriz', function () {
+    $recepcionista = perfilesPredefinidosExistente('Recepcionista', ['ORIGENES_TURNO' => ['VER', 'CREAR', 'EDITAR'], 'SUCURSALES' => ['VER'], 'TURNOS' => ['VER']]);
+    $recepcionista->update(['descripcion' => 'El de siempre']);
     $usuario = User::factory()->conPerfiles([$recepcionista])->create();
-    $otro = PerfilAcceso::create(['nombre' => 'Secretaria Turno Tarde']);
+    $antes = $recepcionista->clavesPermisos();
 
     $plan = PerfilesPredefinidos::plan();
     expect($plan['RECEPCION']['accion'])->toBe('adoptar')->and($plan['RECEPCION']['perfil']->is($recepcionista))->toBeTrue()
         ->and($plan['GERENCIA']['accion'])->toBe('crear');
     expect(PerfilesPredefinidos::diferencia($recepcionista, 'RECEPCION'))
-        ->sobran->toBe(['ORIGENES_TURNO: EDITAR'])
-        ->faltan->toContain('TURNOS: VER', 'PACIENTES: CREAR');
+        ->sobran->toBe(['ORIGENES_TURNO: CREAR', 'ORIGENES_TURNO: EDITAR', 'SUCURSALES: VER'])
+        ->faltan->toContain('RESPONSABLES_PAGO: VER', 'DISPONIBILIDAD: DESACTIVAR');
 
     (new PerfilesPredefinidosSeeder)->run();
 
     $recepcionista->refresh();
+    $esperado = array_unique([...$antes, ...collect(PerfilesPredefinidos::MATRIZ['RECEPCION'])->flatMap(fn ($acciones, $modulo) => array_map(fn ($a) => "{$modulo}:{$a}", $acciones))->all()]);
     expect($recepcionista)->codigo->toBe('RECEPCION')->predefinido->toBeTrue()->nombre->toBe('Recepción')->descripcion->toBe('El de siempre')
-        ->and($recepcionista->clavesPermisos())->toBe(['ORIGENES_TURNO:EDITAR'])
+        // No se le quitó nada (orígenes de turno: crear y editar; sucursales: ver) y se le sumó lo que faltaba.
+        ->and($recepcionista->clavesPermisos())->toEqualCanonicalizing($esperado)
+        ->and(PerfilesPredefinidos::diferencia($recepcionista, 'RECEPCION')['faltan'])->toBe([])
         ->and($usuario->fresh()->perfiles->modelKeys())->toBe([$recepcionista->id])
-        ->and(PerfilAcceso::where('codigo', 'RECEPCION')->count())->toBe(1)
-        // El otro perfil existente no se toca.
-        ->and($otro->fresh())->codigo->toBeNull()->predefinido->toBeFalse()->nombre->toBe('Secretaria Turno Tarde');
+        ->and(PerfilAcceso::where('codigo', 'RECEPCION')->count())->toBe(1);
+});
+
+test('adopta Enfermera como ENFERMERIA: la renombra y sus permisos quedan tal cual (con Turnos: ver)', function () {
+    $enfermera = perfilesPredefinidosExistente('Enfermera', ['PREPARACION' => ['VER', 'CREAR', 'EDITAR'], 'TURNOS' => ['VER']]);
+    $antes = $enfermera->clavesPermisos();
+
+    (new PerfilesPredefinidosSeeder)->run();
+
+    expect($enfermera->fresh())->codigo->toBe('ENFERMERIA')->nombre->toBe('Enfermería')
+        ->and($enfermera->fresh()->clavesPermisos())->toEqualCanonicalizing($antes)->toContain('TURNOS:VER')
+        ->and(PerfilAcceso::where('codigo', 'ENFERMERIA')->count())->toBe(1)
+        ->and(PerfilAcceso::where('nombre', 'like', 'Enfermer%')->count())->toBe(1);
+});
+
+test('Secretaria Turno Tarde y Recepcionista - Enfermera no se tocan', function () {
+    $secretaria = perfilesPredefinidosExistente('Secretaria Turno Tarde', ['PERSONAS' => ['VER']]);
+    $mixto = perfilesPredefinidosExistente('Recepcionista - Enfermera', ['PREPARACION' => ['VER']]);
+    perfilesPredefinidosExistente('Recepcionista', []);
+    perfilesPredefinidosExistente('Enfermera', []);
+
+    (new PerfilesPredefinidosSeeder)->run();
+
+    foreach ([[$secretaria, 'Secretaria Turno Tarde', ['PERSONAS:VER']], [$mixto, 'Recepcionista - Enfermera', ['PREPARACION:VER']]] as [$perfil, $nombre, $permisos]) {
+        expect($perfil->fresh())->codigo->toBeNull()->predefinido->toBeFalse()->nombre->toBe($nombre)
+            ->and($perfil->fresh()->clavesPermisos())->toBe($permisos);
+    }
+});
+
+test('la adopción se hace una sola vez: un perfil adoptado y después cambiado a mano no se repite ni se pisa', function () {
+    $recepcionista = perfilesPredefinidosExistente('Recepcionista', ['ORIGENES_TURNO' => ['EDITAR']]);
+    $enfermera = perfilesPredefinidosExistente('Enfermera', ['PREPARACION' => ['VER']]);
+    (new PerfilesPredefinidosSeeder)->run();
+    expect(PerfilesPredefinidos::plan())->each(fn ($paso) => $paso->accion->toBe('existe'));
+
+    // Desde la pantalla: se renombran, se les quitan permisos (también los que sumó la adopción) y se desactiva uno.
+    $this->actingAs(User::factory()->administrador()->create());
+    $turnos = ModuloSistema::where('codigo', 'TURNOS')->sole();
+    $this->put(route('admin.perfiles-acceso.update', $recepcionista), ['nombre' => 'Mostrador', 'estado_id' => Estado::idDe(Estado::ACTIVO), 'permisos' => [$turnos->id => ['VER']]])
+        ->assertSessionHasNoErrors();
+    $this->put(route('admin.perfiles-acceso.update', $enfermera), ['nombre' => 'Enfermería de guardia', 'estado_id' => Estado::idDe(Estado::INACTIVO), 'permisos' => []])
+        ->assertSessionHasNoErrors();
+    // Y alguien crea a mano otro perfil con el nombre viejo: tampoco se adopta (ya hay uno con el código).
+    $nuevaRecepcionista = PerfilAcceso::create(['nombre' => 'Recepcionista']);
+    $foto = fn () => PerfilAcceso::with('permisos')->orderBy('id')->get()->map(fn ($p) => [$p->id, $p->codigo, $p->nombre, $p->estado_id, $p->permisos->modelKeys()])->all();
+    $antes = $foto();
+
+    (new PerfilesPredefinidosSeeder)->run();
+    (new PerfilesPredefinidosSeeder)->run();
+
+    expect($foto())->toEqual($antes)
+        ->and($recepcionista->fresh()->clavesPermisos())->toBe(['TURNOS:VER'])
+        ->and($nuevaRecepcionista->fresh()->codigo)->toBeNull();
 });
 
 test('adopta el Administrador por nombre si todavía no tiene código', function () {
