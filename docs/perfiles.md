@@ -179,6 +179,22 @@ Es la **única vía** para mover la marca.
   EDITAR del nuevo usuario en la auditoría, con el anterior en el detalle.
 - El anterior sigue siendo Administrador, ya como uno más.
 
+### Plan de recuperación
+
+Si el administrador principal pierde el acceso a su correo, **no hay vía por pantalla**: nadie puede cambiarle
+el correo ni mandarle un restablecimiento desde la aplicación (es justamente lo que lo protege). Se recupera
+**por consola**, con acceso al servidor. Antes de cualquier paso: `php artisan clinexa:respaldo --probar`.
+
+1. Confirmar la identidad de la persona por fuera del sistema (en persona, con su documento).
+2. Actualizar el correo de su persona desde la consola (`php artisan tinker`, con el modelo `Persona`: la
+   consola queda afuera de las guardas). El correo de `users` se sincroniza solo desde la persona.
+3. Que la persona use "¿Olvidó su contraseña?" en el login: el link le llega a su correo nuevo.
+4. Si lo que hay que cambiar es **quién** es el principal (la persona ya no está), usar el traspaso:
+   `php artisan clinexa:traspasar-principal` con el correo de otro usuario Administrador activo.
+5. Dejar constancia del motivo, la fecha y quién lo hizo (la consola no registra un usuario en la auditoría).
+
+No se anotan en ningún documento correos, contraseñas ni datos personales.
+
 ## Seguridad de la asignación
 
 ### Nunca sin administrador
@@ -216,19 +232,25 @@ administrador, seeders) no hay usuario logueado y no aplica.
 - Los cambios de permisos de un perfil son un EDITAR del perfil, con la lista "MÓDULO: ACCIÓN" antes y
   después.
 
+## Endurecimiento antes de producción
+
+- **Restringir la lectura clínica del Administrador.** Hoy el Administrador ve todo, también la historia
+  clínica y las recetas, porque tiene todos los permisos. Antes de usar el sistema con pacientes reales hay que
+  separar la administración técnica de la lectura clínica (por ejemplo, sacar HISTORIA_CLINICA y RECETAS del
+  perfil Administrador, con su propio perfil de auditoría clínica).
+- **Trigger contra el `detach()` masivo de `usuario_perfil`.** La guarda de `UsuarioPerfil` corre en
+  `attach`, `sync` y `detach($ids)`, pero un `detach()` sin ids borra todas las filas sin pasar por el modelo.
+  Ninguna pantalla lo usa; un trigger de PostgreSQL que impida borrar las filas del administrador principal
+  (y del perfil Administrador) lo cerraría también fuera de la aplicación.
+- **Evento `INTENTO_RECHAZADO`.** Hoy un intento rechazado (por ejemplo, de modificar al administrador
+  principal) no deja cambios ni eventos. Propuesta mínima: un caso `INTENTO_RECHAZADO` en
+  `App\Enums\AccionAuditoria` (la columna `accion` es texto, no hace falta migración) y registrarlo, fuera de
+  la transacción que se deshace, desde el lugar que muestra el aviso.
+
 ## Pendiente
 
-- **Antes de producción, restringir la lectura clínica del Administrador.** Hoy el Administrador ve todo,
-  también la historia clínica y las recetas, porque tiene todos los permisos. Es una decisión tomada por
-  ahora. Antes de usar el sistema con pacientes reales hay que separar la administración técnica de la
-  lectura clínica (por ejemplo, sacar HISTORIA_CLINICA y RECETAS del perfil Administrador, con su propio
-  perfil de auditoría clínica).
 - El perfil **"Personal de salud"** para el triaje llega con la etapa de triaje.
 - El módulo PREPARACION se va a **renombrar**; por ahora se lo referencia por su código actual.
 - El permiso de **desbloqueo** de una consulta cerrada, para Supervisión médica, llega con la etapa de adenda
   (`docs/historia-clinica.md`).
 - **Eliminar `users.perfil_acceso_id`** en una migración posterior.
-- **Registrar los intentos rechazados** (por ejemplo, de modificar al administrador principal). Hoy un intento
-  rechazado no deja cambios ni eventos. Propuesta mínima: un caso `INTENTO_RECHAZADO` en
-  `App\Enums\AccionAuditoria` (la columna `accion` es texto, no hace falta migración) y registrarlo, fuera de
-  la transacción que se deshace, desde el lugar que muestra el aviso. Sin implementar.

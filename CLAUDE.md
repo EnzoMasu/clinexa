@@ -1,7 +1,7 @@
 # Clinexa: reglas permanentes
 
 ## Git
-- Se trabaja en la rama de trabajo actual (hoy `rediseno-atencion`); verificarla con `git branch --show-current`.
+- Se trabaja en la rama que se indique en cada pedido, nunca en `main`; verificarla con `git branch --show-current`.
 - `main` no se toca sin confirmación expresa: ni merge, ni push, ni commits.
 - Commits WIP chicos. Ningún commit final ni merge sin confirmación.
 
