@@ -98,9 +98,54 @@ Notas sobre la matriz:
   y transacción son las de siempre (`Turno::pasarA`).
 - En la Auditoría, quien no tiene VER de HISTORIA_CLINICA o de RECETAS no ve el contenido clínico ni el de
   las recetas. Gerencia y Auditor ven los eventos, sin ese contenido.
-- La pantalla **Matriz de permisos** (Seguridad, VER sobre PERFILES_ACCESO) muestra la matriz real de la
-  base: perfiles en columnas y módulos en filas. Es de solo lectura y abrirla registra VER, porque
-  PERFILES_ACCESO es sensible.
+- La pantalla **Matriz de permisos** (Seguridad) se describe abajo.
+
+## Matriz de permisos (Seguridad)
+
+Se mira con VER sobre PERFILES_ACCESO y se edita con EDITAR. Abrirla registra VER (PERFILES_ACCESO es
+sensible). Dos pestañas:
+
+- **Editar un perfil.**
+  - Se elige el perfil.
+  - Los módulos van en filas, agrupados como en el menú (`MatrizPermisosController::GRUPOS`; los que no están
+    en el menú, en "Otros").
+  - Hay una casilla por cada acción que tiene efecto en el módulo (`Permiso::ACCIONES_POR_MODULO`).
+  - Con JavaScript se suman los atajos por módulo ("Todo", "Ninguno", "Solo ver") y un buscador. Sin
+    JavaScript funciona igual: es un formulario con casillas.
+- **Comparar.** Todos los perfiles en columnas, solo lectura. En un perfil predefinido se marcan las celdas que
+  difieren de `PerfilesPredefinidos::MATRIZ` (la matriz predefinida no se cambia desde acá).
+
+### Guardar
+
+1. "Guardar cambios" muestra primero una **confirmación** con lo que se agrega y lo que se quita. Todavía no
+   se guarda nada.
+2. Si se agrega algo **delicado**, la confirmación pide además una casilla, que el servidor también exige. Es
+   delicado lo de un módulo sensible, o un permiso de escritura sobre USUARIOS o PERFILES_ACCESO, que en la
+   práctica hace administradores a los usuarios del perfil.
+3. "Confirmar y guardar" aplica todo en **una transacción**.
+
+### Reglas
+
+- **Concurrencia:** la pivote no toca `updated_at`, así que se usa una huella (hash) del conjunto de permisos
+  del perfil. Si cambió desde que se abrió la pantalla: "El perfil fue modificado desde otra ventana. Recargue
+  la página."
+- Las de siempre, desde un solo lugar (`App\Support\PermisosDePerfil`, la misma lógica que Perfiles de acceso):
+  - sin escalada: solo se agregan permisos que quien edita ya tiene; quitar siempre se puede;
+  - el Administrador no se edita;
+  - un módulo inexistente, una acción inexistente o sin efecto en el módulo, o un id manipulado se rechazan;
+  - desde acá no se crean ni se desactivan perfiles.
+- Los cambios valen desde el **siguiente pedido** de cada usuario del perfil: los permisos se calculan en cada
+  pedido y no quedan en caché ni en sesión.
+- Un perfil inactivo se puede editar y sigue sin dar permisos.
+
+### Auditoría y lo predefinido
+
+- **Auditoría:** un solo evento EDITAR del perfil por guardado, con lo agregado y lo quitado por módulo
+  (`permisos_agregados` / `permisos_quitados`, como "RECETAS: ver, crear"), quién lo hizo y el motivo opcional
+  (hasta 300 caracteres) en el detalle. Un guardado sin cambios no registra nada. Perfiles de acceso registra
+  igual.
+- **Restablecer a lo predefinido:** en un perfil predefinido, muestra tildada su matriz predefinida (sin
+  guardar). Se guarda con la misma confirmación y las mismas reglas.
 
 ## Cómo se suma un módulo nuevo
 
