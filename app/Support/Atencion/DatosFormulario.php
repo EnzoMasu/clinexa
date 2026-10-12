@@ -22,7 +22,7 @@ final class DatosFormulario
     public const RELACIONES = [
         'bloquesAnamnesis.tipoBloqueAnamnesis', 'bloquesAnamnesis.usuario.persona.personalSalud.cargoSalud', 'bloquesAnamnesis.modificadoPor.persona.personalSalud.cargoSalud',
         'examenFisico.signosUsuario.persona.personalSalud.cargoSalud', 'examenFisico.hallazgosUsuario.persona.personalSalud.cargoSalud',
-        'diagnosticos.cie10', 'indicaciones.tipoIndicacion',
+        'diagnosticos.cie10', 'indicaciones.tipoIndicacion', 'urgentePor.persona.personalSalud.cargoSalud',
     ];
 
     /** @return array<string, mixed> */
@@ -44,6 +44,8 @@ final class DatosFormulario
             'valorExamen' => fn (string $campo) => old("examen.{$campo}", in_array($campo, ['temperatura', 'peso', 'talla'], true) ? self::decimalConComa($examen?->{$campo}) : $examen?->{$campo}),
             'autorSignos' => self::autoria($examen?->signosUsuario),
             'autorHallazgos' => self::autoria($examen?->hallazgosUsuario),
+            // El nivel de cada signo guardado (signos_alertas): la etiqueta junto al signo.
+            'alertas' => $examen?->signos_alertas ?? [],
         ];
     }
 

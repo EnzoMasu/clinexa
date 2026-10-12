@@ -27,6 +27,7 @@
                     <span class="truncate text-gray-700 dark:text-gray-300">{{ $turno->profesional->persona->nombre_completo }}</span>
                     <span class="flex flex-wrap gap-1">
                         @include('admin.preparacion._estado', ['consulta' => $turno->consulta])
+                        @include('admin.preparacion._alertas', ['consulta' => $turno->consulta])
                         @if ($turno->estado->codigo === Estado::EN_CONSULTA)
                             <x-admin.estado-badge :estado="$turno->estado" />
                         @endif

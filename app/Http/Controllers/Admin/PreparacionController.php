@@ -40,8 +40,9 @@ class PreparacionController extends Controller
             ->join('profesionales', 'profesionales.id', '=', 'turnos.profesional_id')
             ->join('personas as persona_profesional', 'persona_profesional.id', '=', 'profesionales.persona_id')
             ->with(['estado', 'paciente.persona', 'profesional.persona', 'consulta' => fn ($query) => $query
-                ->select(['id', 'turno_id', 'estado_id', 'preparada_en', 'historia_clinica_id', 'profesional_id'])
-                ->withExists(['bloquesAnamnesis as con_anamnesis' => fn ($q) => $q->where('activo', true), 'examenFisico as con_examen'])])
+                ->select(['id', 'turno_id', 'estado_id', 'preparada_en', 'historia_clinica_id', 'profesional_id', 'triaje_urgente'])
+                ->withExists(['bloquesAnamnesis as con_anamnesis' => fn ($q) => $q->where('activo', true), 'examenFisico as con_examen',
+                    'examenFisico as con_alertas' => fn ($q) => $q->whereNotNull('signos_alertas')])])
             ->whereDate('turnos.fecha', Fecha::hoy()->format('Y-m-d'))
             ->whereIn('turnos.estado_id', $estados)
             ->when($profesionalId, fn ($query) => $query->where('turnos.profesional_id', $profesionalId))
@@ -52,7 +53,9 @@ class PreparacionController extends Controller
                 ->orWhereLike('persona_profesional.apellidos', "%{$busqueda}%")
                 ->orWhereLike('persona_profesional.nombres', "%{$busqueda}%")))
             ->orderBy('turnos.hora_inicio')->orderBy('turnos.id')
-            ->get();
+            ->get()
+            // Los urgentes del triaje primero; el resto, por hora (orden estable). Los signos alterados no cambian el orden.
+            ->sortBy(fn (Turno $turno) => $turno->consulta?->triaje_urgente ? 0 : 1)->values();
 
         return $this->listado($request, 'admin.preparacion', [
             'turnos' => $turnos,
@@ -99,6 +102,8 @@ class PreparacionController extends Controller
             'consulta' => $consulta,
             'datos' => DatosFormulario::de($consulta),
             'puedeMarcar' => Gate::allows('marcarLista', $consulta),
+            // Sin parámetros clínicos aprobados el sistema no marca alertas: se avisa (banner).
+            'sinReferencias' => \App\Support\Atencion\EvaluadorSignos::faltanAprobados(),
         ]);
     }
 

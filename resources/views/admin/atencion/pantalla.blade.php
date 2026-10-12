@@ -25,7 +25,7 @@
         {{-- Barra fija: paciente, estado del guardado y acciones. --}}
         <div class="sticky top-0 z-30 space-y-3 rounded-t-lg border-b border-gray-200 bg-white px-6 py-3 dark:border-gray-700 dark:bg-gray-800">
             @include('admin.consultas._barra-paciente')
-
+            @include('admin.consultas._franja-triaje')
 
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <span class="flex flex-wrap items-center gap-3 text-xs text-gray-600 dark:text-gray-400">
@@ -80,7 +80,7 @@
                 {{-- Control de concurrencia: el autoguardado la actualiza en cada guardado. --}}
                 <input type="hidden" name="version" value="{{ $consulta->version() }}">
 
-                @foreach (['anamnesis' => ['secciones._anamnesis'], 'examen' => ['secciones._signos', 'secciones._hallazgos'], 'motivo' => ['secciones._diagnosticos'], 'indicaciones' => ['secciones._indicaciones']] as $clave => $vistas)
+                @foreach (['anamnesis' => ['secciones._triaje', 'secciones._anamnesis'], 'examen' => ['secciones._signos', 'secciones._hallazgos'], 'motivo' => ['secciones._diagnosticos'], 'indicaciones' => ['secciones._indicaciones']] as $clave => $vistas)
                     <section data-panel="{{ $clave }}" x-show="panel === '{{ $clave }}'" class="space-y-6" aria-label="{{ $secciones[$clave] }}">
                         @foreach ($vistas as $vista)
                             @include('admin.consultas.'.$vista)

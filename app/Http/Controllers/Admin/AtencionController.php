@@ -54,8 +54,9 @@ class AtencionController extends Controller
         $hoy = Fecha::hoy();
         $turnos = Turno::query()
             ->with(['estado', 'paciente.persona', 'consulta' => fn ($query) => $query
-                ->select(['id', 'turno_id', 'estado_id', 'preparada_en', 'historia_clinica_id', 'profesional_id'])
-                ->withExists(['bloquesAnamnesis as con_anamnesis' => fn ($q) => $q->where('activo', true), 'examenFisico as con_examen'])])
+                ->select(['id', 'turno_id', 'estado_id', 'preparada_en', 'historia_clinica_id', 'profesional_id', 'triaje_urgente'])
+                ->withExists(['bloquesAnamnesis as con_anamnesis' => fn ($q) => $q->where('activo', true), 'examenFisico as con_examen',
+                    'examenFisico as con_alertas' => fn ($q) => $q->whereNotNull('signos_alertas')])])
             ->where('profesional_id', $profesional->id)
             ->whereDate('fecha', $hoy->format('Y-m-d'))
             ->orderBy('hora_inicio')
@@ -72,14 +73,20 @@ class AtencionController extends Controller
             ->orderByDesc('finalizada_en')
             ->get();
 
+        // Los urgentes del triaje van primero dentro de su sección (orden estable: el resto, como venía). Los signos
+        // alterados solo se marcan: no cambian el orden.
+        $urgentesPrimero = fn ($filas, \Closure $esUrgente) => $filas->sortBy(fn ($fila) => $esUrgente($fila) ? 0 : 1)->values();
+        $turnoUrgente = fn (Turno $turno) => (bool) $turno->consulta?->triaje_urgente;
+
         $datos = [
-            'enCurso' => Consulta::query()
-                ->select(['id', 'historia_clinica_id', 'turno_id', 'profesional_id', 'estado_id', 'iniciada_en', 'fecha_hora'])
+            'enCurso' => $urgentesPrimero(Consulta::query()
+                ->select(['id', 'historia_clinica_id', 'turno_id', 'profesional_id', 'estado_id', 'iniciada_en', 'fecha_hora', 'triaje_urgente'])
+                ->withExists(['examenFisico as con_alertas' => fn ($q) => $q->whereNotNull('signos_alertas')])
                 ->with(['historiaClinica.paciente.persona', 'turno:id,hora_inicio'])
                 ->where('profesional_id', $profesional->id)->where('estado_id', Estado::idDe(Estado::EN_CURSO))
-                ->orderBy('iniciada_en')->get(),
-            'agenda' => $turnos->filter(fn ($turno) => in_array($codigo($turno), [Estado::PENDIENTE, Estado::CONFIRMADO], true))->values(),
-            'porLlamar' => $turnos->filter(fn ($turno) => $codigo($turno) === Estado::SALTADO)->values(),
+                ->orderBy('iniciada_en')->get(), fn (Consulta $consulta) => $consulta->triaje_urgente),
+            'agenda' => $urgentesPrimero($turnos->filter(fn ($turno) => in_array($codigo($turno), [Estado::PENDIENTE, Estado::CONFIRMADO], true)), $turnoUrgente),
+            'porLlamar' => $urgentesPrimero($turnos->filter(fn ($turno) => $codigo($turno) === Estado::SALTADO), $turnoUrgente),
             'ausentes' => $turnos->filter(fn ($turno) => $codigo($turno) === Estado::AUSENTE)->values(),
             'atendidos' => $atendidos,
             'anteriores' => Turno::where('profesional_id', $profesional->id)->whereDate('fecha', '<', $hoy->format('Y-m-d'))

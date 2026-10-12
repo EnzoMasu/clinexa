@@ -32,6 +32,10 @@
             {{-- Control de concurrencia: el autoguardado la actualiza en cada guardado. --}}
             <input type="hidden" name="version" value="{{ $consulta->version() }}">
 
+            @if ($sinReferencias)
+                @include('admin.parametros-clinicos._banner')
+            @endif
+            @include('admin.consultas.secciones._triaje')
             @include('admin.consultas.secciones._anamnesis')
             @include('admin.consultas.secciones._signos')
 
