@@ -33,6 +33,13 @@ class ProfileController extends Controller
             'password' => ['required', 'current_password'],
         ]);
 
+        // El administrador principal no se desactiva, tampoco él mismo (también lo rechaza User::booted).
+        if ($request->user()->esAdministradorPrincipal()) {
+            throw ValidationException::withMessages([
+                'cuenta' => \App\Exceptions\AdministradorPrincipalInamovible::MENSAJE,
+            ])->errorBag('desactivarCuenta');
+        }
+
         // El sistema no puede quedarse sin ningún administrador que pueda entrar.
         if ($request->user()->esUnicoAdministradorActivo()) {
             throw ValidationException::withMessages([

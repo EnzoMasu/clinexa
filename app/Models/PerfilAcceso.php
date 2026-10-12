@@ -2,7 +2,9 @@
 
 namespace App\Models;
 
+use App\Exceptions\AdministradorPrincipalInamovible;
 use App\Models\Concerns\Auditable;
+use App\Support\AdministradorPrincipal;
 use App\Models\Concerns\TieneEstado;
 use App\Support\PerfilesPredefinidos;
 use Illuminate\Database\Eloquent\Collection;
@@ -40,6 +42,18 @@ class PerfilAcceso extends Model
     public static function moduloEstado(): string
     {
         return 'PERFILES_ACCESO';
+    }
+
+    protected static function booted(): void
+    {
+        // Un perfil que tiene el administrador principal no se desactiva (le cambiaría sus permisos): hoy es
+        // el Administrador, que además nunca se desactiva.
+        static::updating(function (PerfilAcceso $perfil) {
+            if ($perfil->isDirty('estado_id') && (int) $perfil->estado_id !== Estado::idDe(Estado::ACTIVO) && AdministradorPrincipal::aplica()
+                && $perfil->users()->where('administrador_principal', true)->exists()) {
+                throw new AdministradorPrincipalInamovible;
+            }
+        });
     }
 
     /** En el log, la matriz como "MÓDULO: ACCIÓN" ordenada. */

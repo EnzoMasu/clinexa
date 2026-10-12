@@ -3,10 +3,13 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Exceptions\AccionRechazada;
+use App\Exceptions\AdministradorPrincipalInamovible;
 use App\Exceptions\UltimoAdministrador;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use App\Notifications\InvitacionUsuario;
+use App\Support\AdministradorPrincipal;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -17,7 +20,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Password;
+use LogicException;
 
 class User extends Authenticatable
 {
@@ -43,13 +48,39 @@ class User extends Authenticatable
 
     protected static function booted(): void
     {
-        // El último administrador activo no se desactiva ni se bloquea, por ningún camino.
+        // La marca administrador_principal: nunca desde la aplicación (fuera de $fillable, y el modelo la
+        // rechaza en un pedido web); a lo sumo un usuario la tiene (también el índice único parcial).
+        static::saving(function (User $usuario) {
+            if (! $usuario->isDirty('administrador_principal') || ($usuario->exists === false && ! $usuario->administrador_principal)) {
+                return;
+            }
+            if (AdministradorPrincipal::aplica()) {
+                throw new AccionRechazada(AdministradorPrincipal::MARCA_SOLO_POR_CONSOLA);
+            }
+            if ($usuario->administrador_principal && self::where('administrador_principal', true)->whereKeyNot($usuario->getKey())->exists()) {
+                throw new LogicException(AdministradorPrincipal::YA_HAY_OTRO);
+            }
+        });
+
         static::updating(function (User $usuario) {
+            // El administrador principal (en un pedido web): nadie cambia su estado, tampoco él mismo; su correo y
+            // su persona solo él (la contraseña la cambia él con la actual, o por el link que le llega a su correo).
+            if ($usuario->getOriginal('administrador_principal') && AdministradorPrincipal::aplica()
+                && ($usuario->isDirty('estado_id') || ($usuario->isDirty(['email', 'persona_id']) && (int) Auth::id() !== (int) $usuario->id))) {
+                throw new AdministradorPrincipalInamovible;
+            }
+            // El último administrador activo no se desactiva ni se bloquea, por ningún camino.
             if ($usuario->isDirty('estado_id') && (int) $usuario->estado_id !== Estado::idDe(Estado::ACTIVO)
                 && (int) $usuario->getOriginal('estado_id') === Estado::idDe(Estado::ACTIVO) && $usuario->esUltimoAdministrador()) {
                 throw new UltimoAdministrador;
             }
         });
+    }
+
+    /** Si es el administrador principal (users.administrador_principal). */
+    public function esAdministradorPrincipal(): bool
+    {
+        return (bool) $this->administrador_principal;
     }
 
     /**
@@ -83,6 +114,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'ultimo_acceso' => 'datetime',
+            'administrador_principal' => 'boolean',
         ];
     }
 
@@ -201,6 +233,12 @@ class User extends Authenticatable
      */
     public function enviarLinkContrasena(): string
     {
+        // Desde Usuarios no se le manda invitación ni restablecimiento al administrador principal (quien se lo
+        // mandara no recibe el link, pero no hace falta abrir ese camino). Él usa "¿Olvidó su contraseña?".
+        if ($this->esAdministradorPrincipal() && AdministradorPrincipal::aplica()) {
+            throw new AdministradorPrincipalInamovible;
+        }
+
         return Password::sendResetLink(['email' => $this->email], function (User $usuario, string $token) {
             $usuario->notify($usuario->ultimo_acceso === null
                 ? new InvitacionUsuario($token)

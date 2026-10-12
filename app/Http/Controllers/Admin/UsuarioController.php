@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\AdministradorPrincipalInamovible;
 use App\Exceptions\PerfilesPropios;
 use App\Exceptions\UltimoAdministrador;
 use App\Http\Controllers\Controller;
@@ -9,6 +10,7 @@ use App\Models\Estado;
 use App\Models\PerfilAcceso;
 use App\Models\Persona;
 use App\Models\User;
+use App\Support\AdministradorPrincipal;
 use App\Support\BuscadorPersonas;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -118,6 +120,10 @@ class UsuarioController extends Controller
      */
     public function update(Request $request, User $usuario): RedirectResponse
     {
+        // El administrador principal no se modifica desde acá: ni sus perfiles ni su estado, tampoco él mismo.
+        if ($usuario->esAdministradorPrincipal()) {
+            return back()->withInput()->with('error', AdministradorPrincipalInamovible::MENSAJE);
+        }
         if ($usuario->is($request->user())) {
             $propios = $usuario->perfiles()->pluck('perfiles_acceso.id')->map(fn ($id) => (int) $id)->sort()->values()->all();
             // En el formulario los perfiles propios vienen deshabilitados (no se envían): se completan con los actuales.
@@ -162,6 +168,9 @@ class UsuarioController extends Controller
 
     public function desactivar(Request $request, User $usuario): RedirectResponse
     {
+        if ($usuario->esAdministradorPrincipal()) {
+            return back()->with('error', AdministradorPrincipalInamovible::MENSAJE);
+        }
         if ($usuario->is($request->user())) {
             return back()->with('error', 'No puede desactivar su propio usuario.');
         }
@@ -173,6 +182,12 @@ class UsuarioController extends Controller
 
     public function enviarInvitacion(User $usuario): RedirectResponse
     {
+        // Al administrador principal no se le manda invitación ni restablecimiento desde Usuarios (lo rechaza
+        // también User::enviarLinkContrasena): él usa "¿Olvidó su contraseña?", que le llega a su correo.
+        if ($usuario->esAdministradorPrincipal()) {
+            return back()->with('error', AdministradorPrincipalInamovible::MENSAJE);
+        }
+
         return $this->enviarLinkContrasena($usuario);
     }
 
@@ -232,13 +247,21 @@ class UsuarioController extends Controller
     /**
      * Por qué no se puede guardar esa asignación, o null:
      * - un usuario ACTIVO necesita al menos un perfil ACTIVO;
+     * - el perfil Administrador solo lo asigna o lo quita el administrador principal
+     *   (AdministradorPrincipal::SOLO_EL_PRINCIPAL_ASIGNA_ADMINISTRADOR; también lo rechaza UsuarioPerfil);
      * - sin escalada de privilegios: cada perfil que se AGREGA (no los que ya tenía) tiene que tener solo
-     *   permisos que quien asigna ya tiene, también si se asigna a sí mismo (el Administrador tiene todo).
+     *   permisos que quien asigna ya tiene (el Administrador tiene todo).
      */
     private function errorDeAsignacion(User $quien, \Illuminate\Database\Eloquent\Collection $perfiles, array $actuales, bool $activo = true): ?string
     {
         if ($activo && $perfiles->filter(fn (PerfilAcceso $perfil) => $perfil->estaActivo())->isEmpty()) {
             return 'Un usuario activo necesita al menos un perfil de acceso activo.';
+        }
+
+        $administrador = PerfilAcceso::where('codigo', PerfilAcceso::ADMINISTRADOR)->value('id');
+        $cambiaAdministrador = in_array($administrador, $perfiles->modelKeys(), true) !== in_array($administrador, array_map('intval', $actuales), true);
+        if ($cambiaAdministrador && ! AdministradorPrincipal::puedeAsignarAdministrador()) {
+            return AdministradorPrincipal::SOLO_EL_PRINCIPAL;
         }
 
         $ajeno = $perfiles->reject(fn (PerfilAcceso $perfil) => in_array($perfil->id, $actuales, true))

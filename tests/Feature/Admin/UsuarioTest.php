@@ -314,7 +314,8 @@ test('el formulario muestra los perfiles propios deshabilitados con la nota, y l
     $html = $this->get(route('admin.usuarios.edit', $otro))->assertOk()
         ->assertDontSee('No puede cambiar su propio perfil de acceso')
         ->getContent();
-    expect($html)->not->toMatch('/name="perfiles\[\]"[^>]*\sdisabled[\s>]/')->not->toMatch('/<fieldset[^>]*\sdisabled[\s>]/');
+    // Su casilla de Recepción, editable (la de Administrador queda fija: solo la cambia el administrador principal).
+    expect($html)->not->toMatch('/name="perfiles\[\]" value="'.$this->perfil->id.'"[^>]*\sdisabled[\s>]/')->not->toMatch('/<fieldset[^>]*\sdisabled[\s>]/');
 });
 
 test('el formulario muestra una casilla por perfil activo, con los del usuario tildados', function () {
@@ -332,12 +333,18 @@ test('el formulario muestra una casilla por perfil activo, con los del usuario t
     $this->get(route('admin.usuarios.edit', $otro))->assertSee('Perfil viejo');
 });
 
-test('otro administrador sí puede cambiarle el perfil a un usuario', function () {
+test('el perfil Administrador de otro usuario: lo quita el principal; un administrador que no es principal, no', function () {
     $otro = User::factory()->administrador()->create();
+    $admin = $otro->perfiles->sole()->id;
 
+    // $this->admin es Administrador, pero no el principal.
     $this->put(route('admin.usuarios.update', $otro), ['perfiles' => [$this->perfil->id], 'estado_id' => estadoId('ACTIVO')])
-        ->assertSessionHasNoErrors();
+        ->assertSessionHasErrors(['perfiles' => \App\Support\AdministradorPrincipal::SOLO_EL_PRINCIPAL]);
+    expect($otro->fresh()->perfiles->modelKeys())->toBe([$admin]);
 
+    $this->actingAs(User::factory()->principal()->create())
+        ->put(route('admin.usuarios.update', $otro), ['perfiles' => [$this->perfil->id], 'estado_id' => estadoId('ACTIVO')])
+        ->assertSessionHasNoErrors();
     expect($otro->fresh()->perfiles->modelKeys())->toBe([$this->perfil->id]);
 });
 

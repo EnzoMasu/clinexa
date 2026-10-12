@@ -104,7 +104,7 @@ describe('campos sensibles', function () {
 
     test('dar de alta un usuario no guarda su contraseña ni tokens', function () {
         $persona = Persona::factory()->create();
-        $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfiles' => $this->admin->perfiles->modelKeys()]);
+        $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfiles' => [\App\Models\PerfilAcceso::create(['nombre' => 'Sin permisos'])->id]]);
 
         $crear = logsDe('users')->where('accion', AccionAuditoria::CREAR)->sole();
         expect($crear->valor_nuevo)->toHaveKeys(['persona_id', 'email'])

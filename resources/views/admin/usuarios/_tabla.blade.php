@@ -4,7 +4,12 @@
 <x-admin.table :headers="['Nombre', 'Documento', 'Correo', 'Perfiles de acceso', 'Estado', 'Último acceso']" :paginator="$usuarios">
     @forelse ($usuarios as $usuario)
         <tr>
-            <td class="px-6 py-4 font-medium">{{ $usuario->persona->nombre_completo }}</td>
+            <td class="px-6 py-4 font-medium">
+                {{ $usuario->persona->nombre_completo }}
+                @if ($usuario->esAdministradorPrincipal())
+                    <span class="ms-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300">Administrador principal</span>
+                @endif
+            </td>
             <td class="px-6 py-4 whitespace-nowrap">
                 <span class="text-xs text-gray-500 dark:text-gray-400">{{ $usuario->persona->tipoDocumento->codigo }}</span>
                 <span class="dato">{{ $usuario->persona->nro_documento }}</span>
@@ -29,7 +34,7 @@
             </td>
             <x-admin.actions
                 :edit="Permisos::url('admin.usuarios.edit', $usuario)"
-                :desactivar="! $usuario->tieneEstado('INACTIVO') && ! $usuario->is(auth()->user()) ? Permisos::url('admin.usuarios.desactivar', $usuario) : null" />
+                :desactivar="! $usuario->tieneEstado('INACTIVO') && ! $usuario->is(auth()->user()) && ! $usuario->esAdministradorPrincipal() ? Permisos::url('admin.usuarios.desactivar', $usuario) : null" />
         </tr>
     @empty
         <x-admin.empty-row colspan="7" :busqueda="$busqueda" />

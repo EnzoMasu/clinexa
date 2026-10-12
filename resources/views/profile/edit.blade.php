@@ -19,11 +19,14 @@
                 </div>
             </div>
 
-            <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
-                <div class="max-w-xl">
-                    @include('profile.partials.desactivar-cuenta')
+            {{-- El administrador principal no puede desactivar su cuenta (ProfileController::desactivar). --}}
+            @unless ($user->esAdministradorPrincipal())
+                <div class="p-4 sm:p-8 bg-white dark:bg-gray-800 shadow sm:rounded-lg">
+                    <div class="max-w-xl">
+                        @include('profile.partials.desactivar-cuenta')
+                    </div>
                 </div>
-            </div>
+            @endunless
         </div>
     </div>
 </x-app-layout>

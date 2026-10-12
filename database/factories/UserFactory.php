@@ -73,6 +73,17 @@ class UserFactory extends Factory
     }
 
     /**
+     * El administrador principal: Administrador y con la marca (fuera de un pedido web, como la migración y
+     * el comando de traspaso).
+     */
+    public function principal(): static
+    {
+        return $this->administrador()->afterCreating(function (User $usuario) {
+            $usuario->forceFill(['administrador_principal' => true])->save();
+        });
+    }
+
+    /**
      * Usuario con un perfil que solo tiene los permisos indicados, como ['PERSONAS' => ['VER']].
      */
     public function conPermisos(array $permisos): static

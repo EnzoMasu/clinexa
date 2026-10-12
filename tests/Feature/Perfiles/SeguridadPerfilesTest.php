@@ -15,6 +15,7 @@ use App\Models\ModuloSistema;
 use App\Models\PerfilAcceso;
 use App\Models\Persona;
 use App\Models\User;
+use App\Support\AdministradorPrincipal;
 use App\Support\PerfilesPredefinidos;
 use Database\Factories\UserFactory;
 use Database\Seeders\ModulosSensiblesSeeder;
@@ -29,13 +30,13 @@ beforeEach(function () {
 });
 
 describe('último administrador', function () {
-    test('no se le quita el perfil Administrador (lo hace otro usuario con permiso de Usuarios)', function () {
+    test('no se le quita el perfil Administrador: antes lo frena la regla de que solo el principal lo quita', function () {
         $gestor = User::factory()->conPermisos(['USUARIOS' => ['VER', 'EDITAR']])->create();
         $vacio = PerfilAcceso::create(['nombre' => 'Sin permisos']); // asignarlo no es escalar
 
         $this->actingAs($gestor)->from(route('admin.usuarios.edit', $this->admin))
             ->put(route('admin.usuarios.update', $this->admin), ['perfiles' => [$vacio->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
-            ->assertSessionHas('error', UltimoAdministrador::MENSAJE);
+            ->assertSessionHasErrors(['perfiles' => AdministradorPrincipal::SOLO_EL_PRINCIPAL]);
 
         expect($this->admin->fresh()->esAdministrador())->toBeTrue();
     });
@@ -60,8 +61,8 @@ describe('último administrador', function () {
         expect($this->admin->persona->fresh()->estaActivo())->toBeTrue();
     });
 
-    test('con otro administrador activo, sí se puede', function () {
-        $otro = User::factory()->administrador()->create();
+    test('con otro administrador activo (el principal, que es el único que lo quita), sí se puede', function () {
+        $otro = User::factory()->principal()->create();
         $this->actingAs($otro);
 
         $this->put(route('admin.usuarios.update', $this->admin), ['perfiles' => [$this->recepcion->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
@@ -101,7 +102,9 @@ describe('sin escalada de privilegios', function () {
     test('no puede asignar un perfil con permisos que no tiene: ni a otro, ni al crear; con su propio usuario tampoco (no edita sus perfiles)', function (string $perfil) {
         $ajeno = PerfilAcceso::where('codigo', $perfil)->sole();
         $usuario = User::factory()->create();
-        $mensaje = "No puede asignar el perfil «{$ajeno->nombre}»: tiene permisos que usted no tiene.";
+        // El perfil Administrador, además, solo lo asigna el principal (esa regla va primero).
+        $mensaje = $perfil === 'ADMINISTRADOR' ? AdministradorPrincipal::SOLO_EL_PRINCIPAL
+            : "No puede asignar el perfil «{$ajeno->nombre}»: tiene permisos que usted no tiene.";
 
         $this->put(route('admin.usuarios.update', $usuario), ['perfiles' => [$ajeno->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
             ->assertSessionHasErrors(['perfiles' => $mensaje]);
@@ -148,8 +151,8 @@ describe('sin escalada de privilegios', function () {
             ->and(PerfilAcceso::where('nombre', 'Nuevo')->exists())->toBeFalse();
     });
 
-    test('el Administrador no queda limitado: asigna cualquier perfil y agrega cualquier permiso', function () {
-        $this->actingAs($this->admin);
+    test('el Administrador no queda limitado: asigna cualquier perfil (el Administrador, si es el principal) y agrega cualquier permiso', function () {
+        $this->actingAs(User::factory()->principal()->create());
         $usuario = User::factory()->create();
 
         $this->put(route('admin.usuarios.update', $usuario), ['perfiles' => PerfilAcceso::pluck('id')->all(), 'estado_id' => Estado::idDe(Estado::ACTIVO)])
@@ -237,7 +240,7 @@ describe('auditoría', function () {
         expect(LogAuditoria::where('tabla_afectada', 'users')->where('registro_afectado_id', (string) $usuario->id)->count())->toBe(2);
     });
 
-    test('un intento rechazado (escalada o último administrador) no deja eventos', function () {
+    test('un intento rechazado (quitar el perfil Administrador sin ser el principal, escalada, perfiles propios) no deja eventos', function () {
         $gestor = User::factory()->conPerfiles([UserFactory::perfilConPermisos(['USUARIOS' => ['VER', 'EDITAR']], 'Gestión de usuarios')])->create();
         $vacio = PerfilAcceso::create(['nombre' => 'Sin permisos']);
         $otro = User::factory()->create();
@@ -245,7 +248,7 @@ describe('auditoría', function () {
         $antes = LogAuditoria::max('id');
 
         $this->put(route('admin.usuarios.update', $this->admin), ['perfiles' => [$vacio->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
-            ->assertSessionHas('error', UltimoAdministrador::MENSAJE);
+            ->assertSessionHasErrors(['perfiles' => AdministradorPrincipal::SOLO_EL_PRINCIPAL]);
         $this->put(route('admin.usuarios.update', $otro), ['perfiles' => [$this->recepcion->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])
             ->assertSessionHasErrors('perfiles');
         $this->put(route('admin.usuarios.update', $gestor), ['perfiles' => [$vacio->id], 'estado_id' => Estado::idDe(Estado::ACTIVO)])

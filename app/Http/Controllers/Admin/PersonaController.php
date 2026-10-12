@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\AdministradorPrincipalInamovible;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PersonaRequest;
 use App\Models\Pais;
@@ -19,7 +20,7 @@ class PersonaController extends Controller
         $busqueda = trim((string) $request->query('q'));
 
         $personas = Persona::query()
-            ->with('tipoDocumento')
+            ->with(['tipoDocumento', 'usuario']) // usuario: para no ofrecer acciones sobre la persona del administrador principal
             ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('nro_documento', "{$busqueda}%")
                 ->orWhereLike('apellidos', "%{$busqueda}%")
@@ -55,8 +56,13 @@ class PersonaController extends Controller
         return redirect()->route('admin.personas.index')->with('status', 'Persona creada.');
     }
 
-    public function edit(Persona $persona): View
+    public function edit(Persona $persona): View|RedirectResponse
     {
+        // La persona del administrador principal solo la edita él (también lo rechaza Persona::booted).
+        if ($persona->esDelAdministradorPrincipalAjeno()) {
+            return redirect()->route('admin.personas.index')->with('error', AdministradorPrincipalInamovible::MENSAJE);
+        }
+
         return view('admin.personas.form', [
             'persona' => $persona,
             'tiposDocumento' => $this->tiposDocumento($persona),
