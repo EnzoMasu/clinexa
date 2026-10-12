@@ -35,7 +35,10 @@
             @include('admin.consultas.secciones._anamnesis')
             @include('admin.consultas.secciones._signos')
 
-            <noscript><p class="text-sm text-red-600">Para guardar el triaje sin JavaScript use el botón "Guardar triaje".</p></noscript>
+            {{-- Sin JavaScript: "Guardar triaje" (el mismo autoguardado, con un formulario común). --}}
+            <noscript>
+                <button type="submit" formaction="{{ route('admin.preparacion.guardar', $consulta) }}" class="{{ $boton }}">Guardar triaje</button>
+            </noscript>
 
             <div class="flex flex-wrap items-center gap-4">
                 @if ($puedeMarcar)

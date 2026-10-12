@@ -204,7 +204,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             ->middleware('permiso.alguno:PREPARACION.CREAR,HISTORIA_CLINICA.CREAR');
         Route::middleware('permiso.alguno:PREPARACION.EDITAR,HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR')->group(function () {
             Route::get('consultas/{consulta}/triaje', [PreparacionController::class, 'formulario'])->name('preparacion.formulario')->whereNumber('consulta');
-            Route::post('consultas/{consulta}/triaje/terminar', [PreparacionController::class, 'marcarLista'])->name('preparacion.lista')->whereNumber('consulta')->middleware('consulta.abierta');
+            // "Guardar triaje" sin JavaScript (el mismo autoguardado, por un formulario común).
+            Route::post('consultas/{consulta}/triaje/guardar', [PreparacionController::class, 'guardar'])->name('preparacion.guardar')->whereNumber('consulta')
+                ->middleware(['throttle:autoguardado', 'consulta.abierta']);
+            Route::post('consultas/{consulta}/triaje/terminar',[PreparacionController::class, 'marcarLista'])->name('preparacion.lista')->whereNumber('consulta')->middleware('consulta.abierta');
             Route::post('consultas/{consulta}/triaje/reabrir', [PreparacionController::class, 'reabrir'])->name('preparacion.reabrir')->whereNumber('consulta')->middleware('consulta.abierta');
         });
 

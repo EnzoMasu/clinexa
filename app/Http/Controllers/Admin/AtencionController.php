@@ -20,6 +20,7 @@ use App\Support\Atencion\Finalizar;
 use App\Support\Atencion\FormularioConsulta;
 use App\Support\Atencion\NoSePresento;
 use App\Support\Atencion\PasarAusente;
+use App\Support\Atencion\SignosVitales;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
 use App\Support\Fecha;
@@ -28,6 +29,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -185,8 +187,15 @@ class AtencionController extends Controller
     public function autoguardar(Request $request, Consulta $consulta): JsonResponse
     {
         abort_if($consulta->anulada(), 404);
+        $resultado = Autoguardado::ejecutar($request->user(), $consulta, $request);
 
-        return response()->json(Autoguardado::ejecutar($request->user(), $consulta, $request));
+        // Lo demás ya se guardó; los muy alterados sin confirmar, no: 422 con los campos (y la versión nueva).
+        if ($resultado['pendientes'] !== []) {
+            return response()->json([...$resultado, 'codigo' => SignosVitales::REQUIERE_CONFIRMACION,
+                'message' => SignosVitales::MENSAJE, 'campos' => $resultado['pendientes']], 422);
+        }
+
+        return response()->json($resultado);
     }
 
     public function finalizar(Request $request, Consulta $consulta): RedirectResponse
@@ -200,6 +209,11 @@ class AtencionController extends Controller
         }
         Gate::authorize('finalizar', $consulta);
         [$datos] = FormularioConsulta::validar($request, $consulta, [FormularioConsulta::PREPARACION, FormularioConsulta::CLINICO], final: true);
+        // Finalizar es todo o nada: un valor muy alterado sin confirmar frena todo, con una casilla por campo.
+        $pendientes = SignosVitales::revisar($consulta, $datos, $request->input('confirmaciones'));
+        if ($pendientes !== []) {
+            throw ValidationException::withMessages(collect($pendientes)->mapWithKeys(fn (array $p, string $campo) => ["confirmaciones.{$campo}" => $p['mensaje']])->all());
+        }
 
         return $this->accion(function () use ($request, $consulta, $datos) {
             $advertencias = Finalizar::ejecutar($request->user(), $consulta, $datos, (string) $request->input('version'));

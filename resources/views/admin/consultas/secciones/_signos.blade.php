@@ -12,6 +12,18 @@
                 <input type="text" id="examen_{{ $campo }}" name="examen[{{ $campo }}]" value="{{ $datos['valorExamen']($campo) }}"
                     inputmode="{{ $modo === 'text' ? 'text' : $modo }}" maxlength="{{ $largo }}" placeholder="{{ $ejemplo }}" autocomplete="off" class="{{ $clases }}">
                 <x-input-error class="mt-2" :messages="$errors->get('examen.'.$campo)" />
+                {{-- Valor muy alterado sin confirmar (sin JavaScript, o al Finalizar): el aviso y su casilla. Al
+                     marcarla se manda confirmaciones[campo] = el mismo valor; si el valor cambia, no vale. --}}
+                @if ($errors->has('confirmaciones.'.$campo))
+                    <div class="mt-2 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200">
+                        <p>{{ $errors->first('confirmaciones.'.$campo) }}</p>
+                        <label class="mt-1 flex items-center gap-2 font-medium">
+                            <input type="checkbox" name="confirmaciones[{{ $campo }}]" value="{{ $datos['valorExamen']($campo) }}"
+                                class="rounded border-gray-300 text-red-600 shadow-sm focus:ring-red-500 dark:border-gray-700 dark:bg-gray-900">
+                            Sí, es correcto
+                        </label>
+                    </div>
+                @endif
             </div>
         @endforeach
     </div>

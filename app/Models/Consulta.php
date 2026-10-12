@@ -41,6 +41,9 @@ class Consulta extends Model
         'turno_id',
         'profesional_id',
         'motivo_consulta',
+        // Triaje: urgente y observación (quién y cuándo marcó la urgencia: triaje_urgente_por y _en, los pone GuardarSecciones).
+        'triaje_urgente',
+        'triaje_observacion',
     ];
 
     protected function casts(): array
@@ -50,6 +53,8 @@ class Consulta extends Model
             'iniciada_en' => 'datetime',
             'preparada_en' => 'datetime',
             'finalizada_en' => 'datetime',
+            'triaje_urgente' => 'boolean',
+            'triaje_urgente_en' => 'datetime',
         ];
     }
 
@@ -141,6 +146,12 @@ class Consulta extends Model
             'indicaciones' => fn (Collection $indicaciones) => $indicaciones->sortBy(['orden', 'id'])->loadMissing('tipoIndicacion')
                 ->mapWithKeys(fn (Indicacion $indicacion) => ["Indicación #{$indicacion->id}" => "{$indicacion->orden}. ".$indicacion->descripcionAuditoria()])->all(),
         ];
+    }
+
+    /** Quién marcó la consulta como urgente en el triaje. */
+    public function urgentePor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'triaje_urgente_por');
     }
 
     public function historiaClinica(): BelongsTo

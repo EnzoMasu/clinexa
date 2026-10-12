@@ -8,9 +8,11 @@ use App\Models\Consulta;
 use App\Models\Estado;
 use App\Models\Profesional;
 use App\Models\Turno;
+use App\Support\Atencion\Autoguardado;
 use App\Support\Atencion\DatosFormulario;
 use App\Support\Atencion\MarcarLista;
 use App\Support\Atencion\Preparar;
+use App\Support\Atencion\SignosVitales;
 use App\Support\Auditoria;
 use App\Support\Fecha;
 use Illuminate\Http\RedirectResponse;
@@ -98,6 +100,25 @@ class PreparacionController extends Controller
             'datos' => DatosFormulario::de($consulta),
             'puedeMarcar' => Gate::allows('marcarLista', $consulta),
         ]);
+    }
+
+    /**
+     * "Guardar triaje" sin JavaScript: el mismo autoguardado (mismas reglas, versión y auditoría), por un formulario
+     * común. Un valor muy alterado sin confirmar vuelve con su error y una casilla de confirmación; lo demás se guarda.
+     */
+    public function guardar(Request $request, Consulta $consulta): RedirectResponse
+    {
+        abort_if($consulta->anulada(), 404);
+        $resultado = Autoguardado::ejecutar($request->user(), $consulta, $request);
+        $volver = redirect()->route('admin.preparacion.formulario', $consulta);
+
+        if ($resultado['pendientes'] !== []) {
+            return $volver->withInput(collect($request->except(['version', '_token']))->all())
+                ->withErrors(collect($resultado['pendientes'])->mapWithKeys(fn (array $p, string $campo) => ["confirmaciones.{$campo}" => $p['mensaje']])->all())
+                ->with('error', SignosVitales::MENSAJE);
+        }
+
+        return $volver->with('status', 'Triaje guardado.');
     }
 
     public function marcarLista(Request $request, Consulta $consulta): RedirectResponse

@@ -24,7 +24,11 @@ final class Preparar
             return DB::transaction(function () use ($usuario, $turno) {
                 $turno = Apoyo::turnoBloqueado($turno);
                 if ($existente = Consulta::where('turno_id', $turno->id)->first()) {
-                    return Apoyo::consultaDelTurno($existente);
+                    $consulta = Apoyo::consultaDelTurno($existente);
+                    // Retomarla es continuar el triaje: la misma regla que escribirlo (p. ej., solo personal de salud).
+                    Gate::forUser($usuario)->authorize('escribirPreparacion', $consulta);
+
+                    return $consulta;
                 }
                 Gate::forUser($usuario)->authorize('preparar', [Consulta::class, $turno]);
 

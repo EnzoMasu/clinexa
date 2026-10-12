@@ -43,6 +43,19 @@ final class GuardarSecciones
             $consulta->update(['motivo_consulta' => $datos['motivo_consulta']]);
         }
 
+        // Urgente y observación del triaje (solo si el formulario trae el bloque). Quién y cuándo marcó la urgencia;
+        // al desmarcarla se limpian. Marcar, desmarcar y la observación quedan en el EDITAR de la consulta.
+        if ($preparacion && ! empty($datos['con_triaje'])) {
+            $urgente = filter_var($datos['triaje_urgente'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $consulta->fill(['triaje_urgente' => $urgente, 'triaje_observacion' => $datos['triaje_observacion'] ?? null]);
+            if ($consulta->isDirty('triaje_urgente')) {
+                $consulta->forceFill(['triaje_urgente_por' => $urgente ? $usuario->id : null, 'triaje_urgente_en' => $urgente ? now() : null]);
+            }
+            if ($consulta->isDirty()) {
+                $consulta->save();
+            }
+        }
+
         if ($preparacion && ! empty($datos['con_anamnesis'])) {
             $consulta->auditarRelacion('bloquesAnamnesis', function () use ($consulta, $datos, $usuario, &$creadas) {
                 $creadas['anamnesis'] = self::guardarFilas($consulta->bloquesAnamnesis(), $datos['anamnesis'] ?? [],
@@ -53,7 +66,7 @@ final class GuardarSecciones
 
         $campos = [...($preparacion ? FormularioConsulta::SIGNOS_VITALES : []), ...($clinico ? ['hallazgos'] : [])];
         if ($campos !== []) {
-            $consulta->auditarRelacion('examenFisico', fn () => self::guardarExamen($consulta, $datos['examen'] ?? [], $campos, $usuario));
+            $consulta->auditarRelacion('examenFisico', fn () => self::guardarExamen($consulta, $datos['examen'] ?? [], $campos, $usuario, $datos['confirmaciones_signos'] ?? []));
         }
 
         if ($clinico && ! empty($datos['con_diagnosticos'])) {
@@ -121,7 +134,7 @@ final class GuardarSecciones
      * El examen se crea solo si se cargó algún campo; si ya existe, se actualizan solo los campos del grupo.
      * Quién cargó los signos y quién los hallazgos se actualiza cuando cambian.
      */
-    private static function guardarExamen(Consulta $consulta, array $examen, array $campos, User $usuario): void
+    private static function guardarExamen(Consulta $consulta, array $examen, array $campos, User $usuario, array $confirmadas = []): void
     {
         $valores = collect($campos)->mapWithKeys(fn (string $campo) => [$campo => $examen[$campo] ?? null])->all();
         $existente = $consulta->examenFisico()->first();
@@ -134,6 +147,9 @@ final class GuardarSecciones
         }
 
         $existente->fill($valores);
+        // El nivel de cada signo, calculado AL GUARDAR (mientras la consulta está abierta): con la consulta cerrada
+        // el examen ya no se escribe (ProtegidoPorCierre) y queda congelado aunque cambien los parámetros.
+        $existente->signos_alertas = self::alertas($existente, $confirmadas, $usuario);
         $cambios = array_keys($existente->exists ? $existente->getDirty() : array_filter($valores, fn ($valor) => $valor !== null));
         if (array_intersect($cambios, FormularioConsulta::SIGNOS_VITALES) !== []) {
             $existente->signos_usuario_id = $usuario->id;
@@ -142,5 +158,36 @@ final class GuardarSecciones
             $existente->hallazgos_usuario_id = $usuario->id;
         }
         $existente->save();
+    }
+
+    /**
+     * Los signos marcados (FUERA_DE_RANGO o MUY_ALTERADO, con parámetro aprobado): campo => nivel, dirección, valor
+     * y, si es muy alterado, la confirmación (quién, cuándo y el valor confirmado). Una confirmación anterior del
+     * mismo valor se conserva. null si no hay ninguno marcado.
+     */
+    private static function alertas(ExamenFisico $examen, array $confirmadas, User $usuario): ?array
+    {
+        $valores = collect(FormularioConsulta::SIGNOS_VITALES)->mapWithKeys(fn (string $campo) => [$campo => $examen->getAttributes()[$campo] ?? null])->all();
+        $previas = $examen->exists ? (json_decode((string) $examen->getRawOriginal('signos_alertas'), true) ?: []) : [];
+        $alertas = [];
+
+        foreach ((new EvaluadorSignos)->evaluar($valores) as $campo => $resultado) {
+            if (! in_array($resultado['nivel'], [EvaluadorSignos::FUERA_DE_RANGO, EvaluadorSignos::MUY_ALTERADO], true)) {
+                continue;
+            }
+            $valor = SignosVitales::normal($valores[$campo]);
+            $alerta = ['nivel' => $resultado['nivel'], 'direccion' => $resultado['direccion'], 'valor' => $valor];
+            if ($resultado['nivel'] === EvaluadorSignos::MUY_ALTERADO) {
+                $previa = $previas[$campo] ?? [];
+                if (($confirmadas[$campo] ?? null) === $valor) {
+                    $alerta += ['confirmado_valor' => $valor, 'confirmado_por' => $usuario->id, 'confirmado_en' => now()->toIso8601String()];
+                } elseif (($previa['confirmado_valor'] ?? null) === $valor) {
+                    $alerta += array_intersect_key($previa, array_flip(['confirmado_valor', 'confirmado_por', 'confirmado_en']));
+                }
+            }
+            $alertas[$campo] = $alerta;
+        }
+
+        return $alertas === [] ? null : $alertas;
     }
 }
