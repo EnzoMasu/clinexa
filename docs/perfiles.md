@@ -120,9 +120,70 @@ Notas sobre la matriz:
    - La matriz solo se aplica al **crear** un perfil.
    - Por eso el paso 2 hace falta para los perfiles que ya existen.
 
+## Administrador principal
+
+Hay **un único** administrador principal (`users.administrador_principal`), inamovible. Los demás usuarios
+con el perfil Administrador administran como siempre, pero no pueden tocarlo. La regla está en
+`App\Support\AdministradorPrincipal` y vale en los modelos y en los servicios, no solo en la pantalla.
+
+### La marca
+
+- Columna booleana con un **índice único parcial** (`users_un_solo_administrador_principal`): a lo sumo un
+  usuario en true. Lo admiten PostgreSQL y SQLite, y además lo verifica el modelo.
+- **No se cambia desde la aplicación**: no está en `$fillable` y el modelo la rechaza en cualquier pedido web.
+- La puso una sola vez la migración `2026_10_12_100001_administrador_principal`: el usuario con el perfil
+  Administrador cuya persona tiene la CI de `DOCUMENTO`. Si hay usuarios y no es exactamente uno, la migración
+  falla con un mensaje claro y no marca a nadie. Una base sin usuarios (instalación nueva, tests) no marca a
+  nadie: el primer principal se asigna con el traspaso.
+
+### Qué no se puede (en cualquier pedido web, para todos, también para él mismo)
+
+Mensaje: "Es el administrador principal y no puede modificarse."
+
+- **Estado:** no se lo desactiva, bloquea ni se le cambia el estado (Usuarios, "Desactivar mi cuenta",
+  `User::booted`).
+- **Perfiles:** no se le asignan ni se le quitan perfiles (`UsuarioController`, `UsuarioPerfil`), y un perfil
+  que él tenga no se desactiva (`PerfilAcceso::booted`). Siempre conserva el perfil Administrador, que además
+  nunca se desactiva ni pierde permisos.
+- **Persona:** nadie la desactiva (`Persona::booted`).
+- **Credenciales:** los datos de su persona (correo, documento, nombres, ...) solo los edita **él**; tampoco se
+  cambia su correo o su persona en `users`. Desde Usuarios no se le manda invitación ni restablecimiento de
+  contraseña (`User::enviarLinkContrasena`). Motivo: si otro pudiera cambiar su correo y pedir un
+  restablecimiento, se quedaría con la cuenta.
+- En Usuarios se lo ve con la marca "Administrador principal"; su formulario es de solo lectura (sin casillas,
+  estado ni invitación) y no se ofrece desactivarlo. En Personas, a los demás no se les ofrece editar ni
+  desactivar su persona.
+
+Lo que **sí** puede él: editar los datos de su persona, cambiar su contraseña desde su perfil (con la actual) o
+con "¿Olvidó su contraseña?" (el link le llega a su correo).
+
+La **consola** queda afuera, como en las otras guardas (no hay usuario logueado): por eso existe el traspaso.
+
+### Solo el principal asigna el perfil Administrador
+
+Solo el administrador principal asigna o quita el perfil Administrador a otros usuarios (formulario y
+`UsuarioPerfil`); para los demás, esa casilla queda fija. La condición es **una constante**:
+`AdministradorPrincipal::SOLO_EL_PRINCIPAL_ASIGNA_ADMINISTRADOR = true`. Para que lo haga cualquier
+Administrador, pasarla a `false` (y ajustar los tests de `AdministradorPrincipalTest`).
+
+Cualquier otro Administrador puede ser modificado o desactivado (por el principal o por otro Administrador,
+salvo su perfil Administrador), y como todos, no se desactiva ni cambia sus propios perfiles.
+
+### Traspaso: `php artisan clinexa:traspasar-principal {correo}`
+
+Es la **única vía** para mover la marca.
+
+- Pide confirmación: hay que escribir el correo del nuevo principal; si no coincide, no hace nada.
+- Exige que el nuevo esté ACTIVO (usuario y persona) y tenga el perfil Administrador activo.
+- Mueve la marca en una transacción (primero la quita del anterior, por el índice único) y deja un evento
+  EDITAR del nuevo usuario en la auditoría, con el anterior en el detalle.
+- El anterior sigue siendo Administrador, ya como uno más.
+
 ## Seguridad de la asignación
 
 ### Nunca sin administrador
+
+Queda como **respaldo**: con un administrador principal activo, siempre hay uno.
 
 No se puede dejar el sistema sin un usuario activo con el perfil Administrador:
 
@@ -167,3 +228,7 @@ administrador, seeders) no hay usuario logueado y no aplica.
 - El permiso de **desbloqueo** de una consulta cerrada, para Supervisión médica, llega con la etapa de adenda
   (`docs/historia-clinica.md`).
 - **Eliminar `users.perfil_acceso_id`** en una migración posterior.
+- **Registrar los intentos rechazados** (por ejemplo, de modificar al administrador principal). Hoy un intento
+  rechazado no deja cambios ni eventos. Propuesta mínima: un caso `INTENTO_RECHAZADO` en
+  `App\Enums\AccionAuditoria` (la columna `accion` es texto, no hace falta migración) y registrarlo, fuera de
+  la transacción que se deshace, desde el lugar que muestra el aviso. Sin implementar.
