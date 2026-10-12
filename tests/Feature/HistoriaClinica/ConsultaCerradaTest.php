@@ -76,7 +76,7 @@ function actorDeLaMatriz(string $actor): User
         'profesional dueño' => test()->medico,
         'otro profesional' => test()->otroMedico,
         'Administrador' => User::factory()->administrador()->create(),
-        'enfermería' => User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->create(),
+        'enfermería' => User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->personalDeSalud()->create(),
     };
 }
 

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AtencionController;
 use App\Http\Controllers\Admin\AuditoriaController;
+use App\Http\Controllers\Admin\CargoSaludController;
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Admin\PacienteController;
 use App\Http\Controllers\Admin\PaisController;
 use App\Http\Controllers\Admin\PerfilAccesoController;
 use App\Http\Controllers\Admin\PersonaController;
+use App\Http\Controllers\Admin\PersonalSaludController;
 use App\Http\Controllers\Admin\PreparacionController;
 use App\Http\Controllers\Admin\ProcedimientoController;
 use App\Http\Controllers\Admin\ProfesionalController;
@@ -114,6 +116,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
     $seccion('tipos-bloque-anamnesis', TipoBloqueAnamnesisController::class, 'TIPOS_BLOQUE_ANAMNESIS', 'tipoBloqueAnamnesis', conBaja: true);
     $seccion('tipos-indicacion', TipoIndicacionController::class, 'TIPOS_INDICACION', 'tipoIndicacion', conBaja: true);
+    $seccion('cargos-salud', CargoSaludController::class, 'CARGOS_SALUD', 'cargoSalud', conBaja: true);
 
     // Geografía: las tres pantallas comparten el módulo GEOGRAFIA.
     $seccion('paises', PaisController::class, 'GEOGRAFIA', 'pais', conBaja: true);
@@ -231,6 +234,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     foreach ([
         ['pacientes', PacienteController::class, 'PACIENTES', 'paciente'],
         ['profesionales', ProfesionalController::class, 'PROFESIONALES', 'profesional'],
+        ['personal-salud', PersonalSaludController::class, 'PERSONAL_SALUD', 'personalSalud'],
         ['proveedores', ProveedorController::class, 'PROVEEDORES', 'proveedor'],
         ['responsables-pago', ResponsablePagoController::class, 'RESPONSABLES_PAGO', 'responsablePago'],
     ] as [$uri, $controlador, $modulo, $parametro]) {

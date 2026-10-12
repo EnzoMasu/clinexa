@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
  * Reglas del formulario de la consulta, en un solo lugar: las FINALES (Finalizar y "Guardar cambios")
  * y las de BORRADOR (autoguardado, más permisivas), separadas por grupo de campos.
  *
- * - PREPARACION: bloques de anamnesis y signos vitales.
+ * - PREPARACION (en pantalla, TRIAJE): urgente y observación, bloques de anamnesis y signos vitales.
  * - CLINICO: motivo, hallazgos del examen, diagnósticos e indicaciones generales.
  *
  * Borrador: se validan formato, largos y rangos, pero ningún campo es obligatorio; las filas
@@ -71,6 +71,16 @@ final class FormularioConsulta
             self::atributos(),
         );
 
+        // Lo IMPOSIBLE (según los parámetros clínicos, aprobados o no): 422, como cualquier error de validación.
+        if (in_array(self::PREPARACION, $grupos, true)) {
+            $imposibles = collect((new EvaluadorSignos)->evaluar($datos['examen'] ?? []))
+                ->filter(fn (array $resultado) => $resultado['nivel'] === EvaluadorSignos::IMPOSIBLE)
+                ->mapWithKeys(fn (array $resultado, string $campo) => ["examen.{$campo}" => $resultado['mensaje']]);
+            if ($imposibles->isNotEmpty()) {
+                throw \Illuminate\Validation\ValidationException::withMessages($imposibles->all());
+            }
+        }
+
         return [$datos, $incompletas];
     }
 
@@ -99,6 +109,15 @@ final class FormularioConsulta
         $salida['examen'] = array_intersect_key($examen, array_flip($campos));
 
         if (in_array(self::PREPARACION, $grupos, true)) {
+            // Urgente y observación: solo si el formulario trae el bloque (con_triaje), así un pedido sin él no los borra.
+            if (! empty($entrada['con_triaje'])) {
+                $salida['con_triaje'] = '1';
+                $salida['triaje_urgente'] = filter_var($entrada['triaje_urgente'] ?? false, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+                $salida['triaje_observacion'] = $recortar($entrada['triaje_observacion'] ?? null);
+            }
+            if (is_array($entrada['confirmaciones'] ?? null)) {
+                $salida['confirmaciones'] = array_map($recortar, $entrada['confirmaciones']);
+            }
             $salida['con_anamnesis'] = $entrada['con_anamnesis'] ?? null;
             if (is_array($entrada['anamnesis'] ?? null)) {
                 $salida['anamnesis'] = $filas($entrada['anamnesis']);
@@ -188,13 +207,22 @@ final class FormularioConsulta
                     }
                 }],
                 'anamnesis.*.contenido' => ['required', 'string', 'max:5000'],
+                // Solo formato y tipo: los límites (lo "imposible") los define cada parámetro clínico y los aplica
+                // EvaluadorSignos después de esta validación (ver validar()).
                 'examen.presion_arterial' => ['nullable', 'string', 'max:10', 'regex:#^\d{2,3}/\d{2,3}$#'],
-                'examen.frecuencia_cardiaca' => ['nullable', 'integer', 'between:20,300'],
-                'examen.frecuencia_respiratoria' => ['nullable', 'integer', 'between:5,80'],
-                'examen.temperatura' => ['nullable', 'numeric', 'decimal:0,1', 'between:30,45'],
-                'examen.peso' => ['nullable', 'numeric', 'decimal:0,2', 'gt:0', 'max:500'],
-                'examen.talla' => ['nullable', 'numeric', 'decimal:0,1', 'between:20,250'],
-                'examen.saturacion_oxigeno' => ['nullable', 'integer', 'between:0,100'],
+                'examen.frecuencia_cardiaca' => ['nullable', 'integer', 'min:-99999', 'max:99999'],
+                'examen.frecuencia_respiratoria' => ['nullable', 'integer', 'min:-99999', 'max:99999'],
+                'examen.temperatura' => ['nullable', 'numeric', 'decimal:0,1', 'min:-999', 'max:999'],
+                'examen.peso' => ['nullable', 'numeric', 'decimal:0,2', 'gt:0', 'max:999'],
+                'examen.talla' => ['nullable', 'numeric', 'decimal:0,1', 'min:-9999', 'max:9999'],
+                'examen.saturacion_oxigeno' => ['nullable', 'integer', 'min:-99999', 'max:99999'],
+                // Urgente y observación del triaje (el bloque del comienzo del triaje).
+                'con_triaje' => ['nullable', 'boolean'],
+                'triaje_urgente' => ['nullable', 'boolean'],
+                'triaje_observacion' => ['nullable', 'string', 'max:1000'],
+                // Confirmación de los valores muy alterados: confirmaciones[campo] = el valor confirmado.
+                'confirmaciones' => ['nullable', 'array'],
+                'confirmaciones.*' => ['nullable', 'string', 'max:20'],
             ];
         }
 
@@ -287,6 +315,7 @@ final class FormularioConsulta
             'examen.peso' => 'peso',
             'examen.talla' => 'talla',
             'examen.saturacion_oxigeno' => 'saturación de oxígeno',
+            'triaje_observacion' => 'observación del triaje',
             'examen.hallazgos' => 'hallazgos',
             'diagnosticos.*.codigo_cie10' => 'código CIE-10',
             'diagnosticos.*.tipo' => 'tipo de diagnóstico',

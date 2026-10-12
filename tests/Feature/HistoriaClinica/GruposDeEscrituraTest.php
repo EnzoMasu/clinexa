@@ -19,7 +19,7 @@ const PERMISOS_ENFERMERIA = ['PREPARACION' => ['VER', 'CREAR', 'EDITAR']];
 
 beforeEach(function () {
     hcEscenario();
-    $this->enfermera = User::factory()->conPermisos(PERMISOS_ENFERMERIA)->conPersona(['apellidos' => 'Ortiz', 'nombres' => 'Nidia'])->create();
+    $this->enfermera = User::factory()->conPermisos(PERMISOS_ENFERMERIA)->personalDeSalud()->conPersona(['apellidos' => 'Ortiz', 'nombres' => 'Nidia'])->create();
     $this->reposo = TipoIndicacion::create(['nombre' => 'Reposo']);
 });
 

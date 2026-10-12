@@ -56,8 +56,11 @@ class PreparacionController extends Controller
             'turnos' => $turnos,
             'busqueda' => $busqueda,
             'profesional' => $profesionalId,
-            'puedeCrear' => $request->user()->tienePermiso('PREPARACION', 'CREAR'),
-            'puedeEditar' => $request->user()->tienePermiso('PREPARACION', 'EDITAR'),
+            // Con el permiso y siendo personal de salud (ConsultaPolicy::cargarTriaje); si no, se le avisa y no se
+            // le ofrecen los botones (la lista se sigue viendo con VER).
+            'esDeSalud' => $esDeSalud = Gate::allows('cargarTriaje', Consulta::class),
+            'puedeCrear' => $esDeSalud && $request->user()->tienePermiso('PREPARACION', 'CREAR'),
+            'puedeEditar' => $esDeSalud && $request->user()->tienePermiso('PREPARACION', 'EDITAR'),
             ...($request->ajax() ? [] : ['profesionales' => Profesional::activos()->with('persona')->get()->sortBy(fn ($p) => $p->persona->nombre_completo)
                 ->mapWithKeys(fn ($p) => [$p->id => $p->persona->nombre_completo])->all()]),
         ]);

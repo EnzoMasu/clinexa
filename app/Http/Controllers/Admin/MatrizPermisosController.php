@@ -30,11 +30,11 @@ class MatrizPermisosController extends Controller
     /** Módulos por grupo, como en el menú (resources/views/layouts/navigation.blade.php). */
     public const GRUPOS = [
         'Seguridad' => ['USUARIOS', 'PERFILES_ACCESO', 'AUDITORIA'],
-        'Personas y Roles' => ['PERSONAS', 'PACIENTES', 'PROFESIONALES', 'PROVEEDORES', 'CATEGORIAS_PROVEEDOR', 'TIPOS_RED_SOCIAL', 'RESPONSABLES_PAGO'],
+        'Personas y Roles' => ['PERSONAS', 'PACIENTES', 'PROFESIONALES', 'PERSONAL_SALUD', 'PROVEEDORES', 'CATEGORIAS_PROVEEDOR', 'TIPOS_RED_SOCIAL', 'RESPONSABLES_PAGO'],
         'Agenda' => ['TURNOS', 'DISPONIBILIDAD', 'CONSULTORIOS', 'ORIGENES_TURNO'],
         'Clínica' => ['HISTORIA_CLINICA', 'PREPARACION', 'RECETAS'],
         'Catálogos' => ['ESPECIALIDADES', 'SUCURSALES', 'TIPOS_DOCUMENTO', 'PROCEDIMIENTOS', 'MEDIOS_PAGO', 'CATEGORIAS_GASTO', 'CIE10',
-            'TIPOS_BLOQUE_ANAMNESIS', 'TIPOS_INDICACION', 'GEOGRAFIA'],
+            'TIPOS_BLOQUE_ANAMNESIS', 'TIPOS_INDICACION', 'CARGOS_SALUD', 'PARAMETROS_CLINICOS', 'GEOGRAFIA'],
     ];
 
     /** Grupo de los módulos que no están en el menú (p. ej. MODULOS_SISTEMA, sin pantalla). */

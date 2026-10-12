@@ -39,9 +39,14 @@ class ModuloSistemaSeeder extends Seeder
             'PROCEDIMIENTOS' => ['Procedimientos', self::ACTIVO_INACTIVO],
             'TIPOS_BLOQUE_ANAMNESIS' => ['Tipos de bloque de anamnesis', self::ACTIVO_INACTIVO],
             'TIPOS_INDICACION' => ['Tipos de indicación', self::ACTIVO_INACTIVO],
+            // Cargos del personal de salud (catálogo) y los parámetros clínicos de los signos vitales (los aprueba un médico).
+            'CARGOS_SALUD' => ['Cargos de salud', self::ACTIVO_INACTIVO],
+            'PARAMETROS_CLINICOS' => ['Parámetros clínicos', [Estado::PENDIENTE, Estado::APROBADO]],
             // Roles de negocio sobre Persona.
             'PACIENTES' => ['Pacientes', self::ACTIVO_INACTIVO],
             'PROFESIONALES' => ['Profesionales', self::ACTIVO_INACTIVO],
+            // Personal de salud: enfermería, obstetricia... (con el rol activo carga el triaje).
+            'PERSONAL_SALUD' => ['Personal de salud', self::ACTIVO_INACTIVO],
             'PROVEEDORES' => ['Proveedores', self::ACTIVO_INACTIVO],
             'RESPONSABLES_PAGO' => ['Responsables de pago', self::ACTIVO_INACTIVO],
             // Agenda.

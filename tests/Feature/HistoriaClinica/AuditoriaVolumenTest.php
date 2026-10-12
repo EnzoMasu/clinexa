@@ -23,7 +23,7 @@ uses()->group('lento');
 
 beforeEach(function () {
     hcEscenario();
-    $this->enfermera = User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->create();
+    $this->enfermera = User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->personalDeSalud()->create();
 });
 
 afterEach(fn () => Carbon::setTestNow());

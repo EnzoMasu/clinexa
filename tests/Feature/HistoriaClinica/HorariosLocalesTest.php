@@ -34,7 +34,7 @@ describe('22:30 del martes (01:30 UTC del miércoles): sigue siendo martes', fun
         $html = $this->get(route('admin.atencion.index'))->getContent();
         expect($html)->toContain(route('admin.atencion.atender', $this->martes))->not->toContain(route('admin.atencion.atender', $this->miercoles));
 
-        $enfermera = User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->create();
+        $enfermera = User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->personalDeSalud()->create();
         $this->actingAs($enfermera)->get(route('admin.preparacion.index'))->assertSee('Hoy, 06/10/2026')->assertSee('21:00')->assertDontSee('08:00');
     });
 

@@ -123,6 +123,21 @@ class UserFactory extends Factory
         });
     }
 
+    /**
+     * Su persona es Personal de salud ACTIVO (con un cargo), así puede cargar el triaje (ConsultaPolicy::cargarTriaje)
+     * además del permiso del módulo.
+     */
+    public function personalDeSalud(string $cargo = 'Enfermero/a', ?string $registro = null): static
+    {
+        return $this->afterCreating(function (User $usuario) use ($cargo, $registro) {
+            \App\Models\PersonalSalud::create([
+                'persona_id' => $usuario->persona_id,
+                'cargo_salud_id' => \App\Models\CargoSalud::firstOrCreate(['nombre' => $cargo])->id,
+                'registro_profesional' => $registro,
+            ]);
+        });
+    }
+
     /** Usuario sin ningún perfil (no puede entrar). */
     public function sinPerfiles(): static
     {

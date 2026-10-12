@@ -39,7 +39,9 @@ final class Autoguardado
         }
 
         $grupos = self::grupos($usuario, $consulta);
-        abort_if($grupos === [], 403, 'No tiene permiso para modificar esta consulta.');
+        // Sin ningún grupo: el motivo de la policy (p. ej. "Solo el personal de salud puede cargar el triaje.").
+        abort_if($grupos === [], 403, Gate::forUser($usuario)->inspect('escribirPreparacion', $consulta)->message()
+            ?? 'No tiene permiso para modificar esta consulta.');
         abort_if(FormularioConsulta::traeCamposClinicos($request->all()) && ! in_array(FormularioConsulta::CLINICO, $grupos, true), 403,
             'No tiene permiso para cargar el motivo, los hallazgos, los diagnósticos ni las indicaciones.');
         abort_if((string) $request->input('version') !== $consulta->version(), 409, self::VERSION_VIEJA);

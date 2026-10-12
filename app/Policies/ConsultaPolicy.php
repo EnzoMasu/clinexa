@@ -15,9 +15,10 @@ use Illuminate\Auth\Access\Response;
  * Quién hace qué con una consulta (el único lugar que lo decide). Leer: VER sobre HISTORIA_CLINICA
  * (lo controla la ruta). Escribir se divide en dos grupos de campos:
  *
- * - PREPARACIÓN (bloques de anamnesis y signos vitales): (a) el profesional ACTIVO de la consulta con
- *   CREAR o EDITAR sobre HISTORIA_CLINICA, o (b) cualquier usuario con EDITAR sobre PREPARACION; solo
- *   mientras la consulta está EN_PREPARACION o EN_CURSO.
+ * - TRIAJE (internamente "preparación": bloques de anamnesis, signos vitales, urgente y observación del
+ *   triaje): (a) el profesional ACTIVO de la consulta con CREAR o EDITAR sobre HISTORIA_CLINICA, o (b) un usuario
+ *   con EDITAR sobre PREPARACION que además sea personal de salud (cargarTriaje); solo mientras la consulta está
+ *   EN_PREPARACION o EN_CURSO.
  * - CLÍNICO (motivo, hallazgos, diagnósticos, indicaciones y recetas): solo el profesional ACTIVO de la
  *   consulta (ni el Administrador), mientras está EN_CURSO.
  * - Cerrada (FINALIZADA o ANULADA): nadie escribe. La regla de fondo está en los modelos
@@ -29,6 +30,22 @@ use Illuminate\Auth\Access\Response;
 class ConsultaPolicy
 {
     public const SOLO_EL_QUE_ATIENDE = 'Solo el profesional que atiende puede modificar esta consulta.';
+
+    public const SOLO_PERSONAL_SALUD = 'Solo el personal de salud puede cargar el triaje.';
+
+    /**
+     * Puede cargar el triaje (EL lugar que lo decide): usuario ACTIVO cuya persona es Profesional ACTIVO o Personal
+     * de salud ACTIVO. Es además del permiso del módulo: una persona con un rol administrativo no carga el triaje
+     * aunque tenga el permiso por error. Para mostrar u ocultar botones: Gate::allows('cargarTriaje', Consulta::class).
+     */
+    public function cargarTriaje(User $usuario): Response
+    {
+        $usuario->loadMissing(['persona.personalSalud', 'profesional']);
+        $esDeSalud = $usuario->estaActivo()
+            && ($this->profesionalActivo($usuario) !== null || $usuario->persona?->personalSalud?->estaActivo() === true);
+
+        return $esDeSalud ? Response::allow() : Response::deny(self::SOLO_PERSONAL_SALUD);
+    }
 
     /** Estados del turno desde los que se puede preparar o atender. */
     public const TURNO_POR_ATENDER = [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::SALTADO];
@@ -87,6 +104,9 @@ class ConsultaPolicy
             && (int) $this->profesionalActivo($usuario)?->id === (int) $turno->profesional_id;
         if (! $usuario->tienePermiso('PREPARACION', 'CREAR') && ! $esSuProfesional) {
             return Response::deny('No tiene permiso para iniciar el triaje.');
+        }
+        if (! $esSuProfesional && ($salud = $this->cargarTriaje($usuario))->denied()) {
+            return $salud;
         }
         if (! $turno->profesional->estaActivo()) {
             return Response::deny('El profesional del turno está inactivo.');
@@ -152,10 +172,15 @@ class ConsultaPolicy
         if ($consulta->abierta()) {
             $comoProfesional = $this->esElQueAtiende($usuario, $consulta)
                 && ($usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR') || $usuario->tienePermiso('HISTORIA_CLINICA', 'EDITAR'));
+            if ($comoProfesional) {
+                return Response::allow();
+            }
+            if (! $usuario->tienePermiso('PREPARACION', 'EDITAR')) {
+                return Response::deny('No tiene permiso para cargar el triaje de esta consulta.');
+            }
 
-            return $comoProfesional || $usuario->tienePermiso('PREPARACION', 'EDITAR')
-                ? Response::allow()
-                : Response::deny('No tiene permiso para cargar el triaje de esta consulta.');
+            // Con el permiso del módulo, además tiene que ser personal de salud (o profesional activo).
+            return $this->cargarTriaje($usuario);
         }
 
         return Response::deny(\App\Exceptions\ConsultaCerrada::MENSAJE);

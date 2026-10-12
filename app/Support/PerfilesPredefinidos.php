@@ -108,6 +108,8 @@ class PerfilesPredefinidos
             'ESPECIALIDADES' => self::VER, 'SUCURSALES' => self::VER, 'TIPOS_DOCUMENTO' => self::VER, 'PROCEDIMIENTOS' => self::VER,
             'MEDIOS_PAGO' => self::VER, 'CATEGORIAS_GASTO' => self::VER, 'CIE10' => self::VER, 'TIPOS_BLOQUE_ANAMNESIS' => self::VER,
             'TIPOS_INDICACION' => self::VER, 'GEOGRAFIA' => self::VER, 'AUDITORIA' => self::VER,
+            // Triaje (2026-10-13): ver el personal de salud, sus cargos y los parámetros clínicos.
+            'PERSONAL_SALUD' => self::VER, 'CARGOS_SALUD' => self::VER, 'PARAMETROS_CLINICOS' => self::VER,
         ],
         // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
         // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones
@@ -116,6 +118,7 @@ class PerfilesPredefinidos
         self::MEDICO => [
             'HISTORIA_CLINICA' => self::VER_CREAR_EDITAR, 'RECETAS' => self::VER_CREAR_EDITAR, 'PREPARACION' => self::VER_CREAR_EDITAR,
             'TURNOS' => self::VER, 'DISPONIBILIDAD' => self::VER, 'CONSULTORIOS' => self::VER, 'PACIENTES' => self::VER,
+            'PARAMETROS_CLINICOS' => self::VER,
         ],
         self::ENFERMERIA => [
             'PREPARACION' => self::VER_CREAR_EDITAR,
@@ -142,6 +145,8 @@ class PerfilesPredefinidos
         self::SUPERVISION_MEDICA => [
             'HISTORIA_CLINICA' => self::VER, 'RECETAS' => self::VER, 'PACIENTES' => self::VER, 'PROFESIONALES' => self::VER,
             'AUDITORIA' => self::VER,
+            // Triaje: administra el personal de salud, ve los cargos y define y aprueba los parámetros clínicos.
+            'PERSONAL_SALUD' => self::VER_CREAR_EDITAR, 'CARGOS_SALUD' => self::VER, 'PARAMETROS_CLINICOS' => ['VER', 'EDITAR'],
         ],
         self::AUDITOR => [
             'AUDITORIA' => self::VER,
