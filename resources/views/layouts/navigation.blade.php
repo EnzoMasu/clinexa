@@ -4,6 +4,7 @@
         'Seguridad' => [
             'admin.usuarios' => 'Usuarios',
             'admin.perfiles-acceso' => 'Perfiles de acceso',
+            'admin.matriz-permisos' => 'Matriz de permisos',
             'admin.auditoria' => 'Auditoría',
         ],
         'Personas y Roles' => [

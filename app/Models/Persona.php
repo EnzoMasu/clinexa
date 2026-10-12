@@ -73,6 +73,18 @@ class Persona extends Model
 
         // Tampoco se desactiva la Persona de una paciente con consultas cerradas (la regla es de Paciente).
         static::updating(function (Persona $persona) {
+            // La persona del administrador principal (en un pedido web): nadie la desactiva, tampoco él; sus datos
+            // (correo, documento, nombres...) solo los edita él: si otro cambiara el correo, podría pedir un
+            // restablecimiento de contraseña y quedarse con la cuenta.
+            if ($persona->isDirty() && \App\Support\AdministradorPrincipal::aplica() && $persona->usuario?->esAdministradorPrincipal()
+                && ($persona->isDirty('estado_id') || (int) \Illuminate\Support\Facades\Auth::id() !== (int) $persona->usuario->id)) {
+                throw new \App\Exceptions\AdministradorPrincipalInamovible;
+            }
+            // Tampoco la persona del último administrador activo (sin ella, su usuario no entra).
+            if ($persona->isDirty('estado_id') && (int) $persona->estado_id === Estado::idDe(Estado::INACTIVO)
+                && $persona->usuario?->esUltimoAdministrador()) {
+                throw new \App\Exceptions\UltimoAdministrador;
+            }
             if ($persona->isDirty('estado_id') && (int) $persona->estado_id === Estado::idDe(Estado::INACTIVO)
                 && $persona->paciente?->tieneConsultasCerradas()) {
                 throw new \App\Exceptions\PacienteConConsultasCerradas;
@@ -86,6 +98,18 @@ class Persona extends Model
                 $persona->usuario?->update(['email' => self::emailDeUsuario($persona->email)]);
             }
         });
+    }
+
+    /** Es la persona del administrador principal y quien la mira no es él (no puede editarla). */
+    public function esDelAdministradorPrincipalAjeno(): bool
+    {
+        return $this->usuario?->esAdministradorPrincipal() === true && (int) \Illuminate\Support\Facades\Auth::id() !== (int) $this->usuario->id;
+    }
+
+    /** Es la persona del administrador principal (nadie la desactiva). */
+    public function esDelAdministradorPrincipal(): bool
+    {
+        return $this->usuario?->esAdministradorPrincipal() === true;
     }
 
     /**

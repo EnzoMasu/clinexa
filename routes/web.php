@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\DepartamentoController;
 use App\Http\Controllers\Admin\DisponibilidadController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\HistoriaClinicaController;
+use App\Http\Controllers\Admin\MatrizPermisosController;
 use App\Http\Controllers\Admin\MedioPagoController;
 use App\Http\Controllers\Admin\OrigenTurnoController;
 use App\Http\Controllers\Admin\PacienteController;
@@ -95,6 +96,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     });
 
     $seccion('perfiles-acceso', PerfilAccesoController::class, 'PERFILES_ACCESO', 'perfilAcceso', conBaja: true);
+    // Matriz de permisos: mirar (VER) y editar los permisos de un perfil (EDITAR; pasa por una confirmación).
+    // PERFILES_ACCESO es sensible: abrirla registra VER.
+    Route::get('matriz-permisos', [MatrizPermisosController::class, 'index'])->name('matriz-permisos.index')
+        ->middleware('permiso:PERFILES_ACCESO,VER');
+    Route::put('matriz-permisos/{perfilAcceso}', [MatrizPermisosController::class, 'update'])->name('matriz-permisos.update')
+        ->whereNumber('perfilAcceso')->middleware('permiso:PERFILES_ACCESO,EDITAR');
     $seccion('personas', PersonaController::class, 'PERSONAS', 'persona', conBaja: true);
     $seccion('especialidades', EspecialidadController::class, 'ESPECIALIDADES', 'especialidad', conBaja: true);
     $seccion('sucursales', SucursalController::class, 'SUCURSALES', 'sucursal', conBaja: true);
@@ -156,10 +163,14 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             ->middleware('permiso:HISTORIA_CLINICA,VER,tabla=consultas');
         Route::get('consulta/pacientes', [AtencionController::class, 'pacientes'])->name('atencion.pacientes')
             ->middleware('permiso:HISTORIA_CLINICA,CREAR');
-        Route::middleware('permiso:TURNOS,EDITAR')->group(function () {
+        // Las acciones del profesional sobre SUS turnos desde la pantalla Consulta: CREAR sobre HISTORIA_CLINICA
+        // (ConsultaPolicy exige además que sea el profesional activo del turno). Los botones manuales de la
+        // pantalla Turnos (confirmar, cancelar, ausente) siguen con EDITAR sobre TURNOS.
+        Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
             Route::get('consulta/cerrar-jornada', [AtencionController::class, 'vistaCerrarJornada'])->name('atencion.cerrar-jornada');
             Route::post('consulta/cerrar-jornada', [AtencionController::class, 'cerrarJornada'])->name('atencion.cerrar-jornada.confirmar');
             Route::post('turnos/{turno}/no-se-presento', [AtencionController::class, 'noSePresento'])->name('atencion.no-se-presento')->whereNumber('turno');
+            Route::post('turnos/{turno}/pasar-ausente', [AtencionController::class, 'pasarAusente'])->name('atencion.pasar-ausente')->whereNumber('turno');
         });
         Route::middleware('permiso:HISTORIA_CLINICA,CREAR')->group(function () {
             Route::post('turnos/{turno}/atender', [AtencionController::class, 'atender'])->name('atencion.atender')->whereNumber('turno');

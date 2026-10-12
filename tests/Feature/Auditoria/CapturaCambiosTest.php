@@ -81,7 +81,7 @@ describe('crear, editar y desactivar', function () {
     test('pasar un usuario a BLOQUEADO se registra como BLOQUEO', function () {
         $otro = User::factory()->create();
 
-        $this->put(route('admin.usuarios.update', $otro), ['perfil_acceso_id' => $this->admin->perfil_acceso_id, 'estado_id' => estadoId('BLOQUEADO')])->assertSessionHasNoErrors();
+        $this->put(route('admin.usuarios.update', $otro), ['perfiles' => $otro->perfiles->modelKeys(), 'estado_id' => estadoId('BLOQUEADO')])->assertSessionHasNoErrors();
 
         expect(logsDe('users', $otro->id)->sole())->accion->toBe(AccionAuditoria::BLOQUEO)
             ->valor_nuevo->toMatchArray(['estado_id' => estadoId('BLOQUEADO')]); // y lo demás que cambió en el mismo guardado
@@ -104,10 +104,10 @@ describe('campos sensibles', function () {
 
     test('dar de alta un usuario no guarda su contraseña ni tokens', function () {
         $persona = Persona::factory()->create();
-        $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfil_acceso_id' => $this->admin->perfil_acceso_id]);
+        $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfiles' => [\App\Models\PerfilAcceso::create(['nombre' => 'Sin permisos'])->id]]);
 
         $crear = logsDe('users')->where('accion', AccionAuditoria::CREAR)->sole();
-        expect($crear->valor_nuevo)->toHaveKeys(['persona_id', 'email', 'perfil_acceso_id'])
+        expect($crear->valor_nuevo)->toHaveKeys(['persona_id', 'email'])
             ->not->toHaveKeys(['password', 'remember_token']);
     });
 
@@ -161,7 +161,7 @@ describe('cuándo no se registra', function () {
 });
 
 describe('tablas pivote', function () {
-    test('la matriz de permisos de un perfil queda registrada con la lista de antes y la de después', function () {
+    test('la matriz de permisos de un perfil queda registrada con lo agregado y lo quitado, por módulo', function () {
         $perfil = PerfilAcceso::create(['nombre' => 'Recepción']);
         $personas = ModuloSistema::where('codigo', 'PERSONAS')->sole();
         $turnos = ModuloSistema::where('codigo', 'TURNOS')->sole();
@@ -177,9 +177,10 @@ describe('tablas pivote', function () {
         $cambios = logsDe('perfiles_acceso', $perfil->id);
         expect($cambios)->toHaveCount(2)
             ->and($cambios[0])->accion->toBe(AccionAuditoria::EDITAR)
-            ->valor_anterior->toBe(['permisos' => []])
-            ->valor_nuevo->toBe(['permisos' => ['PERSONAS: CREAR', 'PERSONAS: VER', 'TURNOS: VER']])
-            ->and($cambios[1]->valor_nuevo)->toBe(['permisos' => ['PERSONAS: VER']]);
+            ->valor_anterior->toBe(['permisos_quitados' => []])
+            ->valor_nuevo->toBe(['permisos_agregados' => ['PERSONAS: ver, crear', 'TURNOS: ver']])
+            ->and($cambios[1]->valor_anterior)->toBe(['permisos_quitados' => ['PERSONAS: crear', 'TURNOS: ver']])
+            ->and($cambios[1]->valor_nuevo)->toBe(['permisos_agregados' => []]);
     });
 
     test('especialidades del profesional y categorías del proveedor', function () {

@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             ModuloSistemaSeeder::class,
             ModulosSensiblesSeeder::class,
             PerfilAdministradorSeeder::class,
+            PerfilesPredefinidosSeeder::class,
             GeografiaSeeder::class,
             DatosRealesClinicaSeeder::class,
             CatalogoCie10Seeder::class,

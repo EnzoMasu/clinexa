@@ -19,6 +19,7 @@ use App\Support\Atencion\DeshacerAtencion;
 use App\Support\Atencion\Finalizar;
 use App\Support\Atencion\FormularioConsulta;
 use App\Support\Atencion\NoSePresento;
+use App\Support\Atencion\PasarAusente;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
 use App\Support\Fecha;
@@ -82,7 +83,9 @@ class AtencionController extends Controller
             'anteriores' => Turno::where('profesional_id', $profesional->id)->whereDate('fecha', '<', $hoy->format('Y-m-d'))
                 ->whereIn('estado_id', array_map(fn (string $codigo) => Estado::idDe($codigo), CerrarJornada::POR_CERRAR))->count(),
             'puedeAtender' => Gate::allows('atender', Consulta::class),
-            'puedePasarAusente' => $request->user()->tienePermiso('TURNOS', 'EDITAR'),
+            // "No se presentó" y "Pasar a ausente": el profesional activo que atiende (CREAR sobre HISTORIA_CLINICA), en
+            // sus turnos (ConsultaPolicy). No hace falta EDITAR sobre TURNOS.
+            'puedePasarAusente' => Gate::allows('cerrarJornada', Consulta::class),
         ];
 
         return $this->listado($request, 'admin.atencion', $datos);
@@ -121,6 +124,15 @@ class AtencionController extends Controller
     }
 
     /** Vista previa de "Cerrar jornada": los turnos de hoy y de días anteriores que pasarían a AUSENTE. */
+    public function pasarAusente(Request $request, Turno $turno): RedirectResponse
+    {
+        return $this->accion(function () use ($request, $turno) {
+            PasarAusente::ejecutar($request->user(), $turno);
+
+            return redirect()->route('admin.atencion.index')->with('status', 'Turno de las '.substr($turno->hora_inicio, 0, 5).': ausente.');
+        });
+    }
+
     public function vistaCerrarJornada(Request $request): View
     {
         Gate::authorize('cerrarJornada', Consulta::class);

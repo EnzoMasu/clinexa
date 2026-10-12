@@ -26,7 +26,7 @@
                 <div>
                     <x-admin.select name="estado_id" label="Estado" :options="$perfil::estadosPermitidos()->pluck('nombre', 'id')->all()" :value="$perfil->estado_id" required aria-describedby="estado-perfil-nota" />
                     <p id="estado-perfil-nota" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                        Si el perfil queda INACTIVO, los usuarios que lo tienen no pueden ingresar al sistema.
+                        Si el perfil queda INACTIVO, deja de aportar permisos: los usuarios que no tengan otro perfil activo no pueden ingresar al sistema.
                     </p>
                 </div>
             @endif

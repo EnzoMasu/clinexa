@@ -1,7 +1,7 @@
 # Clinexa: reglas permanentes
 
 ## Git
-- Se trabaja en la rama de trabajo actual (hoy `rediseno-atencion`); verificarla con `git branch --show-current`.
+- Se trabaja en la rama que se indique en cada pedido, nunca en `main`; verificarla con `git branch --show-current`.
 - `main` no se toca sin confirmación expresa: ni merge, ni push, ni commits.
 - Commits WIP chicos. Ningún commit final ni merge sin confirmación.
 
@@ -32,4 +32,7 @@
 - `composer test:rapido`: en paralelo, sin el grupo `lento` ni PostgreSQL. Para el trabajo diario.
 - `composer test:completo`: todo, en serie. Antes de cada commit que no sea WIP, de cualquier merge y de
   tocar la base real.
+- Los helpers de test definidos como funciones globales llevan el prefijo del archivo (p. ej.
+  `perfilesPredefinidosExistente` en `PerfilesPredefinidosTest`): los choques de nombre ya rompieron la
+  suite dos veces.
 - Detalle en `docs/pruebas.md`.

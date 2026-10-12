@@ -1,4 +1,8 @@
 @use('App\Support\Permisos')
+@php
+    // Perfiles tildados: los del error de validación, o los que ya tiene el usuario.
+    $tildados = array_map('intval', old('perfiles') !== null ? (array) old('perfiles') : ($usuario->exists ? $usuario->perfiles->modelKeys() : []));
+@endphp
 
 <x-admin.page :title="$usuario->exists ? 'Editar usuario' : 'Nuevo usuario'">
     @if (! $usuario->exists && ! $hayPersonasDisponibles)
@@ -21,6 +25,33 @@
                 @endif
                 <a href="{{ route('admin.usuarios.index') }}" class="text-sm text-gray-600 dark:text-gray-400 hover:underline">Volver</a>
             </div>
+        </div>
+    @elseif ($usuario->exists && $usuario->esAdministradorPrincipal())
+        {{-- El administrador principal es inamovible: ni perfiles, ni estado, ni invitación desde acá (AdministradorPrincipal). --}}
+        <div class="p-6 max-w-xl space-y-4">
+            <div class="rounded-md bg-indigo-50 dark:bg-indigo-900/30 p-4 text-sm text-indigo-800 dark:text-indigo-200 space-y-2">
+                <p class="font-medium">Es el administrador principal y no puede modificarse.</p>
+                <p>Nadie puede cambiar sus perfiles ni su estado, tampoco él mismo. Sus datos personales los edita solo él.</p>
+            </div>
+            <dl class="grid gap-3 sm:grid-cols-2 text-sm">
+                <div>
+                    <dt class="text-gray-500 dark:text-gray-400">Nombre</dt>
+                    <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $usuario->persona->nombre_completo }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500 dark:text-gray-400">Documento</dt>
+                    <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $usuario->persona->tipoDocumento->codigo }} {{ $usuario->persona->nro_documento }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500 dark:text-gray-400">Perfiles de acceso</dt>
+                    <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $usuario->perfiles->pluck('nombre')->sort()->implode(', ') }}</dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500 dark:text-gray-400">Estado</dt>
+                    <dd><x-admin.estado-badge :estado="$usuario->estado" /></dd>
+                </div>
+            </dl>
+            <a href="{{ route('admin.usuarios.index') }}" class="inline-block text-sm text-gray-600 dark:text-gray-400 hover:underline">Volver</a>
         </div>
     @else
         <x-admin.form
@@ -57,18 +88,43 @@
                     ayuda="Solo aparecen personas físicas activas que todavía no tienen usuario. El email del usuario es el de la persona." />
             @endif
 
-            @if ($usuario->exists && $usuario->is(auth()->user()))
-                <div>
-                    <x-admin.select name="perfil_acceso_id" label="Perfil de acceso" :options="$perfiles" :value="$usuario->perfil_acceso_id"
-                        disabled aria-describedby="perfil-propio-nota" class="disabled:opacity-60 disabled:cursor-not-allowed" />
-                    <p id="perfil-propio-nota" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            {{-- Perfiles (usuario_perfil): puede tener varios; sus permisos se suman. Los propios no se cambian. --}}
+            @php($propio = $usuario->exists && $usuario->is(auth()->user()))
+            <fieldset class="space-y-2" aria-describedby="perfiles-nota" @disabled($propio)>
+                <legend class="font-medium text-sm text-gray-700 dark:text-gray-300">Perfiles de acceso</legend>
+                @if ($propio)
+                    <p id="perfil-propio-nota" class="text-sm text-gray-600 dark:text-gray-400">
                         No puede cambiar su propio perfil de acceso, para no quedarse sin permisos de administración por error.
                         Si hace falta, solicítelo a otro administrador.
                     </p>
-                </div>
-            @else
-                <x-admin.select name="perfil_acceso_id" label="Perfil de acceso" :options="$perfiles" :value="$usuario->perfil_acceso_id" required />
-            @endif
+                @endif
+                @forelse ($perfiles as $perfil)
+                    {{-- El perfil Administrador solo lo asigna o lo quita el administrador principal: para los demás la
+                         casilla queda fija (si estaba tildada, se manda igual, oculta). --}}
+                    @php($fija = $propio || ($perfil->esAdministrador() && ! \App\Support\AdministradorPrincipal::puedeAsignarAdministrador()))
+                    @if ($fija && ! $propio && in_array($perfil->id, $tildados, true))
+                        <input type="hidden" name="perfiles[]" value="{{ $perfil->id }}">
+                    @endif
+                    <label class="flex items-center gap-2 text-sm text-gray-900 dark:text-gray-100">
+                        <input type="checkbox" name="perfiles[]" value="{{ $perfil->id }}" @checked(in_array($perfil->id, $tildados, true)) @disabled($fija)
+                            class="rounded border-gray-300 dark:border-gray-700 dark:bg-gray-900 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800 disabled:opacity-60 disabled:cursor-not-allowed">
+                        {{ $perfil->nombre }}
+                        @unless ($perfil->estaActivo())
+                            <x-admin.estado-badge :estado="$perfil->estado" />
+                        @endunless
+                        @if ($fija && ! $propio)
+                            <span class="text-xs text-gray-600 dark:text-gray-400">(solo lo asigna el administrador principal)</span>
+                        @endif
+                    </label>
+                @empty
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No hay perfiles de acceso activos.</p>
+                @endforelse
+                <p id="perfiles-nota" class="text-xs text-gray-500 dark:text-gray-400">
+                    Elija al menos uno activo. Los permisos del usuario son la suma de los de sus perfiles activos.
+                    Solo puede asignar perfiles cuyos permisos usted ya tiene.
+                </p>
+                <x-input-error :messages="[...$errors->get('perfiles'), ...$errors->get('perfiles.*')]" />
+            </fieldset>
 
             @if ($usuario->exists)
                 <x-admin.select name="estado_id" label="Estado" :options="$usuario::estadosPermitidos()->pluck('nombre', 'id')->all()" :value="$usuario->estado_id" required />

@@ -19,9 +19,10 @@
                 <div class="text-xs text-gray-500 dark:text-gray-400">{{ $persona->telefono }}</div>
             </td>
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$persona->estado" /></td>
+            {{-- La persona del administrador principal: solo él la edita y nadie la desactiva. --}}
             <x-admin.actions
-                :edit="Permisos::url('admin.personas.edit', $persona)"
-                :desactivar="$persona->estaActivo() ? Permisos::url('admin.personas.desactivar', $persona) : null" />
+                :edit="$persona->esDelAdministradorPrincipalAjeno() ? null : Permisos::url('admin.personas.edit', $persona)"
+                :desactivar="$persona->estaActivo() && ! $persona->esDelAdministradorPrincipal() ? Permisos::url('admin.personas.desactivar', $persona) : null" />
         </tr>
     @empty
         <x-admin.empty-row colspan="6" :busqueda="$busqueda" />

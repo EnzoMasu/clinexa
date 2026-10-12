@@ -19,7 +19,7 @@ beforeEach(function () {
 
 test('el listado muestra nombre y documento de la persona', function () {
     $usuario = User::factory()->conPersona(['apellidos' => 'Ruiz', 'nombres' => 'Liz', 'nro_documento' => '4567890'])
-        ->create(['perfil_acceso_id' => $this->perfil->id]);
+        ->conPerfiles([$this->perfil])->create();
 
     $this->get(route('admin.usuarios.index'))->assertOk()
         ->assertSeeInOrder(['Ruiz, Liz', '4567890', $usuario->email, 'Recepción']);
@@ -110,7 +110,7 @@ test('tras un error de validación el selector conserva la persona elegida', fun
 
     $this->from(route('admin.usuarios.create'))
         ->post(route('admin.usuarios.store'), ['persona_id' => $persona->id])
-        ->assertSessionHasErrors('perfil_acceso_id');
+        ->assertSessionHasErrors('perfiles');
 
     // Se ve igual que en el buscador: con el email.
     $this->get(route('admin.usuarios.create'))
@@ -132,7 +132,7 @@ test('crear un usuario toma el email de la persona y le envía la invitación', 
 
     $this->post(route('admin.usuarios.store'), [
         'persona_id' => $persona->id,
-        'perfil_acceso_id' => $this->perfil->id,
+        'perfiles' => [$this->perfil->id],
         'email' => 'otro@ignorado.test', // no se usa: el email sale de la persona
     ])->assertSessionHasNoErrors()->assertRedirect(route('admin.usuarios.index'));
 
@@ -140,14 +140,14 @@ test('crear un usuario toma el email de la persona y le envía la invitación', 
     expect($usuario)
         ->email->toBe('ana.recepcion@clinexa.test')
         ->estado->codigo->toBe('ACTIVO')
-        ->perfil_acceso_id->toBe($this->perfil->id)
+        ->perfiles->modelKeys()->toBe([$this->perfil->id])
         ->password->not->toBeEmpty();
 
     Notification::assertSentTo($usuario, InvitacionUsuario::class);
 });
 
 test('no se puede crear un usuario para una persona no disponible', function (Closure $persona) {
-    $this->post(route('admin.usuarios.store'), ['persona_id' => $persona()->id, 'perfil_acceso_id' => $this->perfil->id])
+    $this->post(route('admin.usuarios.store'), ['persona_id' => $persona()->id, 'perfiles' => [$this->perfil->id]])
         ->assertSessionHasErrors('persona_id');
 })->with([
     'que ya tiene usuario' => [fn () => User::factory()->create()->persona],
@@ -161,18 +161,18 @@ test('no se puede crear un usuario para una persona no disponible', function (Cl
 test('no se puede crear un usuario si el email de la persona ya lo usa otro usuario', function () {
     $persona = Persona::factory()->create(['email' => $this->admin->email]);
 
-    $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfil_acceso_id' => $this->perfil->id])
+    $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfiles' => [$this->perfil->id]])
         ->assertSessionHasErrors('persona_id');
     expect(User::where('persona_id', $persona->id)->exists())->toBeFalse();
 });
 
 test('crear exige persona y perfil de acceso', function () {
-    $this->post(route('admin.usuarios.store'), [])->assertSessionHasErrors(['persona_id', 'perfil_acceso_id']);
+    $this->post(route('admin.usuarios.store'), [])->assertSessionHasErrors(['persona_id', 'perfiles']);
 });
 
 test('el flujo completo: el usuario invitado define su contraseña y entra', function () {
     $persona = Persona::factory()->create(['email' => 'ana@clinexa.test']);
-    $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfil_acceso_id' => $this->perfil->id]);
+    $this->post(route('admin.usuarios.store'), ['persona_id' => $persona->id, 'perfiles' => [$this->perfil->id]]);
     auth()->logout();
 
     $usuario = User::where('email', 'ana@clinexa.test')->sole();
@@ -211,7 +211,7 @@ test('editar cambia solo perfil y estado: persona, email y contraseña no se toc
     [$personaAnterior, $emailAnterior, $hashAnterior] = [$usuario->persona_id, $usuario->email, $usuario->password];
 
     $this->put(route('admin.usuarios.update', $usuario), [
-        'perfil_acceso_id' => $otroPerfil->id,
+        'perfiles' => [$otroPerfil->id],
         'estado_id' => estadoId('BLOQUEADO'),
         'persona_id' => Persona::factory()->create()->id,
         'email' => 'nuevo@clinexa.test',
@@ -219,7 +219,7 @@ test('editar cambia solo perfil y estado: persona, email y contraseña no se toc
     ])->assertSessionHasNoErrors();
 
     expect($usuario->fresh())
-        ->perfil_acceso_id->toBe($otroPerfil->id)
+        ->perfiles->modelKeys()->toBe([$otroPerfil->id])
         ->estado->codigo->toBe('BLOQUEADO')
         ->persona_id->toBe($personaAnterior)
         ->email->toBe($emailAnterior)
@@ -256,49 +256,96 @@ test('desactivar pasa el usuario a INACTIVO sin borrarlo', function () {
 test('un admin no puede desactivarse ni bloquearse a sí mismo', function () {
     $this->patch(route('admin.usuarios.desactivar', $this->admin))->assertSessionHas('error');
 
-    $this->put(route('admin.usuarios.update', $this->admin), ['estado_id' => estadoId('BLOQUEADO')])->assertSessionHas('error');
+    $perfilesPropios = $this->admin->perfiles->modelKeys();
+    $this->put(route('admin.usuarios.update', $this->admin), ['perfiles' => $perfilesPropios, 'estado_id' => estadoId('BLOQUEADO')])->assertSessionHas('error');
 
     expect($this->admin->fresh()->estado->codigo)->toBe('ACTIVO');
 });
 
-test('un usuario no puede cambiarse su propio perfil de acceso', function () {
-    $perfilOriginal = $this->admin->perfil_acceso_id;
+test('un usuario no puede cambiarse su propio perfil de acceso: ni quitarse ni sumarse uno', function () {
+    $perfilAdmin = $this->admin->perfiles->sole();
 
-    $this->put(route('admin.usuarios.update', $this->admin), [
-        'perfil_acceso_id' => $this->perfil->id, 'estado_id' => estadoId('ACTIVO'),
-    ])->assertSessionHas('error', 'No puede cambiar su propio perfil de acceso.');
+    foreach ([[$this->perfil->id], [$perfilAdmin->id, $this->perfil->id], []] as $perfiles) {
+        $this->put(route('admin.usuarios.update', $this->admin), ['perfiles' => $perfiles, 'estado_id' => estadoId('ACTIVO')])
+            ->assertSessionHas('error', 'No puede cambiar su propio perfil de acceso.');
+    }
 
-    expect($this->admin->fresh()->perfil_acceso_id)->toBe($perfilOriginal);
+    expect($this->admin->fresh()->perfiles->modelKeys())->toBe([$perfilAdmin->id]);
 });
 
-test('editarse a uno mismo sin mandar el perfil (campo deshabilitado) conserva el perfil', function () {
-    $perfilOriginal = $this->admin->perfil_acceso_id;
+test('editarse a uno mismo sin mandar los perfiles (casillas deshabilitadas) los conserva', function () {
+    $perfilAdmin = $this->admin->perfiles->sole();
 
     $this->put(route('admin.usuarios.update', $this->admin), ['estado_id' => estadoId('ACTIVO')])
         ->assertSessionHasNoErrors()->assertSessionMissing('error');
 
-    expect($this->admin->fresh()->perfil_acceso_id)->toBe($perfilOriginal);
+    expect($this->admin->fresh()->perfiles->modelKeys())->toBe([$perfilAdmin->id]);
 });
 
-test('el formulario muestra el perfil propio deshabilitado con la nota, y el de otros editable', function () {
-    $this->get(route('admin.usuarios.edit', $this->admin))->assertOk()
-        ->assertSee('No puede cambiar su propio perfil de acceso')
-        ->assertSeeInOrder(['name="perfil_acceso_id"', 'disabled'], false);
+test('tampoco por el modelo: en un pedido web, asignarse o quitarse un perfil propio se rechaza', function () {
+    $perfilAdmin = $this->admin->perfiles->sole();
+    // Una ruta cualquiera que, dentro del pedido, intenta cambiar los perfiles del usuario logueado.
+    \Illuminate\Support\Facades\Route::middleware('web')->get('/prueba-perfiles-propios/{caso}', function (string $caso) use ($perfilAdmin) {
+        $usuario = auth()->user();
+        match ($caso) {
+            'attach' => $usuario->perfiles()->attach(test()->perfil->id),
+            'detach' => $usuario->perfiles()->detach($perfilAdmin->id),
+            'sync' => $usuario->perfiles()->sync([test()->perfil->id]),
+        };
 
-    $otro = User::factory()->create(['perfil_acceso_id' => $this->perfil->id]);
+        return 'cambiado';
+    });
+
+    foreach (['attach', 'detach', 'sync'] as $caso) {
+        $this->from('/dashboard')->get("/prueba-perfiles-propios/{$caso}")->assertRedirect('/dashboard')
+            ->assertSessionHas('error', \App\Exceptions\PerfilesPropios::MENSAJE);
+    }
+    expect($this->admin->fresh()->perfiles->modelKeys())->toBe([$perfilAdmin->id]);
+});
+
+test('el formulario muestra los perfiles propios deshabilitados con la nota, y los de otros editables', function () {
+    $html = $this->get(route('admin.usuarios.edit', $this->admin))->assertOk()
+        ->assertSee('No puede cambiar su propio perfil de acceso')
+        ->getContent();
+    // El atributo disabled (no la clase disabled:...).
+    expect($html)->toMatch('/<fieldset[^>]*\sdisabled[\s>]/')->toMatch('/name="perfiles\[\]"[^>]*\sdisabled[\s>]/');
+
+    $otro = User::factory()->conPerfiles([$this->perfil])->create();
     $html = $this->get(route('admin.usuarios.edit', $otro))->assertOk()
         ->assertDontSee('No puede cambiar su propio perfil de acceso')
         ->getContent();
-    expect($html)->not->toMatch('/<select[^>]*name="perfil_acceso_id"[^>]*\sdisabled\s/s');
+    // Su casilla de Recepción, editable (la de Administrador queda fija: solo la cambia el administrador principal).
+    expect($html)->not->toMatch('/name="perfiles\[\]" value="'.$this->perfil->id.'"[^>]*\sdisabled[\s>]/')->not->toMatch('/<fieldset[^>]*\sdisabled[\s>]/');
 });
 
-test('otro administrador sí puede cambiarle el perfil a un usuario', function () {
+test('el formulario muestra una casilla por perfil activo, con los del usuario tildados', function () {
+    $otro = User::factory()->conPerfiles([$this->perfil])->create();
+    $inactivo = PerfilAcceso::create(['nombre' => 'Perfil viejo', 'estado_id' => estadoId('INACTIVO')]);
+
+    $html = $this->get(route('admin.usuarios.edit', $otro))->assertOk()
+        ->assertSee('Perfiles de acceso')->assertSee('Recepción')->assertDontSee('Perfil viejo')
+        ->getContent();
+    expect($html)->toMatch('/name="perfiles\[\]" value="'.$this->perfil->id.'"\s+checked/')
+        ->not->toContain('name="perfil_acceso_id"');
+
+    // Un perfil inactivo que el usuario ya tiene se muestra (con su estado), tildado.
+    $otro->perfiles()->attach($inactivo->id);
+    $this->get(route('admin.usuarios.edit', $otro))->assertSee('Perfil viejo');
+});
+
+test('el perfil Administrador de otro usuario: lo quita el principal; un administrador que no es principal, no', function () {
     $otro = User::factory()->administrador()->create();
+    $admin = $otro->perfiles->sole()->id;
 
-    $this->put(route('admin.usuarios.update', $otro), ['perfil_acceso_id' => $this->perfil->id, 'estado_id' => estadoId('ACTIVO')])
+    // $this->admin es Administrador, pero no el principal.
+    $this->put(route('admin.usuarios.update', $otro), ['perfiles' => [$this->perfil->id], 'estado_id' => estadoId('ACTIVO')])
+        ->assertSessionHasErrors(['perfiles' => \App\Support\AdministradorPrincipal::SOLO_EL_PRINCIPAL]);
+    expect($otro->fresh()->perfiles->modelKeys())->toBe([$admin]);
+
+    $this->actingAs(User::factory()->principal()->create())
+        ->put(route('admin.usuarios.update', $otro), ['perfiles' => [$this->perfil->id], 'estado_id' => estadoId('ACTIVO')])
         ->assertSessionHasNoErrors();
-
-    expect($otro->fresh()->perfil_acceso_id)->toBe($this->perfil->id);
+    expect($otro->fresh()->perfiles->modelKeys())->toBe([$this->perfil->id]);
 });
 
 test('el email de invitación está en castellano y saluda con el nombre de la persona', function () {

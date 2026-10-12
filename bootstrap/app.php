@@ -42,6 +42,12 @@ return Application::configure(basePath: dirname(__DIR__))
             before: SubstituteBindings::class,
             prepend: VerificarAlgunPermiso::class,
         );
+        // Y antes del permiso, UsuarioActivo: a quien ya no puede entrar (bloqueado, inactivo, sin ningún
+        // perfil activo) se le cierra la sesión con el motivo, en lugar de un 403.
+        $middleware->prependToPriorityList(
+            before: VerificarPermiso::class,
+            prepend: UsuarioActivo::class,
+        );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Paciente con consultas cerradas: en la web se vuelve a la pantalla con el aviso (en el campo de estado y
@@ -52,5 +58,24 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return back()->withInput()->with('error', $e->getMessage())->withErrors(['estado_id' => $e->getMessage()]);
+        });
+        // Último administrador (quitarle el perfil, desactivarlo o bloquearlo) o cambiar los perfiles propios:
+        // igual, con el aviso arriba.
+        // También el administrador principal (inamovible) y lo que solo él puede hacer.
+        $exceptions->render(function (\App\Exceptions\UltimoAdministrador|\App\Exceptions\PerfilesPropios|\App\Exceptions\AdministradorPrincipalInamovible $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 409);
+            }
+
+            return back()->withInput()->with('error', $e->getMessage());
+        });
+        // Cualquier otra AccionRechazada que llegue hasta acá (las guardas de los modelos: la marca de administrador
+        // principal, quién asigna el perfil Administrador): igual, en vez de un error 500.
+        $exceptions->render(function (\App\Exceptions\AccionRechazada $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $e->getMessage()], 409);
+            }
+
+            return back()->withInput()->with('error', $e->getMessage());
         });
     })->create();

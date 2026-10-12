@@ -95,10 +95,13 @@ class ConsultaPolicy
         return $this->turnoDeHoyPorAtender($turno);
     }
 
-    /** "No se presentó": el profesional ACTIVO del turno con EDITAR sobre TURNOS; turno de hoy PENDIENTE o CONFIRMADO. */
+    /**
+     * "No se presentó": el profesional ACTIVO del turno con CREAR sobre HISTORIA_CLINICA (no hace falta EDITAR
+     * sobre TURNOS, que es la administración de la agenda); turno de hoy PENDIENTE o CONFIRMADO.
+     */
     public function noSePresento(User $usuario, Turno $turno): Response
     {
-        if (! $usuario->tienePermiso('TURNOS', 'EDITAR') || (int) $this->profesionalActivo($usuario)?->id !== (int) $turno->profesional_id) {
+        if (! $this->esSuTurno($usuario, $turno)) {
             return Response::deny('Solo el profesional del turno puede marcar que no se presentó.');
         }
         if ($turno->fecha->format('Y-m-d') !== Fecha::hoy()->format('Y-m-d')) {
@@ -110,12 +113,37 @@ class ConsultaPolicy
             : Response::deny('Solo se marca un turno pendiente o confirmado.');
     }
 
-    /** Cerrar la jornada (sus turnos sin atender pasan a AUSENTE): profesional ACTIVO con EDITAR sobre TURNOS. */
+    /**
+     * "Pasar a ausente" (pantalla Consulta, "Por llamar de nuevo"): el profesional ACTIVO del turno con CREAR
+     * sobre HISTORIA_CLINICA; turno de hoy SALTADO. La hora y la transición las revalida Turno::pasarA.
+     */
+    public function pasarAusente(User $usuario, Turno $turno): Response
+    {
+        if (! $this->esSuTurno($usuario, $turno)) {
+            return Response::deny('Solo el profesional del turno puede pasarlo a ausente.');
+        }
+        if ($turno->fecha->format('Y-m-d') !== Fecha::hoy()->format('Y-m-d')) {
+            return Response::deny('Solo se pasan a ausente los turnos de hoy.');
+        }
+
+        return $turno->estado->codigo === Estado::SALTADO
+            ? Response::allow()
+            : Response::deny('Solo se pasa a ausente un turno que está por llamar de nuevo.');
+    }
+
+    /** Cerrar la jornada (sus turnos sin atender pasan a AUSENTE): profesional ACTIVO con CREAR sobre HISTORIA_CLINICA. */
     public function cerrarJornada(User $usuario): Response
     {
-        return $usuario->tienePermiso('TURNOS', 'EDITAR') && $this->profesionalActivo($usuario)
+        return $usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR') && $this->profesionalActivo($usuario)
             ? Response::allow()
-            : Response::deny('Solo un profesional activo con permiso sobre los turnos puede cerrar su jornada.');
+            : Response::deny('Solo un profesional activo que atiende consultas puede cerrar su jornada.');
+    }
+
+    /** El usuario es el profesional ACTIVO del turno y atiende consultas (CREAR sobre HISTORIA_CLINICA). */
+    private function esSuTurno(User $usuario, Turno $turno): bool
+    {
+        return $usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR')
+            && (int) $this->profesionalActivo($usuario)?->id === (int) $turno->profesional_id;
     }
 
     /** Escribir el grupo PREPARACIÓN (anamnesis y signos vitales) de esta consulta. */
