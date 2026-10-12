@@ -198,8 +198,8 @@ describe('pantallas', function () {
             ->assertSee('Matriz de permisos')->assertSee('Recepción')->assertSee('Enfermería')->assertSee('Historia clínica')
             ->assertDontSee('type="checkbox"', false)->assertDontSee('name="permisos', false)
             ->getContent();
-        expect($html)->toMatch('/data-perfil="'.PerfilAcceso::where('codigo', 'ENFERMERIA')->value('id').'" data-modulo="PREPARACION">\s*<span class="text-xs">VER, CREAR, EDITAR<\/span>/')
-            ->toMatch('/data-perfil="'.PerfilAcceso::where('codigo', 'ENFERMERIA')->value('id').'" data-modulo="HISTORIA_CLINICA">\s*<span[^>]*aria-label="Sin permisos"/');
+        expect($html)->toMatch('/data-perfil="'.PerfilAcceso::where('codigo', 'ENFERMERIA')->value('id').'" data-modulo="PREPARACION"\s*>\s*<span class="text-xs">VER, CREAR, EDITAR<\/span>/')
+            ->toMatch('/data-perfil="'.PerfilAcceso::where('codigo', 'ENFERMERIA')->value('id').'" data-modulo="HISTORIA_CLINICA"\s*>\s*<span[^>]*aria-label="Sin permisos"/');
 
         $this->get('/dashboard')->assertSeeInOrder(['data-grupo-menu="Seguridad"', route('admin.perfiles-acceso.index'), route('admin.matriz-permisos.index')], false);
     });
