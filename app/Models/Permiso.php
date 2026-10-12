@@ -21,6 +21,8 @@ class Permiso extends Model
         'HISTORIA_CLINICA' => ['VER', 'CREAR', 'EDITAR'],
         'RECETAS' => ['VER', 'CREAR', 'EDITAR'],
         'PREPARACION' => ['VER', 'CREAR', 'EDITAR'],
+        // Parámetros clínicos: un juego fijo (no se crean ni se desactivan); se editan y se aprueban (con EDITAR).
+        'PARAMETROS_CLINICOS' => ['VER', 'EDITAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

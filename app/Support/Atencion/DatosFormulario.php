@@ -20,9 +20,9 @@ final class DatosFormulario
 {
     /** Relaciones que hacen falta (con la autoría). */
     public const RELACIONES = [
-        'bloquesAnamnesis.tipoBloqueAnamnesis', 'bloquesAnamnesis.usuario.persona', 'bloquesAnamnesis.modificadoPor.persona',
-        'examenFisico.signosUsuario.persona', 'examenFisico.hallazgosUsuario.persona',
-        'diagnosticos.cie10', 'indicaciones.tipoIndicacion',
+        'bloquesAnamnesis.tipoBloqueAnamnesis', 'bloquesAnamnesis.usuario.persona.personalSalud.cargoSalud', 'bloquesAnamnesis.modificadoPor.persona.personalSalud.cargoSalud',
+        'examenFisico.signosUsuario.persona.personalSalud.cargoSalud', 'examenFisico.hallazgosUsuario.persona.personalSalud.cargoSalud',
+        'diagnosticos.cie10', 'indicaciones.tipoIndicacion', 'urgentePor.persona.personalSalud.cargoSalud',
     ];
 
     /** @return array<string, mixed> */
@@ -44,6 +44,8 @@ final class DatosFormulario
             'valorExamen' => fn (string $campo) => old("examen.{$campo}", in_array($campo, ['temperatura', 'peso', 'talla'], true) ? self::decimalConComa($examen?->{$campo}) : $examen?->{$campo}),
             'autorSignos' => self::autoria($examen?->signosUsuario),
             'autorHallazgos' => self::autoria($examen?->hallazgosUsuario),
+            // El nivel de cada signo guardado (signos_alertas): la etiqueta junto al signo.
+            'alertas' => $examen?->signos_alertas ?? [],
         ];
     }
 
@@ -58,10 +60,16 @@ final class DatosFormulario
             .($modifico && $modifico->id !== $cargo?->id ? ($cargo ? ', modificado por ' : 'Modificado por ').self::nombre($modifico) : ''));
     }
 
-    /** Nombre completo desde la persona del usuario. */
+    /**
+     * Nombre completo desde la persona del usuario; si es personal de salud, con su cargo (y el registro, si lo
+     * tiene): "Nidia Ortiz (Enfermero/a, registro 1234)".
+     */
     public static function nombre(User $usuario): string
     {
-        return $usuario->persona ? trim($usuario->persona->nombres.' '.$usuario->persona->apellidos) : $usuario->name;
+        $nombre = $usuario->persona ? trim($usuario->persona->nombres.' '.$usuario->persona->apellidos) : $usuario->name;
+        $salud = $usuario->persona?->personalSalud;
+
+        return $salud?->cargoSalud ? "{$nombre} ({$salud->descripcionCargo()})" : $nombre;
     }
 
     private static function filasAnamnesis(Consulta $consulta, Collection $tiposActivos): array

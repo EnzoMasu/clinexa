@@ -45,13 +45,13 @@ function perfilesPorRolSecciones(): array
 {
     return [
         'usuarios' => 'USUARIOS', 'perfiles-acceso' => 'PERFILES_ACCESO', 'matriz-permisos' => 'PERFILES_ACCESO', 'auditoria' => 'AUDITORIA',
-        'personas' => 'PERSONAS', 'pacientes' => 'PACIENTES', 'profesionales' => 'PROFESIONALES', 'proveedores' => 'PROVEEDORES',
+        'personas' => 'PERSONAS', 'pacientes' => 'PACIENTES', 'profesionales' => 'PROFESIONALES', 'personal-salud' => 'PERSONAL_SALUD', 'proveedores' => 'PROVEEDORES',
         'categorias-proveedor' => 'CATEGORIAS_PROVEEDOR', 'tipos-red-social' => 'TIPOS_RED_SOCIAL', 'responsables-pago' => 'RESPONSABLES_PAGO',
         'turnos' => 'TURNOS', 'disponibilidades' => 'DISPONIBILIDAD', 'consultorios' => 'CONSULTORIOS', 'origenes-turno' => 'ORIGENES_TURNO',
         'atencion' => 'HISTORIA_CLINICA', 'preparacion' => 'PREPARACION', 'historias-clinicas' => 'HISTORIA_CLINICA',
         'especialidades' => 'ESPECIALIDADES', 'sucursales' => 'SUCURSALES', 'tipos-documento' => 'TIPOS_DOCUMENTO', 'procedimientos' => 'PROCEDIMIENTOS',
         'medios-pago' => 'MEDIOS_PAGO', 'categorias-gasto' => 'CATEGORIAS_GASTO', 'cie10' => 'CIE10', 'tipos-bloque-anamnesis' => 'TIPOS_BLOQUE_ANAMNESIS',
-        'tipos-indicacion' => 'TIPOS_INDICACION', 'paises' => 'GEOGRAFIA', 'departamentos' => 'GEOGRAFIA', 'ciudades' => 'GEOGRAFIA',
+        'tipos-indicacion' => 'TIPOS_INDICACION', 'cargos-salud' => 'CARGOS_SALUD', 'parametros-clinicos' => 'PARAMETROS_CLINICOS', 'paises' => 'GEOGRAFIA', 'departamentos' => 'GEOGRAFIA', 'ciudades' => 'GEOGRAFIA',
     ];
 }
 
@@ -185,6 +185,8 @@ describe('Médico', function () {
 describe('Enfermería', function () {
     beforeEach(function () {
         $this->enfermera = perfilesPorRolUsuario('ENFERMERIA', ['apellidos' => 'Ortiz', 'nombres' => 'Nidia']);
+        // Con el perfil ENFERMERIA y además Personal de salud activo (sin el rol no carga el triaje: ConsultaPolicy::cargarTriaje).
+        \App\Models\PersonalSalud::create(['persona_id' => $this->enfermera->persona_id, 'cargo_salud_id' => \App\Models\CargoSalud::firstOrCreate(['nombre' => 'Enfermero/a'])->id]);
         $this->actingAs($this->enfermera);
     });
 

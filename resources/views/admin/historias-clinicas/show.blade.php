@@ -87,7 +87,7 @@
                                     @if ($consulta->enCurso())
                                         <span class="me-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">En curso</span>
                                     @elseif ($consulta->enPreparacion())
-                                        <span class="me-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800 dark:bg-violet-900/40 dark:text-violet-200">En preparación</span>
+                                        <span class="me-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800 dark:bg-violet-900/40 dark:text-violet-200">En triaje</span>
                                     @endif
                                     @if (! $consulta->turno_id)
                                         <span class="me-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">Urgencia</span>

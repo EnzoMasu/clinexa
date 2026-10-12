@@ -177,6 +177,11 @@ class Persona extends Model
         return $this->hasOne(Profesional::class);
     }
 
+    public function personalSalud(): HasOne
+    {
+        return $this->hasOne(PersonalSalud::class);
+    }
+
     public function proveedor(): HasOne
     {
         return $this->hasOne(Proveedor::class);

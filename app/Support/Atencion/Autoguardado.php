@@ -22,13 +22,15 @@ use Illuminate\Support\Facades\Gate;
  *   no se pisa nada. Si la consulta ya no está abierta, 409.
  * - Cada guardado efectivo queda como EDITAR de la consulta con detalle "Borrador (autoguardado)"; uno sin
  *   cambios no genera eventos.
+ * - Signos vitales (SignosVitales): un valor muy alterado sin su confirmación exacta no se guarda y vuelve en
+ *   "pendientes" (el controlador responde 422 con código requiere_confirmacion); los demás campos sí se guardan.
  */
 final class Autoguardado
 {
     public const VERSION_VIEJA = 'Esta consulta se modificó desde otra ventana. Recargue la página.';
 
     /**
-     * @return array{version: string, guardado: string, incompletas: array<string, list<string>>, ids: array<string, array<string, int>>}
+     * @return array{version: string, guardado: string, incompletas: array<string, list<string>>, ids: array<string, array<string, int>>, pendientes: array<string, array<string, string>>}
      */
     public static function ejecutar(User $usuario, Consulta $consulta, Request $request): array
     {
@@ -39,13 +41,19 @@ final class Autoguardado
         }
 
         $grupos = self::grupos($usuario, $consulta);
-        abort_if($grupos === [], 403, 'No tiene permiso para modificar esta consulta.');
+        // Sin ningún grupo: el motivo de la policy (p. ej. "Solo el personal de salud puede cargar el triaje.").
+        abort_if($grupos === [], 403, Gate::forUser($usuario)->inspect('escribirPreparacion', $consulta)->message()
+            ?? 'No tiene permiso para modificar esta consulta.');
         abort_if(FormularioConsulta::traeCamposClinicos($request->all()) && ! in_array(FormularioConsulta::CLINICO, $grupos, true), 403,
             'No tiene permiso para cargar el motivo, los hallazgos, los diagnósticos ni las indicaciones.');
         abort_if((string) $request->input('version') !== $consulta->version(), 409, self::VERSION_VIEJA);
 
         [$datos, $incompletas] = FormularioConsulta::validar($request, $consulta, $grupos, final: false);
         $version = (string) $request->input('version');
+        // Los valores muy alterados sin su confirmación exacta no se guardan (los demás campos sí).
+        $pendientes = in_array(FormularioConsulta::PREPARACION, $grupos, true)
+            ? SignosVitales::revisar($consulta, $datos, $request->input('confirmaciones'))
+            : [];
 
         $ids = DB::transaction(function () use ($usuario, $consulta, $datos, $grupos, $version) {
             $actual = Apoyo::consultaBloqueada($consulta);
@@ -65,6 +73,8 @@ final class Autoguardado
             'guardado' => Fecha::mostrar(now(), conHora: true),
             'incompletas' => $incompletas,
             'ids' => $ids,
+            // campo => [valor, texto, mensaje]: no se guardaron, esperan la confirmación (el controlador responde 422).
+            'pendientes' => $pendientes,
         ];
     }
 

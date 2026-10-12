@@ -22,7 +22,7 @@
     $examen = $consulta->examenFisico;
     // Signos vitales cargados, en el orden del formulario: sigla => [valor con unidad, nombre completo].
     $signos = collect(ExamenFisico::SIGLAS)
-        ->map(fn (string $sigla, string $campo) => [$sigla, $examen?->valorTexto($campo), ExamenFisico::CAMPOS[$campo][0]])
+        ->map(fn (string $sigla, string $campo) => [$sigla, $examen?->valorTexto($campo), ExamenFisico::CAMPOS[$campo][0], $examen?->alerta($campo)])
         ->filter(fn (array $signo) => $signo[1] !== null);
     $bloques = $consulta->bloquesAnamnesis->sortBy(['orden', 'id']);
     // Vigentes primero (el principal arriba); los retirados al final, atenuados.
@@ -58,9 +58,10 @@
         <section>
             <h4 class="sr-only">Signos vitales</h4>
             <ul class="flex flex-wrap gap-2">
-                @foreach ($signos as [$sigla, $valor, $nombre])
+                @foreach ($signos as [$sigla, $valor, $nombre, $alerta])
                     <li class="rounded-full bg-gray-100 px-3 py-1 text-xs dark:bg-gray-700/60">
                         <abbr title="{{ $nombre }}" class="font-semibold no-underline">{{ $sigla }}</abbr> {{ $valor }}
+                        @include('admin.consultas._nivel-signo', ['alerta' => $alerta])
                     </li>
                 @endforeach
             </ul>

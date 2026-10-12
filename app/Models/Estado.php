@@ -49,6 +49,9 @@ class Estado extends Model
     /** Recetas: anulada (se conserva y se ve, con el motivo). */
     public const ANULADO = 'ANULADO';
 
+    /** Parámetros clínicos: aprobado por un médico (si no, PENDIENTE: no marca alertas). */
+    public const APROBADO = 'APROBADO';
+
     protected $table = 'estados';
 
     protected $fillable = [

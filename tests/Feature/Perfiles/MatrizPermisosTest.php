@@ -83,7 +83,7 @@ describe('la pantalla', function () {
         expect(LogAuditoria::where('accion', AccionAuditoria::VER->value)->where('tabla_afectada', 'perfiles_acceso')->where('usuario_id', $this->admin->id)->count())->toBe(1);
     });
 
-    test('cantidad fija de consultas SQL, con 12 perfiles y 28 módulos y con más', function () {
+    test('cantidad fija de consultas SQL, con 12 perfiles y 31 módulos y con más', function () {
         $contar = function (array $parametros) {
             DB::flushQueryLog();
             DB::enableQueryLog();
@@ -92,7 +92,7 @@ describe('la pantalla', function () {
 
             return count(DB::getQueryLog());
         };
-        expect(PerfilAcceso::count())->toBe(12)->and(ModuloSistema::count())->toBe(28);
+        expect(PerfilAcceso::count())->toBe(12)->and(ModuloSistema::count())->toBe(31);
         $this->get(route('admin.matriz-permisos.index')); // calentamiento
         [$editar, $comparar] = [$contar(['perfil' => $this->perfil->id]), $contar(['vista' => 'comparar'])];
 
@@ -267,7 +267,7 @@ describe('efecto en el siguiente pedido', function () {
     test('el autoguardado sin el permiso responde 403 y la pantalla muestra el cartel que ya existe', function () {
         hcEscenario();
         $enfermeria = UserFactory::perfilConPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']], 'Enfermería de prueba');
-        $enfermera = User::factory()->conPerfiles([$enfermeria])->create();
+        $enfermera = User::factory()->conPerfiles([$enfermeria])->personalDeSalud()->create();
         $this->actingAs($enfermera)->post(route('admin.preparacion.preparar', hcTurno()))->assertRedirect();
         $consulta = Consulta::latest('id')->firstOrFail();
 

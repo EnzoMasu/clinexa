@@ -43,6 +43,7 @@
                             @endif
                         </span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $consulta->historiaClinica->paciente])</span>
+                        <span class="flex gap-1">@include('admin.preparacion._alertas', ['consulta' => $consulta])</span>
                         <span class="text-xs text-gray-600 dark:text-gray-400">
                             {{-- De otro día (en hora de Paraguay, no en UTC): con la fecha. --}}
                             @php($desde = Fecha::mostrar($consulta->iniciada_en, conHora: true))
@@ -71,14 +72,15 @@
                                 <span class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">Confirmó</span>
                             @endif
                             @include('admin.preparacion._estado', ['consulta' => $turno->consulta])
+                            @include('admin.preparacion._alertas', ['consulta' => $turno->consulta])
                         </span>
                         <span class="flex flex-wrap items-center gap-2">
                             @if ($turno->consulta)
-                                <a href="{{ route('admin.preparacion.formulario', $turno->consulta) }}" class="{{ $boton }}">Anamnesis</a>
+                                <a href="{{ route('admin.preparacion.formulario', $turno->consulta) }}" class="{{ $boton }}">Continuar triaje</a>
                             @elseif ($puedeAtender)
                                 <form method="POST" action="{{ route('admin.preparacion.preparar', $turno) }}">
                                     @csrf
-                                    <button type="submit" class="{{ $boton }}">Anamnesis</button>
+                                    <button type="submit" class="{{ $boton }}">Iniciar triaje</button>
                                 </form>
                             @endif
                             @if ($puedeAtender)
@@ -120,6 +122,7 @@
                         <span class="w-24 dato text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                         @include('admin.preparacion._estado', ['consulta' => $turno->consulta])
+                        @include('admin.preparacion._alertas', ['consulta' => $turno->consulta])
                         <span class="flex flex-wrap items-center gap-2">
                             @if ($puedeAtender)
                                 <form method="POST" action="{{ route('admin.atencion.atender', $turno) }}">

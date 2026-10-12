@@ -8,9 +8,11 @@ use App\Models\Consulta;
 use App\Models\Estado;
 use App\Models\Profesional;
 use App\Models\Turno;
+use App\Support\Atencion\Autoguardado;
 use App\Support\Atencion\DatosFormulario;
 use App\Support\Atencion\MarcarLista;
 use App\Support\Atencion\Preparar;
+use App\Support\Atencion\SignosVitales;
 use App\Support\Auditoria;
 use App\Support\Fecha;
 use Illuminate\Http\RedirectResponse;
@@ -38,8 +40,9 @@ class PreparacionController extends Controller
             ->join('profesionales', 'profesionales.id', '=', 'turnos.profesional_id')
             ->join('personas as persona_profesional', 'persona_profesional.id', '=', 'profesionales.persona_id')
             ->with(['estado', 'paciente.persona', 'profesional.persona', 'consulta' => fn ($query) => $query
-                ->select(['id', 'turno_id', 'estado_id', 'preparada_en', 'historia_clinica_id', 'profesional_id'])
-                ->withExists(['bloquesAnamnesis as con_anamnesis' => fn ($q) => $q->where('activo', true), 'examenFisico as con_examen'])])
+                ->select(['id', 'turno_id', 'estado_id', 'preparada_en', 'historia_clinica_id', 'profesional_id', 'triaje_urgente'])
+                ->withExists(['bloquesAnamnesis as con_anamnesis' => fn ($q) => $q->where('activo', true), 'examenFisico as con_examen',
+                    'examenFisico as con_alertas' => fn ($q) => $q->whereNotNull('signos_alertas')])])
             ->whereDate('turnos.fecha', Fecha::hoy()->format('Y-m-d'))
             ->whereIn('turnos.estado_id', $estados)
             ->when($profesionalId, fn ($query) => $query->where('turnos.profesional_id', $profesionalId))
@@ -50,14 +53,19 @@ class PreparacionController extends Controller
                 ->orWhereLike('persona_profesional.apellidos', "%{$busqueda}%")
                 ->orWhereLike('persona_profesional.nombres', "%{$busqueda}%")))
             ->orderBy('turnos.hora_inicio')->orderBy('turnos.id')
-            ->get();
+            ->get()
+            // Los urgentes del triaje primero; el resto, por hora (orden estable). Los signos alterados no cambian el orden.
+            ->sortBy(fn (Turno $turno) => $turno->consulta?->triaje_urgente ? 0 : 1)->values();
 
         return $this->listado($request, 'admin.preparacion', [
             'turnos' => $turnos,
             'busqueda' => $busqueda,
             'profesional' => $profesionalId,
-            'puedeCrear' => $request->user()->tienePermiso('PREPARACION', 'CREAR'),
-            'puedeEditar' => $request->user()->tienePermiso('PREPARACION', 'EDITAR'),
+            // Con el permiso y siendo personal de salud (ConsultaPolicy::cargarTriaje); si no, se le avisa y no se
+            // le ofrecen los botones (la lista se sigue viendo con VER).
+            'esDeSalud' => $esDeSalud = Gate::allows('cargarTriaje', Consulta::class),
+            'puedeCrear' => $esDeSalud && $request->user()->tienePermiso('PREPARACION', 'CREAR'),
+            'puedeEditar' => $esDeSalud && $request->user()->tienePermiso('PREPARACION', 'EDITAR'),
             ...($request->ajax() ? [] : ['profesionales' => Profesional::activos()->with('persona')->get()->sortBy(fn ($p) => $p->persona->nombre_completo)
                 ->mapWithKeys(fn ($p) => [$p->id => $p->persona->nombre_completo])->all()]),
         ]);
@@ -94,7 +102,28 @@ class PreparacionController extends Controller
             'consulta' => $consulta,
             'datos' => DatosFormulario::de($consulta),
             'puedeMarcar' => Gate::allows('marcarLista', $consulta),
+            // Sin parámetros clínicos aprobados el sistema no marca alertas: se avisa (banner).
+            'sinReferencias' => \App\Support\Atencion\EvaluadorSignos::faltanAprobados(),
         ]);
+    }
+
+    /**
+     * "Guardar triaje" sin JavaScript: el mismo autoguardado (mismas reglas, versión y auditoría), por un formulario
+     * común. Un valor muy alterado sin confirmar vuelve con su error y una casilla de confirmación; lo demás se guarda.
+     */
+    public function guardar(Request $request, Consulta $consulta): RedirectResponse
+    {
+        abort_if($consulta->anulada(), 404);
+        $resultado = Autoguardado::ejecutar($request->user(), $consulta, $request);
+        $volver = redirect()->route('admin.preparacion.formulario', $consulta);
+
+        if ($resultado['pendientes'] !== []) {
+            return $volver->withInput(collect($request->except(['version', '_token']))->all())
+                ->withErrors(collect($resultado['pendientes'])->mapWithKeys(fn (array $p, string $campo) => ["confirmaciones.{$campo}" => $p['mensaje']])->all())
+                ->with('error', SignosVitales::MENSAJE);
+        }
+
+        return $volver->with('status', 'Triaje guardado.');
     }
 
     public function marcarLista(Request $request, Consulta $consulta): RedirectResponse
@@ -112,6 +141,6 @@ class PreparacionController extends Controller
         abort_if($consulta->anulada(), 404);
         MarcarLista::ejecutar($request->user(), $consulta, $lista);
 
-        return redirect()->route('admin.preparacion.formulario', $consulta)->with('status', $lista ? 'Preparación marcada como lista.' : 'Preparación reabierta.');
+        return redirect()->route('admin.preparacion.formulario', $consulta)->with('status', $lista ? 'Triaje terminado.' : 'Triaje reabierto.');
     }
 }

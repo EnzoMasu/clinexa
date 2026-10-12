@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(193); // 24 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + matriz de permisos (ver y guardar) + invitación + 5 buscadores de personas (usuarios y los 4 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó, pasar a ausente) + atención (pantalla, autoguardado, finalizar, deshacer) + Preparación (lista, preparar, formulario, marcar lista, reabrir) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
+    expect($rutas)->toHaveCount(211); // 26 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + matriz de permisos (ver y guardar) + invitación + 6 buscadores de personas (usuarios y los 5 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, 2 buscadores, cambio de estado) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó, pasar a ausente) + atención (pantalla, autoguardado, finalizar, deshacer) + Triaje (lista, iniciar, formulario, guardar sin JavaScript, terminar, reabrir) + parámetros clínicos (listado, editar, guardar, aprobar) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -105,10 +105,10 @@ test('el Administrador ve los 5 grupos del menú, en orden y con sus secciones, 
 
     $grupos = [
         'Seguridad' => ['usuarios', 'perfiles-acceso', 'matriz-permisos', 'auditoria'],
-        'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
+        'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'personal-salud', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
         'Agenda' => ['turnos', 'disponibilidades', 'consultorios', 'origenes-turno'],
         'Clínica' => ['atencion', 'preparacion', 'historias-clinicas'],
-        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'paises', 'departamentos', 'ciudades'],
+        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'cargos-salud', 'parametros-clinicos', 'paises', 'departamentos', 'ciudades'],
     ];
 
     // Cada encabezado seguido de sus links, en el desplegable de escritorio y en el menú de mobile.
@@ -148,7 +148,7 @@ test('un perfil con permisos en un solo grupo no ve los encabezados de los grupo
 test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra a todo', function () {
     $admin = User::factory()->administrador()->create();
 
-    expect(ModuloSistema::count())->toBe(28)
+    expect(ModuloSistema::count())->toBe(31)
         ->and($admin->perfiles->sole()->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 
     // Salvo lo que además exige ser profesional activo (ConsultaPolicy), que el Administrador no es por

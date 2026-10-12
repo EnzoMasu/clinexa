@@ -64,8 +64,8 @@ class ConsultaController extends Controller
     private const RELACIONES_CONTENIDO = [
         'historiaClinica.paciente.persona.tipoDocumento', 'profesional.persona', 'turno',
         // Con la autoría ("Cargado por" / "modificado por") de la anamnesis y del examen físico.
-        'bloquesAnamnesis.tipoBloqueAnamnesis', 'bloquesAnamnesis.usuario.persona', 'bloquesAnamnesis.modificadoPor.persona',
-        'examenFisico.signosUsuario.persona', 'examenFisico.hallazgosUsuario.persona', 'diagnosticos.cie10', 'indicaciones.tipoIndicacion',
+        'bloquesAnamnesis.tipoBloqueAnamnesis', 'bloquesAnamnesis.usuario.persona.personalSalud.cargoSalud', 'bloquesAnamnesis.modificadoPor.persona.personalSalud.cargoSalud',
+        'examenFisico.signosUsuario.persona.personalSalud.cargoSalud', 'examenFisico.hallazgosUsuario.persona.personalSalud.cargoSalud', 'diagnosticos.cie10', 'indicaciones.tipoIndicacion',
     ];
 
     /**

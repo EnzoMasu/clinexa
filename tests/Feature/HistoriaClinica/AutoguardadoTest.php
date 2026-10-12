@@ -118,7 +118,7 @@ test('hasta 30 pedidos por minuto por usuario: el 31 es 429; a otro usuario no l
     expect($this->consulta->fresh()->examenFisico->frecuencia_cardiaca)->toBe(90);
 
     // Otro usuario (una enfermera con PREPARACION) tiene su propio límite.
-    $enfermera = \App\Models\User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->create();
+    $enfermera = \App\Models\User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->personalDeSalud()->create();
     $this->actingAs($enfermera);
     hcAutoguardar($this->consulta, ['examen' => ['peso' => '60']])->assertOk();
 
@@ -149,7 +149,7 @@ test('auditoría: cada guardado efectivo es UN EDITAR "Borrador (autoguardado)" 
 });
 
 test('el autor del cambio queda en el evento y en la fila ("Cargado por" / "modificado por")', function () {
-    $enfermera = \App\Models\User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->conPersona(['apellidos' => 'Ortiz', 'nombres' => 'Nidia'])->create();
+    $enfermera = \App\Models\User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->personalDeSalud()->conPersona(['apellidos' => 'Ortiz', 'nombres' => 'Nidia'])->create();
     $this->actingAs($enfermera);
     $id = hcAutoguardar($this->consulta, ['con_anamnesis' => '1', 'anamnesis' => [bloque('n-1', 'Fiebre.')], 'examen' => ['peso' => '60']])->json('ids.anamnesis.n-1');
     expect(LogAuditoria::where('detalle', 'Borrador (autoguardado)')->latest('id')->value('usuario_id'))->toBe($enfermera->id);
@@ -159,11 +159,11 @@ test('el autor del cambio queda en el evento y en la fila ("Cargado por" / "modi
 
     // Bloques: la autoría va en los datos de la fila (Alpine la muestra con x-text); signos y hallazgos, en el HTML.
     $this->get(route('admin.consultas.atencion', $this->consulta))->assertOk()
-        ->assertViewHas('datos', fn ($datos) => $datos['filasAnamnesis'][0]['autor'] === 'Cargado por Nidia Ortiz, modificado por Rosa Benítez'
-            && $datos['autorSignos'] === 'Cargado por Nidia Ortiz' && $datos['autorHallazgos'] === 'Cargado por Rosa Benítez')
-        ->assertSee('Cargado por Nidia Ortiz') // signos vitales
+        ->assertViewHas('datos', fn ($datos) => $datos['filasAnamnesis'][0]['autor'] === 'Cargado por Nidia Ortiz (Enfermero/a), modificado por Rosa Benítez'
+            && $datos['autorSignos'] === 'Cargado por Nidia Ortiz (Enfermero/a)' && $datos['autorHallazgos'] === 'Cargado por Rosa Benítez')
+        ->assertSee('Cargado por Nidia Ortiz (Enfermero/a)') // signos vitales, con el cargo
         ->assertSee('Cargado por Rosa Benítez'); // hallazgos
 
     hcFinalizar($this->consulta, [...hcDatos(), 'anamnesis' => [bloque('g-'.$id, 'Fiebre de 3 días.', (string) $id)], 'examen' => ['peso' => '60', 'hallazgos' => 'Normal.']])->assertSessionHasNoErrors();
-    $this->get(route('admin.consultas.show', $this->consulta))->assertSee('Cargado por Nidia Ortiz, modificado por Rosa Benítez');
+    $this->get(route('admin.consultas.show', $this->consulta))->assertSee('Cargado por Nidia Ortiz (Enfermero/a), modificado por Rosa Benítez');
 });

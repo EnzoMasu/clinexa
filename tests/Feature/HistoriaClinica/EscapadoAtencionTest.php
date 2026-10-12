@@ -32,7 +32,7 @@ beforeEach(function () {
     hcTurno(['hora_inicio' => '12:00', 'hora_fin' => '12:30']); // queda en la agenda y en la vista previa de Cerrar jornada
     $otroPaciente = Paciente::create(['persona_id' => Persona::factory()->create(['apellidos' => 'Gómez', 'nombres' => 'Ana'])->id, 'nro_ficha' => 'FP-0000002']);
     hcTurno(['profesional_id' => $this->otroProfesional->id, 'paciente_id' => $otroPaciente->id, 'hora_inicio' => '11:00', 'hora_fin' => '11:30']);
-    $this->enfermera = User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->create();
+    $this->enfermera = User::factory()->conPermisos(['PREPARACION' => ['VER', 'CREAR', 'EDITAR']])->personalDeSalud()->create();
 });
 
 afterEach(fn () => \Illuminate\Support\Carbon::setTestNow());

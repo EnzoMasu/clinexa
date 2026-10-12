@@ -15,7 +15,7 @@ test('la tabla estados tiene los 27 estados, con código y nombre (los del flujo
         'GENERADO', 'PAGADO', 'PARCIAL', 'EMITIDO', 'APROBADO', 'RECHAZADO',
         'EN_CONSULTA', 'SALTADO', 'EN_PREPARACION', 'EN_CURSO', 'FINALIZADO',
     ])->and(Estado::whereColumn('codigo', '!=', 'nombre')->pluck('nombre', 'codigo')->all())->toBe([
-        'EN_CONSULTA' => 'EN CONSULTA', 'EN_PREPARACION' => 'EN PREPARACIÓN', 'EN_CURSO' => 'EN CURSO',
+        'EN_CONSULTA' => 'EN CONSULTA', 'EN_PREPARACION' => 'EN TRIAJE', 'EN_CURSO' => 'EN CURSO',
     ]);
 });
 
@@ -30,6 +30,8 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             'HISTORIA_CLINICA' => [['ANULADO', 'EN_CURSO', 'EN_PREPARACION', 'FINALIZADO'], 'EN_PREPARACION'],
             // Recetas: borrador (PENDIENTE, inicial), emitida y anulada.
             'RECETAS' => [['ANULADO', 'EMITIDO', 'PENDIENTE'], 'PENDIENTE'],
+            // Parámetros clínicos: pendiente (inicial) hasta que un médico los aprueba.
+            'PARAMETROS_CLINICOS' => [['APROBADO', 'PENDIENTE'], 'PENDIENTE'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

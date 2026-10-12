@@ -16,7 +16,7 @@
 
     @if ($turnos->isEmpty())
         <p class="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">
-            {{ $busqueda !== '' || $profesional ? 'No hay turnos de hoy con esa búsqueda.' : 'No hay turnos por preparar hoy.' }}
+            {{ $busqueda !== '' || $profesional ? 'No hay turnos de hoy con esa búsqueda.' : 'No hay turnos para triaje hoy.' }}
         </p>
     @else
         <ul class="mx-4 my-3 divide-y divide-gray-200 rounded-md border border-gray-200 text-sm dark:divide-gray-700 dark:border-gray-700">
@@ -27,6 +27,7 @@
                     <span class="truncate text-gray-700 dark:text-gray-300">{{ $turno->profesional->persona->nombre_completo }}</span>
                     <span class="flex flex-wrap gap-1">
                         @include('admin.preparacion._estado', ['consulta' => $turno->consulta])
+                        @include('admin.preparacion._alertas', ['consulta' => $turno->consulta])
                         @if ($turno->estado->codigo === Estado::EN_CONSULTA)
                             <x-admin.estado-badge :estado="$turno->estado" />
                         @endif
@@ -34,12 +35,12 @@
                     <span>
                         @if ($turno->consulta)
                             @if ($puedeEditar)
-                                <a href="{{ route('admin.preparacion.formulario', $turno->consulta) }}" class="{{ $boton }}">Continuar</a>
+                                <a href="{{ route('admin.preparacion.formulario', $turno->consulta) }}" class="{{ $boton }}">Continuar triaje</a>
                             @endif
                         @elseif ($puedeCrear)
                             <form method="POST" action="{{ route('admin.preparacion.preparar', $turno) }}">
                                 @csrf
-                                <button type="submit" class="{{ $boton }}">Preparar</button>
+                                <button type="submit" class="{{ $boton }}">Iniciar triaje</button>
                             </form>
                         @endif
                     </span>

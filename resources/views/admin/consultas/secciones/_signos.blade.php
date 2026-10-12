@@ -9,9 +9,34 @@
                 <label for="examen_{{ $campo }}" class="block font-medium text-sm text-gray-700 dark:text-gray-300">
                     {{ ExamenFisico::CAMPOS[$campo][0] }} <span class="text-xs text-gray-500 dark:text-gray-400">({{ ExamenFisico::CAMPOS[$campo][1] }})</span>
                 </label>
+                @include('admin.consultas._nivel-signo', ['alerta' => $datos['alertas'][$campo] ?? null])
                 <input type="text" id="examen_{{ $campo }}" name="examen[{{ $campo }}]" value="{{ $datos['valorExamen']($campo) }}"
                     inputmode="{{ $modo === 'text' ? 'text' : $modo }}" maxlength="{{ $largo }}" placeholder="{{ $ejemplo }}" autocomplete="off" class="{{ $clases }}">
                 <x-input-error class="mt-2" :messages="$errors->get('examen.'.$campo)" />
+                {{-- Con JavaScript: el autoguardado respondió que este valor muy alterado espera confirmación (no se
+                     guardó). "Sí, es correcto" lo reenvía con confirmaciones[campo] = valor; "Corregir" vuelve al campo. --}}
+                <template x-if="pendientes['{{ $campo }}']">
+                    <div role="alert" data-pendiente="{{ $campo }}" class="mt-2 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200">
+                        <p class="font-medium">Pendiente de confirmar</p>
+                        <p x-text="pendientes['{{ $campo }}'].mensaje"></p>
+                        <div class="mt-1 flex gap-2">
+                            <button type="button" x-on:click="confirmar('{{ $campo }}')" class="rounded-md bg-red-700 px-2 py-1 text-xs font-semibold text-white hover:bg-red-800">Sí, es correcto</button>
+                            <button type="button" x-on:click="corregir('{{ $campo }}')" class="rounded-md border border-red-300 px-2 py-1 text-xs font-semibold hover:bg-red-100 dark:border-red-700 dark:hover:bg-red-900/50">Corregir</button>
+                        </div>
+                    </div>
+                </template>
+                {{-- Valor muy alterado sin confirmar (sin JavaScript, o al Finalizar): el aviso y su casilla. Al
+                     marcarla se manda confirmaciones[campo] = el mismo valor; si el valor cambia, no vale. --}}
+                @if ($errors->has('confirmaciones.'.$campo))
+                    <div class="mt-2 rounded-md border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200">
+                        <p>{{ $errors->first('confirmaciones.'.$campo) }}</p>
+                        <label class="mt-1 flex items-center gap-2 font-medium">
+                            <input type="checkbox" name="confirmaciones[{{ $campo }}]" value="{{ $datos['valorExamen']($campo) }}"
+                                class="rounded border-gray-300 text-red-600 shadow-sm focus:ring-red-500 dark:border-gray-700 dark:bg-gray-900">
+                            Sí, es correcto
+                        </label>
+                    </div>
+                @endif
             </div>
         @endforeach
     </div>

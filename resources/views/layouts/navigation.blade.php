@@ -11,6 +11,7 @@
             'admin.personas' => 'Personas',
             'admin.pacientes' => 'Pacientes',
             'admin.profesionales' => 'Profesionales',
+            'admin.personal-salud' => 'Personal de salud',
             'admin.proveedores' => 'Proveedores',
             'admin.categorias-proveedor' => 'Categorías de proveedor',
             'admin.tipos-red-social' => 'Tipos de red social',
@@ -23,10 +24,10 @@
             'admin.origenes-turno' => 'Orígenes de turno',
         ],
         // Clínica: "Consulta" es la pantalla del profesional (agenda de hoy, en consulta, atender sin turno);
-        // "Preparación", la de enfermería (anamnesis y signos vitales de los turnos de hoy).
+        // "Triaje" (antes "Preparación"; rutas admin.preparacion.*), la de enfermería (anamnesis y signos vitales de los turnos de hoy).
         'Clínica' => [
             'admin.atencion' => 'Consulta',
-            'admin.preparacion' => 'Preparación',
+            'admin.preparacion' => 'Triaje',
             'admin.historias-clinicas' => 'Historias clínicas',
         ],
         'Catálogos' => [
@@ -39,6 +40,8 @@
             'admin.cie10' => 'Catálogo CIE-10',
             'admin.tipos-bloque-anamnesis' => 'Tipos de bloque de anamnesis',
             'admin.tipos-indicacion' => 'Tipos de indicación',
+            'admin.cargos-salud' => 'Cargos de salud',
+            'admin.parametros-clinicos' => 'Parámetros clínicos',
             'admin.paises' => 'Países',
             'admin.departamentos' => 'Departamentos',
             'admin.ciudades' => 'Ciudades',

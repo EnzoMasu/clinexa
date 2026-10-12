@@ -8,6 +8,8 @@
  * - 3 s después del último cambio, no más de un envío cada 10 s, un solo pedido en vuelo (si hubo cambios
  *   mientras tanto, otro al terminar) y "Guardar ahora".
  * - 409 (versión vieja o consulta cerrada): cartel fijo y se detiene; nunca se pisa nada.
+ * - 422 con código requiere_confirmacion: lo demás se guardó; cada valor muy alterado muestra "Sí, es correcto"
+ *   (reenvía con confirmaciones[campo] = el valor exacto) y "Corregir". Queda "Pendiente de confirmar".
  * - 422: los errores en su sección. 401/403/419 o sesión vencida: cartel fijo, SIN navegar (lo escrito
  *   queda en pantalla). Red o 429/5xx: reintentos con espera creciente (máx. 5) y luego "No se pudo guardar".
  * - Aviso al salir con cambios sin guardar.
@@ -28,6 +30,7 @@ export default ({ url = null, autoguardado = false, panel = null, panelesConErro
     horaGuardado: null,
     cartel: null, // mensaje fijo que detiene el autoguardado (409, sesión)
     errores: {}, // sección => mensajes (422)
+    pendientes: {}, // campo => { valor, texto, mensaje }: valores muy alterados que esperan confirmación (no se guardaron)
     sucio: false,
     enVuelo: false,
     otroPendiente: false,
@@ -138,6 +141,13 @@ export default ({ url = null, autoguardado = false, panel = null, panelesConErro
         }
         if (respuesta.status === 422) {
             const cuerpo = await respuesta.json().catch(() => ({}));
+            // Lo demás se guardó; los valores muy alterados esperan confirmación ("Sí, es correcto" / "Corregir").
+            if (cuerpo.codigo === 'requiere_confirmacion') {
+                this.guardadoCon(cuerpo);
+                this.pendientes = cuerpo.campos ?? {};
+                this.panelesConError = ['examen'];
+                return;
+            }
             this.mostrarErrores(cuerpo.errors ?? {});
             this.estado = 'error';
             return;
@@ -149,8 +159,14 @@ export default ({ url = null, autoguardado = false, panel = null, panelesConErro
         }
 
         const cuerpo = await respuesta.json();
-        formulario.querySelector('input[name=version]').value = cuerpo.version;
-        this.horaGuardado = cuerpo.guardado.slice(-5);
+        this.guardadoCon(cuerpo);
+        this.pendientes = {};
+    },
+
+    // Un guardado efectivo (200, o 422 con requiere_confirmacion: lo demás sí se guardó): versión nueva, hora e ids.
+    guardadoCon(cuerpo) {
+        this.$refs.formulario.querySelector('input[name=version]').value = cuerpo.version;
+        this.horaGuardado = String(cuerpo.guardado ?? '').slice(-5);
         this.errores = {};
         this.panelesConError = [];
         this.reintento = 0;
@@ -162,6 +178,34 @@ export default ({ url = null, autoguardado = false, panel = null, panelesConErro
             this.otroPendiente = false;
             this.programar(DEBOUNCE_MS);
         }
+    },
+
+    // "Sí, es correcto": reenvía con confirmaciones[campo] = el valor exacto que el servidor informó.
+    confirmar(campo) {
+        const pendiente = this.pendientes[campo];
+        if (!pendiente) {
+            return;
+        }
+        const formulario = this.$refs.formulario;
+        let oculto = formulario.querySelector(`input[type=hidden][name="confirmaciones[${campo}]"]`);
+        if (!oculto) {
+            oculto = document.createElement('input');
+            oculto.type = 'hidden';
+            oculto.name = `confirmaciones[${campo}]`;
+            formulario.appendChild(oculto);
+        }
+        oculto.value = pendiente.valor;
+        delete this.pendientes[campo];
+        this.pendientes = { ...this.pendientes };
+        this.sucio = true;
+        this.guardarAhora();
+    },
+
+    // "Corregir": vuelve al campo para cambiar el valor (sigue sin guardarse hasta que se corrija o se confirme).
+    corregir(campo) {
+        delete this.pendientes[campo];
+        this.pendientes = { ...this.pendientes };
+        this.$refs.formulario.querySelector(`#examen_${campo}`)?.focus();
     },
 
     reintentar() {

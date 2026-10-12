@@ -20,6 +20,7 @@ use App\Support\Atencion\Finalizar;
 use App\Support\Atencion\FormularioConsulta;
 use App\Support\Atencion\NoSePresento;
 use App\Support\Atencion\PasarAusente;
+use App\Support\Atencion\SignosVitales;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
 use App\Support\Fecha;
@@ -28,6 +29,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -52,8 +54,9 @@ class AtencionController extends Controller
         $hoy = Fecha::hoy();
         $turnos = Turno::query()
             ->with(['estado', 'paciente.persona', 'consulta' => fn ($query) => $query
-                ->select(['id', 'turno_id', 'estado_id', 'preparada_en', 'historia_clinica_id', 'profesional_id'])
-                ->withExists(['bloquesAnamnesis as con_anamnesis' => fn ($q) => $q->where('activo', true), 'examenFisico as con_examen'])])
+                ->select(['id', 'turno_id', 'estado_id', 'preparada_en', 'historia_clinica_id', 'profesional_id', 'triaje_urgente'])
+                ->withExists(['bloquesAnamnesis as con_anamnesis' => fn ($q) => $q->where('activo', true), 'examenFisico as con_examen',
+                    'examenFisico as con_alertas' => fn ($q) => $q->whereNotNull('signos_alertas')])])
             ->where('profesional_id', $profesional->id)
             ->whereDate('fecha', $hoy->format('Y-m-d'))
             ->orderBy('hora_inicio')
@@ -70,14 +73,20 @@ class AtencionController extends Controller
             ->orderByDesc('finalizada_en')
             ->get();
 
+        // Los urgentes del triaje van primero dentro de su sección (orden estable: el resto, como venía). Los signos
+        // alterados solo se marcan: no cambian el orden.
+        $urgentesPrimero = fn ($filas, \Closure $esUrgente) => $filas->sortBy(fn ($fila) => $esUrgente($fila) ? 0 : 1)->values();
+        $turnoUrgente = fn (Turno $turno) => (bool) $turno->consulta?->triaje_urgente;
+
         $datos = [
-            'enCurso' => Consulta::query()
-                ->select(['id', 'historia_clinica_id', 'turno_id', 'profesional_id', 'estado_id', 'iniciada_en', 'fecha_hora'])
+            'enCurso' => $urgentesPrimero(Consulta::query()
+                ->select(['id', 'historia_clinica_id', 'turno_id', 'profesional_id', 'estado_id', 'iniciada_en', 'fecha_hora', 'triaje_urgente'])
+                ->withExists(['examenFisico as con_alertas' => fn ($q) => $q->whereNotNull('signos_alertas')])
                 ->with(['historiaClinica.paciente.persona', 'turno:id,hora_inicio'])
                 ->where('profesional_id', $profesional->id)->where('estado_id', Estado::idDe(Estado::EN_CURSO))
-                ->orderBy('iniciada_en')->get(),
-            'agenda' => $turnos->filter(fn ($turno) => in_array($codigo($turno), [Estado::PENDIENTE, Estado::CONFIRMADO], true))->values(),
-            'porLlamar' => $turnos->filter(fn ($turno) => $codigo($turno) === Estado::SALTADO)->values(),
+                ->orderBy('iniciada_en')->get(), fn (Consulta $consulta) => $consulta->triaje_urgente),
+            'agenda' => $urgentesPrimero($turnos->filter(fn ($turno) => in_array($codigo($turno), [Estado::PENDIENTE, Estado::CONFIRMADO], true)), $turnoUrgente),
+            'porLlamar' => $urgentesPrimero($turnos->filter(fn ($turno) => $codigo($turno) === Estado::SALTADO), $turnoUrgente),
             'ausentes' => $turnos->filter(fn ($turno) => $codigo($turno) === Estado::AUSENTE)->values(),
             'atendidos' => $atendidos,
             'anteriores' => Turno::where('profesional_id', $profesional->id)->whereDate('fecha', '<', $hoy->format('Y-m-d'))
@@ -185,8 +194,15 @@ class AtencionController extends Controller
     public function autoguardar(Request $request, Consulta $consulta): JsonResponse
     {
         abort_if($consulta->anulada(), 404);
+        $resultado = Autoguardado::ejecutar($request->user(), $consulta, $request);
 
-        return response()->json(Autoguardado::ejecutar($request->user(), $consulta, $request));
+        // Lo demás ya se guardó; los muy alterados sin confirmar, no: 422 con los campos (y la versión nueva).
+        if ($resultado['pendientes'] !== []) {
+            return response()->json([...$resultado, 'codigo' => SignosVitales::REQUIERE_CONFIRMACION,
+                'message' => SignosVitales::MENSAJE, 'campos' => $resultado['pendientes']], 422);
+        }
+
+        return response()->json($resultado);
     }
 
     public function finalizar(Request $request, Consulta $consulta): RedirectResponse
@@ -200,6 +216,11 @@ class AtencionController extends Controller
         }
         Gate::authorize('finalizar', $consulta);
         [$datos] = FormularioConsulta::validar($request, $consulta, [FormularioConsulta::PREPARACION, FormularioConsulta::CLINICO], final: true);
+        // Finalizar es todo o nada: un valor muy alterado sin confirmar frena todo, con una casilla por campo.
+        $pendientes = SignosVitales::revisar($consulta, $datos, $request->input('confirmaciones'));
+        if ($pendientes !== []) {
+            throw ValidationException::withMessages(collect($pendientes)->mapWithKeys(fn (array $p, string $campo) => ["confirmaciones.{$campo}" => $p['mensaje']])->all());
+        }
 
         return $this->accion(function () use ($request, $consulta, $datos) {
             $advertencias = Finalizar::ejecutar($request->user(), $consulta, $datos, (string) $request->input('version'));
@@ -217,7 +238,7 @@ class AtencionController extends Controller
 
             return redirect()->route('admin.atencion.index')->with('status', $resultado === 'anulada'
                 ? 'Atención sin turno deshecha.'
-                : 'Atención deshecha: el paciente volvió a la agenda, con lo cargado en la preparación.');
+                : 'Atención deshecha: el paciente volvió a la agenda, con lo cargado en el triaje.');
         });
     }
 

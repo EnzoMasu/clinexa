@@ -39,9 +39,14 @@ class ModuloSistemaSeeder extends Seeder
             'PROCEDIMIENTOS' => ['Procedimientos', self::ACTIVO_INACTIVO],
             'TIPOS_BLOQUE_ANAMNESIS' => ['Tipos de bloque de anamnesis', self::ACTIVO_INACTIVO],
             'TIPOS_INDICACION' => ['Tipos de indicación', self::ACTIVO_INACTIVO],
+            // Cargos del personal de salud (catálogo) y los parámetros clínicos de los signos vitales (los aprueba un médico).
+            'CARGOS_SALUD' => ['Cargos de salud', self::ACTIVO_INACTIVO],
+            'PARAMETROS_CLINICOS' => ['Parámetros clínicos', [Estado::PENDIENTE, Estado::APROBADO]],
             // Roles de negocio sobre Persona.
             'PACIENTES' => ['Pacientes', self::ACTIVO_INACTIVO],
             'PROFESIONALES' => ['Profesionales', self::ACTIVO_INACTIVO],
+            // Personal de salud: enfermería, obstetricia... (con el rol activo carga el triaje).
+            'PERSONAL_SALUD' => ['Personal de salud', self::ACTIVO_INACTIVO],
             'PROVEEDORES' => ['Proveedores', self::ACTIVO_INACTIVO],
             'RESPONSABLES_PAGO' => ['Responsables de pago', self::ACTIVO_INACTIVO],
             // Agenda.
@@ -53,8 +58,9 @@ class ModuloSistemaSeeder extends Seeder
             // Los estados de este módulo son los de la CONSULTA (Consulta usa HISTORIA_CLINICA como módulo de
             // estados): así no hace falta un módulo aparte con permisos que no tendrían efecto.
             'HISTORIA_CLINICA' => ['Historia clínica', [Estado::EN_PREPARACION, Estado::EN_CURSO, Estado::FINALIZADO, Estado::ANULADO]],
-            // Preparación de la consulta (anamnesis y signos vitales antes de entrar): solo VER, CREAR y EDITAR.
-            'PREPARACION' => ['Preparación', self::ACTIVO_INACTIVO],
+            // Triaje (antes "Preparación"): anamnesis y signos vitales antes de entrar. Solo VER, CREAR y EDITAR. El código
+            // sigue siendo PREPARACION (permisos, perfiles y auditoría lo usan): ver docs/triaje.md.
+            'PREPARACION' => ['Triaje', self::ACTIVO_INACTIVO],
             // Recetas de las consultas: borrador (PENDIENTE), emitida y anulada (solo VER, CREAR y EDITAR).
             'RECETAS' => ['Recetas', [Estado::PENDIENTE, Estado::EMITIDO, Estado::ANULADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

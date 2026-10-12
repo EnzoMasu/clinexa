@@ -52,6 +52,7 @@ class ExamenFisico extends Model
         'hallazgos',
         'signos_usuario_id',
         'hallazgos_usuario_id',
+        'signos_alertas',
     ];
 
     protected function casts(): array
@@ -63,6 +64,8 @@ class ExamenFisico extends Model
             'temperatura' => 'decimal:1',
             'peso' => 'decimal:2',
             'talla' => 'decimal:1',
+            // Nivel de cada signo al guardarlo (y su confirmación): GuardarSecciones; se congela con la consulta cerrada.
+            'signos_alertas' => 'array',
         ];
     }
 
@@ -108,9 +111,25 @@ class ExamenFisico extends Model
     /** Para el log: nombre del campo => "Nombre: valor con unidad", solo los cargados. */
     public function descripcionPorCampo(): array
     {
+        $confirmaciones = collect($this->signos_alertas ?? [])
+            ->filter(fn (array $alerta) => ($alerta['confirmado_valor'] ?? null) !== null)
+            ->mapWithKeys(fn (array $alerta, string $campo) => ['Confirmación: '.self::CAMPOS[$campo][0] => $this->textoConfirmacion($campo, $alerta)]);
+
         return collect(array_keys(self::CAMPOS))
             ->mapWithKeys(fn (string $campo) => [self::CAMPOS[$campo][0] => $this->valorTexto($campo)])
-            ->filter(fn ($texto) => $texto !== null)->all();
+            ->filter(fn ($texto) => $texto !== null)->merge($confirmaciones)->all();
+    }
+
+    /** La alerta guardada de un signo (nivel, dirección, confirmación), o null si estaba normal o no se cargó. */
+    public function alerta(string $campo): ?array
+    {
+        return ($this->signos_alertas ?? [])[$campo] ?? null;
+    }
+
+    /** "Confirmó valor muy alto: Temperatura 41,5 °C" (para la auditoría). */
+    public function textoConfirmacion(string $campo, array $alerta): string
+    {
+        return 'Confirmó valor muy '.(($alerta['direccion'] ?? null) === 'bajo' ? 'bajo' : 'alto').': '.self::CAMPOS[$campo][0].' '.$this->valorTexto($campo);
     }
 
     public function descripcion(): array

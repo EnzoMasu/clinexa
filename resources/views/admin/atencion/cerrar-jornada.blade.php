@@ -17,8 +17,8 @@
             <p class="text-sm text-gray-600 dark:text-gray-400">No hay turnos para pasar a ausente{{ $aunNoEsSuHora->isEmpty() ? ': no queda nada pendiente de hoy ni de días anteriores' : '' }}.</p>
         @else
             <p class="text-sm text-gray-700 dark:text-gray-300">
-                {{ $turnos->count() === 1 ? 'Este turno pasará' : "Estos {$turnos->count()} turnos pasarán" }} a ausente. Si alguno tenía la preparación
-                empezada, esa preparación se anula. No se puede deshacer.
+                {{ $turnos->count() === 1 ? 'Este turno pasará' : "Estos {$turnos->count()} turnos pasarán" }} a ausente. Si alguno tenía el triaje
+                empezado, ese triaje se anula. No se puede deshacer.
             </p>
             <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 text-sm dark:divide-gray-700 dark:border-gray-700">
                 @foreach ($turnos as $turno)
