@@ -3,10 +3,10 @@
 /*
  * Cuántos eventos deja una consulta típica de 10 minutos, simulada con el ritmo real del autoguardado
  * (como mucho un envío cada 10 s mientras se escribe):
- * - enfermería: Preparar, 3 minutos escribiendo anamnesis y signos (18 guardados), Marcar como lista;
+ * - enfermería: Iniciar triaje, 3 minutos escribiendo anamnesis y signos (18 guardados), Terminar triaje;
  * - profesional: Atender, 10 minutos escribiendo motivo, hallazgos y diagnóstico (60 guardados), Finalizar.
  * Es el peor caso (un guardado cada 10 s, siempre con cambios). Cada guardado efectivo deja UN evento con
- * todas las secciones que cambiaron (y solo sus filas): 78 autoguardados + Preparar, Marcar como lista,
+ * todas las secciones que cambiaron (y solo sus filas): 78 autoguardados + Iniciar triaje, Terminar triaje,
  * Atender y Finalizar (eventos propios) + 2 del turno, y ninguna lectura (VER). El "Historial de cambios"
  * muestra cada racha de autoguardados del mismo usuario como una entrada y como mucho las últimas 50. El
  * log guarda todo. (La medición realista, con pausas, está en el resumen del cambio: 23 autoguardados.)
@@ -82,15 +82,15 @@ test('una consulta típica de 10 minutos: cuántos eventos deja y de qué tipo',
         'consultas / Atender' => 1,
         'consultas / Borrador (autoguardado)' => 78, // = guardados efectivos (18 + 60)
         'consultas / Finalizar (turno ATENDIDO)' => 1,
-        'consultas / Marcar como lista' => 1,
-        'consultas / Preparar' => 1,
+        'consultas / Iniciar triaje' => 1,
+        'consultas / Terminar triaje' => 1,
         'turnos / Atender' => 1,
         'turnos / Finalizar (turno ATENDIDO)' => 1,
     ])->and(LogAuditoria::where('accion', 'VER')->count())->toBe(0);
 
     // El actor es quien escribió: los 18 borradores y los hitos de la preparación, la enfermera; el resto, el profesional.
     $porUsuario = fn (int $id) => $eventos->where('tabla_afectada', 'consultas')->where('usuario_id', $id)->countBy('detalle')->sortKeys()->all();
-    expect($porUsuario($this->enfermera->id))->toBe(['Borrador (autoguardado)' => 18, 'Marcar como lista' => 1, 'Preparar' => 1])
+    expect($porUsuario($this->enfermera->id))->toBe(['Borrador (autoguardado)' => 18, 'Iniciar triaje' => 1, 'Terminar triaje' => 1])
         ->and($porUsuario($this->medico->id))->toBe(['Atender' => 1, 'Borrador (autoguardado)' => 60, 'Finalizar (turno ATENDIDO)' => 1]);
 });
 
@@ -102,9 +102,9 @@ test('el historial de cambios de esa consulta la resume: cada racha de autoguard
         ->map(fn ($e) => [$e['evento']->detalle, implode(',', $e['secciones']), $e['cantidad']])->all();
 
     expect($resumen)->toBe([
-        ['Preparar', 'historia_clinica_id,turno_id,profesional_id,estado_id,iniciada_en,fecha_hora,id', 1],
+        ['Iniciar triaje', 'historia_clinica_id,turno_id,profesional_id,estado_id,iniciada_en,fecha_hora,id', 1],
         ['Borrador (autoguardado)', 'bloquesAnamnesis,examenFisico', 18],
-        ['Marcar como lista', 'preparada_en', 1],
+        ['Terminar triaje', 'preparada_en', 1],
         ['Atender', 'estado_id,iniciada_en', 1],
         ['Borrador (autoguardado)', 'motivo_consulta,examenFisico,diagnosticos', 60],
         ['Finalizar (turno ATENDIDO)', 'estado_id,finalizada_en', 1],

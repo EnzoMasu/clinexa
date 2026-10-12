@@ -30,6 +30,8 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             'HISTORIA_CLINICA' => [['ANULADO', 'EN_CURSO', 'EN_PREPARACION', 'FINALIZADO'], 'EN_PREPARACION'],
             // Recetas: borrador (PENDIENTE, inicial), emitida y anulada.
             'RECETAS' => [['ANULADO', 'EMITIDO', 'PENDIENTE'], 'PENDIENTE'],
+            // Parámetros clínicos: pendiente (inicial) hasta que un médico los aprueba.
+            'PARAMETROS_CLINICOS' => [['APROBADO', 'PENDIENTE'], 'PENDIENTE'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

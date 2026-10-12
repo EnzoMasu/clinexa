@@ -40,8 +40,11 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        foreach (['CARGOS_SALUD' => 'Cargos de salud', 'PERSONAL_SALUD' => 'Personal de salud'] as $codigo => $nombre) {
-            ModuloSistema::updateOrCreate(['codigo' => $codigo], ['nombre' => $nombre])->configurarEstados([Estado::ACTIVO, Estado::INACTIVO]);
+        // Solo en una instalación existente (con módulos): en una nueva los crea ModuloSistemaSeeder, como a todos.
+        if (DB::table('modulos_sistema')->exists()) {
+            foreach (['CARGOS_SALUD' => 'Cargos de salud', 'PERSONAL_SALUD' => 'Personal de salud'] as $codigo => $nombre) {
+                ModuloSistema::updateOrCreate(['codigo' => $codigo], ['nombre' => $nombre])->configurarEstados([Estado::ACTIVO, Estado::INACTIVO]);
+            }
         }
 
         if (DB::table('cargos_salud')->doesntExist()) {

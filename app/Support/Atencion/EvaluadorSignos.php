@@ -9,7 +9,8 @@ use Illuminate\Support\Collection;
  * El nivel de cada signo vital, en UN solo lugar, según los parámetros clínicos (ParametroClinico):
  *
  * - IMPOSIBLE: fuera de la banda "imposible" (rige siempre, aprobado o no), o negativo. En la presión, además,
- *   la sistólica tiene que ser mayor que la diastólica. Se rechaza (422).
+ *   la sistólica tiene que ser mayor que la diastólica: REGLA NUEVA de esta etapa (antes el formulario solo
+ *   validaba el formato 120/80), una sistólica menor o igual que la diastólica es imposible. Se rechaza (422).
  * - MUY_ALTERADO: fuera de la banda "muy alterado" (solo parámetros APROBADOS). Pide confirmación.
  * - FUERA_DE_RANGO: fuera de la banda "normal" (solo APROBADOS). Se guarda y se marca.
  * - NORMAL: dentro de lo normal, o sin parámetro aprobado ("aprobado" => false: no marca nada).

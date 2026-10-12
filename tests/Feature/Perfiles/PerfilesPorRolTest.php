@@ -185,6 +185,8 @@ describe('Médico', function () {
 describe('Enfermería', function () {
     beforeEach(function () {
         $this->enfermera = perfilesPorRolUsuario('ENFERMERIA', ['apellidos' => 'Ortiz', 'nombres' => 'Nidia']);
+        // Con el perfil ENFERMERIA y además Personal de salud activo (sin el rol no carga el triaje: ConsultaPolicy::cargarTriaje).
+        \App\Models\PersonalSalud::create(['persona_id' => $this->enfermera->persona_id, 'cargo_salud_id' => \App\Models\CargoSalud::firstOrCreate(['nombre' => 'Enfermero/a'])->id]);
         $this->actingAs($this->enfermera);
     });
 

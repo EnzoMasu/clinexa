@@ -139,7 +139,7 @@ describe('pantalla Consulta', function () {
 
 describe('Triaje (antes Preparación)', function () {
     beforeEach(function () {
-        $this->enfermera = User::factory()->conPermisos(PERMISOS_PREPARACION)->conPersona(['apellidos' => 'Ortiz', 'nombres' => 'Nidia'])->create();
+        $this->enfermera = User::factory()->conPermisos(PERMISOS_PREPARACION)->personalDeSalud()->conPersona(['apellidos' => 'Ortiz', 'nombres' => 'Nidia'])->create();
     });
 
     test('la lista: turnos de hoy de todos los profesionales, con hora, paciente (edad y ficha), profesional y preparación', function () {
@@ -305,7 +305,7 @@ describe('historia clínica con el flujo nuevo', function () {
 describe('encabezados SinAlmacenar', function () {
     test('no-store y nosniff en todas las pantallas y respuestas del flujo', function () {
         $turno = hcTurno();
-        $enfermera = User::factory()->conPermisos(PERMISOS_PREPARACION)->create();
+        $enfermera = User::factory()->conPermisos(PERMISOS_PREPARACION)->personalDeSalud()->create();
         $this->actingAs($enfermera)->post(route('admin.preparacion.preparar', $turno));
         $preparacion = Consulta::sole();
         $this->actingAs($this->medico);

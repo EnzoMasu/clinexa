@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Schema;
  * LOS VALORES CLÍNICOS NO SE INVENTAN: se siembran (solo si la tabla está vacía) ÚNICAMENTE los límites
  * "imposible" que ya validaba el formulario del examen físico (FormularioConsulta, hasta hoy), con los rangos
  * normal y muy alterado VACÍOS y en estado PENDIENTE. Para la presión, sin límites numéricos: rige lo que ya se
- * validaba (formato 120/80 y números positivos) más sistólica mayor que diastólica. Los demás valores los carga y
+ * validaba (formato 120/80 y números positivos) y, como REGLA NUEVA, sistólica mayor que diastólica. Los demás valores los carga y
  * los aprueba un médico (docs/triaje.md).
  */
 return new class extends Migration
@@ -68,8 +68,11 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        ModuloSistema::updateOrCreate(['codigo' => 'PARAMETROS_CLINICOS'], ['nombre' => 'Parámetros clínicos'])
-            ->configurarEstados([Estado::PENDIENTE, Estado::APROBADO]);
+        // Solo en una instalación existente (con módulos): en una nueva lo crea ModuloSistemaSeeder, como a todos.
+        if (DB::table('modulos_sistema')->exists()) {
+            ModuloSistema::updateOrCreate(['codigo' => 'PARAMETROS_CLINICOS'], ['nombre' => 'Parámetros clínicos'])
+                ->configurarEstados([Estado::PENDIENTE, Estado::APROBADO]);
+        }
 
         if (DB::table('parametros_clinicos')->doesntExist()) {
             $pendiente = Estado::idDe(Estado::PENDIENTE);
@@ -78,7 +81,7 @@ return new class extends Migration
                     'codigo' => $codigo, 'nombre' => $nombre, 'unidad' => $unidad, 'campo' => $campo,
                     'imposible_min' => $minimo, 'imposible_max' => $maximo, 'estado_id' => $pendiente,
                     'notas' => $minimo === null
-                        ? 'Sin límites numéricos: rige el formato 120/80, números positivos y sistólica mayor que diastólica. Los rangos los define y aprueba un médico.'
+                        ? 'Sin límites numéricos: rige el formato 120/80 y números positivos (lo que ya se validaba) y, como regla nueva, sistólica mayor que diastólica. Los rangos los define y aprueba un médico.'
                         : 'Límite imposible tomado de la validación que ya tenía el formulario. Los rangos normal y muy alterado los define y aprueba un médico.',
                     'created_at' => now(), 'updated_at' => now(),
                 ]);

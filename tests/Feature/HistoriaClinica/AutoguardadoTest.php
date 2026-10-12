@@ -159,11 +159,11 @@ test('el autor del cambio queda en el evento y en la fila ("Cargado por" / "modi
 
     // Bloques: la autoría va en los datos de la fila (Alpine la muestra con x-text); signos y hallazgos, en el HTML.
     $this->get(route('admin.consultas.atencion', $this->consulta))->assertOk()
-        ->assertViewHas('datos', fn ($datos) => $datos['filasAnamnesis'][0]['autor'] === 'Cargado por Nidia Ortiz, modificado por Rosa Benítez'
-            && $datos['autorSignos'] === 'Cargado por Nidia Ortiz' && $datos['autorHallazgos'] === 'Cargado por Rosa Benítez')
-        ->assertSee('Cargado por Nidia Ortiz') // signos vitales
+        ->assertViewHas('datos', fn ($datos) => $datos['filasAnamnesis'][0]['autor'] === 'Cargado por Nidia Ortiz (Enfermero/a), modificado por Rosa Benítez'
+            && $datos['autorSignos'] === 'Cargado por Nidia Ortiz (Enfermero/a)' && $datos['autorHallazgos'] === 'Cargado por Rosa Benítez')
+        ->assertSee('Cargado por Nidia Ortiz (Enfermero/a)') // signos vitales, con el cargo
         ->assertSee('Cargado por Rosa Benítez'); // hallazgos
 
     hcFinalizar($this->consulta, [...hcDatos(), 'anamnesis' => [bloque('g-'.$id, 'Fiebre de 3 días.', (string) $id)], 'examen' => ['peso' => '60', 'hallazgos' => 'Normal.']])->assertSessionHasNoErrors();
-    $this->get(route('admin.consultas.show', $this->consulta))->assertSee('Cargado por Nidia Ortiz, modificado por Rosa Benítez');
+    $this->get(route('admin.consultas.show', $this->consulta))->assertSee('Cargado por Nidia Ortiz (Enfermero/a), modificado por Rosa Benítez');
 });
