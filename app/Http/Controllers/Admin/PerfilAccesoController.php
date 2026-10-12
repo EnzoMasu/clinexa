@@ -6,13 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\ModuloSistema;
 use App\Models\PerfilAcceso;
 use App\Models\Permiso;
+use App\Support\PermisosDePerfil;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PerfilAccesoController extends Controller
@@ -35,11 +35,11 @@ class PerfilAccesoController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $datos = $this->validar($request);
+        [$datos, $claves] = $this->validar($request);
 
-        DB::transaction(function () use ($datos, $request) {
+        DB::transaction(function () use ($datos, $claves) {
             $perfil = PerfilAcceso::create($datos);
-            $this->sincronizarPermisos($perfil, $request->input('permisos', []));
+            PermisosDePerfil::guardar($perfil, $claves);
         });
 
         return redirect()->route('admin.perfiles-acceso.index')->with('status', 'Perfil de acceso creado.');
@@ -68,11 +68,11 @@ class PerfilAccesoController extends Controller
             return redirect()->route('admin.perfiles-acceso.index')->with('status', 'Perfil de acceso actualizado.');
         }
 
-        $datos = $this->validar($request, $perfilAcceso);
+        [$datos, $claves] = $this->validar($request, $perfilAcceso);
 
-        DB::transaction(function () use ($datos, $request, $perfilAcceso) {
+        DB::transaction(function () use ($datos, $claves, $perfilAcceso) {
             $perfilAcceso->update($datos);
-            $this->sincronizarPermisos($perfilAcceso, $request->input('permisos', []));
+            PermisosDePerfil::guardar($perfilAcceso, $claves);
         });
 
         return redirect()->route('admin.perfiles-acceso.index')->with('status', 'Perfil de acceso actualizado.');
@@ -107,55 +107,14 @@ class PerfilAccesoController extends Controller
         ];
     }
 
-    /**
-     * $matriz viene del formulario como [modulo_id => ['VER', 'EDITAR', ...]].
-     * Crea en permisos las combinaciones módulo + acción que todavía no existan y deja
-     * en perfil_permiso exactamente las tildadas. Los permisos destildados solo se quitan
-     * del perfil: el registro en permisos queda, porque puede estar asignado a otros perfiles.
-     */
-    private function sincronizarPermisos(PerfilAcceso $perfil, array $matriz): void
-    {
-        $codigos = ModuloSistema::pluck('codigo', 'id');
-
-        $permisoIds = collect($matriz)
-            // Las acciones que no aplican al módulo (CREAR en Auditoría, etc.) se ignoran.
-            ->map(fn (array $acciones, $moduloId) => array_intersect($acciones, Permiso::accionesDe($codigos[$moduloId] ?? '')))
-            ->flatMap(fn (array $acciones, $moduloId) => collect($acciones)->map(
-                fn (string $accion) => Permiso::firstOrCreate(['modulo_sistema_id' => $moduloId, 'accion' => $accion])->id
-            ));
-
-        $perfil->sincronizarAuditado('permisos', $permisoIds->all());
-    }
 
     /**
-     * Sin escalada de privilegios: los permisos que se AGREGAN al perfil (no los que ya tenía) tienen que ser
-     * permisos que quien edita ya tiene. El Administrador tiene todo.
-     */
-    private function validarSinEscalada(Request $request, ?PerfilAcceso $perfil): void
-    {
-        $codigos = ModuloSistema::pluck('codigo', 'id');
-        $pedidos = collect((array) $request->input('permisos', []))
-            ->flatMap(fn ($acciones, $moduloId) => collect((array) $acciones)
-                ->filter(fn ($accion) => in_array($accion, Permiso::accionesDe($codigos[$moduloId] ?? ''), true))
-                ->map(fn ($accion) => ($codigos[$moduloId] ?? '?').":{$accion}"))
-            ->unique()->values()->all();
-        $agregados = array_values(array_diff($pedidos, $perfil?->clavesPermisos() ?? []));
-
-        if (! $request->user()->tieneTodos($agregados)) {
-            $ajenos = array_diff($agregados, array_keys($request->user()->permisosEfectivos()));
-            throw ValidationException::withMessages([
-                'permisos' => 'No puede agregar permisos que usted no tiene: '.implode(', ', array_map(fn ($clave) => str_replace(':', ': ', $clave), $ajenos)).'.',
-            ]);
-        }
-    }
-
-    /**
-     * Valida el formulario completo y devuelve solo los campos del perfil (la matriz se procesa aparte).
+     * Valida el formulario completo. Devuelve [campos del perfil, claves de permisos pedidas]. La matriz la lee
+     * PermisosDePerfil (las acciones sin efecto en el módulo se ignoran: en este formulario no tienen casilla) y
+     * aplica la regla de escalada: solo se agregan permisos que quien edita ya tiene.
      */
     private function validar(Request $request, ?PerfilAcceso $perfil = null): array
     {
-        $this->validarSinEscalada($request, $perfil);
-
         $datos = $request->validate([
             'nombre' => ['required', 'string', 'max:50', Rule::unique('perfiles_acceso')->ignore($perfil)],
             'descripcion' => ['nullable', 'string', 'max:200'],
@@ -171,6 +130,10 @@ class PerfilAccesoController extends Controller
             'estado_id' => $perfil ? PerfilAcceso::reglaEstado() : ['prohibited'],
         ], [], ['descripcion' => 'descripción']);
 
-        return Arr::only($datos, ['nombre', 'descripcion', 'estado_id']);
+        $claves = PermisosDePerfil::desdeFormulario($request->input('permisos', []), estricto: false);
+        [$agregadas] = PermisosDePerfil::cambios($perfil ? PermisosDePerfil::claves($perfil) : [], $claves);
+        PermisosDePerfil::validarSinEscalada($request->user(), $agregadas);
+
+        return [Arr::only($datos, ['nombre', 'descripcion', 'estado_id']), $claves];
     }
 }

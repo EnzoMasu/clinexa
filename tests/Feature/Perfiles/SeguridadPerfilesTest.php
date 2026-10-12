@@ -258,16 +258,17 @@ describe('auditoría', function () {
             ->and($this->admin->fresh()->perfiles->modelKeys())->toBe([PerfilAcceso::where('codigo', 'ADMINISTRADOR')->value('id')]);
     });
 
-    test('los cambios de permisos de un perfil se auditan como EDITAR del perfil', function () {
+    test('los cambios de permisos de un perfil (desde Perfiles de acceso) se auditan como un EDITAR con lo agregado y lo quitado', function () {
         $turnos = ModuloSistema::where('codigo', 'TURNOS')->sole();
+        $recetas = ModuloSistema::where('codigo', 'RECETAS')->sole();
 
         $this->put(route('admin.perfiles-acceso.update', $this->recepcion), [
-            'nombre' => 'Recepción', 'estado_id' => Estado::idDe(Estado::ACTIVO), 'permisos' => [$turnos->id => ['VER']],
+            'nombre' => 'Recepción', 'estado_id' => Estado::idDe(Estado::ACTIVO), 'permisos' => [$turnos->id => ['VER'], $recetas->id => ['VER', 'CREAR']],
         ])->assertSessionHasNoErrors();
 
-        $evento = LogAuditoria::where('tabla_afectada', 'perfiles_acceso')->where('registro_afectado_id', (string) $this->recepcion->id)->where('accion', AccionAuditoria::EDITAR)->latest('id')->first();
-        expect($evento->valor_nuevo)->toBe(['permisos' => ['TURNOS: VER']])
-            ->and($evento->valor_anterior['permisos'])->toContain('TURNOS: CREAR', 'PACIENTES: VER');
+        $evento = LogAuditoria::where('tabla_afectada', 'perfiles_acceso')->where('registro_afectado_id', (string) $this->recepcion->id)->where('accion', AccionAuditoria::EDITAR)->sole();
+        expect($evento->valor_nuevo)->toBe(['permisos_agregados' => ['RECETAS: ver, crear']])
+            ->and($evento->valor_anterior['permisos_quitados'])->toContain('TURNOS: crear, editar', 'PACIENTES: ver, crear, editar');
     });
 
     test('abrir la Matriz de permisos registra VER (Perfiles de acceso es un módulo sensible)', function () {
