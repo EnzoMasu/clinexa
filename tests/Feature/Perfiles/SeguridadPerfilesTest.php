@@ -193,8 +193,8 @@ describe('pantallas', function () {
             ->not->toMatch('/Perfil propio de la clínica\s*<span[^>]*>Predefinido/');
     });
 
-    test('Matriz de permisos: perfiles en columnas, módulos en filas, solo lectura; en el menú de Seguridad', function () {
-        $html = $this->get(route('admin.matriz-permisos.index'))->assertOk()
+    test('Matriz de permisos, pestaña Comparar: perfiles en columnas, módulos en filas, solo lectura; en el menú de Seguridad', function () {
+        $html = $this->get(route('admin.matriz-permisos.index', ['vista' => 'comparar']))->assertOk()
             ->assertSee('Matriz de permisos')->assertSee('Recepción')->assertSee('Enfermería')->assertSee('Historia clínica')
             ->assertDontSee('type="checkbox"', false)->assertDontSee('name="permisos', false)
             ->getContent();

@@ -96,9 +96,12 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     });
 
     $seccion('perfiles-acceso', PerfilAccesoController::class, 'PERFILES_ACCESO', 'perfilAcceso', conBaja: true);
-    // Matriz de permisos: perfiles × módulos, solo lectura (PERFILES_ACCESO es sensible: registra VER).
+    // Matriz de permisos: mirar (VER) y editar los permisos de un perfil (EDITAR; pasa por una confirmación).
+    // PERFILES_ACCESO es sensible: abrirla registra VER.
     Route::get('matriz-permisos', [MatrizPermisosController::class, 'index'])->name('matriz-permisos.index')
         ->middleware('permiso:PERFILES_ACCESO,VER');
+    Route::put('matriz-permisos/{perfilAcceso}', [MatrizPermisosController::class, 'update'])->name('matriz-permisos.update')
+        ->whereNumber('perfilAcceso')->middleware('permiso:PERFILES_ACCESO,EDITAR');
     $seccion('personas', PersonaController::class, 'PERSONAS', 'persona', conBaja: true);
     $seccion('especialidades', EspecialidadController::class, 'ESPECIALIDADES', 'especialidad', conBaja: true);
     $seccion('sucursales', SucursalController::class, 'SUCURSALES', 'sucursal', conBaja: true);
