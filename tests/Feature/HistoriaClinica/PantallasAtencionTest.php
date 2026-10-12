@@ -69,7 +69,7 @@ describe('pantalla Consulta', function () {
 
         $html = $this->get(route('admin.atencion.index'))->assertOk()
             ->assertSeeInOrder(['En consulta', 'Duarte, Carmen', 'Continuar',
-                'Agenda de hoy', '08:00', 'Gómez, Ana', 'Confirmó', 'Sin preparar', '08:30', 'López, Bea', 'En preparación',
+                'Agenda de hoy', '08:00', 'Gómez, Ana', 'Confirmó', 'Sin triaje', '08:30', 'López, Bea', 'En triaje',
                 'Por llamar de nuevo', '09:00', 'Martínez, Cora', 'Pasar a ausente',
                 'Atendidos hoy (0)', 'Ausentes hoy (1)', 'Núñez, Dora'])
             ->getContent();
@@ -137,7 +137,7 @@ describe('pantalla Consulta', function () {
     });
 });
 
-describe('Preparación', function () {
+describe('Triaje (antes Preparación)', function () {
     beforeEach(function () {
         $this->enfermera = User::factory()->conPermisos(PERMISOS_PREPARACION)->conPersona(['apellidos' => 'Ortiz', 'nombres' => 'Nidia'])->create();
     });
@@ -152,8 +152,8 @@ describe('Preparación', function () {
         $this->post(route('admin.preparacion.lista', Consulta::sole()));
 
         $html = $this->get(route('admin.preparacion.index'))->assertOk()
-            ->assertSeeInOrder(['07:30', 'Gómez, Ana', '26 años', 'FP-0000002', 'Insfrán, Laura', 'Sin preparar', 'Preparar',
-                '08:00', 'Duarte, Carmen', '36 años', 'FP-0000001', 'Benítez, Rosa', 'Lista', 'Continuar'])
+            ->assertSeeInOrder(['07:30', 'Gómez, Ana', '26 años', 'FP-0000002', 'Insfrán, Laura', 'Sin triaje', 'Iniciar triaje',
+                '08:00', 'Duarte, Carmen', '36 años', 'FP-0000001', 'Benítez, Rosa', 'Con triaje', 'Continuar triaje'])
             ->getContent();
         expect(substr_count($html, '<li class="grid'))->toBe(2)->and($html)->not->toContain('10:00')->not->toContain('12:00');
         expect(lecturasDelFlujo())->toBe([]); // la lista no es contenido clínico (PREPARACION no es sensible)
@@ -179,7 +179,7 @@ describe('Preparación', function () {
 
         $this->get(route('admin.preparacion.formulario', $consulta))->assertOk()
             ->assertSeeInOrder(['Duarte, Carmen', '36 años', 'Femenino', 'FP-0000001', 'Turno 08:00', 'Benítez, Rosa'])
-            ->assertSee('Anamnesis')->assertSee('Signos vitales')->assertSee('Marcar como lista')->assertSee('Volver')
+            ->assertSee('Anamnesis')->assertSee('Signos vitales')->assertSee('Terminar triaje')->assertSee('Volver')
             ->assertSee(enJson(route('admin.consultas.autoguardado', $consulta)), false)->assertSee('Guardar ahora');
         $this->get(route('admin.preparacion.formulario', $consulta), ['X-Requested-With' => 'XMLHttpRequest'])->assertOk();
 
@@ -286,7 +286,7 @@ describe('historia clínica con el flujo nuevo', function () {
         $this->post(route('admin.consultas.deshacer', hcEnCurso())); // anulada
 
         $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk()
-            ->assertSee('En curso')->assertSee('En preparación')->assertSee('La finalizada')
+            ->assertSee('En curso')->assertSee('En triaje')->assertSee('La finalizada')
             ->assertViewHas('consultas', fn ($consultas) => $consultas->total() === 3);
 
         $this->get(route('admin.historias-clinicas.index'))->assertOk()

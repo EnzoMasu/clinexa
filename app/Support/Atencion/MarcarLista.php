@@ -17,7 +17,7 @@ final class MarcarLista
             $consulta = Apoyo::consultaBloqueada($consulta);
             Gate::forUser($usuario)->authorize('marcarLista', $consulta);
 
-            Auditoria::conDetalle($lista ? 'Marcar como lista' : 'Reabrir la preparación',
+            Auditoria::conDetalle($lista ? 'Terminar triaje' : 'Reabrir triaje',
                 fn () => $consulta->forceFill(['preparada_en' => $lista ? now() : null])->save());
         });
     }

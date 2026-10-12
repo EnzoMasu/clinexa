@@ -23,10 +23,10 @@
             'admin.origenes-turno' => 'Orígenes de turno',
         ],
         // Clínica: "Consulta" es la pantalla del profesional (agenda de hoy, en consulta, atender sin turno);
-        // "Preparación", la de enfermería (anamnesis y signos vitales de los turnos de hoy).
+        // "Triaje" (antes "Preparación"; rutas admin.preparacion.*), la de enfermería (anamnesis y signos vitales de los turnos de hoy).
         'Clínica' => [
             'admin.atencion' => 'Consulta',
-            'admin.preparacion' => 'Preparación',
+            'admin.preparacion' => 'Triaje',
             'admin.historias-clinicas' => 'Historias clínicas',
         ],
         'Catálogos' => [

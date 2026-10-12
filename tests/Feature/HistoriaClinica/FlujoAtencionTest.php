@@ -94,7 +94,7 @@ describe('transiciones del turno (Turno::pasarA)', function () {
     });
 });
 
-describe('Preparar, Marcar como lista y Reabrir', function () {
+describe('Iniciar, terminar y reabrir el triaje', function () {
     test('Preparar crea la consulta EN_PREPARACION del turno (CREAR "Preparar"); repetirlo la retoma', function () {
         $turno = hcTurno();
         $this->post(route('admin.preparacion.preparar', $turno))->assertRedirect();
@@ -104,7 +104,7 @@ describe('Preparar, Marcar como lista y Reabrir', function () {
             ->and($consulta->iniciada_en)->toBeNull()
             ->and($consulta->profesional_id)->toBe($this->profesional->id)
             ->and(codigoTurno($turno))->toBe('CONFIRMADO')
-            ->and(eventosDelRegistro('consultas', $consulta->id))->toBe([['CREAR', 'Preparar']]);
+            ->and(eventosDelRegistro('consultas', $consulta->id))->toBe([['CREAR', 'Iniciar triaje']]);
 
         $this->post(route('admin.preparacion.preparar', $turno))->assertRedirect(route('admin.preparacion.formulario', $consulta));
         expect(Consulta::count())->toBe(1);
@@ -133,7 +133,7 @@ describe('Preparar, Marcar como lista y Reabrir', function () {
         expect($consulta->fresh()->preparada_en)->not->toBeNull();
         $this->post(route('admin.preparacion.reabrir', $consulta))->assertRedirect();
         expect($consulta->fresh()->preparada_en)->toBeNull()
-            ->and(array_slice(eventosDelRegistro('consultas', $consulta->id), 1))->toBe([['EDITAR', 'Marcar como lista'], ['EDITAR', 'Reabrir la preparación']]);
+            ->and(array_slice(eventosDelRegistro('consultas', $consulta->id), 1))->toBe([['EDITAR', 'Terminar triaje'], ['EDITAR', 'Reabrir triaje']]);
 
         $this->post(route('admin.atencion.atender', $turno));
         $this->post(route('admin.preparacion.lista', $consulta))->assertForbidden();

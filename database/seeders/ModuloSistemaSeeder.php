@@ -53,8 +53,9 @@ class ModuloSistemaSeeder extends Seeder
             // Los estados de este módulo son los de la CONSULTA (Consulta usa HISTORIA_CLINICA como módulo de
             // estados): así no hace falta un módulo aparte con permisos que no tendrían efecto.
             'HISTORIA_CLINICA' => ['Historia clínica', [Estado::EN_PREPARACION, Estado::EN_CURSO, Estado::FINALIZADO, Estado::ANULADO]],
-            // Preparación de la consulta (anamnesis y signos vitales antes de entrar): solo VER, CREAR y EDITAR.
-            'PREPARACION' => ['Preparación', self::ACTIVO_INACTIVO],
+            // Triaje (antes "Preparación"): anamnesis y signos vitales antes de entrar. Solo VER, CREAR y EDITAR. El código
+            // sigue siendo PREPARACION (permisos, perfiles y auditoría lo usan): ver docs/triaje.md.
+            'PREPARACION' => ['Triaje', self::ACTIVO_INACTIVO],
             // Recetas de las consultas: borrador (PENDIENTE), emitida y anulada (solo VER, CREAR y EDITAR).
             'RECETAS' => ['Recetas', [Estado::PENDIENTE, Estado::EMITIDO, Estado::ANULADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

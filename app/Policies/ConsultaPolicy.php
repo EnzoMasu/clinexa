@@ -86,7 +86,7 @@ class ConsultaPolicy
         $esSuProfesional = $usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR')
             && (int) $this->profesionalActivo($usuario)?->id === (int) $turno->profesional_id;
         if (! $usuario->tienePermiso('PREPARACION', 'CREAR') && ! $esSuProfesional) {
-            return Response::deny('No tiene permiso para preparar consultas.');
+            return Response::deny('No tiene permiso para iniciar el triaje.');
         }
         if (! $turno->profesional->estaActivo()) {
             return Response::deny('El profesional del turno está inactivo.');
@@ -155,7 +155,7 @@ class ConsultaPolicy
 
             return $comoProfesional || $usuario->tienePermiso('PREPARACION', 'EDITAR')
                 ? Response::allow()
-                : Response::deny('No tiene permiso para cargar la preparación de esta consulta.');
+                : Response::deny('No tiene permiso para cargar el triaje de esta consulta.');
         }
 
         return Response::deny(\App\Exceptions\ConsultaCerrada::MENSAJE);
@@ -178,7 +178,7 @@ class ConsultaPolicy
     /** Marcar como lista o reabrir la preparación: quien escribe el grupo PREPARACIÓN, solo EN_PREPARACION. */
     public function marcarLista(User $usuario, Consulta $consulta): Response
     {
-        return $consulta->enPreparacion() ? $this->escribirPreparacion($usuario, $consulta) : Response::deny('La consulta ya no está en preparación.');
+        return $consulta->enPreparacion() ? $this->escribirPreparacion($usuario, $consulta) : Response::deny('La consulta ya no está en triaje.');
     }
 
     /** Finalizar o deshacer la atención: el profesional de la consulta, EN_CURSO. */

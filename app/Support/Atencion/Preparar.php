@@ -28,7 +28,7 @@ final class Preparar
                 }
                 Gate::forUser($usuario)->authorize('preparar', [Consulta::class, $turno]);
 
-                return Auditoria::conDetalle('Preparar', fn () => Apoyo::crearConsulta($turno->paciente->historiaClinica, $turno, Estado::EN_PREPARACION));
+                return Auditoria::conDetalle('Iniciar triaje', fn () => Apoyo::crearConsulta($turno->paciente->historiaClinica, $turno, Estado::EN_PREPARACION));
             });
         } catch (QueryException $e) {
             return Apoyo::siYaExiste($e, $turno);

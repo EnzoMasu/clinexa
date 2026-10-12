@@ -112,6 +112,6 @@ class PreparacionController extends Controller
         abort_if($consulta->anulada(), 404);
         MarcarLista::ejecutar($request->user(), $consulta, $lista);
 
-        return redirect()->route('admin.preparacion.formulario', $consulta)->with('status', $lista ? 'Preparación marcada como lista.' : 'Preparación reabierta.');
+        return redirect()->route('admin.preparacion.formulario', $consulta)->with('status', $lista ? 'Triaje terminado.' : 'Triaje reabierto.');
     }
 }

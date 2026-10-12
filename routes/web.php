@@ -193,13 +193,16 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
 
         // Preparación: la lista de turnos de hoy (VER sobre PREPARACION) y el formulario de anamnesis y signos
         // vitales, que usan la enfermería (PREPARACION) o el profesional del turno (HISTORIA_CLINICA).
-        Route::get('preparacion', [PreparacionController::class, 'index'])->name('preparacion.index')->middleware('permiso:PREPARACION,VER');
-        Route::post('turnos/{turno}/preparar', [PreparacionController::class, 'preparar'])->name('preparacion.preparar')->whereNumber('turno')
+        // En pantalla se llama "Triaje" (URLs /triaje); por dentro sigue siendo la "preparación": nombres de ruta
+        // admin.preparacion.*, módulo PREPARACION y estado EN_PREPARACION (docs/triaje.md). Las URLs viejas de
+        // lectura redirigen (301) a las nuevas: al final del archivo.
+        Route::get('triaje', [PreparacionController::class, 'index'])->name('preparacion.index')->middleware('permiso:PREPARACION,VER');
+        Route::post('turnos/{turno}/triaje', [PreparacionController::class, 'preparar'])->name('preparacion.preparar')->whereNumber('turno')
             ->middleware('permiso.alguno:PREPARACION.CREAR,HISTORIA_CLINICA.CREAR');
         Route::middleware('permiso.alguno:PREPARACION.EDITAR,HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR')->group(function () {
-            Route::get('consultas/{consulta}/preparacion', [PreparacionController::class, 'formulario'])->name('preparacion.formulario')->whereNumber('consulta');
-            Route::post('consultas/{consulta}/preparacion/lista', [PreparacionController::class, 'marcarLista'])->name('preparacion.lista')->whereNumber('consulta')->middleware('consulta.abierta');
-            Route::post('consultas/{consulta}/preparacion/reabrir', [PreparacionController::class, 'reabrir'])->name('preparacion.reabrir')->whereNumber('consulta')->middleware('consulta.abierta');
+            Route::get('consultas/{consulta}/triaje', [PreparacionController::class, 'formulario'])->name('preparacion.formulario')->whereNumber('consulta');
+            Route::post('consultas/{consulta}/triaje/terminar', [PreparacionController::class, 'marcarLista'])->name('preparacion.lista')->whereNumber('consulta')->middleware('consulta.abierta');
+            Route::post('consultas/{consulta}/triaje/reabrir', [PreparacionController::class, 'reabrir'])->name('preparacion.reabrir')->whereNumber('consulta')->middleware('consulta.abierta');
         });
 
         // Recetas de una consulta (RecetaPolicy: además, solo el profesional que la atiende escribe). VER: la
@@ -237,5 +240,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         $seccion($uri, $controlador, $modulo, $parametro, conBaja: true);
     }
 });
+
+// "Preparación" pasó a llamarse "Triaje": las URLs viejas de lectura redirigen para siempre (301) a las nuevas.
+// Fuera del grupo admin.* (no son pantallas: solo redirigen; la nueva exige sesión y permiso como siempre).
+// Solo GET (permanentRedirect registraría todos los verbos, también DELETE).
+Route::get('admin/preparacion', fn () => redirect('/admin/triaje', 301));
+Route::get('admin/consultas/{consulta}/preparacion', fn (string $consulta) => redirect("/admin/consultas/{$consulta}/triaje", 301))->whereNumber('consulta');
 
 require __DIR__.'/auth.php';

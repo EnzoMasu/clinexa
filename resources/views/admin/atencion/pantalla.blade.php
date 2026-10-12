@@ -174,7 +174,7 @@
         {{-- Deshacer: solo si todavía no hay contenido clínico (lo comprueba el servidor). --}}
             <form id="form-deshacer" method="POST" action="{{ route('admin.consultas.deshacer', $consulta) }}"
                 x-on:submit="if (! confirm({{ Js::from($consulta->turno_id
-                    ? '¿Deshacer la atención? El paciente vuelve a la agenda y se conserva lo cargado en la preparación.'
+                    ? '¿Deshacer la atención? El paciente vuelve a la agenda y se conserva lo cargado en el triaje.'
                     : '¿Deshacer la atención? Esta consulta sin turno se anula.') }})) { $event.preventDefault() } else { enviandoFormulario = true }">
                 @csrf
             </form>

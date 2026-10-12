@@ -10,7 +10,7 @@
     $volver = auth()->user()->tienePermiso('PREPARACION', 'VER') ? route('admin.preparacion.index') : route('admin.atencion.index');
 @endphp
 
-<x-admin.page title="Preparación" sin-recorte>
+<x-admin.page title="Triaje" sin-recorte>
     <div x-data="consultaAutoguardado({ url: {{ Js::from(route('admin.consultas.autoguardado', $consulta)) }}, autoguardado: true })" class="space-y-6 p-6">
         <div class="sticky top-0 z-30 -mx-6 -mt-6 space-y-2 rounded-t-lg border-b border-gray-200 bg-white px-6 py-3 dark:border-gray-700 dark:bg-gray-800">
             @include('admin.consultas._barra-paciente')
@@ -35,15 +35,15 @@
             @include('admin.consultas.secciones._anamnesis')
             @include('admin.consultas.secciones._signos')
 
-            <noscript><p class="text-sm text-red-600">Para cargar la preparación se necesita JavaScript habilitado.</p></noscript>
+            <noscript><p class="text-sm text-red-600">Para guardar el triaje sin JavaScript use el botón "Guardar triaje".</p></noscript>
 
             <div class="flex flex-wrap items-center gap-4">
                 @if ($puedeMarcar)
                     @if ($consulta->preparada_en)
-                        <button type="submit" formaction="{{ route('admin.preparacion.reabrir', $consulta) }}" class="{{ $boton }}">Reabrir</button>
-                        <span class="text-xs text-gray-500 dark:text-gray-400">Marcada como lista el {{ Fecha::mostrar($consulta->preparada_en, conHora: true) }}.</span>
+                        <button type="submit" formaction="{{ route('admin.preparacion.reabrir', $consulta) }}" class="{{ $boton }}">Reabrir triaje</button>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Triaje terminado el {{ Fecha::mostrar($consulta->preparada_en, conHora: true) }}.</span>
                     @else
-                        <x-primary-button>Marcar como lista</x-primary-button>
+                        <x-primary-button>Terminar triaje</x-primary-button>
                     @endif
                 @endif
                 <a href="{{ $volver }}" class="text-sm text-gray-600 hover:underline dark:text-gray-400">Volver</a>

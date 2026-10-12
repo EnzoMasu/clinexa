@@ -74,11 +74,11 @@
                         </span>
                         <span class="flex flex-wrap items-center gap-2">
                             @if ($turno->consulta)
-                                <a href="{{ route('admin.preparacion.formulario', $turno->consulta) }}" class="{{ $boton }}">Anamnesis</a>
+                                <a href="{{ route('admin.preparacion.formulario', $turno->consulta) }}" class="{{ $boton }}">Continuar triaje</a>
                             @elseif ($puedeAtender)
                                 <form method="POST" action="{{ route('admin.preparacion.preparar', $turno) }}">
                                     @csrf
-                                    <button type="submit" class="{{ $boton }}">Anamnesis</button>
+                                    <button type="submit" class="{{ $boton }}">Iniciar triaje</button>
                                 </form>
                             @endif
                             @if ($puedeAtender)

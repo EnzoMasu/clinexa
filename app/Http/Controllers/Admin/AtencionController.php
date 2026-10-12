@@ -217,7 +217,7 @@ class AtencionController extends Controller
 
             return redirect()->route('admin.atencion.index')->with('status', $resultado === 'anulada'
                 ? 'Atención sin turno deshecha.'
-                : 'Atención deshecha: el paciente volvió a la agenda, con lo cargado en la preparación.');
+                : 'Atención deshecha: el paciente volvió a la agenda, con lo cargado en el triaje.');
         });
     }
 

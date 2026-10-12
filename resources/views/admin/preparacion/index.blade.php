@@ -3,7 +3,7 @@
     profesional y búsqueda en vivo. Solo datos de agenda. La lista se actualiza sola cada 30 s, con los
     filtros que estén puestos (la URL los refleja).
 --}}
-<x-admin.page title="Preparación">
+<x-admin.page title="Triaje">
     <div x-data="refrescoPeriodico()">
         <x-admin.listado :action="route('admin.preparacion.index')" :busqueda="$busqueda" placeholder="Buscar por paciente, ficha o profesional…">
             <x-slot name="filtros">

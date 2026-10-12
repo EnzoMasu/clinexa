@@ -15,7 +15,7 @@ test('la tabla estados tiene los 27 estados, con código y nombre (los del flujo
         'GENERADO', 'PAGADO', 'PARCIAL', 'EMITIDO', 'APROBADO', 'RECHAZADO',
         'EN_CONSULTA', 'SALTADO', 'EN_PREPARACION', 'EN_CURSO', 'FINALIZADO',
     ])->and(Estado::whereColumn('codigo', '!=', 'nombre')->pluck('nombre', 'codigo')->all())->toBe([
-        'EN_CONSULTA' => 'EN CONSULTA', 'EN_PREPARACION' => 'EN PREPARACIÓN', 'EN_CURSO' => 'EN CURSO',
+        'EN_CONSULTA' => 'EN CONSULTA', 'EN_PREPARACION' => 'EN TRIAJE', 'EN_CURSO' => 'EN CURSO',
     ]);
 });
 

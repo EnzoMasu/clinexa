@@ -60,8 +60,8 @@ class PerfilesPredefinidos
     public const DESCRIPCIONES = [
         self::ADMINISTRADOR => 'Acceso total al sistema',
         self::GERENCIA => 'Lectura de lo operativo y de la auditoría, sin contenido clínico',
-        self::MEDICO => 'Consulta, historia clínica, recetas y preparación',
-        self::ENFERMERIA => 'Preparación de la consulta (anamnesis y signos vitales)',
+        self::MEDICO => 'Consulta, historia clínica, recetas y triaje',
+        self::ENFERMERIA => 'Triaje (anamnesis y signos vitales)',
         self::RECEPCION => 'Agenda, turnos, disponibilidades y alta de personas y pacientes',
         self::CAJA => 'Lectura de pacientes, medios de pago y procedimientos',
         self::FACTURACION => 'Lectura de responsables de pago, procedimientos y medios de pago',
