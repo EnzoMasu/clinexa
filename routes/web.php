@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\MedioPagoController;
 use App\Http\Controllers\Admin\OrigenTurnoController;
 use App\Http\Controllers\Admin\PacienteController;
 use App\Http\Controllers\Admin\PaisController;
+use App\Http\Controllers\Admin\ParametroClinicoController;
 use App\Http\Controllers\Admin\PerfilAccesoController;
 use App\Http\Controllers\Admin\PersonaController;
 use App\Http\Controllers\Admin\PersonalSaludController;
@@ -117,6 +118,14 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('tipos-bloque-anamnesis', TipoBloqueAnamnesisController::class, 'TIPOS_BLOQUE_ANAMNESIS', 'tipoBloqueAnamnesis', conBaja: true);
     $seccion('tipos-indicacion', TipoIndicacionController::class, 'TIPOS_INDICACION', 'tipoIndicacion', conBaja: true);
     $seccion('cargos-salud', CargoSaludController::class, 'CARGOS_SALUD', 'cargoSalud', conBaja: true);
+    // Parámetros clínicos: un juego fijo (no se crean ni se desactivan); se editan y se aprueban con EDITAR (aprobar,
+    // además, siendo Profesional activo: el controlador).
+    Route::get('parametros-clinicos', [ParametroClinicoController::class, 'index'])->name('parametros-clinicos.index')->middleware('permiso:PARAMETROS_CLINICOS,VER');
+    Route::middleware('permiso:PARAMETROS_CLINICOS,EDITAR')->group(function () {
+        Route::get('parametros-clinicos/{parametroClinico}/edit', [ParametroClinicoController::class, 'edit'])->name('parametros-clinicos.edit')->whereNumber('parametroClinico');
+        Route::put('parametros-clinicos/{parametroClinico}', [ParametroClinicoController::class, 'update'])->name('parametros-clinicos.update')->whereNumber('parametroClinico');
+        Route::post('parametros-clinicos/{parametroClinico}/aprobar', [ParametroClinicoController::class, 'aprobar'])->name('parametros-clinicos.aprobar')->whereNumber('parametroClinico');
+    });
 
     // Geografía: las tres pantallas comparten el módulo GEOGRAFIA.
     $seccion('paises', PaisController::class, 'GEOGRAFIA', 'pais', conBaja: true);

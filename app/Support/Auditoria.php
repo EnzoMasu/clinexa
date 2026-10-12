@@ -25,6 +25,7 @@ use App\Models\ModuloSistema;
 use App\Models\OrigenTurno;
 use App\Models\Paciente;
 use App\Models\Pais;
+use App\Models\ParametroClinico;
 use App\Models\PerfilAcceso;
 use App\Models\Persona;
 use App\Models\PersonalSalud;
@@ -71,7 +72,7 @@ final class Auditoria
         Departamento::class, Ciudad::class, Consultorio::class,
         OrigenTurno::class, Disponibilidad::class, Turno::class, TipoRedSocial::class, TipoBloqueAnamnesis::class, TipoIndicacion::class,
         // Personal de salud, sus cargos y los parámetros clínicos: no son contenido clínico (los ve quien ve la auditoría).
-        CargoSalud::class, PersonalSalud::class,
+        CargoSalud::class, PersonalSalud::class, ParametroClinico::class,
         // Historia clínica (módulo HISTORIA_CLINICA; la historia primero: es la tabla de sus lecturas).
         HistoriaClinica::class, Consulta::class, BloqueAnamnesis::class, ExamenFisico::class, Diagnostico::class, Indicacion::class,
         // Recetas (módulo RECETAS; la receta primero: es la tabla de sus lecturas).

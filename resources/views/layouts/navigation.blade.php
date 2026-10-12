@@ -41,6 +41,7 @@
             'admin.tipos-bloque-anamnesis' => 'Tipos de bloque de anamnesis',
             'admin.tipos-indicacion' => 'Tipos de indicación',
             'admin.cargos-salud' => 'Cargos de salud',
+            'admin.parametros-clinicos' => 'Parámetros clínicos',
             'admin.paises' => 'Países',
             'admin.departamentos' => 'Departamentos',
             'admin.ciudades' => 'Ciudades',
