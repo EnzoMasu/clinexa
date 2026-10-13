@@ -35,6 +35,7 @@ use App\Http\Controllers\Admin\TipoDocumentoController;
 use App\Http\Controllers\Admin\TipoIndicacionController;
 use App\Http\Controllers\Admin\TipoRedSocialController;
 use App\Http\Controllers\Admin\TurnoController;
+use App\Http\Controllers\Admin\UrgenciaController;
 use App\Http\Controllers\Admin\UsuarioController;
 use App\Http\Controllers\GeografiaController;
 use App\Http\Controllers\ProfileController;
@@ -147,6 +148,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         ->middleware('permiso:DISPONIBILIDAD,VER');
     Route::put('turnos/cupos/{profesional}', [CupoEntrePacientesController::class, 'fijar'])->name('turnos.cupos.fijar')->whereNumber('profesional')
         ->middleware('permiso.alguno:DISPONIBILIDAD.CREAR,DISPONIBILIDAD.EDITAR');
+
+    // Urgencias de recepción (sin nada clínico): ver las de hoy, registrar y cancelar una pendiente.
+    Route::get('turnos/urgencias', [UrgenciaController::class, 'index'])->name('urgencias.index')->middleware('permiso:TURNOS,VER');
+    Route::get('turnos/urgencias/create', [UrgenciaController::class, 'create'])->name('urgencias.create')->middleware('permiso:TURNOS,CREAR');
+    Route::post('turnos/urgencias', [UrgenciaController::class, 'store'])->name('urgencias.store')->middleware('permiso:TURNOS,CREAR');
+    Route::patch('turnos/urgencias/{turno}/cancelar', [UrgenciaController::class, 'cancelar'])->name('urgencias.cancelar')->whereNumber('turno')
+        ->middleware('permiso:TURNOS,EDITAR');
 
     // Turnos: no se editan ni se borran; solo se dan de alta y cambian de estado.
     Route::middleware('permiso:TURNOS,CREAR')->group(function () {

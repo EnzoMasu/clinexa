@@ -38,26 +38,7 @@
                     <button type="submit" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white">Atender</button>
                 </form>
 
-                @php
-                    // Cada enlace, solo con el permiso de su módulo: CREAR para dar de alta; EDITAR (y VER, que
-                    // pide el listado) para reactivar un paciente, que se hace editando su estado en Pacientes.
-                    $urlPersona = Permisos::url('admin.personas.create');
-                    $urlPaciente = Permisos::url('admin.pacientes.create');
-                    $urlReactivar = auth()->user()->tienePermiso('PACIENTES', 'EDITAR') ? Permisos::url('admin.pacientes.index') : null;
-                @endphp
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Si el paciente no aparece, puede que todavía no esté registrado o que esté inactivo. Un paciente nuevo se da de alta
-                    primero en Personas y en Pacientes; uno inactivo se reactiva desde Pacientes.
-                    @if ($urlPersona)
-                        <a href="{{ $urlPersona }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Nueva persona</a>
-                    @endif
-                    @if ($urlPaciente)
-                        <a href="{{ $urlPaciente }}" class="ms-2 font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Nuevo paciente</a>
-                    @endif
-                    @if ($urlReactivar)
-                        <a href="{{ $urlReactivar }}" class="ms-2 font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Ir a Pacientes</a>
-                    @endif
-                </p>
+                @include('admin.atencion._ayuda-paciente')
             </div>
         @endif
     </div>

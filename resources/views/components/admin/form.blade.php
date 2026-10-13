@@ -4,7 +4,7 @@
     validación la hace el servidor y el aviso en castellano aparece junto al campo. Los atributos
     required/maxlength/pattern se mantienen como indicación (y para lectores de pantalla).
 --}}
-@props(['action', 'method' => 'POST', 'cancel', 'width' => 'max-w-xl'])
+@props(['action', 'method' => 'POST', 'cancel', 'width' => 'max-w-xl', 'submitLabel' => 'Guardar'])
 
 <form method="POST" action="{{ $action }}" novalidate {{ $attributes->merge(['class' => "p-6 space-y-6 {$width}"]) }}>
     @csrf
@@ -15,7 +15,7 @@
     {{ $slot }}
 
     <div class="flex items-center gap-4">
-        <x-primary-button>Guardar</x-primary-button>
+        <x-primary-button>{{ $submitLabel }}</x-primary-button>
         <a href="{{ $cancel }}" class="text-sm text-gray-600 dark:text-gray-400 hover:underline">Cancelar</a>
     </div>
 </form>

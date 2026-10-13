@@ -14,10 +14,20 @@
             @endif
         </p>
     @endif
-    @php($urlCupos = Permisos::url('admin.turnos.cupos'))
-    @if ($urlCupos)
+    @php($enlaces = array_filter([
+        'Registrar urgencia' => Permisos::url('admin.urgencias.create'),
+        'Urgencias de hoy' => Permisos::url('admin.urgencias.index'),
+        'Cupo entre pacientes' => Permisos::url('admin.turnos.cupos'),
+    ]))
+    @if ($enlaces)
         <div class="flex flex-wrap gap-2 px-4 pt-4">
-            <a href="{{ $urlCupos }}" class="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">Cupo entre pacientes</a>
+            @foreach ($enlaces as $texto => $url)
+                <a href="{{ $url }}" @class([
+                    'inline-flex items-center rounded-md px-3 py-1.5 text-xs font-semibold',
+                    'bg-red-700 text-white hover:bg-red-800' => $texto === 'Registrar urgencia',
+                    'border border-gray-300 text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700' => $texto !== 'Registrar urgencia',
+                ])>{{ $texto }}</a>
+            @endforeach
         </div>
     @endif
     <x-admin.listado :action="route('admin.turnos.index')" :busqueda="$busqueda" placeholder="Buscar por paciente, profesional o fecha (dd/mm/aaaa)…">
