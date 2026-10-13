@@ -66,7 +66,7 @@ class AtencionController extends Controller
         // Atendidos hoy: sus consultas finalizadas hoy (día de Paraguay, en UTC).
         $atendidos = Consulta::query()
             ->select(['id', 'historia_clinica_id', 'turno_id', 'profesional_id', 'estado_id', 'iniciada_en', 'fecha_hora', 'finalizada_en'])
-            ->with(['historiaClinica.paciente.persona', 'turno:id,hora_inicio', 'diagnosticos' => fn ($q) => $q->select(['id', 'consulta_id', 'codigo_cie10', 'principal'])
+            ->with(['historiaClinica.paciente.persona', 'turno:id,tipo,hora_inicio', 'diagnosticos' => fn ($q) => $q->select(['id', 'consulta_id', 'codigo_cie10', 'principal'])
                 ->where('activo', true)->orderByDesc('principal')->orderBy('id')])
             ->where('profesional_id', $profesional->id)->finalizadas()
             ->where('finalizada_en', '>=', $hoy->copy()->startOfDay()->utc())->where('finalizada_en', '<', $hoy->copy()->addDay()->startOfDay()->utc())
@@ -82,7 +82,7 @@ class AtencionController extends Controller
             'enCurso' => $urgentesPrimero(Consulta::query()
                 ->select(['id', 'historia_clinica_id', 'turno_id', 'profesional_id', 'estado_id', 'iniciada_en', 'fecha_hora', 'triaje_urgente'])
                 ->withExists(['examenFisico as con_alertas' => fn ($q) => $q->whereNotNull('signos_alertas')])
-                ->with(['historiaClinica.paciente.persona', 'turno:id,hora_inicio'])
+                ->with(['historiaClinica.paciente.persona', 'turno:id,tipo,hora_inicio'])
                 ->where('profesional_id', $profesional->id)->where('estado_id', Estado::idDe(Estado::EN_CURSO))
                 ->orderBy('iniciada_en')->get(), fn (Consulta $consulta) => $consulta->triaje_urgente),
             'agenda' => $urgentesPrimero($turnos->filter(fn ($turno) => in_array($codigo($turno), [Estado::PENDIENTE, Estado::CONFIRMADO], true)), $turnoUrgente),
@@ -128,7 +128,7 @@ class AtencionController extends Controller
         return $this->accion(function () use ($request, $turno) {
             NoSePresento::ejecutar($request->user(), $turno);
 
-            return redirect()->route('admin.atencion.index')->with('status', 'Turno de las '.substr($turno->hora_inicio, 0, 5).': no se presentó. Quedó en "Por llamar de nuevo".');
+            return redirect()->route('admin.atencion.index')->with('status', $turno->descripcionCorta().': no se presentó. Quedó en "Por llamar de nuevo".');
         });
     }
 
@@ -138,7 +138,7 @@ class AtencionController extends Controller
         return $this->accion(function () use ($request, $turno) {
             PasarAusente::ejecutar($request->user(), $turno);
 
-            return redirect()->route('admin.atencion.index')->with('status', 'Turno de las '.substr($turno->hora_inicio, 0, 5).': ausente.');
+            return redirect()->route('admin.atencion.index')->with('status', $turno->descripcionCorta().': ausente.');
         });
     }
 

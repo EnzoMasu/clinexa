@@ -10,7 +10,7 @@ use App\Support\Auditoria;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
-/** Atender sin turno (urgencia): crea la consulta EN_CURSO, sin turno, iniciada ahora. */
+/** Atender sin turno: crea la consulta EN_CURSO, sin turno, iniciada ahora. */
 final class AtenderSinTurno
 {
     public static function ejecutar(User $usuario, HistoriaClinica $historia): Consulta

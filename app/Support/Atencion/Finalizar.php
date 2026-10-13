@@ -64,7 +64,7 @@ final class Finalizar
                 }
 
                 return $turno && ! $atiende
-                    ? ['El turno de las '.substr($turno->hora_inicio, 0, 5)." estaba en estado {$turno->estado->nombre} y no se marcó como atendido. Revíselo en Turnos."]
+                    ? [($turno->tieneHorario() ? 'El turno de las '.substr($turno->hora_inicio, 0, 5) : 'El turno ('.mb_strtolower($turno->tipo->etiqueta()).')')." estaba en estado {$turno->estado->nombre} y no se marcó como atendido. Revíselo en Turnos."]
                     : [];
             }));
         });

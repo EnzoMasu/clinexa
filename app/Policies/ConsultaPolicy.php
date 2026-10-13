@@ -66,7 +66,7 @@ class ConsultaPolicy
             : Response::deny('Solo un profesional activo puede atender consultas.');
     }
 
-    /** Atender sin turno (urgencia) a este paciente: profesional activo con CREAR, paciente activo. */
+    /** Atender sin turno a este paciente: profesional activo con CREAR, paciente activo. */
     public function atenderSinTurno(User $usuario, HistoriaClinica $historia): Response
     {
         $atender = $this->atender($usuario);

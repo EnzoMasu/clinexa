@@ -126,13 +126,20 @@ test('la clase compartida "dato" existe con el par de colores, y los layouts tie
 });
 
 test('las horas de las listas de Consulta, Preparación, Turnos y Disponibilidades usan la clase compartida', function () {
+    // En las listas, la hora de un turno (o la pastilla de su tipo) la pone el componente admin.turno-hora.
+    foreach (['admin/atencion/_tabla.blade.php', 'admin/preparacion/_tabla.blade.php', 'admin/turnos/_tabla.blade.php'] as $vista) {
+        expect(file_get_contents(resource_path("views/{$vista}")))->toContain('<x-admin.turno-hora :turno=');
+    }
     foreach ([
-        'admin/atencion/_tabla.blade.php' => 'substr($turno->hora_inicio, 0, 5)',
-        'admin/preparacion/_tabla.blade.php' => 'substr($turno->hora_inicio, 0, 5)',
-        'admin/turnos/_tabla.blade.php' => 'substr($turno->hora_inicio, 0, 5)',
+        'components/admin/turno-hora.blade.php' => '{{ substr($turno->hora_inicio, 0, 5) }}',
         'admin/disponibilidades/_tabla.blade.php' => 'Disponibilidad::hora(',
-        'admin/atencion/cerrar-jornada.blade.php' => 'substr($turno->hora_inicio, 0, 5)',
+        'admin/atencion/cerrar-jornada.blade.php' => '{{ Fecha::mostrar($turno->fecha) }} {{ $turno->horaOTipo() }}',
     ] as $vista => $hora) {
+        if ($vista === 'components/admin/turno-hora.blade.php') {
+            expect(file_get_contents(resource_path("views/{$vista}")))->toContain("merge(['class' => 'dato']) }}>".$hora);
+
+            continue;
+        }
         $html = file_get_contents(resource_path("views/{$vista}"));
         expect($html)->toMatch('/class="[^"]*\bdato\b[^"]*">[^<]*'.preg_quote($hora, '/').'/');
     }

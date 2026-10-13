@@ -42,9 +42,9 @@
             · <span class="dato">{{ $consulta->fechaHoraTexto() }}</span>
             · {{ $consulta->profesional->persona->nombre_completo }}
             · @if ($consulta->turno)
-                Turno del {{ Fecha::mostrar($consulta->turno->fecha) }}, {{ substr($consulta->turno->hora_inicio, 0, 5) }}
+                Turno del {{ Fecha::mostrar($consulta->turno->fecha) }}, {{ $consulta->turno->horaOTipo() }}
             @else
-                Sin turno (urgencia)
+                Sin turno
             @endif
         </p>
     </header>

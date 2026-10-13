@@ -39,7 +39,7 @@ final class CerrarJornada
             ->where('profesional_id', $profesionalId)
             ->whereDate('fecha', '<=', Fecha::hoy()->format('Y-m-d'))
             ->whereIn('estado_id', array_map(fn (string $codigo) => Estado::idDe($codigo), self::POR_CERRAR))
-            ->orderBy('fecha')->orderBy('hora_inicio')
+            ->orderBy('fecha')->ordenDelDia()
             ->get();
     }
 

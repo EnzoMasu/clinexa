@@ -2,7 +2,7 @@
 
 {{--
     Barra del paciente de una consulta (preparación y atención): nombre, edad, sexo, documento, ficha,
-    profesional y el turno ("Urgencia" sin turno). Requiere $consulta con historiaClinica.paciente.persona,
+    profesional y el turno (su hora, la pastilla de su tipo, o "Sin turno"). Requiere $consulta con historiaClinica.paciente.persona,
     turno y profesional.persona.
 --}}
 @php
@@ -19,9 +19,9 @@
     </span>
     <span class="text-gray-600 dark:text-gray-400">
         @if ($consulta->turno)
-            Turno {{ substr($consulta->turno->hora_inicio, 0, 5) }}
+            @if ($consulta->turno->tieneHorario()) Turno {{ substr($consulta->turno->hora_inicio, 0, 5) }} @else<x-admin.turno-hora :turno="$consulta->turno" />@endif
         @else
-            <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">Urgencia</span>
+            <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200">Sin turno</span>
         @endif
         · {{ $consulta->profesional->persona->nombre_completo }}
     </span>

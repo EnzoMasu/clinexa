@@ -23,7 +23,7 @@
 
         @if ($puedeAtender)
             {{--
-                Atender sin turno (urgencias): el buscador del alta de turnos (solo pacientes activos) con el id de
+                Atender sin turno: el buscador del alta de turnos (solo pacientes activos) con el id de
                 la historia clínica; "Atender" envía un POST que crea la consulta EN_CURSO y abre la pantalla de atención.
             --}}
             <div id="panel-sin-turno" x-show="sinTurno" style="display: none" class="max-w-2xl space-y-3 rounded-md border border-gray-200 p-4 dark:border-gray-700"

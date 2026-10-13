@@ -128,7 +128,7 @@ describe('página compacta', function () {
         $sinExamen = hcConsulta(['examen' => []]);
         $this->get(route('admin.consultas.show', $sinExamen))->assertOk()->assertDontSee('Signos vitales')->assertSee('Anamnesis');
 
-        expect($html)->toContain('Sin turno (urgencia)');
+        expect($html)->toContain('Sin turno');
     });
 
     test('encabezado, botones y el historial de cambios plegado', function () {
@@ -136,7 +136,7 @@ describe('página compacta', function () {
         [$auditor] = hcMedico(['apellidos' => 'Paredes', 'nombres' => 'Juan'], 'MP-9', ['HISTORIA_CLINICA' => ['VER'], 'AUDITORIA' => ['VER']]);
 
         $this->get(route('admin.consultas.show', $consulta))->assertOk()
-            ->assertSeeInOrder(['Consulta cerrada: no puede modificarse.', 'Volver a la historia', 'Duarte, Carmen', 'Ficha FP-0000001', '06/10/2026', 'Benítez, Rosa', 'Sin turno (urgencia)', 'Motivo de consulta']);
+            ->assertSeeInOrder(['Consulta cerrada: no puede modificarse.', 'Volver a la historia', 'Duarte, Carmen', 'Ficha FP-0000001', '06/10/2026', 'Benítez, Rosa', 'Sin turno', 'Motivo de consulta']);
 
         $html = $this->actingAs($auditor)->get(route('admin.consultas.show', $consulta))->assertOk()->assertDontSee('>Editar</a>', false)->getContent();
         expect($html)->toMatch('#<details class="[^"]*">\s*<summary[^>]*>Historial de cambios</summary>#')
@@ -148,7 +148,7 @@ describe('página compacta', function () {
         hcGuardarNueva([], $turno)->assertRedirect()->assertSessionHas('status', 'Consulta finalizada.');
         $consulta = Consulta::sole();
 
-        $this->get(route('admin.consultas.show', $consulta))->assertSee('Turno del 06/10/2026, 08:00')->assertDontSee('Sin turno (urgencia)');
+        $this->get(route('admin.consultas.show', $consulta))->assertSee('Turno del 06/10/2026, 08:00')->assertDontSee('Sin turno');
 
         hcActualizar($consulta, hcFilasGuardadas($consulta))->assertStatus(409);
     });
@@ -166,11 +166,11 @@ describe('lista de la historia', function () {
         hcGuardarNueva([], hcTurno(['hora_inicio' => '10:00', 'hora_fin' => '10:30']))->assertSessionHasNoErrors();
 
         $html = $this->get(route('admin.historias-clinicas.show', $this->historia))->assertOk()
-            ->assertSeeInOrder(['06/10/2026 10:00', 'Benítez, Rosa', 'Dolor de garganta', 'J06.9', '06/10/2026 09:00', 'Benítez, Rosa', 'Urgencia', 'Dolor abdominal', 'A01', 'A02', 'A03', '+2'])
+            ->assertSeeInOrder(['06/10/2026 10:00', 'Benítez, Rosa', 'Dolor de garganta', 'J06.9', '06/10/2026 09:00', 'Benítez, Rosa', 'Sin turno', 'Dolor abdominal', 'A01', 'A02', 'A03', '+2'])
             ->assertDontSee('FINAL-DEL-MOTIVO')->assertDontSee('A04')
             ->getContent();
 
-        expect(substr_count($html, '>Urgencia</span>'))->toBe(1); // la del turno no la tiene
+        expect(substr_count($html, '>Sin turno</span>'))->toBe(1); // la del turno no la tiene
     });
 
     test('el HTML no trae el contenido completo de ninguna consulta: ni motivo entero, ni anamnesis, ni hallazgos, ni descripciones', function () {

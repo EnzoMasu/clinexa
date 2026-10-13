@@ -20,7 +20,8 @@ use Illuminate\Support\Collection;
  * 4. Se descartan los bloques que se pisan con un turno no CANCELADO del profesional, o del
  *    consultorio con otro profesional (la base los rechazaría igual).
  * 5. No hay horarios en el pasado: fechas anteriores a hoy no tienen ninguno y, si es hoy, solo
- *    los que todavía no empezaron (hora de Paraguay). La regla es Fecha::yaLlego, la misma que valida el
+ *    los que todavía no empezaron (hora de Paraguay). Los turnos sin horario (ENTRE_PACIENTES,
+ *    URGENCIA) no ocupan ninguno. La regla es Fecha::yaLlego, la misma que valida el
  *    alta y los cambios de un turno (TurnoController) y la ausencia desde la hora del turno.
  */
 final class Agenda
@@ -52,6 +53,7 @@ final class Agenda
         // Ocupado ese día: turnos del profesional o de alguno de sus consultorios.
         $ocupados = Turno::query()
             ->ocupanHorario()
+            ->whereNotNull('hora_inicio') // ENTRE_PACIENTES y URGENCIA no ocupan horarios
             ->whereDate('fecha', $fecha->format('Y-m-d'))
             ->where(fn ($query) => $query->where('profesional_id', $profesional->id)
                 ->orWhereIn('consultorio_id', $disponibilidades->pluck('consultorio_id')))

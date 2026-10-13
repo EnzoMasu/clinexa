@@ -225,7 +225,7 @@ describe('pantalla de atención', function () {
         hcAutoguardar($consulta, ['con_anamnesis' => '1', 'anamnesis' => [['uid' => 'n', 'id' => '', 'activo' => '1', 'tipo_bloque_anamnesis_id' => $this->alergias->id, 'contenido' => 'Penicilina.']]]);
         $this->get(route('admin.consultas.atencion', $consulta))->assertViewHas('panelInicial', 'motivo');
 
-        $this->get(route('admin.consultas.atencion', hcEnCurso()))->assertSee('Urgencia');
+        $this->get(route('admin.consultas.atencion', hcEnCurso()))->assertSee('Sin turno');
     });
 
     test('registra un VER de la consulta y uno de la historia; el autoguardado no registra lecturas', function () {

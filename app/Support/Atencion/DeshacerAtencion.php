@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Gate;
  * - con turno, si no hay contenido clínico (motivo, hallazgos, diagnósticos o indicaciones activos, recetas
  *   sin anular): la consulta vuelve a EN_PREPARACION (sin iniciada_en; preparada_en se conserva) y el turno a
  *   PENDIENTE. Los datos de la preparación no lo impiden. La consulta no se anula.
- * - sin turno (urgencia), solo si está completamente vacía: pasa a ANULADO.
+ * - sin turno, solo si está completamente vacía: pasa a ANULADO.
  */
 final class DeshacerAtencion
 {

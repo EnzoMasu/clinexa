@@ -147,16 +147,17 @@ class Turno extends Model
 
         return self::with('profesional.persona')->activosDeLaPaciente()
             ->where('paciente_id', $pacienteId)->whereDate('fecha', $fecha)
+            ->whereNotNull('hora_inicio') // los sin horario no se superponen con nada
             ->where('hora_inicio', '<', $fin)->where('hora_fin', '>', $inicio)
             ->orderBy('hora_inicio')->first();
     }
 
-    /** Otro turno activo de la paciente ese día con ese profesional (que no se superpone), o null. */
+    /** Otro turno activo de la paciente ese día con ese profesional (que no se superpone), o null. De cualquier tipo. */
     public static function otroDelDiaConElProfesional(int $pacienteId, int $profesionalId, string $fecha): ?self
     {
         return self::with('profesional.persona')->activosDeLaPaciente()
             ->where('paciente_id', $pacienteId)->where('profesional_id', $profesionalId)->whereDate('fecha', $fecha)
-            ->orderBy('hora_inicio')->first();
+            ->ordenDelDia()->first();
     }
 
     /** NORMAL: tiene hora y consultorio. ENTRE_PACIENTES y URGENCIA no (no ocupan horarios). */
@@ -169,6 +170,33 @@ class Turno extends Model
     public function horaOTipo(): string
     {
         return $this->tieneHorario() ? substr((string) $this->hora_inicio, 0, 5) : $this->tipo->etiqueta();
+    }
+
+    /** Para avisos: "Turno de las 08:00", "Turno entre pacientes" o "Urgencia". */
+    public function descripcionCorta(): string
+    {
+        return match ($this->tipo ?? TipoTurno::NORMAL) {
+            TipoTurno::NORMAL => 'Turno de las '.substr((string) $this->hora_inicio, 0, 5),
+            TipoTurno::ENTRE_PACIENTES => 'Turno entre pacientes',
+            TipoTurno::URGENCIA => 'Urgencia',
+        };
+    }
+
+    public function scopeDelTipo(Builder $query, TipoTurno ...$tipos): void
+    {
+        $query->whereIn($this->qualifyColumn('tipo'), array_map(fn (TipoTurno $tipo) => $tipo->value, $tipos));
+    }
+
+    /**
+     * Orden de las listas del día: urgencias primero (por orden de carga), luego los de horario por hora y
+     * después los entre pacientes por orden de carga.
+     */
+    public function scopeOrdenDelDia(Builder $query): void
+    {
+        $tipo = $this->qualifyColumn('tipo');
+        $query->orderByRaw("CASE {$tipo} WHEN 'URGENCIA' THEN 0 WHEN 'NORMAL' THEN 1 ELSE 2 END")
+            ->orderBy($this->qualifyColumn('hora_inicio'))
+            ->orderBy($this->qualifyColumn('id'));
     }
 
     /** "a las 08:00", o "(entre pacientes)" / "(urgencia)" para los sin horario. */
