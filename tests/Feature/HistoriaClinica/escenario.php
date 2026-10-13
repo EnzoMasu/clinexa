@@ -29,6 +29,7 @@ use App\Models\User;
 use Database\Seeders\ModulosSensiblesSeeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 const HC_PERMISOS_MEDICO = ['HISTORIA_CLINICA' => ['VER', 'CREAR', 'EDITAR'], 'TURNOS' => ['VER']];
 
@@ -266,4 +267,35 @@ function articuloDe(string $html): string
     preg_match('#<article .*?</article>#s', $html, $coincidencia);
 
     return trim($coincidencia[0] ?? '');
+}
+
+/* ---- Escapado ---- */
+
+/**
+ * Renderiza con una copia de las vistas donde $vista tiene $buscar reemplazado por $reemplazo.
+ * Devuelve lo que devuelva $pedido. La copia se borra al terminar, pase lo que pase.
+ */
+function conVistaMutada(string $vista, string $buscar, string $reemplazo, Closure $pedido): mixed
+{
+    $copia = sys_get_temp_dir().'/clinexa-mutacion-'.bin2hex(random_bytes(6));
+    File::copyDirectory(resource_path('views'), $copia);
+    try {
+        $archivo = "{$copia}/{$vista}";
+        $original = file_get_contents($archivo);
+        expect(substr_count($original, $buscar))->toBe(1, "La mutación tiene que aplicarse en un solo lugar de {$vista}");
+        file_put_contents($archivo, str_replace($buscar, $reemplazo, $original));
+
+        $finder = app('view')->getFinder();
+        $rutas = $finder->getPaths();
+        $finder->setPaths([$copia, ...$rutas]);
+        $finder->flush();
+        try {
+            return $pedido();
+        } finally {
+            $finder->setPaths($rutas);
+            $finder->flush();
+        }
+    } finally {
+        File::deleteDirectory($copia);
+    }
 }

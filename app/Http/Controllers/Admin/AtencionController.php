@@ -117,7 +117,7 @@ class AtencionController extends Controller
         $profesional = $request->user()->profesional;
         abort_unless($profesional?->estaActivo(), 403, self::SOLO_PROFESIONALES);
 
-        return response()->json(PendientesDelProfesional::contadores($profesional));
+        return response()->json(PendientesDelProfesional::contadores($profesional), 200, [], BuscadorPersonas::JSON_SEGURO);
     }
 
     /** Popup "Entre pacientes" (fragmento escapado, solo por AJAX): sin la observación del triaje; no registra lecturas. */

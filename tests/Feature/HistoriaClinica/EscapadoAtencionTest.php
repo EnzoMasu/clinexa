@@ -14,7 +14,6 @@ use App\Models\Consulta;
 use App\Models\Paciente;
 use App\Models\Persona;
 use App\Models\User;
-use Illuminate\Support\Facades\File;
 
 const XSS_IMG = '<img src=x onerror=alert(1)>';
 const XSS_IMG_ESCAPADO = '&lt;img src=x onerror=alert(1)&gt;';
@@ -76,35 +75,6 @@ test('el panel de historial muestra el motivo anterior escapado', function () {
 
     expect($html)->toContain('Anterior '.XSS_IMG_ESCAPADO)->not->toContain('Anterior '.XSS_IMG);
 });
-
-/**
- * Renderiza con una copia de las vistas donde $vista tiene $buscar reemplazado por $reemplazo.
- * Devuelve lo que devuelva $pedido. La copia se borra al terminar, pase lo que pase.
- */
-function conVistaMutada(string $vista, string $buscar, string $reemplazo, Closure $pedido): mixed
-{
-    $copia = sys_get_temp_dir().'/clinexa-mutacion-'.bin2hex(random_bytes(6));
-    File::copyDirectory(resource_path('views'), $copia);
-    try {
-        $archivo = "{$copia}/{$vista}";
-        $original = file_get_contents($archivo);
-        expect(substr_count($original, $buscar))->toBe(1, "La mutación tiene que aplicarse en un solo lugar de {$vista}");
-        file_put_contents($archivo, str_replace($buscar, $reemplazo, $original));
-
-        $finder = app('view')->getFinder();
-        $rutas = $finder->getPaths();
-        $finder->setPaths([$copia, ...$rutas]);
-        $finder->flush();
-        try {
-            return $pedido();
-        } finally {
-            $finder->setPaths($rutas);
-            $finder->flush();
-        }
-    } finally {
-        File::deleteDirectory($copia);
-    }
-}
 
 test('mutación: si se rompe el escapado, el test lo detecta (y el proyecto queda intacto)', function (string $vista, string $buscar, string $reemplazo, Closure $pantalla) {
     $originalEnProyecto = file_get_contents(resource_path("views/{$vista}"));
