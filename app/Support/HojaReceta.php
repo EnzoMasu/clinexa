@@ -80,7 +80,7 @@ final class HojaReceta
 
     /**
      * Sucursal del encabezado: la del consultorio del turno de la consulta. PROVISORIO: una consulta
-     * sin turno (urgencia) no tiene consultorio, y por ahora se usa la sucursal activa más antigua.
+     * sin turno no tiene consultorio, y por ahora se usa la sucursal activa más antigua.
      * Cuando la consulta registre dónde se atendió, usar eso.
      */
     private static function sucursal(Consulta $consulta): ?Sucursal

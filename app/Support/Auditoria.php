@@ -11,6 +11,7 @@ use App\Models\CategoriaProveedor;
 use App\Models\Ciudad;
 use App\Models\Consulta;
 use App\Models\Consultorio;
+use App\Models\CupoEntrePacientes;
 use App\Models\Departamento;
 use App\Models\DetalleReceta;
 use App\Models\Diagnostico;
@@ -70,7 +71,7 @@ final class Auditoria
         CatalogoCIE10::class, MedioPago::class, CategoriaGasto::class,
         CategoriaProveedor::class, Procedimiento::class, Pais::class,
         Departamento::class, Ciudad::class, Consultorio::class,
-        OrigenTurno::class, Disponibilidad::class, Turno::class, TipoRedSocial::class, TipoBloqueAnamnesis::class, TipoIndicacion::class,
+        OrigenTurno::class, Disponibilidad::class, CupoEntrePacientes::class, Turno::class, TipoRedSocial::class, TipoBloqueAnamnesis::class, TipoIndicacion::class,
         // Personal de salud, sus cargos y los parámetros clínicos: no son contenido clínico (los ve quien ve la auditoría).
         CargoSalud::class, PersonalSalud::class, ParametroClinico::class,
         // Historia clínica (módulo HISTORIA_CLINICA; la historia primero: es la tabla de sus lecturas).
@@ -158,6 +159,46 @@ final class Auditoria
 
         if (! $reciente) {
             self::registrar(AccionAuditoria::VER, $tabla, $registro, detalle: $detalle);
+        }
+    }
+
+    /**
+     * Lo mismo que registrarLectura para varios registros de una tabla a la vez (p. ej. las consultas de un popup), con
+     * la misma regla de MINUTOS_SIN_REPETIR_VER por registro, en dos consultas fijas: una para ver cuáles se leyeron
+     * hace poco y un solo insert con los demás.
+     *
+     * @param  list<int|string>  $registroIds
+     */
+    public static function registrarLecturas(string $tabla, array $registroIds, ?string $detalle = null): void
+    {
+        $ids = array_values(array_unique(array_map('strval', $registroIds)));
+        if ($ids === []) {
+            return;
+        }
+
+        $recientes = DB::table('logs_auditoria')
+            ->where('usuario_id', Auth::id())
+            ->where('tabla_afectada', $tabla)
+            ->where('accion', AccionAuditoria::VER->value)
+            ->whereIn('registro_afectado_id', $ids)
+            ->when($detalle === null, fn ($query) => $query->whereNull('detalle'), fn ($query) => $query->where('detalle', $detalle))
+            ->where('fecha_hora', '>=', now()->subMinutes(self::MINUTOS_SIN_REPETIR_VER))
+            ->pluck('registro_afectado_id')->map(fn ($id) => (string) $id)->all();
+
+        $filas = array_map(fn (string $id) => [
+            'usuario_id' => Auth::id(),
+            'tabla_afectada' => $tabla,
+            'registro_afectado_id' => $id,
+            'accion' => AccionAuditoria::VER->value,
+            'valor_anterior' => null,
+            'valor_nuevo' => null,
+            'detalle' => $detalle,
+            'ip_origen' => request()?->ip(),
+            'fecha_hora' => now(),
+        ], array_values(array_diff($ids, $recientes)));
+
+        if ($filas !== []) {
+            DB::table('logs_auditoria')->insert($filas);
         }
     }
 

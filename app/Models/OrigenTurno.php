@@ -19,6 +19,15 @@ class OrigenTurno extends Model
         'estado_id',
     ];
 
+    public const PRESENCIAL = 'PRESENCIAL';
+
+    /** El origen PRESENCIAL (el de toda urgencia), buscado por código. */
+    public static function presencial(): self
+    {
+        return self::where('codigo', self::PRESENCIAL)->first()
+            ?? throw new \RuntimeException('Falta el origen de turno con código PRESENCIAL (Orígenes de turno): sin él no se puede registrar una urgencia.');
+    }
+
     public static function moduloEstado(): string
     {
         return 'ORIGENES_TURNO';

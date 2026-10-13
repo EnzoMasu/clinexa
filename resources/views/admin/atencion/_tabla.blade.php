@@ -37,9 +37,9 @@
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
                         <span class="w-24 dato text-xs">
                             @if ($consulta->turno)
-                                Turno {{ substr($consulta->turno->hora_inicio, 0, 5) }}
+                                @if ($consulta->turno->tieneHorario()) Turno {{ substr($consulta->turno->hora_inicio, 0, 5) }} @else<x-admin.turno-hora :turno="$consulta->turno" />@endif
                             @else
-                                <span class="rounded-full bg-amber-100 px-2 py-0.5 font-sans font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">Urgencia</span>
+                                <span class="rounded-full bg-gray-100 px-2 py-0.5 font-sans font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200">Sin turno</span>
                             @endif
                         </span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $consulta->historiaClinica->paciente])</span>
@@ -65,7 +65,7 @@
             <ul class="{{ $lista }}">
                 @foreach ($agenda as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-                        <span class="w-24 dato text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
+                        <span class="w-24 text-xs"><x-admin.turno-hora :turno="$turno" /></span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                         <span class="flex items-center gap-2">
                             @if ($turno->estado->codigo === Estado::CONFIRMADO)
@@ -119,7 +119,7 @@
             <ul class="{{ $lista }}">
                 @foreach ($porLlamar as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-                        <span class="w-24 dato text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
+                        <span class="w-24 text-xs"><x-admin.turno-hora :turno="$turno" /></span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                         @include('admin.preparacion._estado', ['consulta' => $turno->consulta])
                         @include('admin.preparacion._alertas', ['consulta' => $turno->consulta])
@@ -154,7 +154,7 @@
                     @php($codigos = $consulta->diagnosticos->pluck('codigo_cie10'))
                     <li>
                         <a href="{{ route('admin.consultas.show', $consulta) }}" class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                            <span class="w-24 font-mono text-xs text-gray-900 dark:text-gray-100">{{ $consulta->turno ? substr($consulta->turno->hora_inicio, 0, 5) : 'Urgencia' }}</span>
+                            <span class="w-24 font-mono text-xs text-gray-900 dark:text-gray-100">@if ($consulta->turno)<x-admin.turno-hora :turno="$consulta->turno" />@else<span class="rounded-full bg-gray-100 px-2 py-0.5 font-sans font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200">Sin turno</span>@endif</span>
                             <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $consulta->historiaClinica->paciente])</span>
                             <span class="font-mono text-xs text-gray-700 dark:text-gray-300">
                                 {{ $codigos->take(3)->implode(', ') ?: '—' }}@if ($codigos->count() > 3) <span class="text-gray-500 dark:text-gray-400">+{{ $codigos->count() - 3 }}</span>@endif
@@ -175,7 +175,7 @@
             <ul class="{{ $lista }} mt-2">
                 @foreach ($ausentes as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
-                        <span class="w-24 dato text-xs">{{ substr($turno->hora_inicio, 0, 5) }}</span>
+                        <span class="w-24 text-xs"><x-admin.turno-hora :turno="$turno" /></span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                     </li>
                 @endforeach

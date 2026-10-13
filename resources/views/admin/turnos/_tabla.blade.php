@@ -8,13 +8,13 @@
     @forelse ($turnos as $turno)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($turno->fecha) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap dato">{{ substr($turno->hora_inicio, 0, 5) }} – {{ substr($turno->hora_fin, 0, 5) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap"><x-admin.turno-hora :turno="$turno" fin /></td>
             <td class="px-6 py-4">
                 <div class="font-medium">{{ $turno->paciente->persona->nombre_completo }}</div>
                 <div class="text-xs text-gray-500 dark:text-gray-400">Ficha {{ $turno->paciente->nro_ficha }}</div>
             </td>
             <td class="px-6 py-4">{{ $turno->profesional->persona->nombre_completo }}</td>
-            <td class="px-6 py-4">{{ $turno->consultorio->nombre_completo }}</td>
+            <td class="px-6 py-4">{{ $turno->consultorio?->nombre_completo ?? '—' }}</td>
             <td class="px-6 py-4 text-gray-600 dark:text-gray-400">
                 {{ $turno->procedimiento?->nombre ?? '—' }}
                 @if ($turno->origenTurno)
@@ -34,12 +34,12 @@
                                 {{-- La ausencia solo desde la hora del turno (Turno::pasarA lo valida igual). --}}
                                 <span class="flex items-center gap-1.5">
                                     <button type="button" disabled class="cursor-not-allowed text-sm font-medium text-gray-400 dark:text-gray-500">Ausente</button>
-                                    <span class="text-xs text-gray-500 dark:text-gray-400">Disponible desde {{ substr($turno->hora_inicio, 0, 5) }}</span>
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">Disponible desde {{ $turno->tieneHorario() ? substr($turno->hora_inicio, 0, 5) : Fecha::mostrar($turno->fecha) }}</span>
                                 </span>
                                 @continue
                             @endif
                             <form method="POST" action="{{ route('admin.turnos.estado', $turno) }}"
-                                @if ($accion === 'cancelar') x-data x-on:submit="if (! confirm(@js('¿Cancelar el turno del '.Fecha::mostrar($turno->fecha).' a las '.substr($turno->hora_inicio, 0, 5).'? El horario queda libre.'))) $event.preventDefault()" @endif>
+                                @if ($accion === 'cancelar') x-data x-on:submit="if (! confirm(@js($turno->tieneHorario() ? '¿Cancelar el turno del '.Fecha::mostrar($turno->fecha).' a las '.substr($turno->hora_inicio, 0, 5).'? El horario queda libre.' : '¿Cancelar '.mb_strtolower($turno->descripcionCorta()).' del '.Fecha::mostrar($turno->fecha).'?'))) $event.preventDefault()" @endif>
                                 @csrf
                                 @method('PATCH')
                                 <input type="hidden" name="accion" value="{{ $accion }}">

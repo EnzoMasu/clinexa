@@ -90,7 +90,7 @@
                                         <span class="me-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800 dark:bg-violet-900/40 dark:text-violet-200">En triaje</span>
                                     @endif
                                     @if (! $consulta->turno_id)
-                                        <span class="me-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">Urgencia</span>
+                                        <span class="me-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-200">Sin turno</span>
                                     @endif
                                     {{ Str::limit($consulta->motivo_consulta, 90) }}
                                 </span>

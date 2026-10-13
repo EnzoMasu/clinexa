@@ -20,7 +20,8 @@ use Illuminate\Support\Collection;
  * 4. Se descartan los bloques que se pisan con un turno no CANCELADO del profesional, o del
  *    consultorio con otro profesional (la base los rechazaría igual).
  * 5. No hay horarios en el pasado: fechas anteriores a hoy no tienen ninguno y, si es hoy, solo
- *    los que todavía no empezaron (hora de Paraguay). La regla es Fecha::yaLlego, la misma que valida el
+ *    los que todavía no empezaron (hora de Paraguay). Los turnos sin horario (ENTRE_PACIENTES,
+ *    URGENCIA) no ocupan ninguno. La regla es Fecha::yaLlego, la misma que valida el
  *    alta y los cambios de un turno (TurnoController) y la ausencia desde la hora del turno.
  */
 final class Agenda
@@ -52,6 +53,7 @@ final class Agenda
         // Ocupado ese día: turnos del profesional o de alguno de sus consultorios.
         $ocupados = Turno::query()
             ->ocupanHorario()
+            ->whereNotNull('hora_inicio') // ENTRE_PACIENTES y URGENCIA no ocupan horarios
             ->whereDate('fecha', $fecha->format('Y-m-d'))
             ->where(fn ($query) => $query->where('profesional_id', $profesional->id)
                 ->orWhereIn('consultorio_id', $disponibilidades->pluck('consultorio_id')))
@@ -65,6 +67,35 @@ final class Agenda
             ->sortBy('hora_inicio')
             ->unique('hora_inicio')
             ->values();
+    }
+
+    /**
+     * Los profesionales ACTIVOS que atienden esa fecha (alguna disponibilidad ACTIVA de ese día, vigente, en un
+     * consultorio activo), por apellido. Para el cupo de entre pacientes.
+     *
+     * @return Collection<int, Profesional>
+     */
+    public static function profesionalesQueAtienden(CarbonInterface $fecha): Collection
+    {
+        return Profesional::query()->activos()
+            ->whereIn('profesionales.id', self::disponibilidadesDelDia($fecha)->select('profesional_id'))
+            ->join('personas', 'personas.id', '=', 'profesionales.persona_id')
+            ->orderBy('personas.apellidos')->orderBy('personas.nombres')
+            ->select('profesionales.*')->with('persona')->get();
+    }
+
+    /** El profesional (activo) atiende esa fecha. */
+    public static function atiende(Profesional $profesional, CarbonInterface $fecha): bool
+    {
+        return $profesional->estaActivo() && self::disponibilidadesDelDia($fecha)->where('profesional_id', $profesional->id)->exists();
+    }
+
+    /** Disponibilidades ACTIVAS que rigen esa fecha, en consultorios activos. */
+    private static function disponibilidadesDelDia(CarbonInterface $fecha)
+    {
+        return Disponibilidad::query()->activos()
+            ->vigentesEn(Carbon::parse($fecha->format('Y-m-d')))
+            ->whereHas('consultorio', fn ($query) => $query->activos());
     }
 
     /** El bloque libre que empieza a esa hora (para guardar el turno), o null si no está libre. */

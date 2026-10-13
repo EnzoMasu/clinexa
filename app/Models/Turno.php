@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TipoTurno;
 use App\Exceptions\AccionRechazada;
 use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
@@ -62,6 +63,7 @@ class Turno extends Model
     protected $fillable = [
         'paciente_id',
         'profesional_id',
+        'tipo',
         'consultorio_id',
         'procedimiento_id',
         'equipo_id',
@@ -71,7 +73,10 @@ class Turno extends Model
         'estado_id',
         'origen_turno_id',
         'observaciones',
+        'llegada_en',
     ];
+
+    protected $attributes = ['tipo' => 'NORMAL'];
 
     protected $hidden = ['rango'];
 
@@ -84,6 +89,8 @@ class Turno extends Model
     {
         return [
             'fecha' => 'date',
+            'tipo' => TipoTurno::class,
+            'llegada_en' => 'datetime',
         ];
     }
 
@@ -140,22 +147,68 @@ class Turno extends Model
 
         return self::with('profesional.persona')->activosDeLaPaciente()
             ->where('paciente_id', $pacienteId)->whereDate('fecha', $fecha)
+            ->whereNotNull('hora_inicio') // los sin horario no se superponen con nada
             ->where('hora_inicio', '<', $fin)->where('hora_fin', '>', $inicio)
             ->orderBy('hora_inicio')->first();
     }
 
-    /** Otro turno activo de la paciente ese día con ese profesional (que no se superpone), o null. */
+    /** Otro turno activo de la paciente ese día con ese profesional (que no se superpone), o null. De cualquier tipo. */
     public static function otroDelDiaConElProfesional(int $pacienteId, int $profesionalId, string $fecha): ?self
     {
         return self::with('profesional.persona')->activosDeLaPaciente()
             ->where('paciente_id', $pacienteId)->where('profesional_id', $profesionalId)->whereDate('fecha', $fecha)
-            ->orderBy('hora_inicio')->first();
+            ->ordenDelDia()->first();
+    }
+
+    /** NORMAL: tiene hora y consultorio. ENTRE_PACIENTES y URGENCIA no (no ocupan horarios). */
+    public function tieneHorario(): bool
+    {
+        return ($this->tipo ?? TipoTurno::NORMAL)->tieneHorario();
+    }
+
+    /** Lo que se muestra en lugar de la hora: "08:00", o "Entre pacientes" / "Urgencia". */
+    public function horaOTipo(): string
+    {
+        return $this->tieneHorario() ? substr((string) $this->hora_inicio, 0, 5) : $this->tipo->etiqueta();
+    }
+
+    /** Para avisos: "Turno de las 08:00", "Turno entre pacientes" o "Urgencia". */
+    public function descripcionCorta(): string
+    {
+        return match ($this->tipo ?? TipoTurno::NORMAL) {
+            TipoTurno::NORMAL => 'Turno de las '.substr((string) $this->hora_inicio, 0, 5),
+            TipoTurno::ENTRE_PACIENTES => 'Turno entre pacientes',
+            TipoTurno::URGENCIA => 'Urgencia',
+        };
+    }
+
+    public function scopeDelTipo(Builder $query, TipoTurno ...$tipos): void
+    {
+        $query->whereIn($this->qualifyColumn('tipo'), array_map(fn (TipoTurno $tipo) => $tipo->value, $tipos));
+    }
+
+    /**
+     * Orden de las listas del día: urgencias primero (por orden de carga), luego los de horario por hora y
+     * después los entre pacientes por orden de carga.
+     */
+    public function scopeOrdenDelDia(Builder $query): void
+    {
+        $tipo = $this->qualifyColumn('tipo');
+        $query->orderByRaw("CASE {$tipo} WHEN 'URGENCIA' THEN 0 WHEN 'NORMAL' THEN 1 ELSE 2 END")
+            ->orderBy($this->qualifyColumn('hora_inicio'))
+            ->orderBy($this->qualifyColumn('id'));
+    }
+
+    /** "a las 08:00", o "(entre pacientes)" / "(urgencia)" para los sin horario. */
+    private function cuando(): string
+    {
+        return $this->tieneHorario() ? 'a las '.substr((string) $this->hora_inicio, 0, 5) : '('.mb_strtolower($this->tipo->etiqueta()).')';
     }
 
     /** "La paciente ya tiene un turno con Rosa Benítez a las 08:00." */
     public function avisoSuperposicionPaciente(): string
     {
-        return sprintf('La paciente ya tiene un turno con %s a las %s.', $this->profesional->persona->nombre_y_apellido, substr($this->hora_inicio, 0, 5));
+        return sprintf('La paciente ya tiene un turno con %s %s.', $this->profesional->persona->nombre_y_apellido, $this->cuando());
     }
 
     /** "La paciente ya tiene turno con Rosa Benítez hoy a las 08:00." ("el 07/10/2026" si no es hoy). */
@@ -163,7 +216,7 @@ class Turno extends Model
     {
         $dia = $this->fecha->format('Y-m-d') === Fecha::hoy()->format('Y-m-d') ? 'hoy' : 'el '.Fecha::mostrar($this->fecha);
 
-        return sprintf('La paciente ya tiene turno con %s %s a las %s.', $this->profesional->persona->nombre_y_apellido, $dia, substr($this->hora_inicio, 0, 5));
+        return sprintf('La paciente ya tiene turno con %s %s %s.', $this->profesional->persona->nombre_y_apellido, $dia, $this->cuando());
     }
 
     /** Los que ocupan horario: todos menos los CANCELADO. */
@@ -193,16 +246,22 @@ class Turno extends Model
      * CANCELADO o AUSENTE, su consulta EN_PREPARACION (si la hay) pasa a ANULADO en la misma transacción:
      * los datos se conservan, pero no aparece en listados, historial ni conteos.
      */
-    /** La hora del turno ya llegó (en punto, inclusive; hora de Paraguay). Ver Fecha::yaLlego. */
+    /**
+     * La hora del turno ya llegó (en punto, inclusive; hora de Paraguay). Ver Fecha::yaLlego. Los sin horario
+     * (ENTRE_PACIENTES, URGENCIA) llegan desde el comienzo de su día: la ausencia vale el mismo día y los de días
+     * anteriores se pueden cerrar.
+     */
     public function llegoSuHora(): bool
     {
-        return Fecha::yaLlego($this->fecha->format('Y-m-d'), $this->hora_inicio);
+        return Fecha::yaLlego($this->fecha->format('Y-m-d'), $this->tieneHorario() ? $this->hora_inicio : '00:00');
     }
 
     /** Aviso para quien intenta marcar la ausencia antes de la hora del turno. */
     public function avisoAunNoEsSuHora(): string
     {
-        return sprintf(self::AUN_NO_ES_SU_HORA, substr($this->hora_inicio, 0, 5));
+        return $this->tieneHorario()
+            ? sprintf(self::AUN_NO_ES_SU_HORA, substr($this->hora_inicio, 0, 5))
+            : 'Todavía no llegó el día del turno ('.Fecha::mostrar($this->fecha).'). Solo puede marcar la ausencia desde ese día.';
     }
 
     public function pasarA(string $estado): void

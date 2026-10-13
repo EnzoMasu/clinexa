@@ -23,7 +23,7 @@
             <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 text-sm dark:divide-gray-700 dark:border-gray-700">
                 @foreach ($turnos as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
-                        <span class="w-36 dato text-xs">{{ Fecha::mostrar($turno->fecha) }} {{ substr($turno->hora_inicio, 0, 5) }}</span>
+                        <span class="w-36 dato text-xs">{{ Fecha::mostrar($turno->fecha) }} {{ $turno->horaOTipo() }}</span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                         <x-admin.estado-badge :estado="$turno->estado" />
                     </li>
@@ -40,7 +40,7 @@
                 <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 text-sm dark:divide-gray-700 dark:border-gray-700">
                     @foreach ($aunNoEsSuHora as $turno)
                         <li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
-                            <span class="w-36 dato text-xs">{{ Fecha::mostrar($turno->fecha) }} {{ substr($turno->hora_inicio, 0, 5) }}</span>
+                            <span class="w-36 dato text-xs">{{ Fecha::mostrar($turno->fecha) }} {{ $turno->horaOTipo() }}</span>
                             <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                             <x-admin.estado-badge :estado="$turno->estado" />
                         </li>
@@ -49,10 +49,28 @@
             </section>
         @endif
 
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4">
             @if ($turnos->isNotEmpty() && ! $conConsultasEnCurso)
-                <form method="POST" action="{{ route('admin.atencion.cerrar-jornada.confirmar') }}">
+                <form method="POST" action="{{ route('admin.atencion.cerrar-jornada.confirmar') }}" class="space-y-3">
                     @csrf
+                    @if ($urgencias->isNotEmpty())
+                        {{-- Advertencia reforzada: urgencias (de recepción o del triaje) que pasarían a ausente. El servidor también exige la casilla. --}}
+                        <section role="alert" data-urgencias-sin-atender aria-labelledby="titulo-urgencias-sin-atender"
+                            class="space-y-2 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-100">
+                            <h3 id="titulo-urgencias-sin-atender" class="font-semibold">Atención: urgencias sin atender</h3>
+                            <ul class="list-disc ps-5">
+                                @foreach ($urgencias as $turno)
+                                    <li>{{ $turno->paciente->persona->nombre_completo }} ({{ $turno->tipo === \App\Enums\TipoTurno::URGENCIA ? 'urgencia de recepción' : 'triaje urgente' }}, {{ Fecha::mostrar($turno->fecha) }})</li>
+                                @endforeach
+                            </ul>
+                            <p>Pasarán a ausente. Lo cargado en su triaje se conserva.</p>
+                            <label class="inline-flex items-center gap-2 font-medium">
+                                <input type="checkbox" name="confirmo_urgencias" value="1"
+                                    class="rounded border-red-300 text-red-600 shadow-sm focus:ring-red-500 dark:border-red-700 dark:bg-gray-900">
+                                Confirmo que revisé las urgencias
+                            </label>
+                        </section>
+                    @endif
                     <x-primary-button>Cerrar jornada</x-primary-button>
                 </form>
             @endif

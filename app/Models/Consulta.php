@@ -14,8 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * Consulta de la historia clínica: la atiende un profesional, a partir de un turno o sin turno
- * (urgencia). Ciclo de vida (estados del módulo HISTORIA_CLINICA):
+ * Consulta de la historia clínica: la atiende un profesional, a partir de un turno (con horario, entre
+ * pacientes o urgencia) o sin turno. Ciclo de vida (estados del módulo HISTORIA_CLINICA):
  *
  * - EN_PREPARACION: creada al preparar al paciente (anamnesis y signos vitales, a veces otra persona).
  * - EN_CURSO: el profesional la atiende (iniciada_en). Se autoguarda.

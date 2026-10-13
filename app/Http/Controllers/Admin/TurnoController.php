@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Exceptions\AccionRechazada;
 use App\Http\Controllers\Controller;
+use App\Models\CupoEntrePacientes;
 use App\Models\Estado;
 use App\Models\OrigenTurno;
 use App\Models\Paciente;
@@ -14,6 +15,7 @@ use App\Support\Agenda;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
 use App\Support\Fecha;
+use App\Support\Turnos\AgendarEntrePacientes;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -57,7 +59,7 @@ class TurnoController extends Controller
                 ->orWhereLike('persona_profesional.apellidos', "%{$busqueda}%")
                 ->orWhereLike('persona_profesional.nombres', "%{$busqueda}%")))
             ->orderByDesc('turnos.fecha')
-            ->orderBy('turnos.hora_inicio')
+            ->ordenDelDia()
             ->paginate(20)
             ->withQueryString();
 
@@ -71,16 +73,28 @@ class TurnoController extends Controller
             'profesionalInicial' => $this->inicial(Profesional::class, old('profesional_id'), fn ($p) => "Mat. {$p->matricula}"),
             // Fecha del turno: hoy, editable.
             'fecha' => old('fecha', Fecha::mostrar(Fecha::hoy())),
+            'modalidad' => old('modalidad') === self::ENTRE_PACIENTES || request('modalidad') === self::ENTRE_PACIENTES ? self::ENTRE_PACIENTES : self::CON_HORARIO,
             'procedimientos' => Procedimiento::activos()->orderBy('nombre')->pluck('nombre', 'id')->all(),
             'origenes' => OrigenTurno::activos()->orderBy('nombre')->pluck('nombre', 'id')->all(),
         ]);
     }
+
+    /** Modalidad del alta: "con horario" (la de siempre) o "entre pacientes" (sin horario, dentro del cupo). */
+    public const CON_HORARIO = 'con_horario';
+
+    public const ENTRE_PACIENTES = 'entre_pacientes';
+
+    public const FECHA_PASADA = 'No se agendan turnos en una fecha pasada.';
 
     /** El horario elegido ya empezó (o la fecha ya pasó): Fecha::yaLlego, la regla de los horarios libres. */
     public const HORARIO_PASADO = 'Ese horario ya pasó. Elija uno posterior.';
 
     public function store(Request $request): RedirectResponse
     {
+        if ($request->input('modalidad') === self::ENTRE_PACIENTES) {
+            return $this->storeEntrePacientes($request);
+        }
+
         ['segundoDelDia' => $segundoDelDia] = $datos = $this->validar($request);
         unset($datos['segundoDelDia']);
 
@@ -107,6 +121,60 @@ class TurnoController extends Controller
 
         return redirect()->route('admin.turnos.index')->with('status', sprintf(
             'Turno dado para el %s a las %s (%s).', Fecha::mostrar($turno->fecha), $datos['hora_inicio'], $turno->consultorio->nombre_completo));
+    }
+
+    /**
+     * Alta "entre pacientes": sin horario ni consultorio, dentro del cupo del profesional ese día
+     * (AgendarEntrePacientes, con la fila del cupo bloqueada). No se agenda en una fecha pasada.
+     */
+    private function storeEntrePacientes(Request $request): RedirectResponse
+    {
+        $activo = Estado::idDe(Estado::ACTIVO);
+        $validador = validator($request->all(), [
+            'paciente_id' => ['required', 'integer', Rule::exists('pacientes', 'id')->where('estado_id', $activo)],
+            'profesional_id' => ['required', 'integer', Rule::exists('profesionales', 'id')->where('estado_id', $activo)],
+            'fecha' => ['required', ...Fecha::regla()],
+            'procedimiento_id' => ['nullable', 'integer', Rule::exists('procedimientos', 'id')->where('estado_id', $activo)],
+            'origen_turno_id' => ['nullable', 'integer', Rule::exists('origenes_turno', 'id')->where('estado_id', $activo)],
+            'observaciones' => ['nullable', 'string', 'max:2000'],
+            'agendar_igual' => ['nullable', 'boolean'],
+        ], Fecha::mensajes('fecha'), [
+            'paciente_id' => 'paciente', 'profesional_id' => 'profesional',
+            'procedimiento_id' => 'procedimiento', 'origen_turno_id' => 'origen del turno',
+        ]);
+        $validador->after(function (Validator $validador) {
+            if ($validador->errors()->isEmpty() && Fecha::aIso($validador->getData()['fecha']) < Fecha::hoy()->format('Y-m-d')) {
+                $validador->errors()->add('fecha', self::FECHA_PASADA);
+            }
+        });
+        $datos = $validador->validate();
+        $datos['fecha'] = Fecha::aIso($datos['fecha']);
+
+        try {
+            $turno = AgendarEntrePacientes::ejecutar($datos, filter_var($datos['agendar_igual'] ?? false, FILTER_VALIDATE_BOOLEAN));
+        } catch (AccionRechazada $e) {
+            return back()->withInput()->withErrors(['cupo' => $e->getMessage()]);
+        }
+
+        return redirect()->route('admin.turnos.index')->with('status', sprintf('Turno entre pacientes dado para el %s (cupo: %d de %d usados).',
+            Fecha::mostrar($turno->fecha), CupoEntrePacientes::usados($turno->profesional_id, $datos['fecha']),
+            (int) CupoEntrePacientes::where('profesional_id', $turno->profesional_id)->whereDate('fecha', $datos['fecha'])->value('cantidad')));
+    }
+
+    /** Cupo entre pacientes de un profesional en una fecha (JSON {cupo, usados}), para el alta. Vacío si faltan datos. */
+    public function cupoDelDia(Request $request): JsonResponse
+    {
+        $validador = validator($request->query(), ['profesional_id' => ['required', 'integer'], 'fecha' => ['required', ...Fecha::regla()]]);
+        if ($validador->fails()) {
+            return response()->json([]);
+        }
+        ['profesional_id' => $profesionalId, 'fecha' => $fecha] = $validador->validated();
+        $iso = Fecha::aIso($fecha);
+
+        return response()->json([
+            'cupo' => (int) CupoEntrePacientes::where('profesional_id', $profesionalId)->whereDate('fecha', $iso)->value('cantidad'),
+            'usados' => CupoEntrePacientes::usados((int) $profesionalId, $iso),
+        ]);
     }
 
     /**
@@ -168,8 +236,8 @@ class TurnoController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('status', sprintf('Turno del %s a las %s: %s.',
-            Fecha::mostrar($turno->fecha), substr($turno->hora_inicio, 0, 5), mb_strtolower($turno->fresh()->estado->nombre)));
+        return back()->with('status', sprintf('Turno del %s %s: %s.',
+            Fecha::mostrar($turno->fecha), $turno->tieneHorario() ? 'a las '.substr($turno->hora_inicio, 0, 5) : '('.mb_strtolower($turno->tipo->etiqueta()).')', mb_strtolower($turno->fresh()->estado->nombre)));
     }
 
     /**

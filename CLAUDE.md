@@ -36,3 +36,31 @@
   `perfilesPredefinidosExistente` en `PerfilesPredefinidosTest`): los choques de nombre ya rompieron la
   suite dos veces.
 - Detalle en `docs/pruebas.md`.
+
+## Mapa del proyecto
+Laravel + Blade + Tailwind + Vite (JS plano, sin framework). Docs por tema en `docs/` (historia-clinica,
+agenda-urgencias, triaje, perfiles, respaldo, pruebas).
+- `app/Models/`: Eloquent. Clave: `Persona`, `Paciente`, `Profesional`, `Turno`, `Consulta`,
+  `HistoriaClinica`, `Receta`, `PerfilAcceso`, `Permiso`, `ModuloSistema`, `LogAuditoria`,
+  `CupoEntrePacientes`, `Disponibilidad`.
+- `app/Enums/`: `TipoTurno`, `AccionAuditoria`, `TipoDiagnostico`.
+- `app/Http/Controllers/Admin/`: un controlador por pantalla (`TurnoController`, `UrgenciaController`,
+  `AtencionController`, `ConsultaController`, `HistoriaClinicaController`, `RecetaController`,
+  `AuditoriaController`, `MatrizPermisosController`, `PerfilAccesoController`).
+- `app/Support/Fecha.php`: único origen de fechas, "hoy" y "ahora".
+- `app/Support/Atencion/`: flujo de la consulta (`Preparar`, `Atender`, `AtenderSinTurno`, `MarcarLista`,
+  `Finalizar`, `DeshacerAtencion`, `CerrarJornada`, `GuardarSecciones`, `Autoguardado`, `EvaluadorSignos`).
+- `app/Support/Turnos/`: `AgendarEntrePacientes`, `RegistrarUrgencia`. `app/Support/Agenda.php`.
+- `app/Support/`: `Permisos`, `PermisosDePerfil`, `PerfilesPredefinidos`, `Auditoria`,
+  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `BuscadorPersonas`, `Unicidad`.
+- `app/Console/Commands/`: `Respaldo` (`clinexa:respaldo`), `CrearAdmin`, `TraspasarPrincipal`,
+  `MigrarUsuariosAPersona`.
+- `app/Policies/`, `app/Http/Middleware/`, `app/Http/Requests/`, `app/Rules/`: autorización y validación.
+- `routes/web.php`: todas las rutas del panel; `routes/auth.php`: login.
+- `database/migrations`, `database/seeders`: esquema y datos base (módulos, permisos, perfiles, CIE10).
+- `resources/views/admin/`: vistas por módulo; `resources/views/components/`: componentes Blade.
+- `resources/js/`: un script por comportamiento (`popup-consultas`, `consulta-autoguardado`,
+  `listado-en-vivo`, `alta-turno`, `selector-persona`, `buscador-cie10`). Sin datos clínicos en el navegador.
+- `tests/Feature` y `tests/Unit` (SQLite en memoria); `tests/Postgres` (`clinexa_test`).
+- `.claude/commands/`: `/aplicar RAMA` (migrar la base real con foto y respaldo) y
+  `/fusionar RAMA "mensaje"` (squash a main).
