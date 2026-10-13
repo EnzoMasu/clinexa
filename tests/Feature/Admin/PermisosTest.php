@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(221); // 26 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + matriz de permisos (ver y guardar) + invitación + 6 buscadores de personas (usuarios y los 5 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, cupo del día, 2 buscadores, cambio de estado) + cupo entre pacientes (panel y fijar) + urgencias de recepción (lista, alta, guardar, cancelar) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, contadores, popups de entre pacientes y de urgencias, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó, pasar a ausente) + atención (pantalla, autoguardado, finalizar, deshacer) + Triaje (lista, iniciar, formulario, guardar sin JavaScript, terminar, reabrir) + parámetros clínicos (listado, editar, guardar, aprobar) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
+    expect($rutas)->toHaveCount(222); // 26 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + matriz de permisos (ver y guardar) + invitación + 6 buscadores de personas (usuarios y los 5 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, cupo del día, 2 buscadores, cambio de estado) + Agenda general (grilla) + cupo entre pacientes (panel y fijar) + urgencias de recepción (lista, alta, guardar, cancelar) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, contadores, popups de entre pacientes y de urgencias, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó, pasar a ausente) + atención (pantalla, autoguardado, finalizar, deshacer) + Triaje (lista, iniciar, formulario, guardar sin JavaScript, terminar, reabrir) + parámetros clínicos (listado, editar, guardar, aprobar) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -106,7 +106,7 @@ test('el Administrador ve los 5 grupos del menú, en orden y con sus secciones, 
     $grupos = [
         'Seguridad' => ['usuarios', 'perfiles-acceso', 'matriz-permisos', 'auditoria'],
         'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'personal-salud', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
-        'Agenda' => ['turnos', 'disponibilidades', 'consultorios', 'origenes-turno'],
+        'Agenda' => ['turnos', 'agenda-general', 'disponibilidades', 'consultorios', 'origenes-turno'],
         'Clínica' => ['atencion', 'preparacion', 'historias-clinicas'],
         'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'cargos-salud', 'parametros-clinicos', 'paises', 'departamentos', 'ciudades'],
     ];

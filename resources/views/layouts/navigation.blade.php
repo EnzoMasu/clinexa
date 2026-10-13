@@ -19,6 +19,7 @@
         ],
         'Agenda' => [
             'admin.turnos' => 'Turnos',
+            'admin.agenda-general' => 'Agenda general',
             'admin.disponibilidades' => 'Disponibilidades',
             'admin.consultorios' => 'Consultorios',
             'admin.origenes-turno' => 'Orígenes de turno',
