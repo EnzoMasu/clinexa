@@ -106,7 +106,7 @@ test('el Administrador ve los 5 grupos del menú, en orden y con sus secciones, 
     $grupos = [
         'Seguridad' => ['usuarios', 'perfiles-acceso', 'matriz-permisos', 'auditoria'],
         'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'personal-salud', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
-        'Agenda' => ['turnos', 'disponibilidades', 'consultorios', 'origenes-turno'],
+        'Agenda' => ['turnos', 'agenda-general', 'disponibilidades', 'consultorios', 'origenes-turno'],
         'Clínica' => ['atencion', 'preparacion', 'historias-clinicas'],
         'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'cargos-salud', 'parametros-clinicos', 'paises', 'departamentos', 'ciudades'],
     ];
