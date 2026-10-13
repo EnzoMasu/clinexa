@@ -35,7 +35,7 @@ class UrgenciaController extends Controller
             ->orderBy('llegada_en')->orderBy('id')
             ->get();
 
-        return view('admin.turnos.urgencias', compact('urgencias'));
+        return view('admin.urgencias.index', compact('urgencias'));
     }
 
     public function create(): View
