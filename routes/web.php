@@ -150,10 +150,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         ->middleware('permiso.alguno:DISPONIBILIDAD.CREAR,DISPONIBILIDAD.EDITAR');
 
     // Urgencias de recepción (sin nada clínico): ver las de hoy, registrar y cancelar una pendiente.
-    Route::get('turnos/urgencias', [UrgenciaController::class, 'index'])->name('urgencias.index')->middleware('permiso:TURNOS,VER');
-    Route::get('turnos/urgencias/create', [UrgenciaController::class, 'create'])->name('urgencias.create')->middleware('permiso:TURNOS,CREAR');
-    Route::post('turnos/urgencias', [UrgenciaController::class, 'store'])->name('urgencias.store')->middleware('permiso:TURNOS,CREAR');
-    Route::patch('turnos/urgencias/{turno}/cancelar', [UrgenciaController::class, 'cancelar'])->name('urgencias.cancelar')->whereNumber('turno')
+    Route::get('turnos/urgencias', [UrgenciaController::class, 'index'])->name('turnos.urgencias')->middleware('permiso:TURNOS,VER');
+    Route::get('turnos/urgencias/create', [UrgenciaController::class, 'create'])->name('turnos.urgencias.create')->middleware('permiso:TURNOS,CREAR');
+    Route::post('turnos/urgencias', [UrgenciaController::class, 'store'])->name('turnos.urgencias.store')->middleware('permiso:TURNOS,CREAR');
+    Route::patch('turnos/urgencias/{turno}/cancelar', [UrgenciaController::class, 'cancelar'])->name('turnos.urgencias.cancelar')->whereNumber('turno')
         ->middleware('permiso:TURNOS,EDITAR');
 
     // Turnos: no se editan ni se borran; solo se dan de alta y cambian de estado.
@@ -192,6 +192,14 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             ->middleware('permiso:HISTORIA_CLINICA,VER,tabla=consultas');
         Route::get('consulta/pacientes', [AtencionController::class, 'pacientes'])->name('atencion.pacientes')
             ->middleware('permiso:HISTORIA_CLINICA,CREAR');
+        // Botones "Entre pacientes (N)" y "Urgencias (N)": los conteos (cada 15 s) y el popup de entre pacientes no
+        // registran lecturas (AJAX sin marca); el popup de urgencias trae la observación del triaje y registra el VER
+        // de cada consulta mostrada (AtencionController::urgencias).
+        Route::middleware('permiso:HISTORIA_CLINICA,VER')->group(function () {
+            Route::get('consulta/contadores', [AtencionController::class, 'contadores'])->name('atencion.contadores');
+            Route::get('consulta/entre-pacientes', [AtencionController::class, 'entrePacientes'])->name('atencion.entre-pacientes');
+            Route::get('consulta/urgencias', [AtencionController::class, 'urgencias'])->name('atencion.urgencias');
+        });
         // Las acciones del profesional sobre SUS turnos desde la pantalla Consulta: CREAR sobre HISTORIA_CLINICA
         // (ConsultaPolicy exige además que sea el profesional activo del turno). Los botones manuales de la
         // pantalla Turnos (confirmar, cancelar, ausente) siguen con EDITAR sobre TURNOS.

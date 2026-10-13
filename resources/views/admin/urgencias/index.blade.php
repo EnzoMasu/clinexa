@@ -7,11 +7,11 @@
 @use('App\Support\Fecha')
 @use('App\Support\Permisos')
 
-<x-admin.page title="Urgencias de hoy" :create-route="Permisos::url('admin.urgencias.create')" create-label="Registrar urgencia">
+<x-admin.page title="Urgencias de hoy" :create-route="Permisos::url('admin.turnos.urgencias.create')" create-label="Registrar urgencia">
     <div class="px-6 pt-4 text-sm">
         <a href="{{ route('admin.turnos.index') }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Volver a Turnos</a>
     </div>
-    @php($puedeCancelar = Permisos::puedeRuta('admin.urgencias.cancelar'))
+    @php($puedeCancelar = Permisos::puedeRuta('admin.turnos.urgencias.cancelar'))
     <x-admin.table :headers="['Registro', 'Paciente', 'Profesional', 'Estado']">
         @forelse ($urgencias as $turno)
             <tr data-urgencia="{{ $turno->id }}">
@@ -24,7 +24,7 @@
                 <td class="px-6 py-4"><x-admin.estado-badge :estado="$turno->estado" /></td>
                 <td class="px-6 py-4 text-right whitespace-nowrap">
                     @if ($puedeCancelar && $turno->tieneEstado(Estado::PENDIENTE))
-                        <form method="POST" action="{{ route('admin.urgencias.cancelar', $turno) }}"
+                        <form method="POST" action="{{ route('admin.turnos.urgencias.cancelar', $turno) }}"
                             x-data x-on:submit="if (! confirm(@js('¿Cancelar la urgencia de '.$turno->paciente->persona->nombre_completo.'? Use esto solo si se registró por error.'))) $event.preventDefault()">
                             @csrf
                             @method('PATCH')

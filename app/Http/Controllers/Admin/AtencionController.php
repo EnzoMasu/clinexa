@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exceptions\AccionRechazada;
+use App\Exceptions\RequiereConfirmacion;
 use App\Http\Controllers\Controller;
 use App\Models\Consulta;
 use App\Models\Estado;
@@ -20,6 +21,7 @@ use App\Support\Atencion\Finalizar;
 use App\Support\Atencion\FormularioConsulta;
 use App\Support\Atencion\NoSePresento;
 use App\Support\Atencion\PasarAusente;
+use App\Support\Atencion\PendientesDelProfesional;
 use App\Support\Atencion\SignosVitales;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
@@ -59,9 +61,12 @@ class AtencionController extends Controller
                     'examenFisico as con_alertas' => fn ($q) => $q->whereNotNull('signos_alertas')])])
             ->where('profesional_id', $profesional->id)
             ->whereDate('fecha', $hoy->format('Y-m-d'))
-            ->orderBy('hora_inicio')
+            ->ordenDelDia()
             ->get();
         $codigo = fn (Turno $turno) => $turno->estado->codigo;
+        // Agenda y "Por llamar de nuevo": solo los de horario. Entre pacientes y urgencias viven en sus botones hasta
+        // que se atienden (entonces aparecen en "En consulta" y "Atendidos hoy").
+        $conHorario = fn (Turno $turno) => $turno->tieneHorario();
 
         // Atendidos hoy: sus consultas finalizadas hoy (día de Paraguay, en UTC).
         $atendidos = Consulta::query()
@@ -85,8 +90,8 @@ class AtencionController extends Controller
                 ->with(['historiaClinica.paciente.persona', 'turno:id,tipo,hora_inicio'])
                 ->where('profesional_id', $profesional->id)->where('estado_id', Estado::idDe(Estado::EN_CURSO))
                 ->orderBy('iniciada_en')->get(), fn (Consulta $consulta) => $consulta->triaje_urgente),
-            'agenda' => $urgentesPrimero($turnos->filter(fn ($turno) => in_array($codigo($turno), [Estado::PENDIENTE, Estado::CONFIRMADO], true)), $turnoUrgente),
-            'porLlamar' => $urgentesPrimero($turnos->filter(fn ($turno) => $codigo($turno) === Estado::SALTADO), $turnoUrgente),
+            'agenda' => $urgentesPrimero($turnos->filter(fn ($turno) => $conHorario($turno) && in_array($codigo($turno), [Estado::PENDIENTE, Estado::CONFIRMADO], true)), $turnoUrgente),
+            'porLlamar' => $urgentesPrimero($turnos->filter(fn ($turno) => $conHorario($turno) && $codigo($turno) === Estado::SALTADO), $turnoUrgente),
             'ausentes' => $turnos->filter(fn ($turno) => $codigo($turno) === Estado::AUSENTE)->values(),
             'atendidos' => $atendidos,
             'anteriores' => Turno::where('profesional_id', $profesional->id)->whereDate('fecha', '<', $hoy->format('Y-m-d'))
@@ -95,9 +100,68 @@ class AtencionController extends Controller
             // "No se presentó" y "Pasar a ausente": el profesional activo que atiende (CREAR sobre HISTORIA_CLINICA), en
             // sus turnos (ConsultaPolicy). No hace falta EDITAR sobre TURNOS.
             'puedePasarAusente' => Gate::allows('cerrarJornada', Consulta::class),
+            // Los botones "Entre pacientes (N)" y "Urgencias (N)": solo en la carga de la página (el refresco de la
+            // lista no los trae; los mantiene al día la consulta de contadores cada 15 s).
+            'contadores' => $request->ajax() ? null : PendientesDelProfesional::contadores($profesional),
         ];
 
         return $this->listado($request, 'admin.atencion', $datos);
+    }
+
+    /**
+     * Conteos de los botones (JSON, cada 15 s): entre pacientes, urgencias y la última urgencia (id de turno y
+     * nombre). Sin contenido clínico y sin registrar lecturas (petición AJAX sin la marca lectura-ajax).
+     */
+    public function contadores(Request $request): JsonResponse
+    {
+        $profesional = $request->user()->profesional;
+        abort_unless($profesional?->estaActivo(), 403, self::SOLO_PROFESIONALES);
+
+        return response()->json(PendientesDelProfesional::contadores($profesional));
+    }
+
+    /** Popup "Entre pacientes" (fragmento escapado, solo por AJAX): sin la observación del triaje; no registra lecturas. */
+    public function entrePacientes(Request $request): Response|RedirectResponse
+    {
+        return $this->fragmentoPendientes($request, 'admin.atencion._entre-pacientes', fn ($profesional) => [
+            'turnos' => PendientesDelProfesional::entrePacientes($profesional),
+        ]);
+    }
+
+    /**
+     * Popup "Urgencias" (fragmento escapado, solo por AJAX). Trae la observación del triaje (contenido clínico): registra
+     * un VER por cada consulta cuya observación se muestra (con la regla de los 5 minutos de Auditoria::registrarLectura).
+     */
+    public function urgencias(Request $request): Response|RedirectResponse
+    {
+        return $this->fragmentoPendientes($request, 'admin.atencion._urgencias', function ($profesional) {
+            $turnos = PendientesDelProfesional::urgencias($profesional);
+            foreach ($turnos as $turno) {
+                if (filled($turno->consulta?->triaje_observacion)) {
+                    Auditoria::registrarLectura('HISTORIA_CLINICA', $turno->consulta->id, 'consultas', self::LECTURA_URGENCIAS);
+                }
+            }
+
+            return ['turnos' => $turnos];
+        });
+    }
+
+    /** Detalle del VER que registra el popup de urgencias. */
+    public const LECTURA_URGENCIAS = 'Urgencias: observación del triaje';
+
+    private function fragmentoPendientes(Request $request, string $vista, \Closure $datos): Response|RedirectResponse
+    {
+        if (! $request->ajax()) {
+            return redirect()->route('admin.atencion.index');
+        }
+        $profesional = $request->user()->profesional;
+        abort_unless($profesional?->estaActivo(), 403, self::SOLO_PROFESIONALES);
+
+        return response()->view($vista, [
+            ...$datos($profesional),
+            'puedeAtender' => Gate::allows('atender', Consulta::class),
+            'puedePasarAusente' => Gate::allows('cerrarJornada', Consulta::class),
+        ])->header('Vary', 'X-Requested-With');
     }
 
     /**
@@ -113,9 +177,18 @@ class AtencionController extends Controller
             fn (Paciente $paciente) => $paciente->historiaClinica->id);
     }
 
+    /**
+     * Atender un turno. Una urgencia con otra consulta en curso vuelve a la pantalla Consulta con la pregunta
+     * (sesión "confirmar_urgencia"); el formulario de confirmación reenvía con confirmar_urgencia=1.
+     */
     public function atender(Request $request, Turno $turno): RedirectResponse
     {
-        return $this->accion(fn () => redirect()->route('admin.consultas.atencion', Atender::ejecutar($request->user(), $turno)));
+        try {
+            return $this->accion(fn () => redirect()->route('admin.consultas.atencion',
+                Atender::ejecutar($request->user(), $turno, $request->boolean('confirmar_urgencia'))));
+        } catch (RequiereConfirmacion $e) {
+            return redirect()->route('admin.atencion.index')->with('confirmar_urgencia', ['turno' => $turno->id, 'mensaje' => $e->getMessage()]);
+        }
     }
 
     public function atenderSinTurno(Request $request, HistoriaClinica $historiaClinica): RedirectResponse
@@ -283,6 +356,8 @@ class AtencionController extends Controller
     {
         try {
             return $accion();
+        } catch (RequiereConfirmacion $e) {
+            throw $e; // la responde quien la pidió (atender)
         } catch (AccionRechazada $e) {
             $volver = back()->with('error', $e->getMessage());
 

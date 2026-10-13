@@ -4,7 +4,7 @@
     hoy, PENDIENTE, origen presencial.
 --}}
 <x-admin.page title="Registrar urgencia">
-    <x-admin.form :action="route('admin.urgencias.store')" :cancel="route('admin.urgencias.index')" width="max-w-3xl" submit-label="Registrar urgencia">
+    <x-admin.form :action="route('admin.turnos.urgencias.store')" :cancel="route('admin.turnos.urgencias')" width="max-w-3xl" submit-label="Registrar urgencia">
         <x-admin.selector-persona name="paciente_id" label="Paciente" :url="route('admin.turnos.pacientes')"
             :inicial="$pacienteInicial" :ofrecer-alta="false" sin-resultados="No hay pacientes activos con esa búsqueda."
             ayuda="Solo aparecen pacientes activos. Busque por nombre, documento o número de ficha." />

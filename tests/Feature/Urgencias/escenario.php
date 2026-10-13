@@ -13,9 +13,11 @@
  */
 
 use App\Enums\TipoTurno;
+use App\Models\Consulta;
 use App\Models\CupoEntrePacientes;
 use App\Models\Disponibilidad;
 use App\Models\Estado;
+use App\Models\ExamenFisico;
 use App\Models\OrigenTurno;
 use App\Models\Paciente;
 use App\Models\Persona;
@@ -60,6 +62,27 @@ function epTurno(TipoTurno $tipo = TipoTurno::ENTRE_PACIENTES, array $cambios = 
         'fecha' => '2026-10-06', 'estado_id' => Estado::idDe(Estado::PENDIENTE),
         ...$cambios,
     ]);
+}
+
+/**
+ * Triaje del turno, directo en la base: consulta EN_PREPARACION (terminada si $terminado), urgente con observación si
+ * se indica, y signos alterados si $alterados.
+ */
+function epTriaje(Turno $turno, bool $urgente = false, ?string $observacion = null, bool $alterados = false, bool $terminado = true, ?string $marcaUtc = null): Consulta
+{
+    $consulta = new Consulta(['historia_clinica_id' => $turno->paciente->historiaClinica->id, 'turno_id' => $turno->id, 'profesional_id' => $turno->profesional_id]);
+    $consulta->forceFill([
+        'estado_id' => Estado::idDe(Estado::EN_PREPARACION),
+        'preparada_en' => $terminado ? now() : null,
+        'triaje_urgente' => $urgente,
+        'triaje_observacion' => $observacion,
+        'triaje_urgente_en' => $urgente ? ($marcaUtc ?? now()) : null,
+    ])->save();
+    if ($alterados) {
+        ExamenFisico::create(['consulta_id' => $consulta->id, 'temperatura' => 39.5, 'signos_alertas' => ['temperatura' => 'ALTERADO']]);
+    }
+
+    return $consulta;
 }
 
 /** Un paciente nuevo, ACTIVO, con estos datos de persona. */

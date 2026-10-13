@@ -15,8 +15,8 @@
         </p>
     @endif
     @php($enlaces = array_filter([
-        'Registrar urgencia' => Permisos::url('admin.urgencias.create'),
-        'Urgencias de hoy' => Permisos::url('admin.urgencias.index'),
+        'Registrar urgencia' => Permisos::url('admin.turnos.urgencias.create'),
+        'Urgencias de hoy' => Permisos::url('admin.turnos.urgencias'),
         'Cupo entre pacientes' => Permisos::url('admin.turnos.cupos'),
     ]))
     @if ($enlaces)

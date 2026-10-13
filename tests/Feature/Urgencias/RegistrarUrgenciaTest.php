@@ -24,11 +24,11 @@ afterEach(fn () => Carbon::setTestNow());
 
 function urgenciaRegistrar(array $cambios = [])
 {
-    return test()->post(route('admin.urgencias.store'), ['paciente_id' => test()->paciente->id, 'profesional_id' => test()->profesional->id, ...$cambios]);
+    return test()->post(route('admin.turnos.urgencias.store'), ['paciente_id' => test()->paciente->id, 'profesional_id' => test()->profesional->id, ...$cambios]);
 }
 
 test('se registra: URGENCIA de hoy, PENDIENTE, presencial, llegada ahora, sin horas; auditada "Urgencia registrada"', function () {
-    urgenciaRegistrar()->assertRedirect(route('admin.urgencias.index'))
+    urgenciaRegistrar()->assertRedirect(route('admin.turnos.urgencias'))
         ->assertSessionHas('status', 'Urgencia registrada: Duarte, Carmen, con Benítez, Rosa.');
 
     $turno = Turno::sole();
@@ -43,7 +43,7 @@ test('se registra: URGENCIA de hoy, PENDIENTE, presencial, llegada ahora, sin ho
 });
 
 test('cualquier profesional activo, aunque no atienda hoy; el formulario los ordena: primero los de hoy', function () {
-    $this->get(route('admin.urgencias.create'))->assertOk()
+    $this->get(route('admin.turnos.urgencias.create'))->assertOk()
         ->assertSeeInOrder(['Atienden hoy', 'Benítez, Rosa', 'Otros profesionales', 'Insfrán, Laura'])
         ->assertSee('Si el paciente no aparece, puede que todavía no esté registrado o que esté inactivo.')
         ->assertDontSee('<textarea', false);
@@ -102,20 +102,20 @@ test('sin el origen PRESENCIAL (buscado por código), un error claro', function 
 test('cancelar solo mientras está PENDIENTE, con EDITAR sobre TURNOS', function () {
     $turno = epTurno(TipoTurno::URGENCIA);
 
-    $this->patch(route('admin.urgencias.cancelar', $turno))->assertRedirect(route('admin.urgencias.index'))->assertSessionHas('status', 'Urgencia cancelada.');
+    $this->patch(route('admin.turnos.urgencias.cancelar', $turno))->assertRedirect(route('admin.turnos.urgencias'))->assertSessionHas('status', 'Urgencia cancelada.');
     expect($turno->fresh()->estado->codigo)->toBe(Estado::CANCELADO)
         ->and(LogAuditoria::where('tabla_afectada', 'turnos')->latest('id')->first()->detalle)->toBe('Urgencia cancelada');
 
     $confirmada = epTurno(TipoTurno::URGENCIA, ['estado_id' => Estado::idDe(Estado::CONFIRMADO)]);
-    $this->patch(route('admin.urgencias.cancelar', $confirmada))->assertSessionHas('error', 'Solo se cancela una urgencia pendiente (esta está confirmado).');
+    $this->patch(route('admin.turnos.urgencias.cancelar', $confirmada))->assertSessionHas('error', 'Solo se cancela una urgencia pendiente (esta está confirmado).');
     expect($confirmada->fresh()->estado->codigo)->toBe(Estado::CONFIRMADO);
 
     // Un turno que no es urgencia: 404.
-    $this->patch(route('admin.urgencias.cancelar', hcTurno(['hora_inicio' => '11:00', 'hora_fin' => '11:30'])))->assertNotFound();
+    $this->patch(route('admin.turnos.urgencias.cancelar', hcTurno(['hora_inicio' => '11:00', 'hora_fin' => '11:30'])))->assertNotFound();
 
     // Sin EDITAR: 403.
     $this->actingAs(\App\Models\User::factory()->conPermisos(['TURNOS' => ['VER', 'CREAR']])->create());
-    $this->patch(route('admin.urgencias.cancelar', epTurno(TipoTurno::URGENCIA, ['paciente_id' => $this->otraPaciente->id])))->assertForbidden();
+    $this->patch(route('admin.turnos.urgencias.cancelar', epTurno(TipoTurno::URGENCIA, ['paciente_id' => $this->otraPaciente->id])))->assertForbidden();
 });
 
 test('el panel de recepción: paciente, profesional, hora de registro y estado; nada clínico ni urgencias del triaje', function () {
@@ -128,7 +128,7 @@ test('el panel de recepción: paciente, profesional, hora de registro y estado; 
     $consultaUrgencia = new Consulta(['historia_clinica_id' => $this->historia->id, 'turno_id' => $urgencia->id, 'profesional_id' => $this->profesional->id]);
     $consultaUrgencia->forceFill(['estado_id' => Estado::idDe(Estado::EN_PREPARACION), 'triaje_urgente' => true, 'triaje_observacion' => 'OTRA-OBSERVACION-SECRETA'])->save();
 
-    $this->get(route('admin.urgencias.index'))->assertOk()
+    $this->get(route('admin.turnos.urgencias'))->assertOk()
         ->assertSeeInOrder(['09:00', 'Duarte, Carmen', 'Benítez, Rosa', 'PENDIENTE'])
         ->assertDontSee('Gómez, Lidia')
         ->assertDontSee('OBSERVACION-SECRETA')->assertDontSee('Signos alterados')->assertDontSee('URGENTE');
@@ -142,5 +142,5 @@ test('Turnos muestra los botones según permisos', function () {
 
     $this->actingAs(\App\Models\User::factory()->conPermisos(['TURNOS' => ['VER']])->create());
     $this->get(route('admin.turnos.index'))->assertOk()->assertDontSee('Registrar urgencia')->assertSee('Urgencias de hoy')->assertDontSee('Cupo entre pacientes');
-    $this->get(route('admin.urgencias.create'))->assertForbidden();
+    $this->get(route('admin.turnos.urgencias.create'))->assertForbidden();
 });

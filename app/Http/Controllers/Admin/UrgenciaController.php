@@ -35,7 +35,7 @@ class UrgenciaController extends Controller
             ->orderBy('llegada_en')->orderBy('id')
             ->get();
 
-        return view('admin.urgencias.index', compact('urgencias'));
+        return view('admin.turnos.urgencias', compact('urgencias'));
     }
 
     public function create(): View
@@ -73,7 +73,7 @@ class UrgenciaController extends Controller
             return back()->withInput()->withErrors(['paciente_id' => $e->getMessage()]);
         }
 
-        return redirect()->route('admin.urgencias.index')->with('status', sprintf('Urgencia registrada: %s, con %s.',
+        return redirect()->route('admin.turnos.urgencias')->with('status', sprintf('Urgencia registrada: %s, con %s.',
             $turno->paciente->persona->nombre_completo, $turno->profesional->persona->nombre_completo));
     }
 
@@ -95,6 +95,6 @@ class UrgenciaController extends Controller
 
         return $resultado
             ? back()->with('error', $resultado)
-            : redirect()->route('admin.urgencias.index')->with('status', 'Urgencia cancelada.');
+            : redirect()->route('admin.turnos.urgencias')->with('status', 'Urgencia cancelada.');
     }
 }
