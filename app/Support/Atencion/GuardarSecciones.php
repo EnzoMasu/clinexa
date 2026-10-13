@@ -6,6 +6,7 @@ use App\Models\Consulta;
 use App\Models\ExamenFisico;
 use App\Models\User;
 use App\Support\Auditoria;
+use App\Support\Correcciones\VentanaDeCorreccion;
 
 /**
  * Guarda las secciones de una consulta con los datos ya validados (FormularioConsulta), solo las de los
@@ -56,7 +57,7 @@ final class GuardarSecciones
             }
         }
 
-        if ($preparacion && ! empty($datos['con_anamnesis'])) {
+        if (($preparacion || in_array(FormularioConsulta::ANAMNESIS, $grupos, true)) && ! empty($datos['con_anamnesis'])) {
             $consulta->auditarRelacion('bloquesAnamnesis', function () use ($consulta, $datos, $usuario, &$creadas) {
                 $creadas['anamnesis'] = self::guardarFilas($consulta->bloquesAnamnesis(), $datos['anamnesis'] ?? [],
                     fn (array $fila) => ['tipo_bloque_anamnesis_id' => (int) $fila['tipo_bloque_anamnesis_id'], 'contenido' => $fila['contenido']],
@@ -149,7 +150,10 @@ final class GuardarSecciones
         $existente->fill($valores);
         // El nivel de cada signo, calculado AL GUARDAR (mientras la consulta está abierta): con la consulta cerrada
         // el examen ya no se escribe (ProtegidoPorCierre) y queda congelado aunque cambien los parámetros.
-        $existente->signos_alertas = self::alertas($existente, $confirmadas, $usuario);
+        // En una corrección de una consulta cerrada los signos (y su nivel) no se tocan, aunque hoy cambien los parámetros.
+        if (! VentanaDeCorreccion::activa()) {
+            $existente->signos_alertas = self::alertas($existente, $confirmadas, $usuario);
+        }
         $cambios = array_keys($existente->exists ? $existente->getDirty() : array_filter($valores, fn ($valor) => $valor !== null));
         if (array_intersect($cambios, FormularioConsulta::SIGNOS_VITALES) !== []) {
             $existente->signos_usuario_id = $usuario->id;

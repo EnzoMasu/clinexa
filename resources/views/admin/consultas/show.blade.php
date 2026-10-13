@@ -18,6 +18,72 @@
         @include('admin.consultas._contenido', ['consulta' => $consulta])
 
         {{--
+            Correcciones de una consulta cerrada: "Agregar adenda" (la nota se suma debajo de lo original) y, para
+            supervisores, "Desbloquear para corregir" (ventana de un solo uso, 24 h). Cada botón, solo con su permiso;
+            funcionan sin JavaScript (son enlaces y formularios comunes).
+        --}}
+        @if ($consulta->finalizada() && ($puedeAdenda || $puedeDesbloquear || $desbloqueoVigente))
+            <section class="space-y-3 rounded-md border border-gray-200 p-3 dark:border-gray-700" aria-labelledby="correcciones-titulo" data-correcciones>
+                <h4 id="correcciones-titulo" class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Correcciones</h4>
+                @if ($desbloqueoVigente)
+                    <div role="status" class="rounded-md bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-900/30 dark:text-amber-100" data-desbloqueo-vigente="{{ $desbloqueoVigente->id }}">
+                        Desbloqueada hasta el {{ Fecha::mostrar($desbloqueoVigente->vence_en, conHora: true) }}, para un solo guardado.
+                        Motivo: {{ $desbloqueoVigente->motivo }}
+                        @if ($puedeDesbloquear)
+                            <div class="mt-2 flex flex-wrap items-center gap-3">
+                                <a href="{{ route('admin.correcciones.corregir', $desbloqueoVigente) }}" class="inline-flex items-center rounded-md bg-gray-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white">Corregir ahora</a>
+                                <form method="POST" action="{{ route('admin.correcciones.cancelar', $desbloqueoVigente) }}">
+                                    @csrf
+                                    <button type="submit" class="text-sm font-medium text-red-600 hover:text-red-900 dark:text-red-400">Cancelar el desbloqueo</button>
+                                </form>
+                            </div>
+                        @endif
+                    </div>
+                @endif
+                <div class="flex flex-wrap items-center gap-3">
+                    @if ($puedeAdenda)
+                        <a href="{{ route('admin.correcciones.adenda.create', $consulta) }}"
+                            class="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">Agregar adenda</a>
+                    @endif
+                    @if ($puedeDesbloquear && ! $desbloqueoVigente)
+                        <a href="{{ route('admin.correcciones.desbloqueo.create', $consulta) }}"
+                            class="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">Desbloquear para corregir</a>
+                    @endif
+                </div>
+            </section>
+        @endif
+
+        {{-- Historial de correcciones: solo con VER sobre CORRECCIONES_HC (su lectura se registra en el controlador). --}}
+        @if ($versiones !== null && $versiones->isNotEmpty())
+            <details class="rounded-md border border-gray-200 dark:border-gray-700" data-historial-correcciones>
+                <summary class="cursor-pointer select-none px-4 py-2 font-medium text-gray-900 dark:text-gray-100">Historial de correcciones</summary>
+                <div class="space-y-3 px-4 pb-4 text-sm">
+                    @foreach ($versiones->sortByDesc('numero') as $version)
+                        @php($antes = $version->snapshot)
+                        <article class="rounded-md border border-gray-200 p-3 dark:border-gray-700" data-version="{{ $version->numero }}">
+                            <h5 class="font-medium">Corrección {{ $version->numero }} · <span class="dato">{{ Fecha::mostrar($version->created_at, conHora: true) }}</span> · {{ $version->usuario?->name ?? 'Sin usuario' }}</h5>
+                            <p class="text-xs text-gray-600 dark:text-gray-400">Motivo del desbloqueo #{{ $version->desbloqueo_id }}: {{ $version->desbloqueo?->motivo }}</p>
+                            <p class="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Antes de la corrección</p>
+                            <dl class="mt-1 space-y-1">
+                                <div><dt class="inline font-medium">Motivo de consulta:</dt> <dd class="inline whitespace-pre-line">{{ $antes['motivo_consulta'] ?? '—' }}</dd></div>
+                                @foreach ($antes['anamnesis'] ?? [] as $bloque)
+                                    <div @class(['opacity-60' => ! $bloque['activo']])><dt class="inline font-medium">{{ $bloque['tipo'] ?? 'Anamnesis' }}{{ $bloque['activo'] ? '' : ' (retirado)' }}:</dt> <dd class="inline whitespace-pre-line">{{ $bloque['contenido'] }}</dd></div>
+                                @endforeach
+                                <div><dt class="inline font-medium">Hallazgos:</dt> <dd class="inline whitespace-pre-line">{{ $antes['hallazgos'] ?? '—' }}</dd></div>
+                                @foreach ($antes['diagnosticos'] ?? [] as $diagnostico)
+                                    <div @class(['opacity-60' => ! $diagnostico['activo']])><dt class="inline font-medium">Diagnóstico{{ $diagnostico['principal'] ? ' principal' : '' }}{{ $diagnostico['activo'] ? '' : ' (retirado)' }}:</dt> <dd class="inline">{{ $diagnostico['codigo_cie10'] }} ({{ $diagnostico['tipo'] }}){{ $diagnostico['descripcion_adicional'] ? ' · '.$diagnostico['descripcion_adicional'] : '' }}</dd></div>
+                                @endforeach
+                                @foreach ($antes['indicaciones'] ?? [] as $indicacion)
+                                    <div @class(['opacity-60' => ! $indicacion['activo']])><dt class="inline font-medium">Indicación{{ $indicacion['activo'] ? '' : ' (retirada)' }}:</dt> <dd class="inline whitespace-pre-line">{{ ($indicacion['tipo'] ? $indicacion['tipo'].': ' : '').$indicacion['descripcion'] }}</dd></div>
+                                @endforeach
+                            </dl>
+                        </article>
+                    @endforeach
+                </div>
+            </details>
+        @endif
+
+        {{--
             Acciones de las recetas: solo en la página (fuera del partial, que comparte el popup). Escribir
             lo decide RecetaPolicy: el profesional que atiende, con el permiso de RECETAS que corresponde.
         --}}

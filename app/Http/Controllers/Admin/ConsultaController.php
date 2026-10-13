@@ -66,6 +66,8 @@ class ConsultaController extends Controller
         // Con la autoría ("Cargado por" / "modificado por") de la anamnesis y del examen físico.
         'bloquesAnamnesis.tipoBloqueAnamnesis', 'bloquesAnamnesis.usuario.persona.personalSalud.cargoSalud', 'bloquesAnamnesis.modificadoPor.persona.personalSalud.cargoSalud',
         'examenFisico.signosUsuario.persona.personalSalud.cargoSalud', 'examenFisico.hallazgosUsuario.persona.personalSalud.cargoSalud', 'diagnosticos.cie10', 'indicaciones.tipoIndicacion',
+        // Adendas (con su autor): se muestran debajo de lo original.
+        'adendas.usuario.persona.personalSalud.cargoSalud',
     ];
 
     /**
@@ -80,7 +82,7 @@ class ConsultaController extends Controller
     public function show(Request $request, Consulta $consulta): View
     {
         abort_if($consulta->anulada(), 404);
-        $consulta->load($this->relacionesContenido($request));
+        $consulta->load($this->relacionesContenido($request))->loadCount('versiones');
         $verRecetas = $request->user()->tienePermiso('RECETAS', 'VER');
         if ($verRecetas) {
             // Para las acciones de cada receta (RecetaPolicy mira la consulta): sin una consulta SQL por receta.
@@ -108,7 +110,21 @@ class ConsultaController extends Controller
             Auditoria::registrarLectura('AUDITORIA', null, detalle: "Historial de cambios de la consulta {$consulta->id}");
         }
 
+        // Correcciones (adenda y desbloqueo): cada botón, solo con su permiso (ConsultaPolicy). Ver el historial de
+        // correcciones (lo que había antes de cada una) pide VER sobre CORRECCIONES_HC y registra su lectura.
+        $usuario = $request->user();
+        $versiones = null;
+        if ($usuario->tienePermiso('CORRECCIONES_HC', 'VER')) {
+            $versiones = $consulta->versiones()->with(['usuario.persona', 'desbloqueo'])->get();
+            Auditoria::registrarLectura('CORRECCIONES_HC', $consulta->id, 'consulta_versiones', "Historial de correcciones de la consulta {$consulta->id}");
+        }
+
         return view('admin.consultas.show', [
+            'versiones' => $versiones,
+            'desbloqueoVigente' => $consulta->finalizada() && ($usuario->tienePermiso('CORRECCIONES_HC', 'VER') || $usuario->tienePermiso('CORRECCIONES_HC', 'EDITAR'))
+                ? \App\Models\DesbloqueoConsulta::vigenteDe($consulta->id)?->load('usuario.persona') : null,
+            'puedeAdenda' => Gate::forUser($usuario)->allows('agregarAdenda', $consulta),
+            'puedeDesbloquear' => Gate::forUser($usuario)->allows('desbloquear', $consulta),
             'consulta' => $consulta,
             'historial' => $historial === null ? null : $historial->slice(-self::MAXIMO_HISTORIAL)->values(),
             'cambiosEnTotal' => $historial?->count() ?? 0,
@@ -132,7 +148,7 @@ class ConsultaController extends Controller
             return redirect()->route('admin.consultas.show', $consulta);
         }
 
-        $consulta->load($this->relacionesContenido($request));
+        $consulta->load($this->relacionesContenido($request))->loadCount('versiones');
 
         return response()->view('admin.consultas._contenido', [
             'consulta' => $consulta,

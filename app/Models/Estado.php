@@ -49,6 +49,13 @@ class Estado extends Model
     /** Recetas: anulada (se conserva y se ve, con el motivo). */
     public const ANULADO = 'ANULADO';
 
+    /** Desbloqueo de una consulta cerrada: la ventana de corrección vigente, usada (REALIZADO) o vencida (CANCELADO la anula). */
+    public const VIGENTE = 'VIGENTE';
+
+    public const REALIZADO = 'REALIZADO';
+
+    public const VENCIDO = 'VENCIDO';
+
     /** Parámetros clínicos: aprobado por un médico (si no, PENDIENTE: no marca alertas). */
     public const APROBADO = 'APROBADO';
 

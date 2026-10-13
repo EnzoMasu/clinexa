@@ -14,7 +14,7 @@ use Illuminate\Database\Seeder;
  */
 class ModulosSensiblesSeeder extends Seeder
 {
-    public const SENSIBLES = ['USUARIOS', 'PERFILES_ACCESO', 'PERSONAS', 'PACIENTES', 'AUDITORIA', 'HISTORIA_CLINICA', 'RECETAS'];
+    public const SENSIBLES = ['USUARIOS', 'PERFILES_ACCESO', 'PERSONAS', 'PACIENTES', 'AUDITORIA', 'HISTORIA_CLINICA', 'RECETAS', 'CORRECCIONES_HC'];
 
     public function run(): void
     {

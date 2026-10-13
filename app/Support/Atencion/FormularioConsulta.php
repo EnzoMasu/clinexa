@@ -31,6 +31,9 @@ final class FormularioConsulta
 
     public const CLINICO = 'clinico';
 
+    /** Solo los bloques de anamnesis (sin triaje ni signos): para la corrección de una consulta cerrada, junto con CLINICO. */
+    public const ANAMNESIS = 'anamnesis';
+
     public const MAXIMO_BLOQUES = 30;
 
     public const MAXIMO_DIAGNOSTICOS = 10;
@@ -118,6 +121,9 @@ final class FormularioConsulta
             if (is_array($entrada['confirmaciones'] ?? null)) {
                 $salida['confirmaciones'] = array_map($recortar, $entrada['confirmaciones']);
             }
+        }
+
+        if (in_array(self::PREPARACION, $grupos, true) || in_array(self::ANAMNESIS, $grupos, true)) {
             $salida['con_anamnesis'] = $entrada['con_anamnesis'] ?? null;
             if (is_array($entrada['anamnesis'] ?? null)) {
                 $salida['anamnesis'] = $filas($entrada['anamnesis']);
@@ -189,7 +195,7 @@ final class FormularioConsulta
 
         $reglas = ['examen' => ['nullable', 'array']];
 
-        if (in_array(self::PREPARACION, $grupos, true)) {
+        if (in_array(self::PREPARACION, $grupos, true) || in_array(self::ANAMNESIS, $grupos, true)) {
             $reglas += [
                 'con_anamnesis' => ['nullable', 'boolean'],
                 'anamnesis' => ['nullable', 'array', function (string $atributo, mixed $filas, Closure $fail) use ($activas) {
@@ -207,6 +213,11 @@ final class FormularioConsulta
                     }
                 }],
                 'anamnesis.*.contenido' => ['required', 'string', 'max:5000'],
+            ];
+        }
+
+        if (in_array(self::PREPARACION, $grupos, true)) {
+            $reglas += [
                 // Solo formato y tipo: los límites (lo "imposible") los define cada parámetro clínico y los aplica
                 // EvaluadorSignos después de esta validación (ver validar()).
                 'examen.presion_arterial' => ['nullable', 'string', 'max:10', 'regex:#^\d{2,3}/\d{2,3}$#'],
