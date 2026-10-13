@@ -44,17 +44,21 @@ no se omiten: el comando completo los incluye.
 | Grupo | Qué tiene | Por qué |
 |---|---|---|
 | `lento` | `RespaldoTest` (Feature) | genera y verifica archivos de respaldo simulados |
-| `lento` | Mutación de escapado (`EscapadoAtencionTest`) | copia todas las vistas a una carpeta temporal por caso |
-| `lento` | `RendimientoTest`, `RendimientoAtencionTest` | cargan cientos de registros para contar consultas SQL |
+| `lento` | Mutación de escapado (`EscapadoAtencionTest`, `EscapadoUrgenciasTest`) | copia todas las vistas a una carpeta temporal por caso |
+| `lento` | `RendimientoTest`, `RendimientoAtencionTest`, `RendimientoUrgenciasTest` | cargan cientos de registros para contar consultas SQL |
 | `lento` | `AuditoriaVolumenTest` | simula una consulta de 10 minutos (78 guardados) |
 | `lento` | Auditoría con 50.000 registros (`Auditoria\PantallaTest`) | inserta 50.000 eventos |
-| `lento` | Recorrido de rutas de `PermisosTest` (sin permisos y Administrador) | recorre las 192 rutas de /admin |
+| `lento` | Recorrido de rutas de `PermisosTest` (sin permisos y Administrador) | recorre las 221 rutas de /admin |
 | `postgres` | `tests/Postgres` | necesitan PostgreSQL de verdad; corren solo en serie |
 
 Para marcar un test nuevo como lento: `->group('lento')` al final del test, o `uses()->group('lento');`
 al principio del archivo si todo el archivo lo es.
 
 ## PostgreSQL: solo en serie
+
+`tests/Postgres/EntrePacientesConcurrenciaTest` prueba la concurrencia con **dos conexiones** a `clinexa_test`:
+para que la segunda vea los datos, el test los confirma fuera de la transacción de RefreshDatabase y al final borra,
+por id, solo lo que creó (ver `docs/agenda-urgencias.md`).
 
 Los tests de `tests/Postgres` no pueden correr en paralelo: Laravel crearía una base por proceso
 (`clinexa_test_test_1`, `_2`...) que queda suelta en el servidor. `Tests\PostgresTestCase` lo frena con

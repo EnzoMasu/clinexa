@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Schema;
  *   EXCLUDE no se aplican. Una columna generada no se redefine en todas las versiones: se quitan las tres
  *   EXCLUDE, se rehace rango y se vuelven a crear con la misma definición.
  * - CHECK turnos_tipo_valido y turnos_horas_segun_tipo.
+ * - Índice único parcial turnos_una_urgencia_abierta: una sola URGENCIA abierta por paciente, profesional y día.
  * - cupos_entre_pacientes: cuántos "entre pacientes" atiende el profesional ese día (0 a 30).
  *
  * En SQLite (la suite) no hay rango, EXCLUDE ni CHECK: lo cubre la aplicación.
