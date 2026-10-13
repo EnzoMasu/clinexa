@@ -49,10 +49,28 @@
             </section>
         @endif
 
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4">
             @if ($turnos->isNotEmpty() && ! $conConsultasEnCurso)
-                <form method="POST" action="{{ route('admin.atencion.cerrar-jornada.confirmar') }}">
+                <form method="POST" action="{{ route('admin.atencion.cerrar-jornada.confirmar') }}" class="space-y-3">
                     @csrf
+                    @if ($urgencias->isNotEmpty())
+                        {{-- Advertencia reforzada: urgencias (de recepción o del triaje) que pasarían a ausente. El servidor también exige la casilla. --}}
+                        <section role="alert" data-urgencias-sin-atender aria-labelledby="titulo-urgencias-sin-atender"
+                            class="space-y-2 rounded-md border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:border-red-700 dark:bg-red-900/30 dark:text-red-100">
+                            <h3 id="titulo-urgencias-sin-atender" class="font-semibold">Atención: urgencias sin atender</h3>
+                            <ul class="list-disc ps-5">
+                                @foreach ($urgencias as $turno)
+                                    <li>{{ $turno->paciente->persona->nombre_completo }} ({{ $turno->tipo === \App\Enums\TipoTurno::URGENCIA ? 'urgencia de recepción' : 'triaje urgente' }}, {{ Fecha::mostrar($turno->fecha) }})</li>
+                                @endforeach
+                            </ul>
+                            <p>Pasarán a ausente. Lo cargado en su triaje se conserva.</p>
+                            <label class="inline-flex items-center gap-2 font-medium">
+                                <input type="checkbox" name="confirmo_urgencias" value="1"
+                                    class="rounded border-red-300 text-red-600 shadow-sm focus:ring-red-500 dark:border-red-700 dark:bg-gray-900">
+                                Confirmo que revisé las urgencias
+                            </label>
+                        </section>
+                    @endif
                     <x-primary-button>Cerrar jornada</x-primary-button>
                 </form>
             @endif

@@ -226,6 +226,7 @@ class AtencionController extends Controller
         return view('admin.atencion.cerrar-jornada', [
             'turnos' => $turnos->values(),
             'aunNoEsSuHora' => $aunNoEsSuHora->values(),
+            'urgencias' => CerrarJornada::urgenciasQueCierra($turnos),
             'conConsultasEnCurso' => Consulta::where('profesional_id', $profesional->id)->where('estado_id', Estado::idDe(Estado::EN_CURSO))->exists(),
         ]);
     }
@@ -233,7 +234,7 @@ class AtencionController extends Controller
     public function cerrarJornada(Request $request): RedirectResponse
     {
         return $this->accion(function () use ($request) {
-            [$cerrados, $pendientes] = CerrarJornada::ejecutar($request->user());
+            [$cerrados, $pendientes] = CerrarJornada::ejecutar($request->user(), $request->boolean('confirmo_urgencias'));
 
             return redirect()->route('admin.atencion.index')->with('status', $cerrados === 0
                 ? 'No había turnos para cerrar.'
