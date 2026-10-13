@@ -84,7 +84,7 @@ describe('adenda: quién puede agregarla', function () {
         $rutaForm = route('admin.correcciones.adenda.create', $this->consulta);
 
         foreach ([$this->medico, $this->supervisor, User::factory()->administrador()->create()] as $usuario) {
-            $this->actingAs($usuario)->get($rutaForm)->assertOk();
+            $this->actingAs($usuario)->get($rutaForm)->assertOk()->assertSee('novalidate', false);
         }
         // Otro profesional con CREAR sobre la historia: no es el de la consulta. Quien solo ve las correcciones, tampoco.
         $solo = User::factory()->conPermisos(['HISTORIA_CLINICA' => ['VER'], 'CORRECCIONES_HC' => ['VER', 'EDITAR']])->create();
