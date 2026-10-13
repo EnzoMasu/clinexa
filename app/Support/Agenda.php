@@ -91,7 +91,7 @@ final class Agenda
     }
 
     /** Disponibilidades ACTIVAS que rigen esa fecha, en consultorios activos. */
-    private static function disponibilidadesDelDia(CarbonInterface $fecha)
+    public static function disponibilidadesDelDia(CarbonInterface $fecha)
     {
         return Disponibilidad::query()->activos()
             ->vigentesEn(Carbon::parse($fecha->format('Y-m-d')))
@@ -105,7 +105,7 @@ final class Agenda
     }
 
     /** [desde, hasta) en bloques de la duración del turno; el último solo si entra completo. */
-    private static function bloques(Disponibilidad $disponibilidad): array
+    public static function bloques(Disponibilidad $disponibilidad): array
     {
         $minutos = fn (string $hora) => (int) substr($hora, 0, 2) * 60 + (int) substr($hora, 3, 2);
         $hora = fn (int $minutos) => sprintf('%02d:%02d', intdiv($minutos, 60), $minutos % 60);

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AgendaGeneralController;
 use App\Http\Controllers\Admin\AtencionController;
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CargoSaludController;
@@ -155,6 +156,10 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::post('turnos/urgencias', [UrgenciaController::class, 'store'])->name('turnos.urgencias.store')->middleware('permiso:TURNOS,CREAR');
     Route::patch('turnos/urgencias/{turno}/cancelar', [UrgenciaController::class, 'cancelar'])->name('turnos.urgencias.cancelar')->whereNumber('turno')
         ->middleware('permiso:TURNOS,EDITAR');
+
+    // Agenda general (recepción): la grilla de turnos de todos los profesionales. Sin contenido clínico; no se guarda en la caché.
+    Route::get('agenda-general', [AgendaGeneralController::class, 'index'])->name('agenda-general.index')
+        ->middleware(['permiso:TURNOS,VER', SinAlmacenar::class]);
 
     // Turnos: no se editan ni se borran; solo se dan de alta y cambian de estado.
     Route::middleware('permiso:TURNOS,CREAR')->group(function () {

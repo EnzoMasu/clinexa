@@ -269,3 +269,25 @@ pero invisible. Para que quede constancia visible:
 
 Una vista del día por profesional con los turnos con horario, los entre pacientes (cupo usado de cupo total) y las
 urgencias registradas, para que recepción vea de un vistazo la carga de cada consultorio.
+
+## Agenda general (grilla de recepción)
+
+Pantalla **Agenda general** (grupo Agenda del menú, `admin.agenda-general.index`, `AgendaGeneralController`): los
+turnos de un día de todos los profesionales, para buscar disponibilidad cuando una paciente llega o llama.
+
+- **Permiso:** VER sobre TURNOS. Los botones salen de los permisos que ya existen: "Libre · dar turno" y "Agendar entre
+  pacientes" con CREAR (llevan al alta con profesional, fecha y hora cargados: `?profesional=&fecha=&hora=&modalidad=`),
+  Confirmar / Ausente / Cancelar con EDITAR (`admin.turnos.estado`).
+- **Filtros** (en vivo y con el botón Buscar sin JavaScript): fecha (hoy por defecto, día anterior y siguiente),
+  profesional, especialidad activa, estado, tipo y búsqueda por paciente o ficha. Sin elegir estado no se muestran los
+  cancelados. Con estado, tipo o búsqueda, solo quedan las columnas con turnos que coinciden.
+- **Grilla:** una columna por profesional que atiende ese día (o tiene turnos); filas = horarios (los ya pasados no se
+  ofrecen). Libre = `Agenda::bloques` menos lo ocupado (mismo criterio que `Agenda::horariosDisponibles`). Una franja
+  "Sin horario" por profesional lista entre pacientes y urgencias con "Cupo: X de Y". Paginado de 10 profesionales.
+- **Privacidad:** recepción no ve nada clínico: de la consulta solo se leen `id, turno_id, estado_id, preparada_en` para
+  mostrar Sin triaje / En triaje / Con triaje; nunca la urgencia marcada por el triaje (el orden no la considera), la
+  observación, los signos ni diagnósticos. Respuesta con `SinAlmacenar`. El refresco (cada 30 s, AJAX) no registra VER.
+- **Rendimiento:** cantidad fija de consultas SQL (no depende de la cantidad de profesionales ni turnos).
+- **Pendiente:** "Próximo horario libre" en el encabezado al filtrar por especialidad (próximos 14 días). Reutilizar
+  `Agenda::horariosDisponibles` por profesional y día son varias consultas por profesional (no queda en cantidad fija);
+  hace falta una versión por lotes del cálculo.

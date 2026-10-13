@@ -1,6 +1,6 @@
 <x-admin.page title="Nuevo turno">
     <x-admin.form :action="route('admin.turnos.store')" :cancel="route('admin.turnos.index')" width="max-w-3xl"
-        x-data="altaTurno({ url: {{ Js::from(route('admin.turnos.horarios-disponibles')) }}, urlCupo: {{ Js::from(route('admin.turnos.cupo-del-dia')) }}, modalidad: {{ Js::from($modalidad) }}, profesionalId: {{ Js::from($profesionalInicial['id'] ?? null) }}, fecha: {{ Js::from($fecha) }}, hora: {{ Js::from(old('hora_inicio', '')) }} })"
+        x-data="altaTurno({ url: {{ Js::from(route('admin.turnos.horarios-disponibles')) }}, urlCupo: {{ Js::from(route('admin.turnos.cupo-del-dia')) }}, modalidad: {{ Js::from($modalidad) }}, profesionalId: {{ Js::from($profesionalInicial['id'] ?? null) }}, fecha: {{ Js::from($fecha) }}, hora: {{ Js::from($hora) }} })"
         x-on:elegido="alElegir($event)" x-on:fecha-cambiada="alCambiarFecha($event)">
 
         {{-- Modalidad: con horario (de la agenda) o entre pacientes (sin horario, dentro del cupo del profesional ese día). --}}
@@ -32,7 +32,7 @@
         {{-- Horarios libres del profesional en esa fecha (App\Support\Agenda); el consultorio sale del horario elegido. --}}
         <div class="space-y-2" x-show="modalidad === 'con_horario'" @if ($modalidad === 'entre_pacientes') style="display: none" @endif>
             <span class="block font-medium text-sm text-gray-700 dark:text-gray-300">Horario</span>
-            <input type="hidden" name="hora_inicio" x-bind:value="hora" value="{{ old('hora_inicio') }}">
+            <input type="hidden" name="hora_inicio" x-bind:value="hora" value="{{ $hora }}">
 
             <p x-show="! listoParaBuscar" class="text-sm text-gray-500 dark:text-gray-400">Elija el profesional y la fecha para ver los horarios libres.</p>
             <p x-show="cargando" style="display: none" class="text-sm text-gray-500 dark:text-gray-400" role="status">Buscando horarios…</p>

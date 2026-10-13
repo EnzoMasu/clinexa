@@ -68,11 +68,17 @@ class TurnoController extends Controller
 
     public function create(): View
     {
+        // Prellenado desde la Agenda general (?profesional=&fecha=&hora=): solo valores bien formados; el alta se valida igual.
+        $profesionalPedido = ctype_digit((string) request('profesional')) ? Profesional::activos()->find((int) request('profesional'))?->id : null;
+        $fechaPedida = preg_match('#^\d{2}/\d{2}/\d{4}$#', (string) request('fecha')) && Carbon::canBeCreatedFromFormat(request('fecha'), Fecha::FORMATO) ? request('fecha') : null;
+        $horaPedida = preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string) request('hora')) ? request('hora') : '';
+
         return view('admin.turnos.form', [
             'pacienteInicial' => $this->inicial(Paciente::class, old('paciente_id'), fn ($p) => "Ficha {$p->nro_ficha}"),
-            'profesionalInicial' => $this->inicial(Profesional::class, old('profesional_id'), fn ($p) => "Mat. {$p->matricula}"),
+            'profesionalInicial' => $this->inicial(Profesional::class, old('profesional_id', $profesionalPedido), fn ($p) => "Mat. {$p->matricula}"),
             // Fecha del turno: hoy, editable.
-            'fecha' => old('fecha', Fecha::mostrar(Fecha::hoy())),
+            'fecha' => old('fecha', $fechaPedida ?? Fecha::mostrar(Fecha::hoy())),
+            'hora' => old('hora_inicio', $horaPedida),
             'modalidad' => old('modalidad') === self::ENTRE_PACIENTES || request('modalidad') === self::ENTRE_PACIENTES ? self::ENTRE_PACIENTES : self::CON_HORARIO,
             'procedimientos' => Procedimiento::activos()->orderBy('nombre')->pluck('nombre', 'id')->all(),
             'origenes' => OrigenTurno::activos()->orderBy('nombre')->pluck('nombre', 'id')->all(),
