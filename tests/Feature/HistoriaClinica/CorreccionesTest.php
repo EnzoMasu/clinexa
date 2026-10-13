@@ -307,6 +307,22 @@ describe('corrección con el desbloqueo', function () {
         expect(DesbloqueoConsulta::count())->toBe(2)->and(DesbloqueoConsulta::where('estado_id', Estado::idDe(Estado::VIGENTE))->count())->toBe(1);
     });
 
+    test('una ventana VIGENTE con el plazo vencido no bloquea un desbloqueo nuevo: pasa a VENCIDO y se crea el otro', function () {
+        $vieja = corrDesbloquear();
+        expect($vieja->estaVigente())->toBeTrue();
+
+        Carbon::setTestNow(now()->addHours(25)); // nadie la tocó: sigue VIGENTE en la base, con el plazo vencido
+        expect($vieja->fresh()->tieneEstado(Estado::VIGENTE))->toBeTrue();
+
+        $this->actingAs($this->supervisor)->post(route('admin.correcciones.desbloqueo.store', $this->consulta), ['motivo' => 'Nuevo desbloqueo, el anterior venció.'])
+            ->assertSessionHasNoErrors()->assertSessionMissing('error');
+
+        $nuevo = DesbloqueoConsulta::where('consulta_id', $this->consulta->id)->latest('id')->firstOrFail();
+        expect($vieja->fresh()->tieneEstado(Estado::VENCIDO))->toBeTrue()
+            ->and($nuevo->id)->not->toBe($vieja->id)->and($nuevo->estaVigente())->toBeTrue()
+            ->and(DesbloqueoConsulta::where('estado_id', Estado::idDe(Estado::VIGENTE))->count())->toBe(1);
+    });
+
     test('alcance: la ventana vale solo para SU consulta; el que atendió no la usa; fuera de la ventana todo da 409', function () {
         $otra = hcConsulta(['motivo_consulta' => 'Otra consulta.']);
         expect($otra->id)->not->toBe($this->consulta->id);
