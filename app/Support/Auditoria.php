@@ -162,6 +162,46 @@ final class Auditoria
         }
     }
 
+    /**
+     * Lo mismo que registrarLectura para varios registros de una tabla a la vez (p. ej. las consultas de un popup), con
+     * la misma regla de MINUTOS_SIN_REPETIR_VER por registro, en dos consultas fijas: una para ver cuáles se leyeron
+     * hace poco y un solo insert con los demás.
+     *
+     * @param  list<int|string>  $registroIds
+     */
+    public static function registrarLecturas(string $tabla, array $registroIds, ?string $detalle = null): void
+    {
+        $ids = array_values(array_unique(array_map('strval', $registroIds)));
+        if ($ids === []) {
+            return;
+        }
+
+        $recientes = DB::table('logs_auditoria')
+            ->where('usuario_id', Auth::id())
+            ->where('tabla_afectada', $tabla)
+            ->where('accion', AccionAuditoria::VER->value)
+            ->whereIn('registro_afectado_id', $ids)
+            ->when($detalle === null, fn ($query) => $query->whereNull('detalle'), fn ($query) => $query->where('detalle', $detalle))
+            ->where('fecha_hora', '>=', now()->subMinutes(self::MINUTOS_SIN_REPETIR_VER))
+            ->pluck('registro_afectado_id')->map(fn ($id) => (string) $id)->all();
+
+        $filas = array_map(fn (string $id) => [
+            'usuario_id' => Auth::id(),
+            'tabla_afectada' => $tabla,
+            'registro_afectado_id' => $id,
+            'accion' => AccionAuditoria::VER->value,
+            'valor_anterior' => null,
+            'valor_nuevo' => null,
+            'detalle' => $detalle,
+            'ip_origen' => request()?->ip(),
+            'fecha_hora' => now(),
+        ], array_values(array_diff($ids, $recientes)));
+
+        if ($filas !== []) {
+            DB::table('logs_auditoria')->insert($filas);
+        }
+    }
+
     /** El módulo está marcado como sensible (se cargan una vez por pedido). */
     public static function esSensible(string $modulo): bool
     {

@@ -136,11 +136,8 @@ class AtencionController extends Controller
     {
         return $this->fragmentoPendientes($request, 'admin.atencion._urgencias', function ($profesional) {
             $turnos = PendientesDelProfesional::urgencias($profesional);
-            foreach ($turnos as $turno) {
-                if (filled($turno->consulta?->triaje_observacion)) {
-                    Auditoria::registrarLectura('HISTORIA_CLINICA', $turno->consulta->id, 'consultas', self::LECTURA_URGENCIAS);
-                }
-            }
+            Auditoria::registrarLecturas('consultas', $turnos->filter(fn ($turno) => filled($turno->consulta?->triaje_observacion))
+                ->map(fn ($turno) => $turno->consulta->id)->all(), self::LECTURA_URGENCIAS);
 
             return ['turnos' => $turnos];
         });
