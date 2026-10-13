@@ -50,9 +50,22 @@ class CupoEntrePacientes extends Model
     /** Turnos ENTRE_PACIENTES del profesional ese día que no están CANCELADO. */
     public static function usados(int $profesionalId, string $fecha): int
     {
-        return Turno::where('tipo', TipoTurno::ENTRE_PACIENTES->value)
-            ->where('profesional_id', $profesionalId)->whereDate('fecha', $fecha)
+        return (int) (self::usadosPorProfesional([$profesionalId], $fecha)[$profesionalId] ?? 0);
+    }
+
+    /**
+     * Usados de varios profesionales en una sola consulta: profesional_id => cantidad.
+     *
+     * @param  array<int>  $profesionalIds
+     * @return \Illuminate\Support\Collection<int, int>
+     */
+    public static function usadosPorProfesional(array $profesionalIds, string $fecha): \Illuminate\Support\Collection
+    {
+        return Turno::delTipo(TipoTurno::ENTRE_PACIENTES)
+            ->whereIn('profesional_id', $profesionalIds)->whereDate('fecha', $fecha)
             ->where('estado_id', '!=', Estado::idDe(Estado::CANCELADO))
-            ->count();
+            ->selectRaw('profesional_id, count(*) as cantidad')->groupBy('profesional_id')
+            ->pluck('cantidad', 'profesional_id')
+            ->map(fn ($cantidad) => (int) $cantidad);
     }
 }

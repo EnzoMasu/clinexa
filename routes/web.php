@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\CategoriaProveedorController;
 use App\Http\Controllers\Admin\CiudadController;
 use App\Http\Controllers\Admin\ConsultaController;
 use App\Http\Controllers\Admin\ConsultorioController;
+use App\Http\Controllers\Admin\CupoEntrePacientesController;
 use App\Http\Controllers\Admin\DepartamentoController;
 use App\Http\Controllers\Admin\DisponibilidadController;
 use App\Http\Controllers\Admin\EspecialidadController;
@@ -140,9 +141,17 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         ->middleware('permiso:DISPONIBILIDAD,CREAR');
     $seccion('disponibilidades', DisponibilidadController::class, 'DISPONIBILIDAD', 'disponibilidad', conBaja: true);
 
+    // Cupo "entre pacientes" de cada profesional por día (pantalla de Turnos): se mira con VER y se fija con
+    // CREAR o EDITAR sobre DISPONIBILIDAD (sin módulo propio).
+    Route::get('turnos/cupos', [CupoEntrePacientesController::class, 'index'])->name('turnos.cupos')
+        ->middleware('permiso:DISPONIBILIDAD,VER');
+    Route::put('turnos/cupos/{profesional}', [CupoEntrePacientesController::class, 'fijar'])->name('turnos.cupos.fijar')->whereNumber('profesional')
+        ->middleware('permiso.alguno:DISPONIBILIDAD.CREAR,DISPONIBILIDAD.EDITAR');
+
     // Turnos: no se editan ni se borran; solo se dan de alta y cambian de estado.
     Route::middleware('permiso:TURNOS,CREAR')->group(function () {
         Route::get('turnos/horarios-disponibles', [TurnoController::class, 'horariosDisponibles'])->name('turnos.horarios-disponibles');
+        Route::get('turnos/cupo-del-dia', [TurnoController::class, 'cupoDelDia'])->name('turnos.cupo-del-dia');
         Route::get('turnos/pacientes', [TurnoController::class, 'pacientes'])->name('turnos.pacientes');
         Route::get('turnos/profesionales', [TurnoController::class, 'profesionales'])->name('turnos.profesionales');
     });

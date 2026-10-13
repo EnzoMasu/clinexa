@@ -59,6 +59,14 @@ return new class extends Migration
             });
         }
 
+        // Una sola URGENCIA abierta (PENDIENTE, CONFIRMADO, SALTADO o EN_CONSULTA) por paciente, profesional y día:
+        // índice único parcial (PostgreSQL y SQLite), así ni un doble envío ni dos altas simultáneas la duplican.
+        $abiertos = collect([Estado::PENDIENTE, Estado::CONFIRMADO, Estado::SALTADO, Estado::EN_CONSULTA])
+            ->map(fn (string $codigo) => (int) (DB::table('estados')->where('codigo', $codigo)->value('id')
+                ?? throw new RuntimeException("Falta el estado {$codigo} en la tabla estados.")))
+            ->implode(', ');
+        DB::statement("CREATE UNIQUE INDEX turnos_una_urgencia_abierta ON turnos (paciente_id, profesional_id, fecha) WHERE tipo = 'URGENCIA' AND estado_id IN ({$abiertos})");
+
         Schema::create('cupos_entre_pacientes', function (Blueprint $table) {
             $table->id();
             $table->foreignId('profesional_id')->constrained('profesionales');
@@ -78,6 +86,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('cupos_entre_pacientes');
+        DB::statement('DROP INDEX IF EXISTS turnos_una_urgencia_abierta');
 
         if (DB::getDriverName() === 'pgsql') {
             DB::statement('ALTER TABLE turnos DROP CONSTRAINT IF EXISTS turnos_horas_segun_tipo');

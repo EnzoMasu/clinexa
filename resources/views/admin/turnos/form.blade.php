@@ -1,7 +1,21 @@
 <x-admin.page title="Nuevo turno">
     <x-admin.form :action="route('admin.turnos.store')" :cancel="route('admin.turnos.index')" width="max-w-3xl"
-        x-data="altaTurno({ url: {{ Js::from(route('admin.turnos.horarios-disponibles')) }}, profesionalId: {{ Js::from($profesionalInicial['id'] ?? null) }}, fecha: {{ Js::from($fecha) }}, hora: {{ Js::from(old('hora_inicio', '')) }} })"
+        x-data="altaTurno({ url: {{ Js::from(route('admin.turnos.horarios-disponibles')) }}, urlCupo: {{ Js::from(route('admin.turnos.cupo-del-dia')) }}, modalidad: {{ Js::from($modalidad) }}, profesionalId: {{ Js::from($profesionalInicial['id'] ?? null) }}, fecha: {{ Js::from($fecha) }}, hora: {{ Js::from(old('hora_inicio', '')) }} })"
         x-on:elegido="alElegir($event)" x-on:fecha-cambiada="alCambiarFecha($event)">
+
+        {{-- Modalidad: con horario (de la agenda) o entre pacientes (sin horario, dentro del cupo del profesional ese día). --}}
+        <fieldset class="space-y-2">
+            <legend class="block font-medium text-sm text-gray-700 dark:text-gray-300">Modalidad</legend>
+            <div class="flex flex-wrap gap-4 text-sm">
+                @foreach (['con_horario' => 'Con horario', 'entre_pacientes' => 'Entre pacientes'] as $valor => $texto)
+                    <label class="inline-flex items-center gap-2">
+                        <input type="radio" name="modalidad" value="{{ $valor }}" x-model="modalidad" @checked($modalidad === $valor)
+                            class="border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900">
+                        {{ $texto }}
+                    </label>
+                @endforeach
+            </div>
+        </fieldset>
 
         <x-admin.selector-persona name="paciente_id" label="Paciente" :url="route('admin.turnos.pacientes')"
             :inicial="$pacienteInicial" :ofrecer-alta="false" sin-resultados="No hay pacientes activos con esa búsqueda."
@@ -16,7 +30,7 @@
         </div>
 
         {{-- Horarios libres del profesional en esa fecha (App\Support\Agenda); el consultorio sale del horario elegido. --}}
-        <div class="space-y-2">
+        <div class="space-y-2" x-show="modalidad === 'con_horario'" @if ($modalidad === 'entre_pacientes') style="display: none" @endif>
             <span class="block font-medium text-sm text-gray-700 dark:text-gray-300">Horario</span>
             <input type="hidden" name="hora_inicio" x-bind:value="hora" value="{{ old('hora_inicio') }}">
 
@@ -44,6 +58,16 @@
                 </template>
             </div>
             <x-input-error :messages="$errors->get('hora_inicio')" />
+        </div>
+
+        {{-- Entre pacientes: sin horario; el cupo del profesional ese día (CupoEntrePacientes), solo para informar: el
+             servidor lo vuelve a contar con la fila bloqueada al guardar. --}}
+        <div class="space-y-2" x-show="modalidad === 'entre_pacientes'" @if ($modalidad !== 'entre_pacientes') style="display: none" @endif>
+            <span class="block font-medium text-sm text-gray-700 dark:text-gray-300">Cupo entre pacientes</span>
+            <p x-show="! listoParaBuscar" class="text-sm text-gray-500 dark:text-gray-400">Elija el profesional y la fecha para ver el cupo.</p>
+            <p x-show="listoParaBuscar && cupo !== null" style="display: none" data-cupo class="text-sm text-gray-700 dark:text-gray-300"
+                x-text="`Cupo: ${cupo?.usados} de ${cupo?.cupo} usados`"></p>
+            <x-input-error :messages="$errors->get('cupo')" />
         </div>
 
         {{-- Segundo turno del día con el mismo profesional: no se guarda hasta confirmar (lo valida el servidor). --}}

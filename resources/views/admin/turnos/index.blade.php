@@ -14,6 +14,12 @@
             @endif
         </p>
     @endif
+    @php($urlCupos = Permisos::url('admin.turnos.cupos'))
+    @if ($urlCupos)
+        <div class="flex flex-wrap gap-2 px-4 pt-4">
+            <a href="{{ $urlCupos }}" class="inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">Cupo entre pacientes</a>
+        </div>
+    @endif
     <x-admin.listado :action="route('admin.turnos.index')" :busqueda="$busqueda" placeholder="Buscar por paciente, profesional o fecha (dd/mm/aaaa)…">
         @include('admin.turnos._tabla')
     </x-admin.listado>

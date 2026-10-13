@@ -69,6 +69,35 @@ final class Agenda
             ->values();
     }
 
+    /**
+     * Los profesionales ACTIVOS que atienden esa fecha (alguna disponibilidad ACTIVA de ese día, vigente, en un
+     * consultorio activo), por apellido. Para el cupo de entre pacientes.
+     *
+     * @return Collection<int, Profesional>
+     */
+    public static function profesionalesQueAtienden(CarbonInterface $fecha): Collection
+    {
+        return Profesional::query()->activos()
+            ->whereIn('profesionales.id', self::disponibilidadesDelDia($fecha)->select('profesional_id'))
+            ->join('personas', 'personas.id', '=', 'profesionales.persona_id')
+            ->orderBy('personas.apellidos')->orderBy('personas.nombres')
+            ->select('profesionales.*')->with('persona')->get();
+    }
+
+    /** El profesional (activo) atiende esa fecha. */
+    public static function atiende(Profesional $profesional, CarbonInterface $fecha): bool
+    {
+        return $profesional->estaActivo() && self::disponibilidadesDelDia($fecha)->where('profesional_id', $profesional->id)->exists();
+    }
+
+    /** Disponibilidades ACTIVAS que rigen esa fecha, en consultorios activos. */
+    private static function disponibilidadesDelDia(CarbonInterface $fecha)
+    {
+        return Disponibilidad::query()->activos()
+            ->vigentesEn(Carbon::parse($fecha->format('Y-m-d')))
+            ->whereHas('consultorio', fn ($query) => $query->activos());
+    }
+
     /** El bloque libre que empieza a esa hora (para guardar el turno), o null si no está libre. */
     public static function horario(Profesional $profesional, CarbonInterface $fecha, string $horaInicio): ?array
     {
