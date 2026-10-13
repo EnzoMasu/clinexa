@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\TipoTurno;
 use App\Exceptions\AccionRechazada;
 use App\Http\Controllers\Controller;
 use App\Models\Consulta;
@@ -52,10 +53,15 @@ class PreparacionController extends Controller
                 ->orWhereLike('pacientes.nro_ficha', "%{$busqueda}%")
                 ->orWhereLike('persona_profesional.apellidos', "%{$busqueda}%")
                 ->orWhereLike('persona_profesional.nombres', "%{$busqueda}%")))
-            ->orderBy('turnos.hora_inicio')->orderBy('turnos.id')
+            ->ordenDelDia()
             ->get()
-            // Los urgentes del triaje primero; el resto, por hora (orden estable). Los signos alterados no cambian el orden.
-            ->sortBy(fn (Turno $turno) => $turno->consulta?->triaje_urgente ? 0 : 1)->values();
+            // Primero las urgencias (registradas por recepción), luego los que el triaje marcó urgentes, y el resto: los de
+            // horario por hora y los entre pacientes por orden de carga (orden estable). Los signos alterados no cambian el orden.
+            ->sortBy(fn (Turno $turno) => match (true) {
+                $turno->tipo === TipoTurno::URGENCIA => 0,
+                (bool) $turno->consulta?->triaje_urgente => 1,
+                default => 2,
+            })->values();
 
         return $this->listado($request, 'admin.preparacion', [
             'turnos' => $turnos,
