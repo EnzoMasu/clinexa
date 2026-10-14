@@ -32,4 +32,4 @@ No ve nada clínico: ni si el triaje era urgente, ni la observación, ni la nota
 
 ## Fuera de esta fase
 
-Derivación, reposo médico y constancias (fase siguiente).
+Derivación, reposo médico y constancia de triaje (fase siguiente). Las constancias de retiro y de estado están en `docs/constancias.md`.

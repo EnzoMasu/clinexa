@@ -89,7 +89,7 @@ final class HojaReceta
     }
 
     /** "Carmen Sofía Duarte" (nombre en orden natural); una persona jurídica, su razón social. */
-    private static function nombreNatural(Persona $persona): string
+    public static function nombreNatural(Persona $persona): string
     {
         return $persona->tipo_persona === 'JURIDICA'
             ? (string) $persona->razon_social

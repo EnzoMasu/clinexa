@@ -1,8 +1,11 @@
 @use('App\Models\Turno')
 @use('App\Support\Fecha')
 @use('App\Support\Permisos')
+@use('Illuminate\Support\Facades\Gate')
 
 @php($puedeCambiarEstado = Permisos::puedeRuta('admin.turnos.estado'))
+@php($puedeConstanciaRetiro = Permisos::puedeRuta('admin.constancias-retiro.emitir'))
+@php($puedeConstanciaEstado = Permisos::puedeRuta('admin.constancias-estado.emitir'))
 
 <x-admin.table :headers="['Fecha', 'Horario', 'Paciente', 'Profesional', 'Consultorio', 'Procedimiento', 'Estado']" :paginator="$turnos">
     @forelse ($turnos as $turno)
@@ -51,6 +54,15 @@
                             </form>
                         @endforeach
                     @endif
+                    {{-- Constancias (docs/constancias.md): emite la primera vez y después abre la ya emitida. La policy decide quién y para qué turnos. --}}
+                    @foreach ([['retiro', $puedeConstanciaRetiro, \App\Models\ConstanciaRetiro::class, 'Constancia de retiro'], ['estado', $puedeConstanciaEstado, \App\Models\ConstanciaEstado::class, 'Constancia de estado']] as [$tipoConstancia, $permitida, $modeloConstancia, $textoConstancia])
+                        @if ($permitida && Gate::allows('emitir', [$modeloConstancia, $turno]))
+                            <form method="POST" action="{{ route('admin.constancias-'.$tipoConstancia.'.emitir', $turno) }}">
+                                @csrf
+                                <button type="submit" class="text-sm font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">{{ $textoConstancia }}</button>
+                            </form>
+                        @endif
+                    @endforeach
                 </div>
             </td>
         </tr>

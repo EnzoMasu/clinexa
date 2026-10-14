@@ -34,6 +34,8 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             'PARAMETROS_CLINICOS' => [['APROBADO', 'PENDIENTE'], 'PENDIENTE'],
             // Correcciones de una consulta cerrada: los estados del desbloqueo.
             'CORRECCIONES_HC' => [['CANCELADO', 'REALIZADO', 'VENCIDO', 'VIGENTE'], 'VIGENTE'],
+            // Constancias: nacen emitidas (inicial) y solo se anulan.
+            'CONSTANCIAS_RETIRO', 'CONSTANCIAS_ESTADO' => [['ANULADO', 'EMITIDO'], 'EMITIDO'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

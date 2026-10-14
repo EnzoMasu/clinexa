@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AgendaGeneralController;
 use App\Http\Controllers\Admin\AtencionController;
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CargoSaludController;
+use App\Http\Controllers\Admin\ConstanciaController;
 use App\Http\Controllers\Admin\CorreccionController;
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
@@ -290,6 +291,18 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             // Anular y corregir: además de EDITAR exige CREAR (RecetaPolicy::corregir).
             Route::post('recetas/{receta}/corregir', [RecetaController::class, 'corregir'])->name('recetas.corregir')->whereNumber('receta')->middleware('consulta.abierta');
         });
+
+        // Constancias de retiro (Recepción) y de estado del turno (profesional del turno o Supervisión médica): documentos
+        // inmutables con huella. Un mismo controlador; el tipo va como valor por defecto de la ruta. VER: la hoja; CREAR:
+        // emitir desde un turno; EDITAR: anular con motivo. No hay DELETE: se anulan. Quién puede lo decide la policy.
+        foreach (['retiro' => 'CONSTANCIAS_RETIRO', 'estado' => 'CONSTANCIAS_ESTADO'] as $tipo => $modulo) {
+            Route::get("constancias-{$tipo}/{constancia}/imprimir", [ConstanciaController::class, 'imprimir'])->name("constancias-{$tipo}.imprimir")
+                ->whereNumber('constancia')->defaults('tipo', $tipo)->middleware("permiso:{$modulo},VER");
+            Route::post("turnos/{turno}/constancia-{$tipo}", [ConstanciaController::class, 'emitir'])->name("constancias-{$tipo}.emitir")
+                ->whereNumber('turno')->defaults('tipo', $tipo)->middleware("permiso:{$modulo},CREAR");
+            Route::post("constancias-{$tipo}/{constancia}/anular", [ConstanciaController::class, 'anular'])->name("constancias-{$tipo}.anular")
+                ->whereNumber('constancia')->defaults('tipo', $tipo)->middleware("permiso:{$modulo},EDITAR");
+        }
     });
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.

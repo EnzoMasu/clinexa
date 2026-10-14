@@ -11,6 +11,8 @@ use App\Models\CategoriaGasto;
 use App\Models\CategoriaProveedor;
 use App\Models\Ciudad;
 use App\Models\Consulta;
+use App\Models\ConstanciaEstado;
+use App\Models\ConstanciaRetiro;
 use App\Models\ConsultaVersion;
 use App\Models\Consultorio;
 use App\Models\CupoEntrePacientes;
@@ -87,6 +89,8 @@ final class Auditoria
         DesbloqueoConsulta::class, AdendaConsulta::class, ConsultaVersion::class,
         // Salidas sin atención: el hecho es de Turnos (sin contenido clínico); la nota del profesional es clínica.
         SalidaSinAtencion::class, NotaSalida::class,
+        // Constancias de retiro y de estado: documentos sin contenido clínico (los ve quien ve la auditoría).
+        ConstanciaRetiro::class, ConstanciaEstado::class,
     ];
 
     /**
