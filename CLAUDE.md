@@ -42,7 +42,7 @@
 
 ## Mapa del proyecto
 Laravel + Blade + Tailwind + Vite (JS plano, sin framework). Docs por tema en `docs/` (historia-clinica,
-agenda-urgencias, triaje, perfiles, respaldo, pruebas).
+agenda-urgencias, triaje, retiros, perfiles, respaldo, pruebas).
 - `app/Models/`: Eloquent. Clave: `Persona`, `Paciente`, `Profesional`, `Turno`, `Consulta`,
   `HistoriaClinica`, `Receta`, `PerfilAcceso`, `Permiso`, `ModuloSistema`, `LogAuditoria`,
   `CupoEntrePacientes`, `Disponibilidad`.

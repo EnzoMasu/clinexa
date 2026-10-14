@@ -53,8 +53,10 @@ test('con urgencias: sección roja y la casilla, que el servidor exige', functio
         ->assertRedirect(route('admin.atencion.cerrar-jornada'))->assertSessionHas('error', CerrarJornada::FALTA_CONFIRMAR_URGENCIAS);
     expect($urgencia->fresh()->estado->codigo)->toBe(Estado::PENDIENTE)->and($marcado->fresh()->estado->codigo)->toBe(Estado::CONFIRMADO);
 
-    $this->post(route('admin.atencion.cerrar-jornada.confirmar'), ['confirmo_urgencias' => '1'])->assertSessionHas('status', 'Jornada cerrada: 2 turnos pasaron a ausente.');
-    expect($urgencia->fresh()->estado->codigo)->toBe(Estado::AUSENTE)
+    $this->post(route('admin.atencion.cerrar-jornada.confirmar'), ['confirmo_urgencias' => '1'])->assertSessionHas('status', 'Jornada cerrada: 1 turno pasó a ausente y 1 turno pasó a retirado.');
+    // El del triaje (terminado) pasa a retirado, no a ausente (docs/retiros.md).
+    expect($marcado->fresh()->estado->codigo)->toBe(Estado::RETIRADO)
+        ->and($urgencia->fresh()->estado->codigo)->toBe(Estado::AUSENTE)
         ->and(LogAuditoria::where('tabla_afectada', 'turnos')->where('registro_afectado_id', $urgencia->id)->latest('id')->first()->detalle)
         ->toBe('Cierre de jornada. Urgencias sin atender revisadas: 2');
 });
@@ -69,7 +71,7 @@ test('un triaje urgente que todavía no llegó a su hora no se cierra ni pide la
     expect($marcado->fresh()->estado->codigo)->toBe(Estado::CONFIRMADO);
 });
 
-test('un paciente con triaje urgente que pasa a ausente NO pierde lo cargado: la consulta queda ANULADO con todo', function () {
+test('un paciente con triaje urgente que pasa a retirado NO pierde lo cargado: la consulta queda ANULADO con todo', function () {
     $turno = epTurno(TipoTurno::URGENCIA);
     $consulta = epTriaje($turno, urgente: true, observacion: 'Sangrado abundante desde la mañana.', alterados: true);
     $consulta->forceFill(['motivo_consulta' => null])->save();
@@ -78,7 +80,7 @@ test('un paciente con triaje urgente que pasa a ausente NO pierde lo cargado: la
     $this->post(route('admin.atencion.cerrar-jornada.confirmar'), ['confirmo_urgencias' => '1'])->assertSessionHasNoErrors();
 
     $despues = Consulta::findOrFail($consulta->id);
-    expect($turno->fresh()->estado->codigo)->toBe(Estado::AUSENTE)
+    expect($turno->fresh()->estado->codigo)->toBe(Estado::RETIRADO)
         ->and($despues->estado->codigo)->toBe(Estado::ANULADO)
         ->and($despues->triaje_urgente)->toBeTrue()
         ->and($despues->triaje_observacion)->toBe('Sangrado abundante desde la mañana.')

@@ -231,11 +231,12 @@ class AtencionController extends Controller
     public function cerrarJornada(Request $request): RedirectResponse
     {
         return $this->accion(function () use ($request) {
-            [$cerrados, $pendientes] = CerrarJornada::ejecutar($request->user(), $request->boolean('confirmo_urgencias'));
+            [$ausentes, $pendientes, $retirados] = CerrarJornada::ejecutar($request->user(), $request->boolean('confirmo_urgencias'));
+            $cuantos = fn (int $n, string $destino) => "{$n} ".($n === 1 ? 'turno pasó' : 'turnos pasaron')." a {$destino}";
 
-            return redirect()->route('admin.atencion.index')->with('status', $cerrados === 0
+            return redirect()->route('admin.atencion.index')->with('status', $ausentes + $retirados === 0
                 ? 'No había turnos para cerrar.'
-                : "Jornada cerrada: {$cerrados} ".($cerrados === 1 ? 'turno pasó' : 'turnos pasaron').' a ausente.')
+                : 'Jornada cerrada: '.collect([$ausentes > 0 ? $cuantos($ausentes, 'ausente') : null, $retirados > 0 ? $cuantos($retirados, 'retirado') : null])->filter()->join(' y ').'.')
                 ->with('aviso', $pendientes === 0 ? null
                     : ($pendientes === 1 ? '1 turno todavía no llegó a su hora y quedó pendiente. ' : "{$pendientes} turnos todavía no llegaron a su hora y quedaron pendientes. ").CerrarJornada::AUN_NO_ES_SU_HORA);
         });

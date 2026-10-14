@@ -26,16 +26,19 @@ class Turno extends Model
 
     /**
      * Estado actual => estados a los que puede pasar. Es el ÚNICO lugar donde se definen; todo cambio de
-     * estado pasa por pasarA(). ATENDIDO, CANCELADO y AUSENTE son finales.
+     * estado pasa por pasarA(). ATENDIDO, CANCELADO, AUSENTE y RETIRADO son finales.
+     *
+     * - RETIRADO: el paciente se retiró o rechazó la atención (RegistrarSalida). Si ya terminó el triaje, es lo ÚNICO que
+     *   puede pasarle: no se cancela ni se marca ausente (puedePasarA / pasarA).
      *
      * - SALTADO: "No se presentó" (lo llamaron y no estaba); se lo vuelve a llamar.
      * - EN_CONSULTA: "Atender". De ahí solo se sale a ATENDIDO (Finalizar la consulta) o de vuelta a
      *   PENDIENTE (Deshacer atención): un turno en consulta no se cancela ni se marca ausente.
      */
     public const TRANSICIONES = [
-        Estado::PENDIENTE => [Estado::CONFIRMADO, Estado::SALTADO, Estado::EN_CONSULTA, Estado::AUSENTE, Estado::CANCELADO],
-        Estado::CONFIRMADO => [Estado::SALTADO, Estado::EN_CONSULTA, Estado::AUSENTE, Estado::CANCELADO],
-        Estado::SALTADO => [Estado::EN_CONSULTA, Estado::AUSENTE, Estado::CANCELADO],
+        Estado::PENDIENTE => [Estado::CONFIRMADO, Estado::SALTADO, Estado::EN_CONSULTA, Estado::AUSENTE, Estado::CANCELADO, Estado::RETIRADO],
+        Estado::CONFIRMADO => [Estado::SALTADO, Estado::EN_CONSULTA, Estado::AUSENTE, Estado::CANCELADO, Estado::RETIRADO],
+        Estado::SALTADO => [Estado::EN_CONSULTA, Estado::AUSENTE, Estado::CANCELADO, Estado::RETIRADO],
         Estado::EN_CONSULTA => [Estado::ATENDIDO, Estado::PENDIENTE],
     ];
 
@@ -49,12 +52,22 @@ class Turno extends Model
     /** Estados de ausencia: solo desde la hora del turno (pasarA). */
     public const SOLO_DESDE_SU_HORA = [Estado::AUSENTE, Estado::SALTADO];
 
+    public const CAMBIO_MIENTRAS_TANTO = 'El turno cambió mientras tanto. Actualice la pantalla y vuelva a intentarlo.';
+
+    public const SOLO_RETIRO = 'Este paciente ya terminó el triaje: solo se puede registrar su retiro.';
+
+    /** Estados que no se permiten con el triaje terminado (solo el retiro). */
+    public const NO_CON_TRIAJE_TERMINADO = [Estado::CANCELADO, Estado::AUSENTE];
+
     public const AUN_NO_ES_SU_HORA = 'Todavía no llegó la hora del turno (%s). Solo puede marcar la ausencia desde esa hora.';
 
     public const ACCIONES = [
         'confirmar' => [Estado::CONFIRMADO, 'Confirmar'],
         'ausente' => [Estado::AUSENTE, 'Ausente'],
         'cancelar' => [Estado::CANCELADO, 'Cancelar'],
+        // Salidas sin atención: las registra RegistrarSalida (y deja la SalidaSinAtencion), no pasarA a secas.
+        'retiro' => [Estado::RETIRADO, 'Retiro'],
+        'rechazo' => [Estado::RETIRADO, 'Rechazo'],
     ];
 
     protected $table = 'turnos';
@@ -228,7 +241,10 @@ class Turno extends Model
     /** Botones manuales que se pueden aplicar en su estado actual (vacío si el estado es final). */
     public function accionesPosibles(): array
     {
-        return array_keys(array_filter(self::ACCIONES, fn (array $accion) => $this->puedePasarA($accion[0])));
+        $futuro = $this->fecha->format('Y-m-d') > Fecha::hoy()->format('Y-m-d');
+
+        return array_keys(array_filter(self::ACCIONES, fn (array $accion, string $clave) => $this->puedePasarA($accion[0])
+            && ! ($futuro && $accion[0] === Estado::RETIRADO), ARRAY_FILTER_USE_BOTH));
     }
 
     public function puede(string $accion): bool
@@ -238,12 +254,16 @@ class Turno extends Model
 
     public function puedePasarA(string $estado): bool
     {
+        if (in_array($estado, self::NO_CON_TRIAJE_TERMINADO, true) && $this->triajeTerminado()) {
+            return false;
+        }
+
         return in_array($estado, self::TRANSICIONES[$this->estado?->codigo] ?? [], true);
     }
 
     /**
      * Cambia el estado, si la transición es válida (si no, DomainException con el motivo). Al pasar a
-     * CANCELADO o AUSENTE, su consulta EN_PREPARACION (si la hay) pasa a ANULADO en la misma transacción:
+     * CANCELADO, AUSENTE o RETIRADO, su consulta EN_PREPARACION (si la hay) pasa a ANULADO en la misma transacción:
      * los datos se conservan, pero no aparece en listados, historial ni conteos.
      */
     /**
@@ -264,8 +284,32 @@ class Turno extends Model
             : 'Todavía no llegó el día del turno ('.Fecha::mostrar($this->fecha).'). Solo puede marcar la ausencia desde ese día.';
     }
 
+    /** El triaje se empezó: tiene una consulta EN_PREPARACION (terminada o no). */
+    public function triajeIniciado(): bool
+    {
+        return $this->consulta()->where('estado_id', Estado::idDe(Estado::EN_PREPARACION))->exists();
+    }
+
+    /** El triaje se terminó (preparada_en) y la consulta sigue en preparación. */
+    public function triajeTerminado(): bool
+    {
+        if ($this->relationLoaded('consulta')) {
+            return (bool) $this->consulta?->enPreparacion() && $this->consulta->preparada_en !== null;
+        }
+
+        return $this->consulta()->where('estado_id', Estado::idDe(Estado::EN_PREPARACION))->whereNotNull('preparada_en')->exists();
+    }
+
+    public function salida(): HasOne
+    {
+        return $this->hasOne(SalidaSinAtencion::class);
+    }
+
     public function pasarA(string $estado): void
     {
+        if (in_array($estado, self::NO_CON_TRIAJE_TERMINADO, true) && $this->triajeTerminado()) {
+            throw new AccionRechazada(self::SOLO_RETIRO);
+        }
         if (! $this->puedePasarA($estado)) {
             throw new DomainException(sprintf('Un turno %s no puede pasar a %s.', mb_strtolower((string) $this->estado?->nombre), mb_strtolower(Estado::where('codigo', $estado)->value('nombre') ?? $estado)));
         }
@@ -275,14 +319,22 @@ class Turno extends Model
             throw new AccionRechazada($this->avisoAunNoEsSuHora());
         }
         DB::transaction(function () use ($estado) {
+            // Con el turno y su consulta bloqueados se revalida contra lo que hay en la base: otra pantalla pudo cambiar
+            // el turno (un retiro, el cierre de jornada) o terminar el triaje entre la lectura y este cambio.
+            $actual = (int) self::whereKey($this->id)->lockForUpdate()->value('estado_id');
+            if ($actual !== (int) $this->getOriginal('estado_id')) {
+                throw new AccionRechazada(self::CAMBIO_MIENTRAS_TANTO);
+            }
+            $consulta = Consulta::where('turno_id', $this->id)->lockForUpdate()->first();
+            if (in_array($estado, self::NO_CON_TRIAJE_TERMINADO, true) && $consulta?->enPreparacion() && $consulta->preparada_en !== null) {
+                throw new AccionRechazada(self::SOLO_RETIRO);
+            }
+
             $this->update(['estado_id' => Estado::idDe($estado)]);
             $this->unsetRelation('estado');
 
-            if (in_array($estado, [Estado::CANCELADO, Estado::AUSENTE], true)) {
-                $consulta = Consulta::where('turno_id', $this->id)->lockForUpdate()->first();
-                if ($consulta?->enPreparacion()) {
-                    $consulta->forceFill(['estado_id' => Estado::idDe(Estado::ANULADO)])->save();
-                }
+            if (in_array($estado, [Estado::CANCELADO, Estado::AUSENTE, Estado::RETIRADO], true) && $consulta?->enPreparacion()) {
+                $consulta->forceFill(['estado_id' => Estado::idDe(Estado::ANULADO)])->save();
             }
         });
     }

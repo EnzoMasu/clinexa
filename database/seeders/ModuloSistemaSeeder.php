@@ -53,7 +53,7 @@ class ModuloSistemaSeeder extends Seeder
             'CONSULTORIOS' => ['Consultorios', self::ACTIVO_INACTIVO],
             'ORIGENES_TURNO' => ['Orígenes de turno', self::ACTIVO_INACTIVO],
             'DISPONIBILIDAD' => ['Disponibilidades', self::ACTIVO_INACTIVO],
-            'TURNOS' => ['Turnos', [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::SALTADO, Estado::EN_CONSULTA, Estado::ATENDIDO, Estado::CANCELADO, Estado::AUSENTE]],
+            'TURNOS' => ['Turnos', [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::SALTADO, Estado::EN_CONSULTA, Estado::ATENDIDO, Estado::CANCELADO, Estado::AUSENTE, Estado::RETIRADO]],
             // Historia clínica: historias, consultas, anamnesis, examen físico y diagnósticos (solo VER, CREAR y EDITAR).
             // Los estados de este módulo son los de la CONSULTA (Consulta usa HISTORIA_CLINICA como módulo de
             // estados): así no hace falta un módulo aparte con permisos que no tendrían efecto.

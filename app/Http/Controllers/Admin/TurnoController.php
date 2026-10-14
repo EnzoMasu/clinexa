@@ -15,6 +15,7 @@ use App\Support\Agenda;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
 use App\Support\Fecha;
+use App\Support\Atencion\RegistrarSalida;
 use App\Support\Turnos\AgendarEntrePacientes;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -49,7 +50,7 @@ class TurnoController extends Controller
             ->join('personas as persona_paciente', 'persona_paciente.id', '=', 'pacientes.persona_id')
             ->join('profesionales', 'profesionales.id', '=', 'turnos.profesional_id')
             ->join('personas as persona_profesional', 'persona_profesional.id', '=', 'profesionales.persona_id')
-            ->with(['paciente.persona.tipoDocumento', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno'])
+            ->with(['paciente.persona.tipoDocumento', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno', 'consulta:id,turno_id,estado_id,preparada_en'])
             ->when($fecha, fn ($query) => $query->whereDate('turnos.fecha', $fecha))
             ->when($busqueda !== '' && ! $fecha, fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('persona_paciente.apellidos', "%{$busqueda}%")
@@ -231,13 +232,21 @@ class TurnoController extends Controller
         $accion = $request->validate(['accion' => ['required', Rule::in(array_keys(Turno::ACCIONES))]])['accion'];
 
         if (! $turno->puede($accion)) {
+            if (in_array($accion, ['cancelar', 'ausente'], true) && $turno->triajeTerminado()) {
+                return back()->with('error', Turno::SOLO_RETIRO);
+            }
+
             return back()->with('error', sprintf('No se puede %s un turno %s.', mb_strtolower(Turno::ACCIONES[$accion][1]), mb_strtolower($turno->estado->nombre)));
         }
 
         // pasarA revalida (transición y, para la ausencia, la hora del turno) y, si corresponde, anula la
-        // consulta EN_PREPARACION del turno.
+        // consulta EN_PREPARACION del turno. Retiro y rechazo pasan por RegistrarSalida (deja el registro).
         try {
-            $turno->pasarA(Turno::ACCIONES[$accion][0]);
+            if (in_array($accion, ['retiro', 'rechazo'], true)) {
+                RegistrarSalida::ejecutar($request->user(), $turno, mb_strtoupper($accion));
+            } else {
+                $turno->pasarA(Turno::ACCIONES[$accion][0]);
+            }
         } catch (AccionRechazada $e) {
             return back()->with('error', $e->getMessage());
         }

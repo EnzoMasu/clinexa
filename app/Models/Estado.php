@@ -36,6 +36,9 @@ class Estado extends Model
     /** Turno: lo llamaron y no estaba ("No se presentó"); se lo vuelve a llamar. */
     public const SALTADO = 'SALTADO';
 
+    /** Turno: el paciente se retiró o rechazó la atención sin ser atendido (ver SalidaSinAtencion). */
+    public const RETIRADO = 'RETIRADO';
+
     // Estados de la consulta (módulo HISTORIA_CLINICA): EN_PREPARACION (inicial), EN_CURSO, FINALIZADO y ANULADO.
     public const EN_PREPARACION = 'EN_PREPARACION';
 
