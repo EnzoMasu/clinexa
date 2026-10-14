@@ -3,17 +3,18 @@ description: Fusiona una rama en main con squash y publica. Uso: /fusionar RAMA 
 argument-hint: RAMA "mensaje del commit"
 ---
 
-Fusionar en `main` la rama y el mensaje de `$ARGUMENTS` (primer argumento: rama; el resto: mensaje). Respetá CLAUDE.md. Este comando ES la confirmación expresa para tocar `main`, pero solo si se cumple el paso 1. Frená y avisá ante cualquier diferencia.
+Fusionar en `main` la rama y el mensaje de `$ARGUMENTS` (primer argumento: rama; el resto: mensaje). Respetá CLAUDE.md. Este comando ES la confirmación expresa para tocar `main` (merge, commit y push). Ante cualquier comando con error: detenete y mostrá el error.
 
-1. **Confirmación**: preguntar al usuario si `composer test:completo` pasó (lo corre el usuario, no usted). Sin un "sí" claro, frenar.
-2. `git push` de la rama.
-3. **main no avanzó**: `git fetch` y comprobar que `origin/main` es ancestro de la rama (`git merge-base --is-ancestor origin/main RAMA`) y que `main` local == `origin/main`. Si avanzó, frenar.
-4. `git checkout main` y `git merge --squash RAMA`.
-5. **Revisar** `git status` y señalar expresamente respaldos, `.dump`, `.env`, `.json` y temporales entre lo que se va a commitear. Si hay alguno que no corresponda, frenar y sacarlo del índice con consulta.
-6. **Un solo commit** con el mensaje dado (más la atribución estándar).
-7. `npm run build`; `php artisan optimize:clear`; `php artisan migrate:status` (nada pendiente; si hay pendientes, avisar, no migrar).
-8. **Verificación de solo lectura** de la base real (módulos, permisos y conteos de las tablas afectadas), sin escribir.
-9. `git push` de `main`.
-10. **No borrar la rama** (ni local ni remota).
+1. **Rama y push**: `git branch --show-current` debe ser la rama y no `main`; árbol limpio; `git push` de la rama.
+2. **Tests**: `composer test:completo` UNA sola vez, en segundo plano, sin consultar el avance más de una vez cada 5 minutos. Si hay una falla o más: NO sigas; mostrá las fallas agrupadas por causa y frená.
+3. **Main**:
+   - `git switch main`; `git pull` (si trae cambios, frená).
+   - `git merge --squash RAMA`; mostrá `git status` y verificá que no entren `.dump`, `.env`, `.sql`, `.sqlite`, `storage/`, `Tmp` ni `foto_`. Si entra alguno, frená.
+   - Commit con el mensaje dado (más la atribución estándar).
+   - `git diff main RAMA` debe quedar vacío.
+   - `npm run build`; `php artisan optimize:clear`; `php artisan migrate:status` sin Pending (si hay, avisar, no migrar).
+   - Verificación de solo lectura de la base real (módulos, permisos, conteos), sin escribir.
+   - `git push` de `main`.
+4. **No borrar la rama** (ni local ni remota).
 
-Informe final: máximo 10 líneas (commit, estado de build, migrate:status, verificación, push, rama conservada).
+Informe final: máximo 10 líneas (commit, tests, build, migrate:status, verificación, push, rama conservada).

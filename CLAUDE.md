@@ -67,3 +67,12 @@ agenda-urgencias, triaje, perfiles, respaldo, pruebas).
 - `tests/Feature` y `tests/Unit` (SQLite en memoria); `tests/Postgres` (`clinexa_test`).
 - `.claude/commands/`: `/aplicar RAMA` (migrar la base real con foto y respaldo) y
   `/fusionar RAMA "mensaje"` (squash a main).
+
+## Protocolo
+- Una fase = una rama. Commits WIP y push al terminar cada etapa.
+- Nunca force push, nunca borrar ramas.
+- Nunca tocar la base real fuera de `/aplicar`; nunca correr seeders no pedidos.
+- Durante el desarrollo, solo `composer test:rapido`.
+- El usuario prueba en el navegador antes de `/fusionar`.
+- Informes de máximo 10 líneas.
+- Los tests no comparan contra números fijos de módulos, permisos ni rutas.
