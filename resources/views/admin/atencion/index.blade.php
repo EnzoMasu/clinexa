@@ -59,6 +59,7 @@
                 Urgencias (<span x-text="urgencias">{{ $contadores['urgencias'] }}</span>)
             </button>
             @if ($puedePasarAusente)
+                <a href="{{ route('admin.atencion.salidas') }}" class="{{ $boton }}">Retiros y rechazos</a>
                 <a href="{{ route('admin.atencion.cerrar-jornada') }}" class="{{ $boton }}">Cerrar jornada</a>
             @endif
         </div>

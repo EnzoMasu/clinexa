@@ -6,6 +6,7 @@ use App\Models\Consulta;
 use App\Models\Estado;
 use App\Models\HistoriaClinica;
 use App\Models\Profesional;
+use App\Models\SalidaSinAtencion;
 use App\Models\Turno;
 use App\Models\User;
 use App\Support\Fecha;
@@ -157,6 +158,17 @@ class ConsultaPolicy
         return $usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR') && $this->profesionalActivo($usuario)
             ? Response::allow()
             : Response::deny('Solo un profesional activo que atiende consultas puede cerrar su jornada.');
+    }
+
+    /**
+     * La nota clínica de un retiro o rechazo: solo el profesional ACTIVO del turno, con CREAR sobre HISTORIA_CLINICA.
+     * Recepción (TURNOS) no la escribe ni la ve. Que sea una sola vez lo revalida GuardarNotaSalida.
+     */
+    public function notaDeSalida(User $usuario, SalidaSinAtencion $salida): Response
+    {
+        return $this->esSuTurno($usuario, $salida->turno)
+            ? Response::allow()
+            : Response::deny('Solo el profesional del turno puede cargar la nota clínica.');
     }
 
     /** El usuario es el profesional ACTIVO del turno y atiende consultas (CREAR sobre HISTORIA_CLINICA). */

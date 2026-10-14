@@ -46,11 +46,11 @@ function eventosDelRegistro(string $tabla, int $id): array
 describe('transiciones del turno (Turno::pasarA)', function () {
     test('la tabla de transiciones es la de la especificación', function () {
         expect(Turno::TRANSICIONES)->toBe([
-            'PENDIENTE' => ['CONFIRMADO', 'SALTADO', 'EN_CONSULTA', 'AUSENTE', 'CANCELADO'],
-            'CONFIRMADO' => ['SALTADO', 'EN_CONSULTA', 'AUSENTE', 'CANCELADO'],
-            'SALTADO' => ['EN_CONSULTA', 'AUSENTE', 'CANCELADO'],
+            'PENDIENTE' => ['CONFIRMADO', 'SALTADO', 'EN_CONSULTA', 'AUSENTE', 'CANCELADO', 'RETIRADO'],
+            'CONFIRMADO' => ['SALTADO', 'EN_CONSULTA', 'AUSENTE', 'CANCELADO', 'RETIRADO'],
+            'SALTADO' => ['EN_CONSULTA', 'AUSENTE', 'CANCELADO', 'RETIRADO'],
             'EN_CONSULTA' => ['ATENDIDO', 'PENDIENTE'],
-        ])->and(collect(Turno::ACCIONES)->pluck(0)->all())->toBe(['CONFIRMADO', 'AUSENTE', 'CANCELADO']);
+        ])->and(collect(Turno::ACCIONES)->pluck(0)->all())->toBe(['CONFIRMADO', 'AUSENTE', 'CANCELADO', 'RETIRADO', 'RETIRADO']);
     });
 
     test('una transición inválida lanza una excepción y no cambia nada', function (string $desde, string $hasta) {
@@ -246,7 +246,7 @@ describe('No se presentó', function () {
 });
 
 describe('Cerrar jornada', function () {
-    test('vista previa y cierre: los PENDIENTE, CONFIRMADO y SALTADO de hoy y de días anteriores pasan a AUSENTE; sus preparaciones se anulan', function () {
+    test('vista previa y cierre: los PENDIENTE, CONFIRMADO y SALTADO de hoy y de días anteriores pasan a AUSENTE (a RETIRADO si tenían el triaje iniciado); sus preparaciones se anulan', function () {
         $hoy = hcTurno();
         $ayer = hcTurno(['fecha' => '2026-10-05', 'estado_id' => Estado::idDe(Estado::PENDIENTE)]);
         $saltado = hcTurno(['hora_inicio' => '07:00', 'hora_fin' => '07:30', 'estado_id' => Estado::idDe(Estado::SALTADO)]);
@@ -260,13 +260,13 @@ describe('Cerrar jornada', function () {
             ->assertSee('Estos 3 turnos pasarán a ausente')->assertSeeInOrder(['05/10/2026 08:00', '06/10/2026 07:00', '06/10/2026 08:00']);
 
         $this->post(route('admin.atencion.cerrar-jornada.confirmar'))->assertRedirect(route('admin.atencion.index'))
-            ->assertSessionHas('status', 'Jornada cerrada: 3 turnos pasaron a ausente.');
+            ->assertSessionHas('status', 'Jornada cerrada: 2 turnos pasaron a ausente y 1 turno pasó a retirado.');
 
-        expect([codigoTurno($hoy), codigoTurno($ayer), codigoTurno($saltado)])->toBe(['AUSENTE', 'AUSENTE', 'AUSENTE'])
+        expect([codigoTurno($hoy), codigoTurno($ayer), codigoTurno($saltado)])->toBe(['RETIRADO', 'AUSENTE', 'AUSENTE'])
             ->and([codigoTurno($manana), codigoTurno($atendido), codigoTurno($ajeno)])->toBe(['CONFIRMADO', 'ATENDIDO', 'CONFIRMADO'])
             ->and(codigoConsulta($preparacion))->toBe('ANULADO')
-            ->and(LogAuditoria::where('tabla_afectada', 'turnos')->where('detalle', 'Cierre de jornada')->count())->toBe(3)
-            ->and(eventosDelRegistro('consultas', $preparacion->id))->toContain(['ANULAR', 'Cierre de jornada']);
+            ->and(LogAuditoria::where('tabla_afectada', 'turnos')->where('detalle', 'Cierre de jornada')->count())->toBe(2)
+            ->and(eventosDelRegistro('consultas', $preparacion->id))->toContain(['ANULAR', 'Cierre de jornada. Retiro registrado']);
     });
 
     test('con una consulta en curso se rechaza, sin cerrar nada', function () {

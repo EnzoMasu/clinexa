@@ -5,6 +5,7 @@ namespace App\Support\Atencion;
 use App\Exceptions\AccionRechazada;
 use App\Models\Consulta;
 use App\Models\Estado;
+use App\Models\SalidaSinAtencion;
 use App\Models\Turno;
 use App\Models\User;
 use App\Support\Auditoria;
@@ -16,7 +17,8 @@ use Illuminate\Support\Facades\Gate;
 /**
  * Cerrar jornada: los turnos del profesional de hoy y de días anteriores que siguen por atender
  * (PENDIENTE, CONFIRMADO o SALTADO), de cualquier tipo (con horario, entre pacientes o urgencia), pasan a
- * AUSENTE, y sus consultas EN_PREPARACION a ANULADO (con sus datos intactos: no se borra nada), en una
+ * RETIRADO si tenían el triaje iniciado o terminado (RegistrarSalida: RETIRO, con cargo pendiente si lo terminaron) y a
+ * AUSENTE los demás; sus consultas EN_PREPARACION pasan a ANULADO (con sus datos intactos: no se borra nada), en una
  * transacción. Si tiene consultas EN_CURSO, se rechaza. Si entre los que cierra hay urgencias (URGENCIA o
  * triaje urgente), exige la confirmación "Confirmo que revisé las urgencias". Solo toca sus propios turnos;
  * un segundo envío no encuentra nada que cerrar.
@@ -39,7 +41,7 @@ final class CerrarJornada
      */
     public static function turnosSinCerrar(int $profesionalId): Collection
     {
-        return Turno::with(['estado', 'paciente.persona', 'consulta:id,turno_id,estado_id,triaje_urgente'])
+        return Turno::with(['estado', 'paciente.persona', 'consulta:id,turno_id,estado_id,triaje_urgente,preparada_en'])
             ->where('profesional_id', $profesionalId)
             ->whereDate('fecha', '<=', Fecha::hoy()->format('Y-m-d'))
             ->whereIn('estado_id', array_map(fn (string $codigo) => Estado::idDe($codigo), self::POR_CERRAR))
@@ -48,10 +50,11 @@ final class CerrarJornada
     }
 
     /**
-     * Pasa a AUSENTE los turnos sin cerrar cuya hora ya llegó (Turno::llegoSuHora); los de hoy que todavía
-     * no llegaron a su hora quedan como están. Devuelve [cerrados, pendientes de su hora].
+     * Cierra los turnos sin cerrar cuya hora ya llegó (Turno::llegoSuHora): a RETIRADO si tenían el triaje iniciado, a
+     * AUSENTE si no; los de hoy que todavía no llegaron a su hora quedan como están.
+     * Devuelve [ausentes, pendientes de su hora, retirados].
      *
-     * @return array{0: int, 1: int}
+     * @return array{0: int, 1: int, 2: int}
      */
     public static function ejecutar(User $usuario, bool $confirmoUrgencias = false): array
     {
@@ -63,25 +66,28 @@ final class CerrarJornada
                 throw new AccionRechazada(self::CON_CONSULTAS_EN_CURSO);
             }
 
-            $turnos = Turno::with('consulta:id,turno_id,estado_id,triaje_urgente')->whereKey(self::turnosSinCerrar($profesionalId)->modelKeys())->lockForUpdate()->get();
+            $turnos = Turno::with('consulta:id,turno_id,estado_id,triaje_urgente,preparada_en')->whereKey(self::turnosSinCerrar($profesionalId)->modelKeys())->lockForUpdate()->get();
             $urgencias = self::urgenciasQueCierra($turnos);
             if ($urgencias->isNotEmpty() && ! $confirmoUrgencias) {
                 throw new AccionRechazada(self::FALTA_CONFIRMAR_URGENCIAS);
             }
             $detalle = $urgencias->isEmpty() ? 'Cierre de jornada' : "Cierre de jornada. Urgencias sin atender revisadas: {$urgencias->count()}";
 
-            return Auditoria::conDetalle($detalle, function () use ($turnos) {
-                [$cerrados, $pendientes] = [0, 0];
+            return Auditoria::conDetalle($detalle, function () use ($turnos, $usuario) {
+                [$cerrados, $pendientes, $retirados] = [0, 0, 0];
                 foreach ($turnos as $turno) {
                     if (! $turno->llegoSuHora()) {
                         $pendientes++;
+                    } elseif ($turno->triajeIniciado()) {
+                        RegistrarSalida::registrar($usuario, $turno, SalidaSinAtencion::RETIRO, SalidaSinAtencion::ORIGEN_CIERRE_JORNADA);
+                        $retirados++;
                     } elseif ($turno->puedePasarA(Estado::AUSENTE)) {
                         $turno->pasarA(Estado::AUSENTE); // también anula su consulta EN_PREPARACION
                         $cerrados++;
                     }
                 }
 
-                return [$cerrados, $pendientes];
+                return [$cerrados, $pendientes, $retirados];
             });
         });
     }

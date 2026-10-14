@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\ProcedimientoController;
 use App\Http\Controllers\Admin\ProfesionalController;
 use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\RecetaController;
+use App\Http\Controllers\Admin\SalidaController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
 use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TipoBloqueAnamnesisController;
@@ -196,6 +197,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         // ("tabla=consultas"); su actualización automática (AJAX) y el buscador de pacientes, no.
         Route::get('consulta', [AtencionController::class, 'index'])->name('atencion.index')
             ->middleware('permiso:HISTORIA_CLINICA,VER,tabla=consultas');
+        // Retiros y rechazos de sus turnos y la nota clínica (una sola vez). VER registra la lectura de las notas.
+        Route::get('consulta/retiros', [SalidaController::class, 'index'])->name('atencion.salidas')
+            ->middleware('permiso:HISTORIA_CLINICA,VER');
+        Route::post('retiros/{salida}/nota', [SalidaController::class, 'guardarNota'])->name('atencion.salidas.nota')->whereNumber('salida')
+            ->middleware('permiso:HISTORIA_CLINICA,CREAR');
         Route::get('consulta/pacientes', [AtencionController::class, 'pacientes'])->name('atencion.pacientes')
             ->middleware('permiso:HISTORIA_CLINICA,CREAR');
         // Botones "Entre pacientes (N)" y "Urgencias (N)": los conteos (cada 15 s) y el popup de entre pacientes no

@@ -2,8 +2,8 @@
 
 {{--
     Vista previa de "Cerrar jornada": los turnos de hoy y de días anteriores todavía sin atender
-    (pendientes, confirmados o por llamar de nuevo) cuya hora ya llegó pasan a AUSENTE; sus preparaciones
-    se anulan. Los de hoy que todavía no llegaron a su hora se muestran aparte y quedan como están.
+    (pendientes, confirmados o por llamar de nuevo) cuya hora ya llegó pasan a RETIRADO si tenían el triaje
+    iniciado o terminado y a AUSENTE si no; sus preparaciones se anulan (con lo cargado intacto). Los de hoy que todavía no llegaron a su hora se muestran aparte y quedan como están.
 --}}
 <x-admin.page title="Cerrar jornada">
     <div class="space-y-4 p-6">
@@ -17,8 +17,8 @@
             <p class="text-sm text-gray-600 dark:text-gray-400">No hay turnos para pasar a ausente{{ $aunNoEsSuHora->isEmpty() ? ': no queda nada pendiente de hoy ni de días anteriores' : '' }}.</p>
         @else
             <p class="text-sm text-gray-700 dark:text-gray-300">
-                {{ $turnos->count() === 1 ? 'Este turno pasará' : "Estos {$turnos->count()} turnos pasarán" }} a ausente. Si alguno tenía el triaje
-                empezado, ese triaje se anula. No se puede deshacer.
+                {{ $turnos->count() === 1 ? 'Este turno pasará' : "Estos {$turnos->count()} turnos pasarán" }} a ausente; los que tenían el triaje
+                empezado o terminado pasarán a retirado (si estaba terminado, queda un cargo pendiente). Ese triaje se anula, con lo cargado intacto. No se puede deshacer.
             </p>
             <ul class="divide-y divide-gray-200 rounded-md border border-gray-200 text-sm dark:divide-gray-700 dark:border-gray-700">
                 @foreach ($turnos as $turno)
@@ -63,7 +63,7 @@
                                     <li>{{ $turno->paciente->persona->nombre_completo }} ({{ $turno->tipo === \App\Enums\TipoTurno::URGENCIA ? 'urgencia de recepción' : 'triaje urgente' }}, {{ Fecha::mostrar($turno->fecha) }})</li>
                                 @endforeach
                             </ul>
-                            <p>Pasarán a ausente. Lo cargado en su triaje se conserva.</p>
+                            <p>Pasarán a ausente o a retirado. Lo cargado en su triaje se conserva.</p>
                             <label class="inline-flex items-center gap-2 font-medium">
                                 <input type="checkbox" name="confirmo_urgencias" value="1"
                                     class="rounded border-red-300 text-red-600 shadow-sm focus:ring-red-500 dark:border-red-700 dark:bg-gray-900">

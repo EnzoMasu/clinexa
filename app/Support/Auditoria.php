@@ -36,8 +36,10 @@ use App\Models\PersonalSalud;
 use App\Models\Procedimiento;
 use App\Models\Profesional;
 use App\Models\Proveedor;
+use App\Models\NotaSalida;
 use App\Models\Receta;
 use App\Models\ResponsablePago;
+use App\Models\SalidaSinAtencion;
 use App\Models\Sucursal;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
@@ -83,6 +85,8 @@ final class Auditoria
         Receta::class, DetalleReceta::class,
         // Correcciones de una consulta cerrada (módulo CORRECCIONES_HC; el desbloqueo primero: es la tabla de sus lecturas).
         DesbloqueoConsulta::class, AdendaConsulta::class, ConsultaVersion::class,
+        // Salidas sin atención: el hecho es de Turnos (sin contenido clínico); la nota del profesional es clínica.
+        SalidaSinAtencion::class, NotaSalida::class,
     ];
 
     /**
@@ -91,7 +95,9 @@ final class Auditoria
      */
     public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos', 'indicaciones',
         // Adendas, desbloqueos (con su motivo) y versiones de las correcciones: también contenido clínico.
-        'adendas_consulta', 'desbloqueos_consulta', 'consulta_versiones'];
+        'adendas_consulta', 'desbloqueos_consulta', 'consulta_versiones',
+        // La nota clínica de un retiro o rechazo.
+        'notas_salida'];
 
     /** Tablas de recetas: sus valores solo los ve quien tiene VER sobre RECETAS (misma regla, otro permiso). */
     public const TABLAS_RECETAS = ['recetas', 'detalles_receta'];

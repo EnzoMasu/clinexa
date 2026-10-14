@@ -132,6 +132,7 @@ class AgendaGeneralController extends Controller
         Estado::EN_CONSULTA => 'En consulta',
         Estado::ATENDIDO => 'Atendido',
         Estado::AUSENTE => 'Ausente',
+        Estado::RETIRADO => 'Retirado',
         Estado::CANCELADO => 'Cancelado',
     ];
 
