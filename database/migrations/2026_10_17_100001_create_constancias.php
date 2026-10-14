@@ -25,7 +25,14 @@ return new class extends Migration
 
     public function up(): void
     {
-        $emitido = Estado::idDe(Estado::EMITIDO);
+        // Los estados EMITIDO y ANULADO ya existen en la base real (los usan las recetas); si faltaran (catalogo nuevo), se crean.
+        // Se leen con DB::table y no con Estado::idDe, para que `migrate --pretend` (que no devuelve filas) no falle.
+        foreach ([Estado::EMITIDO, Estado::ANULADO] as $codigo) {
+            if (! DB::table('estados')->where('codigo', $codigo)->exists()) {
+                DB::table('estados')->insert(['codigo' => $codigo, 'nombre' => $codigo, 'created_at' => now(), 'updated_at' => now()]);
+            }
+        }
+        $emitido = DB::table('estados')->where('codigo', Estado::EMITIDO)->value('id');
 
         foreach (array_keys(self::MODULOS) as $tabla) {
             Schema::create($tabla, function (Blueprint $table) use ($tabla) {
