@@ -92,7 +92,7 @@ describe('la pantalla', function () {
 
             return count(DB::getQueryLog());
         };
-        expect(PerfilAcceso::count())->toBe(12)->and(ModuloSistema::count())->toBe(31);
+        expect(PerfilAcceso::count())->toBe(12)->and(ModuloSistema::count())->toBe(32);
         $this->get(route('admin.matriz-permisos.index')); // calentamiento
         [$editar, $comparar] = [$contar(['perfil' => $this->perfil->id]), $contar(['vista' => 'comparar'])];
 

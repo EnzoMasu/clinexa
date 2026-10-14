@@ -172,4 +172,27 @@
             </ul>
         </section>
     @endif
+
+    {{-- Correcciones de una consulta cerrada (docs/historia-clinica.md): las adendas debajo de lo original, con motivo, autor y fecha. --}}
+    @php($vecesCorregida = (int) ($consulta->versiones_count ?? 0))
+    @if ($vecesCorregida > 0)
+        <p data-corregida class="text-xs font-medium text-amber-800 dark:text-amber-200">Corregida {{ $vecesCorregida }} {{ $vecesCorregida === 1 ? 'vez' : 'veces' }}</p>
+    @endif
+    @if ($consulta->adendas->isNotEmpty())
+        <section data-adendas aria-label="Adendas">
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Adendas</h4>
+            <ul class="mt-1 space-y-2">
+                @foreach ($consulta->adendas as $adenda)
+                    <li class="rounded-md border border-gray-200 p-2 dark:border-gray-700" data-adenda="{{ $adenda->id }}">
+                        <div class="text-xs text-gray-600 dark:text-gray-400">
+                            <span class="dato">{{ Fecha::mostrar($adenda->created_at, conHora: true) }}</span>
+                            · {{ $adenda->usuario ? DatosFormulario::nombre($adenda->usuario) : 'Sin usuario' }}
+                        </div>
+                        <div class="text-xs text-gray-600 dark:text-gray-400">Motivo: {{ $adenda->motivo }}</div>
+                        <p class="mt-1 whitespace-pre-line">{{ $adenda->texto }}</p>
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
 </article>

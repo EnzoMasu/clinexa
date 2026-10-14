@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(222); // 26 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + matriz de permisos (ver y guardar) + invitación + 6 buscadores de personas (usuarios y los 5 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, cupo del día, 2 buscadores, cambio de estado) + Agenda general (grilla) + cupo entre pacientes (panel y fijar) + urgencias de recepción (lista, alta, guardar, cancelar) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, contadores, popups de entre pacientes y de urgencias, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó, pasar a ausente) + atención (pantalla, autoguardado, finalizar, deshacer) + Triaje (lista, iniciar, formulario, guardar sin JavaScript, terminar, reabrir) + parámetros clínicos (listado, editar, guardar, aprobar) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
+    expect($rutas)->toHaveCount(229); // 26 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + matriz de permisos (ver y guardar) + invitación + 6 buscadores de personas (usuarios y los 5 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, cupo del día, 2 buscadores, cambio de estado) + Agenda general (grilla) + correcciones de consultas cerradas (adenda: formulario y guardar; desbloqueo: formulario, abrir, cancelar, corregir y guardar) + cupo entre pacientes (panel y fijar) + urgencias de recepción (lista, alta, guardar, cancelar) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, contadores, popups de entre pacientes y de urgencias, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó, pasar a ausente) + atención (pantalla, autoguardado, finalizar, deshacer) + Triaje (lista, iniciar, formulario, guardar sin JavaScript, terminar, reabrir) + parámetros clínicos (listado, editar, guardar, aprobar) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -148,7 +148,7 @@ test('un perfil con permisos en un solo grupo no ve los encabezados de los grupo
 test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra a todo', function () {
     $admin = User::factory()->administrador()->create();
 
-    expect(ModuloSistema::count())->toBe(31)
+    expect(ModuloSistema::count())->toBe(32)
         ->and($admin->perfiles->sole()->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 
     // Salvo lo que además exige ser profesional activo (ConsultaPolicy), que el Administrador no es por

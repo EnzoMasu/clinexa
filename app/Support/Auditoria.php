@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\AccionAuditoria;
+use App\Models\AdendaConsulta;
 use App\Models\BloqueAnamnesis;
 use App\Models\CargoSalud;
 use App\Models\CatalogoCIE10;
@@ -10,9 +11,11 @@ use App\Models\CategoriaGasto;
 use App\Models\CategoriaProveedor;
 use App\Models\Ciudad;
 use App\Models\Consulta;
+use App\Models\ConsultaVersion;
 use App\Models\Consultorio;
 use App\Models\CupoEntrePacientes;
 use App\Models\Departamento;
+use App\Models\DesbloqueoConsulta;
 use App\Models\DetalleReceta;
 use App\Models\Diagnostico;
 use App\Models\Disponibilidad;
@@ -78,13 +81,17 @@ final class Auditoria
         HistoriaClinica::class, Consulta::class, BloqueAnamnesis::class, ExamenFisico::class, Diagnostico::class, Indicacion::class,
         // Recetas (módulo RECETAS; la receta primero: es la tabla de sus lecturas).
         Receta::class, DetalleReceta::class,
+        // Correcciones de una consulta cerrada (módulo CORRECCIONES_HC; el desbloqueo primero: es la tabla de sus lecturas).
+        DesbloqueoConsulta::class, AdendaConsulta::class, ConsultaVersion::class,
     ];
 
     /**
      * Tablas con contenido clínico: en la pantalla de auditoría, sus valores solo los ve quien tiene
      * VER sobre HISTORIA_CLINICA (y el buscador no busca en ellos para los demás).
      */
-    public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos', 'indicaciones'];
+    public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos', 'indicaciones',
+        // Adendas, desbloqueos (con su motivo) y versiones de las correcciones: también contenido clínico.
+        'adendas_consulta', 'desbloqueos_consulta', 'consulta_versiones'];
 
     /** Tablas de recetas: sus valores solo los ve quien tiene VER sobre RECETAS (misma regla, otro permiso). */
     public const TABLAS_RECETAS = ['recetas', 'detalles_receta'];

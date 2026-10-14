@@ -63,6 +63,8 @@ class ModuloSistemaSeeder extends Seeder
             'PREPARACION' => ['Triaje', self::ACTIVO_INACTIVO],
             // Recetas de las consultas: borrador (PENDIENTE), emitida y anulada (solo VER, CREAR y EDITAR).
             'RECETAS' => ['Recetas', [Estado::PENDIENTE, Estado::EMITIDO, Estado::ANULADO]],
+            // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
+            'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).
             'AUDITORIA' => ['Auditoría', self::ACTIVO_INACTIVO],
             // Un solo módulo para las tres pantallas: Países, Departamentos y Ciudades.

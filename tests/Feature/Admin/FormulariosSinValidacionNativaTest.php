@@ -24,6 +24,8 @@ test('todos los formularios de alta de /admin llevan novalidate', function () {
         // La receta depende de una consulta y de un profesional: su novalidate se prueba en RecetasTest. La
         // consulta no tiene alta (.create): se crea con Atender y su pantalla se prueba en FormularioConsultaTest.
         ->reject(fn (string $nombre) => $nombre === 'admin.recetas.create')
+        // Adenda y desbloqueo cuelgan de una consulta cerrada: sus formularios (x-admin.form, novalidate) se prueban en CorreccionesTest.
+        ->reject(fn (string $nombre) => str_starts_with($nombre, 'admin.correcciones.'))
         ->values();
 
     expect($altas)->not->toBeEmpty();

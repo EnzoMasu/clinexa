@@ -28,7 +28,7 @@ test('el seeder marca los módulos sensibles sin desmarcar los marcados a mano',
     $this->seed(ModulosSensiblesSeeder::class);
 
     expect(ModuloSistema::where('es_sensible', true)->orderBy('codigo')->pluck('codigo')->all())
-        ->toBe(['AUDITORIA', 'HISTORIA_CLINICA', 'PACIENTES', 'PERFILES_ACCESO', 'PERSONAS', 'RECETAS', 'TURNOS', 'USUARIOS']);
+        ->toBe(['AUDITORIA', 'CORRECCIONES_HC', 'HISTORIA_CLINICA', 'PACIENTES', 'PERFILES_ACCESO', 'PERSONAS', 'RECETAS', 'TURNOS', 'USUARIOS']);
 });
 
 test('abrir el listado de un módulo sensible registra un VER sin registro', function () {

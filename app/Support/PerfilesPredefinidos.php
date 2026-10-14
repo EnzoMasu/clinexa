@@ -141,10 +141,10 @@ class PerfilesPredefinidos
         self::COMPRAS_TESORERIA => [
             'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::VER,
         ],
-        // El permiso de desbloqueo de una consulta cerrada llega con la etapa de adenda.
+        // Además, CORRECCIONES_HC (adendas y desbloqueo de consultas cerradas): se suma por la migración de las correcciones.
         self::SUPERVISION_MEDICA => [
             'HISTORIA_CLINICA' => self::VER, 'RECETAS' => self::VER, 'PACIENTES' => self::VER, 'PROFESIONALES' => self::VER,
-            'AUDITORIA' => self::VER,
+            'AUDITORIA' => self::VER, 'CORRECCIONES_HC' => self::VER_CREAR_EDITAR,
             // Triaje: administra el personal de salud, ve los cargos y define y aprueba los parámetros clínicos.
             'PERSONAL_SALUD' => self::VER_CREAR_EDITAR, 'CARGOS_SALUD' => self::VER, 'PARAMETROS_CLINICOS' => ['VER', 'EDITAR'],
         ],

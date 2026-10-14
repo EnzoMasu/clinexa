@@ -228,6 +228,49 @@ class ConsultaPolicy
         return $profesional !== null && (int) $profesional->id === (int) $consulta->profesional_id;
     }
 
+    public const ATENDIO_USTED = 'Esta consulta la atendió usted: otro supervisor tiene que desbloquearla.';
+
+    /** La persona del usuario es el profesional de la consulta (aunque hoy el profesional esté inactivo). */
+    public function laAtendio(User $usuario, Consulta $consulta): bool
+    {
+        $consulta->loadMissing('profesional');
+
+        return $usuario->persona_id !== null && $consulta->profesional !== null
+            && (int) $usuario->persona_id === (int) $consulta->profesional->persona_id;
+    }
+
+    /**
+     * Agregar una adenda a una consulta FINALIZADA: el profesional ACTIVO de la consulta con CREAR sobre
+     * HISTORIA_CLINICA, o quien tenga CREAR sobre CORRECCIONES_HC.
+     */
+    public function agregarAdenda(User $usuario, Consulta $consulta): Response
+    {
+        if (! $consulta->finalizada()) {
+            return Response::deny('Solo se agregan adendas a una consulta finalizada.');
+        }
+
+        return $usuario->tienePermiso('CORRECCIONES_HC', 'CREAR')
+            || ($usuario->tienePermiso('HISTORIA_CLINICA', 'CREAR') && $this->esElQueAtiende($usuario, $consulta))
+            ? Response::allow()
+            : Response::deny('No tiene permiso para agregar una adenda a esta consulta.');
+    }
+
+    /**
+     * Desbloquear una consulta FINALIZADA para corregirla (o cancelar o usar el desbloqueo): EDITAR sobre
+     * CORRECCIONES_HC y nunca quien la atendió.
+     */
+    public function desbloquear(User $usuario, Consulta $consulta): Response
+    {
+        if (! $usuario->tienePermiso('CORRECCIONES_HC', 'EDITAR')) {
+            return Response::deny('No tiene permiso para desbloquear consultas.');
+        }
+        if ($this->laAtendio($usuario, $consulta)) {
+            return Response::deny(self::ATENDIO_USTED);
+        }
+
+        return $consulta->finalizada() ? Response::allow() : Response::deny('Solo se desbloquea una consulta finalizada.');
+    }
+
     /** El turno es de hoy (hora de Paraguay), está por atender y su paciente está activo. */
     private function turnoDeHoyPorAtender(Turno $turno): Response
     {

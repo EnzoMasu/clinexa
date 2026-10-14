@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AgendaGeneralController;
 use App\Http\Controllers\Admin\AtencionController;
 use App\Http\Controllers\Admin\AuditoriaController;
 use App\Http\Controllers\Admin\CargoSaludController;
+use App\Http\Controllers\Admin\CorreccionController;
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
@@ -230,6 +231,19 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         // campos puede escribir cada uno lo decide ConsultaPolicy. Hasta 30 pedidos por minuto por usuario.
         Route::patch('consultas/{consulta}/autoguardado', [AtencionController::class, 'autoguardar'])->name('consultas.autoguardado')->whereNumber('consulta')
             ->middleware(['permiso.alguno:PREPARACION.EDITAR,HISTORIA_CLINICA.CREAR,HISTORIA_CLINICA.EDITAR', 'throttle:autoguardado', 'consulta.abierta']);
+        // Correcciones de una consulta FINALIZADA (adenda y desbloqueo, ambas con motivo; ConsultaPolicy decide quién y los
+        // servicios de App\Support\Correcciones lo revalidan). No llevan consulta.abierta: es justo la consulta cerrada.
+        Route::middleware('permiso.alguno:HISTORIA_CLINICA.CREAR,CORRECCIONES_HC.CREAR')->group(function () {
+            Route::get('consultas/{consulta}/adenda', [CorreccionController::class, 'crearAdenda'])->name('correcciones.adenda.create')->whereNumber('consulta');
+            Route::post('consultas/{consulta}/adenda', [CorreccionController::class, 'guardarAdenda'])->name('correcciones.adenda.store')->whereNumber('consulta');
+        });
+        Route::middleware('permiso:CORRECCIONES_HC,EDITAR')->group(function () {
+            Route::get('consultas/{consulta}/desbloqueo', [CorreccionController::class, 'crearDesbloqueo'])->name('correcciones.desbloqueo.create')->whereNumber('consulta');
+            Route::post('consultas/{consulta}/desbloqueo', [CorreccionController::class, 'desbloquear'])->name('correcciones.desbloqueo.store')->whereNumber('consulta');
+            Route::post('desbloqueos/{desbloqueo}/cancelar', [CorreccionController::class, 'cancelar'])->name('correcciones.cancelar')->whereNumber('desbloqueo');
+            Route::get('desbloqueos/{desbloqueo}/corregir', [CorreccionController::class, 'corregir'])->name('correcciones.corregir')->whereNumber('desbloqueo');
+            Route::post('desbloqueos/{desbloqueo}/corregir', [CorreccionController::class, 'guardarCorreccion'])->name('correcciones.corregir.guardar')->whereNumber('desbloqueo');
+        });
         // Una consulta FINALIZADA (o ANULADA) queda cerrada: no hay edición. Toda ruta de escritura sobre una
         // consulta o sus recetas lleva consulta.abierta (409 si está cerrada); docs/historia-clinica.md.
 

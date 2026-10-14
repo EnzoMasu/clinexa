@@ -32,6 +32,8 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             'RECETAS' => [['ANULADO', 'EMITIDO', 'PENDIENTE'], 'PENDIENTE'],
             // Parámetros clínicos: pendiente (inicial) hasta que un médico los aprueba.
             'PARAMETROS_CLINICOS' => [['APROBADO', 'PENDIENTE'], 'PENDIENTE'],
+            // Correcciones de una consulta cerrada: los estados del desbloqueo.
+            'CORRECCIONES_HC' => [['CANCELADO', 'REALIZADO', 'VENCIDO', 'VIGENTE'], 'VIGENTE'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

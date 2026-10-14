@@ -186,6 +186,18 @@ class Consulta extends Model
         return $this->hasMany(Diagnostico::class);
     }
 
+    /** Adendas (notas agregadas a la consulta cerrada), de la más antigua a la más reciente. */
+    public function adendas(): HasMany
+    {
+        return $this->hasMany(AdendaConsulta::class)->orderBy('id');
+    }
+
+    /** Versiones previas a cada corrección autorizada. */
+    public function versiones(): HasMany
+    {
+        return $this->hasMany(ConsultaVersion::class)->orderBy('numero');
+    }
+
     /** Indicaciones generales (activas y retiradas), sin orden fijo: ordenar al mostrar. */
     public function indicaciones(): HasMany
     {

@@ -37,6 +37,9 @@
   suite dos veces.
 - Detalle en `docs/pruebas.md`.
 
+## Producción
+- Antes de usar con pacientes reales: la lista de `docs/produccion.md`.
+
 ## Mapa del proyecto
 Laravel + Blade + Tailwind + Vite (JS plano, sin framework). Docs por tema en `docs/` (historia-clinica,
 agenda-urgencias, triaje, perfiles, respaldo, pruebas).

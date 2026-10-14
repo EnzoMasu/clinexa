@@ -6,6 +6,7 @@ use App\Exceptions\ConsultaCerrada;
 use App\Exceptions\RegistroClinicoNoSeBorra;
 use App\Models\Builders\ConsultaClinica;
 use App\Models\Consulta;
+use App\Support\Correcciones\VentanaDeCorreccion;
 
 /**
  * Regla de cierre de la historia clínica, en el modelo (vale desde cualquier código: controladores,
@@ -16,6 +17,8 @@ use App\Models\Consulta;
  *   (ConsultaCerrada, 409). Se mira el estado GUARDADO de la consulta: la transición EN_CURSO → FINALIZADO
  *   de Finalizar sale de una consulta abierta y pasa. Cada modelo puede permitir un cambio puntual con la
  *   consulta cerrada (permitidoConConsultaCerrada): solo la anulación de una receta EMITIDA.
+ * - Única vía para escribir en una consulta cerrada: la ventana de un desbloqueo vigente
+ *   (App\Support\Correcciones\VentanaDeCorreccion), solo en sus tablas y campos permitidos.
  * - Nada se borra (RegistroClinicoNoSeBorra), salvo lo que el modelo permita (sePuedeBorrar): solo
  *   "Quitar" un renglón de una receta en BORRADOR.
  * - Sin cambios ni borrados en masa (ConsultaClinica).
@@ -26,7 +29,8 @@ trait ProtegidoPorCierre
     {
         foreach (['creating', 'updating'] as $evento) {
             static::$evento(function (self $modelo) {
-                if ($modelo->consultaCerradaDeCierre() && ! $modelo->permitidoConConsultaCerrada()) {
+                if ($modelo->consultaCerradaDeCierre() && ! $modelo->permitidoConConsultaCerrada()
+                    && ! VentanaDeCorreccion::permite($modelo, $modelo->consultaDeCierre())) {
                     throw new ConsultaCerrada;
                 }
             });
