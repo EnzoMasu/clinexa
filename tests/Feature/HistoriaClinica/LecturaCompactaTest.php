@@ -131,6 +131,14 @@ describe('página compacta', function () {
         expect($html)->toContain('Sin turno');
     });
 
+    test('la consulta cerrada ofrece "Volver a Consulta" junto al de la historia', function () {
+        $consulta = hcConsulta();
+
+        $this->get(route('admin.consultas.show', $consulta))->assertOk()
+            ->assertSeeInOrder(['Volver a la historia', 'Volver a Consulta'])
+            ->assertSee('href="'.route('admin.atencion.index').'"', false);
+    });
+
     test('encabezado, botones y el historial de cambios plegado', function () {
         $consulta = hcConsulta();
         [$auditor] = hcMedico(['apellidos' => 'Paredes', 'nombres' => 'Juan'], 'MP-9', ['HISTORIA_CLINICA' => ['VER'], 'AUDITORIA' => ['VER']]);
