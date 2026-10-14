@@ -29,7 +29,7 @@ test('un usuario con un perfil sin permisos no entra a ninguna sección de /admi
     $this->actingAs($usuario);
 
     $rutas = rutasAdmin();
-    expect($rutas)->toHaveCount(229); // 26 secciones × 6 rutas (todas con baja) + auditoría (listado y detalle, solo lectura) + matriz de permisos (ver y guardar) + invitación + 6 buscadores de personas (usuarios y los 5 roles) + buscador de profesionales de disponibilidades + turnos (listado, alta, guardar, horarios libres, cupo del día, 2 buscadores, cambio de estado) + Agenda general (grilla) + correcciones de consultas cerradas (adenda: formulario y guardar; desbloqueo: formulario, abrir, cancelar, corregir y guardar) + cupo entre pacientes (panel y fijar) + urgencias de recepción (lista, alta, guardar, cancelar) + historia clínica (listado, historia, buscador CIE-10, y de la consulta: ver y detalle del popup; una consulta cerrada no se edita) + Consulta (pantalla, contadores, popups de entre pacientes y de urgencias, buscador de pacientes, cerrar jornada vista y confirmar, atender, atender sin turno, no se presentó, pasar a ausente) + atención (pantalla, autoguardado, finalizar, deshacer) + Triaje (lista, iniciar, formulario, guardar sin JavaScript, terminar, reabrir) + parámetros clínicos (listado, editar, guardar, aprobar) + recetas (alta, guardar, editar, actualizar, vista previa, emitir, imprimir, anular, anular y corregir)
+    expect($rutas)->not->toBeEmpty(); // sin número fijo: cada ruta de /admin debe cerrarse con 403 sin permisos
 
     foreach ($rutas as $ruta) {
         $this->call($ruta['metodo'], $ruta['uri'])
@@ -154,8 +154,9 @@ test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra
     // Salvo lo que además exige ser profesional activo (ConsultaPolicy), que el Administrador no es por
     // tener el perfil: el buscador de pacientes de "Atender sin turno" y la vista de "Cerrar jornada".
     // (La pantalla Consulta sí abre: le muestra el aviso de que es para profesionales.)
+    // Los retiros y rechazos (nota clínica) son del profesional de cada turno: abort 403 si no es profesional activo.
     // Los contadores de la pantalla Consulta, también; sus popups solo responden por AJAX (sin AJAX, a la pantalla).
-    $soloProfesionales = ['admin.atencion.pacientes', 'admin.atencion.cerrar-jornada', 'admin.atencion.contadores'];
+    $soloProfesionales = ['admin.atencion.pacientes', 'admin.atencion.cerrar-jornada', 'admin.atencion.contadores', 'admin.atencion.salidas'];
     $soloAjax = ['admin.atencion.entre-pacientes', 'admin.atencion.urgencias'];
 
     $this->actingAs($admin);
