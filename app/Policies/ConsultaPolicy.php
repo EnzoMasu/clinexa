@@ -48,6 +48,41 @@ class ConsultaPolicy
         return $esDeSalud ? Response::allow() : Response::deny(self::SOLO_PERSONAL_SALUD);
     }
 
+    public const PDF_NO_PERMITIDO = 'No tiene permiso para generar este PDF.';
+
+    /**
+     * Generar el PDF de triaje o de la consulta (docs/pdf-clinico.md), con la consulta abierta o cerrada: EXPORTAR sobre
+     * PDF_CLINICO y además ser (a) el Administrador, (b) Supervisión médica (VER sobre CORRECCIONES_HC), (c) el profesional
+     * ACTIVO de la consulta o (d) solo para el PDF de triaje, el personal de salud que cargó algo del triaje. Recepción
+     * no tiene el permiso. Una consulta ANULADA no existe (404 antes de llegar acá).
+     */
+    public function generarPdf(User $usuario, Consulta $consulta, string $documento): Response
+    {
+        if (! $usuario->tienePermiso('PDF_CLINICO', 'EXPORTAR')) {
+            return Response::deny(self::PDF_NO_PERMITIDO);
+        }
+        if ($usuario->esAdministrador() || $usuario->tienePermiso('CORRECCIONES_HC', 'VER') || $this->esElQueAtiende($usuario, $consulta)) {
+            return Response::allow();
+        }
+
+        return $documento === 'triaje' && $this->cargoElTriaje($usuario, $consulta)
+            ? Response::allow()
+            : Response::deny(self::PDF_NO_PERMITIDO);
+    }
+
+    /** Personal de salud (o profesional) activo que cargó o modificó algo del triaje de esta consulta. */
+    private function cargoElTriaje(User $usuario, Consulta $consulta): bool
+    {
+        if ($this->cargarTriaje($usuario)->denied()) {
+            return false;
+        }
+        $consulta->loadMissing(['bloquesAnamnesis', 'examenFisico']);
+
+        return (int) $consulta->triaje_urgente_por === (int) $usuario->id
+            || (int) $consulta->examenFisico?->signos_usuario_id === (int) $usuario->id
+            || $consulta->bloquesAnamnesis->contains(fn ($bloque) => (int) $bloque->usuario_id === (int) $usuario->id || (int) $bloque->modificado_por_id === (int) $usuario->id);
+    }
+
     /** Estados del turno desde los que se puede preparar o atender. */
     public const TURNO_POR_ATENDER = [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::SALTADO];
 

@@ -159,14 +159,14 @@ test('adopta el Administrador por nombre si todavía no tiene código', function
         ->and(PerfilAcceso::count())->toBe(1);
 });
 
-test('la matriz usa módulos reales y solo acciones con efecto (ninguna EXPORTAR)', function () {
+test('la matriz usa módulos reales y solo acciones con efecto (EXPORTAR solo donde hay exportación: el PDF clínico)', function () {
     $modulos = ModuloSistema::pluck('codigo')->all();
     foreach (PerfilesPredefinidos::MATRIZ as $codigo => $matriz) {
         expect(array_keys(PerfilesPredefinidos::NOMBRES))->toContain($codigo);
         foreach ($matriz as $modulo => $acciones) {
             expect($modulos)->toContain($modulo)
                 ->and(array_diff($acciones, Permiso::accionesDe($modulo)))->toBe([], "{$codigo} / {$modulo}")
-                ->and($acciones)->not->toContain('EXPORTAR');
+                ->and($modulo === 'PDF_CLINICO' || ! in_array('EXPORTAR', $acciones, true))->toBeTrue("{$codigo} / {$modulo}");
         }
     }
     // TURNOS no tiene baja (un turno se cancela); MODULOS_SISTEMA no tiene pantalla.

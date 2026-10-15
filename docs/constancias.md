@@ -1,6 +1,6 @@
 # Constancias de retiro y de estado
 
-Documentos que se imprimen desde el navegador (sin librerías), con el patrón de la receta: **inmutables**, con **número**,
+Documentos que se imprimen desde el navegador (sin librerías; los PDF nuevos usan dompdf, ver `docs/pdf-clinico.md`), con el patrón de la receta: **inmutables**, con **número**,
 **snapshot** (la hoja se dibuja siempre desde él) y **huella sha256**. Nacen emitidos (no hay borrador) y solo se pueden
 **anular con motivo**. Nada se borra. Emitir y anular quedan en Auditoría (CREAR y ANULAR con el motivo).
 

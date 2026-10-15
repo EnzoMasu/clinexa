@@ -23,6 +23,8 @@ class Permiso extends Model
         'PREPARACION' => ['VER', 'CREAR', 'EDITAR'],
         // Parámetros clínicos: un juego fijo (no se crean ni se desactivan); se editan y se aprueban (con EDITAR).
         'PARAMETROS_CLINICOS' => ['VER', 'EDITAR'],
+        // PDF clínico: solo se genera (EXPORTAR); no hay nada que crear, editar ni desactivar.
+        'PDF_CLINICO' => ['EXPORTAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

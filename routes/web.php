@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\OrigenTurnoController;
 use App\Http\Controllers\Admin\PacienteController;
 use App\Http\Controllers\Admin\PaisController;
 use App\Http\Controllers\Admin\ParametroClinicoController;
+use App\Http\Controllers\Admin\PdfClinicoController;
 use App\Http\Controllers\Admin\PerfilAccesoController;
 use App\Http\Controllers\Admin\PersonaController;
 use App\Http\Controllers\Admin\PersonalSaludController;
@@ -290,6 +291,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             Route::post('recetas/{receta}/anular', [RecetaController::class, 'anular'])->name('recetas.anular')->whereNumber('receta');
             // Anular y corregir: además de EDITAR exige CREAR (RecetaPolicy::corregir).
             Route::post('recetas/{receta}/corregir', [RecetaController::class, 'corregir'])->name('recetas.corregir')->whereNumber('receta')->middleware('consulta.abierta');
+        });
+
+        // PDF de triaje y de la consulta (abierta o cerrada), al vuelo: no se guarda ni en el servidor ni en el navegador. EXPORTAR
+        // sobre PDF_CLINICO; quién puede lo decide ConsultaPolicy::generarPdf. Cada generación queda en Auditoría.
+        Route::middleware(['permiso:PDF_CLINICO,EXPORTAR', SinAlmacenar::class])->group(function () {
+            Route::get('consultas/{consulta}/pdf/triaje', [PdfClinicoController::class, 'triaje'])->name('pdf.triaje')->whereNumber('consulta');
+            Route::get('consultas/{consulta}/pdf/consulta', [PdfClinicoController::class, 'consulta'])->name('pdf.consulta')->whereNumber('consulta');
         });
 
         // Constancias de retiro (Recepción) y de estado del turno (profesional del turno o Supervisión médica): documentos
