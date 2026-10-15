@@ -24,12 +24,17 @@ use App\Models\Profesional;
 use App\Models\Receta;
 use App\Models\Sucursal;
 use App\Models\TipoBloqueAnamnesis;
+use App\Models\Indicacion;
 use App\Models\Turno;
 use App\Models\User;
+use App\Support\Fecha;
+use App\Support\HojaReceta;
+use App\Support\PdfClinico\PdfReceta;
 use Database\Seeders\ModulosSensiblesSeeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\View;
 
 const HC_PERMISOS_MEDICO = ['HISTORIA_CLINICA' => ['VER', 'CREAR', 'EDITAR'], 'TURNOS' => ['VER']];
 
@@ -230,8 +235,7 @@ function hcDarPermisos(User $usuario, array $permisos): User
 /** Un renglón de medicamento como lo manda el formulario. */
 function hcRenglon(array $cambios = []): array
 {
-    return ['id' => '', 'medicamento' => 'Amoxicilina 500 mg', 'cantidad' => '1 caja x 21', 'dosis' => '1 comprimido', 'via' => 'Oral',
-        'frecuencia' => 'Cada 8 horas', 'duracion' => '7 días', 'observaciones' => 'Tomar con las comidas', ...$cambios];
+    return ['id' => '', 'medicamento' => 'Amoxicilina 500 mg', 'cantidad' => '1 caja x 21', 'indicacion_uso' => 'Indicación de prueba A', ...$cambios];
 }
 
 /** Guarda un borrador de receta por el formulario, como el usuario logueado. */
@@ -251,6 +255,46 @@ function hcReceta(Consulta $consulta, array $renglones = [], array $datos = []):
 function hcEmitir(Receta $receta, ?string $version = null)
 {
     return test()->post(route('admin.recetas.emitir', $receta), ['version' => $version ?? $receta->fresh()->version()]);
+}
+
+/**
+ * Pide el PDF de la receta por su ruta (como el usuario logueado), verifica que sea un PDF de una página y devuelve el
+ * HTML con que dompdf lo armó (los datos que recibió la vista), para revisar el contenido.
+ */
+function hcPdfReceta(Receta $receta): string
+{
+    $datos = null;
+    View::composer('pdf-receta.hoja', function ($vista) use (&$datos) {
+        $datos ??= $vista->getData();
+    });
+    $respuesta = test()->get(route('admin.recetas.pdf', $receta))->assertOk();
+    expect($respuesta->headers->get('Content-Type'))->toBe('application/pdf')
+        ->and(substr($respuesta->getContent(), 0, 4))->toBe('%PDF')
+        ->and(preg_match_all('#/Type\s*/Page(?![a-zA-Z])#', $respuesta->getContent()))->toBe(1);
+
+    return PdfReceta::html($datos['hoja'], $datos['marca']);
+}
+
+/**
+ * Una receta EMITIDA como las de antes de la indicación de uso: renglón con dosis, vía, frecuencia, duración y
+ * observaciones, y un snapshot sin 'formato' (con las indicaciones generales de la consulta). Se arma directo en el
+ * modelo, como quedó en la base.
+ */
+function hcRecetaAnterior(Consulta $consulta, array $renglon = []): Receta
+{
+    $receta = $consulta->recetas()->create(['observaciones' => null]);
+    $detalle = $receta->detalles()->create(['medicamento' => 'Amoxicilina 500 mg', 'cantidad' => '1 caja x 21', 'dosis' => '1 comprimido', 'via' => 'Oral',
+        'frecuencia' => 'Cada 8 horas', 'duracion' => '7 días', 'observaciones' => 'Tomar con las comidas', ...$renglon, 'orden' => 1]);
+    $hoja = HojaReceta::datos($receta->fresh());
+    unset($hoja['formato']);
+    $hoja['medicamentos'] = [$detalle->only(['medicamento', 'cantidad', 'dosis', 'via', 'frecuencia', 'duracion', 'observaciones'])];
+    $hoja['indicaciones'] = $consulta->indicaciones()->where('activo', true)->with('tipoIndicacion')->orderBy('orden')->get()
+        ->map(fn (Indicacion $indicacion) => ['tipo' => $indicacion->tipoIndicacion?->nombre, 'texto' => $indicacion->descripcion])->all();
+    $numero = Receta::siguienteNumero();
+    $receta->forceFill(['numero' => $numero, 'fecha' => Fecha::hoy()->format('Y-m-d'), 'emitida_en' => now(),
+        'estado_id' => Estado::idDe(Estado::EMITIDO), 'snapshot' => [...$hoja, 'numero' => $numero]])->save();
+
+    return $receta->fresh();
 }
 
 /** El mismo usuario con otro perfil (en lugar de los suyos), que tiene solo estos permisos (una persona tiene un solo usuario). */

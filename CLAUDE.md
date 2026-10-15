@@ -41,7 +41,7 @@
 - Antes de usar con pacientes reales: la lista de `docs/produccion.md`.
 
 ## Mapa del proyecto
-Laravel + Blade + Tailwind + Vite (JS plano, sin framework). PDF nuevos con dompdf (`barryvdh/laravel-dompdf`); receta y
+Laravel + Blade + Tailwind + Vite (JS plano, sin framework). PDF nuevos con dompdf (`barryvdh/laravel-dompdf`), también la receta nueva; recetas anteriores y
 constancias ya hechas siguen imprimiéndose desde el navegador. Docs por tema en `docs/` (pdf-clinico, historia-clinica,
 agenda-urgencias, triaje, retiros, perfiles, respaldo, pruebas).
 - `app/Models/`: Eloquent. Clave: `Persona`, `Paciente`, `Profesional`, `Turno`, `Consulta`,

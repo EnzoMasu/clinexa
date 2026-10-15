@@ -73,7 +73,29 @@ final class MediaHoja
         return ['receta' => $receta, 'indicaciones' => $abajo];
     }
 
-    /** Si alguna de las dos mitades se pasa. */
+    /**
+     * Líneas de cada mitad de una receta con indicación de uso (PDF): arriba, como siempre (medicamento, cantidad y
+     * observaciones de la receta); abajo, cada medicamento con su indicación de uso, sin indicaciones generales.
+     *
+     * @param  list<array<string, ?string>>  $medicamentos  renglones (medicamento, cantidad, indicacion_uso)
+     * @return array{receta: int, indicaciones: int}
+     */
+    public static function lineasConIndicacionUso(array $medicamentos, ?string $observaciones, bool $conReemplazo = false): array
+    {
+        $abajo = self::LINEAS_FIJAS_INDICACIONES;
+        foreach ($medicamentos as $medicamento) {
+            $abajo += self::alto((string) ($medicamento['medicamento'] ?? '')) + self::alto((string) ($medicamento['indicacion_uso'] ?? ''));
+        }
+
+        return ['receta' => self::lineas($medicamentos, $observaciones, [], $conReemplazo)['receta'], 'indicaciones' => $abajo];
+    }
+
+    public static function excedeConIndicacionUso(array $medicamentos, ?string $observaciones, bool $conReemplazo = false): bool
+    {
+        return max(self::lineasConIndicacionUso($medicamentos, $observaciones, $conReemplazo)) > self::LINEAS_POR_MITAD;
+    }
+
+    /** Si alguna de las dos mitades se pasa (receta anterior, impresa desde el navegador). */
     public static function excede(array $medicamentos, ?string $observaciones, array $indicaciones, bool $conReemplazo = false): bool
     {
         return max(self::lineas($medicamentos, $observaciones, $indicaciones, $conReemplazo)) > self::LINEAS_POR_MITAD;

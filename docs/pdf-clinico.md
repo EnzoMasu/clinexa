@@ -6,7 +6,8 @@ sacar en cualquier momento de la estadía del paciente, con la consulta **abiert
 ## Regla de librerías (cambio)
 
 Hasta ahora no se usaban librerías para imprimir (receta y constancias salen del navegador). **Los PDF nuevos usan dompdf.**
-La receta y las constancias ya hechas **no se tocan**: siguen imprimiéndose desde el navegador.
+Las constancias y las **recetas emitidas antes de la indicación de uso** **no se tocan**: siguen imprimiéndose desde el
+navegador. Las recetas nuevas salen en PDF (ver "Receta en PDF", al final).
 
 ## Qué es y qué no es
 
@@ -17,7 +18,8 @@ La receta y las constancias ya hechas **no se tocan**: siguen imprimiéndose des
   lo escrito por el usuario sale escapado.
 - **Encabezado:** clínica, paciente (nombre, documento, ficha), fecha y hora de la consulta con su estado (En triaje, En curso,
   Finalizada), profesional, turno, y **quién lo generó y cuándo**.
-- **Fuera de esta fase:** receta, indicaciones y reposo. Tampoco recetas ni adendas.
+- **Fuera de esta fase:** indicaciones generales y reposo. Tampoco recetas ni adendas dentro del PDF de la consulta (la
+  receta tiene su propio PDF).
 
 ## Contenido
 
@@ -62,3 +64,24 @@ deja registro de generación.
 ## Pendiente
 
 El diseño del PDF es sobrio y provisorio: revisar el aspecto en papel antes de usarlo con pacientes reales.
+
+## Receta en PDF (con indicación de uso)
+
+- **Indicación de uso por medicamento:** texto libre (cómo usarlo, cada cuánto, por cuánto tiempo), hasta 500 caracteres,
+  **obligatoria** para guardar y para emitir. En las recetas nuevas reemplaza a dosis, vía, frecuencia, duración y
+  observaciones del renglón (esas columnas quedan para las recetas anteriores). Un borrador viejo sin indicación no se emite
+  ("Falta la indicación de uso…") hasta completarla.
+- **Inmutable como la receta:** se copia al snapshot al emitir y no cambia más (modelo `DetalleReceta`); anular con motivo anula
+  la receta completa, con su indicación. Nada se borra.
+- **Hoja A4 en dos mitades** (`pdf-receta/hoja`, `App\Support\PdfClinico\PdfReceta`): arriba la receta (encabezado de la clínica,
+  número, fecha, paciente, medicamentos numerados con su cantidad, observaciones de la receta y firma), **sin indicaciones de
+  uso**; abajo "Indicaciones para el paciente": cada medicamento con el mismo número y su nombre, y debajo su indicación. Sin
+  indicaciones generales de la consulta. Lo que entra en cada mitad lo estima `MediaHoja::lineasConIndicacionUso`.
+- **Al vuelo**, como el PDF clínico (sin guardar, `no-store`). Ruta `admin.recetas.pdf` (`/admin/recetas/{receta}/pdf`), con el
+  mismo permiso que la hoja (VER sobre `RECETAS`); sin permisos nuevos. La vista previa y la hoja muestran el PDF incrustado:
+  borrador con la marca "VISTA PREVIA - NO VÁLIDA" (datos de hoy), anulada con "ANULADA" (desde el snapshot).
+- **Auditoría:** cada PDF generado deja un **EXPORTAR** sobre `recetas` ("PDF de la receta RE-…" o "PDF de vista previa del
+  borrador de receta N"), antes de entregar el PDF.
+- **Recetas anteriores:** su snapshot no tiene `formato` (`HojaReceta::FORMATO_PDF`): se reimprimen desde el navegador como
+  siempre, sin indicación retroactiva; su ruta de PDF lleva a esa hoja.
+- Migración `indicacion_de_uso_en_recetas`: solo esquema (columna nueva; dosis y frecuencia admiten vacío), no toca filas.

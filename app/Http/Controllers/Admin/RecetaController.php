@@ -10,6 +10,7 @@ use App\Models\Receta;
 use App\Support\Fecha;
 use App\Support\HojaReceta;
 use App\Support\MediaHoja;
+use App\Support\PdfClinico\PdfReceta;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Recetas de una consulta: borrador (crear, editar), vista previa, emisión, hoja impresa, anulación
@@ -35,6 +37,8 @@ class RecetaController extends Controller
     public const MODIFICADA_EN_OTRA_VENTANA = 'La receta fue modificada desde otra ventana. Vuelva a abrirla.';
 
     public const VISTA_PREVIA_VIEJA = 'La receta fue modificada desde otra ventana. Vuelva a abrir la vista previa.';
+
+    public const FALTA_INDICACION = 'Falta la indicación de uso de algún medicamento. Complétela antes de emitir.';
 
     /** SQLSTATE de clave única repetida (PostgreSQL 23505; SQLite informa 23000). */
     private const CLAVE_REPETIDA = ['23505', '23000'];
@@ -106,7 +110,7 @@ class RecetaController extends Controller
         return redirect()->route('admin.recetas.vista-previa', $receta)->with('status', 'Borrador guardado. Revise la vista previa antes de emitir.');
     }
 
-    /** La hoja del borrador con los datos de hoy, marcada "VISTA PREVIA - NO VÁLIDA". */
+    /** La hoja del borrador con los datos de hoy, en PDF marcado "VISTA PREVIA - NO VÁLIDA". */
     public function vistaPrevia(Receta $receta): View|RedirectResponse
     {
         if (! $receta->esBorrador()) {
@@ -115,11 +119,10 @@ class RecetaController extends Controller
 
         $hoja = HojaReceta::datos($receta);
 
-        return view('recetas.hoja', [
+        return view('recetas.pdf', [
             'receta' => $receta,
-            'hoja' => $hoja,
-            'marca' => 'VISTA PREVIA - NO VÁLIDA',
             'excede' => HojaReceta::excede($hoja),
+            'faltaIndicacion' => HojaReceta::faltaIndicacion($hoja),
             'puedeEditar' => Gate::allows('update', $receta),
             'puedeEmitir' => Gate::allows('emitir', $receta),
             'puedeAnular' => Gate::allows('anular', $receta),
@@ -152,6 +155,9 @@ class RecetaController extends Controller
             }
 
             $hoja = HojaReceta::datos($actual);
+            if (HojaReceta::faltaIndicacion($hoja)) {
+                return ['error', self::FALTA_INDICACION];
+            }
             if (HojaReceta::excede($hoja)) {
                 return ['error', MediaHoja::EXCEDE];
             }
@@ -169,14 +175,17 @@ class RecetaController extends Controller
             : redirect()->route('admin.recetas.imprimir', $receta)->with($tipo, $mensaje)->with('imprimir', $tipo === 'status');
     }
 
-    /** La hoja de una receta emitida o anulada, siempre desde el snapshot. Un borrador va a la vista previa. */
+    /**
+     * La hoja de una receta emitida o anulada, siempre desde el snapshot. Un borrador va a la vista previa. Las recetas
+     * con indicación de uso se ven en PDF; las anteriores, como siempre, en la hoja del navegador.
+     */
     public function imprimir(Receta $receta): View|RedirectResponse
     {
         if ($receta->esBorrador()) {
             return redirect()->route('admin.recetas.vista-previa', $receta);
         }
 
-        return view('recetas.hoja', [
+        return view(HojaReceta::esPdf($receta->snapshot) ? 'recetas.pdf' : 'recetas.hoja', [
             'receta' => $receta,
             'hoja' => $receta->snapshot,
             'marca' => $receta->estaAnulada() ? 'ANULADA' : null,
@@ -186,6 +195,23 @@ class RecetaController extends Controller
             'puedeAnular' => Gate::allows('anular', $receta),
             'puedeCorregir' => Gate::allows('corregir', $receta),
         ]);
+    }
+
+    /**
+     * El PDF (al vuelo, sin guardar, con su registro en Auditoría): el borrador con los datos de hoy y la marca de vista
+     * previa; la emitida o anulada, desde su snapshot. Una receta anterior (sin indicación de uso) no tiene PDF: se
+     * imprime desde su hoja, como siempre.
+     */
+    public function pdf(Receta $receta): Response
+    {
+        if ($receta->esBorrador()) {
+            return PdfReceta::ejecutar($receta, HojaReceta::datos($receta), 'VISTA PREVIA - NO VÁLIDA');
+        }
+        if (! HojaReceta::esPdf($receta->snapshot)) {
+            return redirect()->route('admin.recetas.imprimir', $receta);
+        }
+
+        return PdfReceta::ejecutar($receta, $receta->snapshot, $receta->estaAnulada() ? 'ANULADA' : null);
     }
 
     public function anular(Request $request, Receta $receta): RedirectResponse
@@ -252,35 +278,24 @@ class RecetaController extends Controller
             'detalles.*.id' => ['nullable', 'integer', Rule::exists('detalles_receta', 'id')->where('receta_id', $receta?->id ?? 0)],
             'detalles.*.medicamento' => ['required', 'string', 'max:150'],
             'detalles.*.cantidad' => ['nullable', 'string', 'max:100'],
-            'detalles.*.dosis' => ['required', 'string', 'max:100'],
-            'detalles.*.via' => ['nullable', 'string', 'max:50'],
-            'detalles.*.frecuencia' => ['required', 'string', 'max:100'],
-            'detalles.*.duracion' => ['nullable', 'string', 'max:100'],
-            'detalles.*.observaciones' => ['nullable', 'string', 'max:200'],
+            'detalles.*.indicacion_uso' => ['required', 'string', 'max:'.DetalleReceta::MAXIMO_INDICACION],
         ], [
             'detalles.required' => 'Agregue al menos un medicamento.',
             'detalles.min' => 'Agregue al menos un medicamento.',
             'detalles.max' => 'Una receta puede tener hasta '.self::MAXIMO_RENGLONES.' medicamentos. Divida la receta en dos.',
             'detalles.*.medicamento.required' => 'Escriba el nombre del medicamento.',
-            'detalles.*.dosis.required' => 'Indique la dosis del medicamento.',
-            'detalles.*.frecuencia.required' => 'Indique la frecuencia del medicamento.',
+            'detalles.*.indicacion_uso.required' => 'Escriba la indicación de uso del medicamento.',
             'detalles.*.id.exists' => 'Uno de los medicamentos no pertenece a esta receta.',
         ], [
             'observaciones' => 'observaciones de la receta',
             'detalles.*.medicamento' => 'medicamento',
             'detalles.*.cantidad' => 'cantidad',
-            'detalles.*.dosis' => 'dosis',
-            'detalles.*.via' => 'vía',
-            'detalles.*.frecuencia' => 'frecuencia',
-            'detalles.*.duracion' => 'duración',
-            'detalles.*.observaciones' => 'observaciones del medicamento',
+            'detalles.*.indicacion_uso' => 'indicación de uso',
         ]);
 
-        // Media hoja: con los renglones nuevos (o los guardados, si no vienen) y las indicaciones de hoy.
+        // Media hoja: con los renglones nuevos (o los guardados, si no vienen).
         $renglones = $conDetalles ? $datos['detalles'] : $receta->detalles()->get()->map->only(array_keys(DetalleReceta::CAMPOS))->all();
-        $consulta->loadMissing('indicaciones.tipoIndicacion');
-        $indicaciones = $consulta->indicaciones->where('activo', true)->map(fn ($i) => ['tipo' => $i->tipoIndicacion?->nombre, 'texto' => $i->descripcion])->values()->all();
-        if (MediaHoja::excede($renglones, $datos['observaciones'] ?? null, $indicaciones, (bool) $receta?->reemplaza_a_id)) {
+        if (MediaHoja::excedeConIndicacionUso($renglones, $datos['observaciones'] ?? null, (bool) $receta?->reemplaza_a_id)) {
             throw ValidationException::withMessages(['detalles' => MediaHoja::EXCEDE]);
         }
 
