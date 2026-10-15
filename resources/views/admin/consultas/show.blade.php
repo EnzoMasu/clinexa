@@ -87,6 +87,19 @@
             </details>
         @endif
 
+        {{-- Constancia de estado del turno (docs/constancias.md): solo hechos del turno, sin contenido clínico. La policy decide quién. --}}
+        @if ($consulta->turno && \Illuminate\Support\Facades\Gate::allows('emitir', [\App\Models\ConstanciaEstado::class, $consulta->turno]))
+            <section class="rounded-md border border-gray-200 p-3 dark:border-gray-700" aria-labelledby="acciones-constancia">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <h4 id="acciones-constancia" class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Constancia de estado del turno</h4>
+                    <form method="POST" action="{{ route('admin.constancias-estado.emitir', $consulta->turno) }}">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center rounded-md bg-gray-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white">Emitir o ver constancia</button>
+                    </form>
+                </div>
+            </section>
+        @endif
+
         {{--
             Acciones de las recetas: solo en la página (fuera del partial, que comparte el popup). Escribir
             lo decide RecetaPolicy: el profesional que atiende, con el permiso de RECETAS que corresponde.

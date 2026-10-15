@@ -50,7 +50,7 @@ class TurnoController extends Controller
             ->join('personas as persona_paciente', 'persona_paciente.id', '=', 'pacientes.persona_id')
             ->join('profesionales', 'profesionales.id', '=', 'turnos.profesional_id')
             ->join('personas as persona_profesional', 'persona_profesional.id', '=', 'profesionales.persona_id')
-            ->with(['paciente.persona.tipoDocumento', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno', 'consulta:id,turno_id,estado_id,preparada_en'])
+            ->with(['paciente.persona.tipoDocumento', 'profesional.persona', 'consultorio.sucursal', 'procedimiento', 'origenTurno', 'salida', 'consulta:id,turno_id,estado_id,preparada_en'])
             ->when($fecha, fn ($query) => $query->whereDate('turnos.fecha', $fecha))
             ->when($busqueda !== '' && ! $fecha, fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('persona_paciente.apellidos', "%{$busqueda}%")

@@ -63,6 +63,9 @@ class ModuloSistemaSeeder extends Seeder
             'PREPARACION' => ['Triaje', self::ACTIVO_INACTIVO],
             // Recetas de las consultas: borrador (PENDIENTE), emitida y anulada (solo VER, CREAR y EDITAR).
             'RECETAS' => ['Recetas', [Estado::PENDIENTE, Estado::EMITIDO, Estado::ANULADO]],
+            // Constancias de retiro (Recepción) y de estado del turno (profesional del turno o Supervisión): documentos inmutables.
+            'CONSTANCIAS_RETIRO' => ['Constancias de retiro', [Estado::EMITIDO, Estado::ANULADO]],
+            'CONSTANCIAS_ESTADO' => ['Constancias de estado del turno', [Estado::EMITIDO, Estado::ANULADO]],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

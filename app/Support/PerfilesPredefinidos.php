@@ -118,7 +118,7 @@ class PerfilesPredefinidos
         self::MEDICO => [
             'HISTORIA_CLINICA' => self::VER_CREAR_EDITAR, 'RECETAS' => self::VER_CREAR_EDITAR, 'PREPARACION' => self::VER_CREAR_EDITAR,
             'TURNOS' => self::VER, 'DISPONIBILIDAD' => self::VER, 'CONSULTORIOS' => self::VER, 'PACIENTES' => self::VER,
-            'PARAMETROS_CLINICOS' => self::VER,
+            'PARAMETROS_CLINICOS' => self::VER, 'CONSTANCIAS_ESTADO' => self::VER_CREAR_EDITAR,
         ],
         self::ENFERMERIA => [
             'PREPARACION' => self::VER_CREAR_EDITAR,
@@ -130,6 +130,8 @@ class PerfilesPredefinidos
             'CONSULTORIOS' => self::VER, 'ORIGENES_TURNO' => self::VER, 'PROFESIONALES' => self::VER, 'ESPECIALIDADES' => self::VER,
             'PROCEDIMIENTOS' => self::VER,
             'PACIENTES' => self::VER_CREAR_EDITAR, 'PERSONAS' => self::VER_CREAR_EDITAR, 'RESPONSABLES_PAGO' => self::VER_CREAR_EDITAR,
+            // Constancia de retiro: sin contenido clínico (se suma por la migración de las constancias).
+            'CONSTANCIAS_RETIRO' => self::VER_CREAR_EDITAR,
         ],
         // Caja, Facturación y Compras: sus módulos todavía no existen; solo lo que sirve hoy. Nada clínico.
         self::CAJA => [
@@ -144,7 +146,7 @@ class PerfilesPredefinidos
         // Además, CORRECCIONES_HC (adendas y desbloqueo de consultas cerradas): se suma por la migración de las correcciones.
         self::SUPERVISION_MEDICA => [
             'HISTORIA_CLINICA' => self::VER, 'RECETAS' => self::VER, 'PACIENTES' => self::VER, 'PROFESIONALES' => self::VER,
-            'AUDITORIA' => self::VER, 'CORRECCIONES_HC' => self::VER_CREAR_EDITAR,
+            'AUDITORIA' => self::VER, 'CORRECCIONES_HC' => self::VER_CREAR_EDITAR, 'CONSTANCIAS_ESTADO' => self::VER_CREAR_EDITAR,
             // Triaje: administra el personal de salud, ve los cargos y define y aprueba los parámetros clínicos.
             'PERSONAL_SALUD' => self::VER_CREAR_EDITAR, 'CARGOS_SALUD' => self::VER, 'PARAMETROS_CLINICOS' => ['VER', 'EDITAR'],
         ],
