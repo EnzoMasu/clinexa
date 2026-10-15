@@ -15,6 +15,7 @@ enum AccionAuditoria: string
     case ANULAR = 'ANULAR';
     case REVERTIR = 'REVERTIR';
     case VER = 'VER';
+    case EXPORTAR = 'EXPORTAR';
     case INICIO_SESION = 'INICIO_SESION';
     case INICIO_SESION_FALLIDO = 'INICIO_SESION_FALLIDO';
     case CIERRE_SESION = 'CIERRE_SESION';
@@ -31,6 +32,7 @@ enum AccionAuditoria: string
             self::ANULAR => 'Anular',
             self::REVERTIR => 'Revertir',
             self::VER => 'Ver',
+            self::EXPORTAR => 'Generar PDF',
             self::INICIO_SESION => 'Inicio de sesión',
             self::INICIO_SESION_FALLIDO => 'Inicio de sesión fallido',
             self::CIERRE_SESION => 'Cierre de sesión',

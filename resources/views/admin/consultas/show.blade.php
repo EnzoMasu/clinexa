@@ -16,6 +16,7 @@
                     class="text-sm text-gray-600 hover:underline dark:text-gray-400">Volver a la historia</a>
                 <a href="{{ route('admin.atencion.index') }}" data-volver-consulta
                     class="text-sm text-gray-600 hover:underline dark:text-gray-400">Volver a Consulta</a>
+                @include('admin.consultas._enlaces-pdf')
             </div>
         </div>
 

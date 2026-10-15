@@ -66,6 +66,8 @@ class ModuloSistemaSeeder extends Seeder
             // Constancias de retiro (Recepción) y de estado del turno (profesional del turno o Supervisión): documentos inmutables.
             'CONSTANCIAS_RETIRO' => ['Constancias de retiro', [Estado::EMITIDO, Estado::ANULADO]],
             'CONSTANCIAS_ESTADO' => ['Constancias de estado del turno', [Estado::EMITIDO, Estado::ANULADO]],
+            // PDF clínico (triaje y consulta en curso o cerrada): se genera al vuelo; solo EXPORTAR. Ver docs/pdf-clinico.md.
+            'PDF_CLINICO' => ['PDF clínico (triaje y consulta)', self::ACTIVO_INACTIVO],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

@@ -89,12 +89,14 @@ class PerfilesPredefinidos
 
     private const VER = ['VER'];
 
+    private const EXPORTAR = ['EXPORTAR'];
+
     private const VER_CREAR_EDITAR = ['VER', 'CREAR', 'EDITAR'];
 
     private const TODO = ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'];
 
     /**
-     * La matriz: solo acciones que tienen efecto hoy (ninguna EXPORTAR: no hay exportación; TURNOS no tiene
+     * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO: no hay otra exportación; TURNOS no tiene
      * DESACTIVAR: un turno se cancela, con EDITAR). Ningún perfil, salvo ADMINISTRADOR, escribe en USUARIOS
      * ni en PERFILES_ACCESO (lo verifica PerfilesPredefinidosTest).
      */
@@ -119,9 +121,10 @@ class PerfilesPredefinidos
             'HISTORIA_CLINICA' => self::VER_CREAR_EDITAR, 'RECETAS' => self::VER_CREAR_EDITAR, 'PREPARACION' => self::VER_CREAR_EDITAR,
             'TURNOS' => self::VER, 'DISPONIBILIDAD' => self::VER, 'CONSULTORIOS' => self::VER, 'PACIENTES' => self::VER,
             'PARAMETROS_CLINICOS' => self::VER, 'CONSTANCIAS_ESTADO' => self::VER_CREAR_EDITAR,
+            'PDF_CLINICO' => self::EXPORTAR,
         ],
         self::ENFERMERIA => [
-            'PREPARACION' => self::VER_CREAR_EDITAR,
+            'PREPARACION' => self::VER_CREAR_EDITAR, 'PDF_CLINICO' => self::EXPORTAR,
         ],
         // Agenda y alta de personas y pacientes. Sus formularios (tipo de documento, país, departamento,
         // ciudad, sucursal) no piden permiso de esos catálogos: no se los da.
@@ -149,6 +152,7 @@ class PerfilesPredefinidos
             'AUDITORIA' => self::VER, 'CORRECCIONES_HC' => self::VER_CREAR_EDITAR, 'CONSTANCIAS_ESTADO' => self::VER_CREAR_EDITAR,
             // Triaje: administra el personal de salud, ve los cargos y define y aprueba los parámetros clínicos.
             'PERSONAL_SALUD' => self::VER_CREAR_EDITAR, 'CARGOS_SALUD' => self::VER, 'PARAMETROS_CLINICOS' => ['VER', 'EDITAR'],
+            'PDF_CLINICO' => self::EXPORTAR,
         ],
         self::AUDITOR => [
             'AUDITORIA' => self::VER,
