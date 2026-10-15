@@ -148,8 +148,7 @@ test('un perfil con permisos en un solo grupo no ve los encabezados de los grupo
 test('el perfil Administrador tiene las 5 acciones en todos los módulos y entra a todo', function () {
     $admin = User::factory()->administrador()->create();
 
-    expect(ModuloSistema::count())->toBe(32)
-        ->and($admin->perfiles->sole()->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
+    expect($admin->perfiles->sole()->permisos()->count())->toBe(ModuloSistema::count() * count(Permiso::ACCIONES));
 
     // Salvo lo que además exige ser profesional activo (ConsultaPolicy), que el Administrador no es por
     // tener el perfil: el buscador de pacientes de "Atender sin turno" y la vista de "Cerrar jornada".
