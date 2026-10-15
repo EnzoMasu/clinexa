@@ -17,6 +17,7 @@
                 <a href="{{ route('admin.atencion.index') }}" data-volver-consulta
                     class="text-sm text-gray-600 hover:underline dark:text-gray-400">Volver a Consulta</a>
                 @include('admin.consultas._enlaces-pdf')
+                @include('admin.reposos._enlace')
             </div>
         </div>
 

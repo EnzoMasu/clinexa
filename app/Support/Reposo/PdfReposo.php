@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Support\Reposo;
+
+use App\Enums\AccionAuditoria;
+use App\Models\ReposoMedico;
+use App\Support\Auditoria;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Symfony\Component\HttpFoundation\Response;
+
+/**
+ * PDF del certificado de reposo (docs/reposo-medico.md), dibujado solo desde su snapshot. Al vuelo, como el PDF clínico:
+ * nada se guarda en el servidor ni en el navegador (no-store), y cada generación queda en Auditoría. Quien lo llama ya
+ * verificó la huella: con una huella que no coincide no se genera.
+ */
+final class PdfReposo
+{
+    /** El HTML que dompdf convierte. Separado para poder verificar el contenido. */
+    public static function html(ReposoMedico $reposo): string
+    {
+        return view('pdf-reposo.hoja', [
+            'hoja' => $reposo->snapshot,
+            'huella' => $reposo->huella,
+            'anulado' => $reposo->estaAnulado(),
+            'logo' => public_path(config('clinexa.clinica.logo')),
+        ])->render();
+    }
+
+    public static function ejecutar(ReposoMedico $reposo): Response
+    {
+        $vista = self::html($reposo);
+
+        // Primero la auditoría: si falla, no sale el PDF. El PDF se arma en memoria y no se escribe en disco.
+        Auditoria::registrar(AccionAuditoria::EXPORTAR, 'reposos_medicos', $reposo->id, detalle: "PDF del certificado de reposo {$reposo->numero}");
+
+        $contenido = Pdf::setOption(['isRemoteEnabled' => false, 'isPhpEnabled' => false, 'isHtml5ParserEnabled' => true, 'isFontSubsettingEnabled' => true])
+            ->loadHTML($vista)->setPaper(strtolower(config('clinexa.recetas.papel.nombre')))->output();
+
+        return response($contenido, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="reposo-'.$reposo->numero.'.pdf"',
+            'Cache-Control' => 'no-store, private',
+            'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+}

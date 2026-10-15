@@ -121,7 +121,7 @@ class PerfilesPredefinidos
             'HISTORIA_CLINICA' => self::VER_CREAR_EDITAR, 'RECETAS' => self::VER_CREAR_EDITAR, 'PREPARACION' => self::VER_CREAR_EDITAR,
             'TURNOS' => self::VER, 'DISPONIBILIDAD' => self::VER, 'CONSULTORIOS' => self::VER, 'PACIENTES' => self::VER,
             'PARAMETROS_CLINICOS' => self::VER, 'CONSTANCIAS_ESTADO' => self::VER_CREAR_EDITAR,
-            'PDF_CLINICO' => self::EXPORTAR,
+            'PDF_CLINICO' => self::EXPORTAR, 'REPOSO_MEDICO' => self::VER_CREAR_EDITAR,
         ],
         self::ENFERMERIA => [
             'PREPARACION' => self::VER_CREAR_EDITAR, 'PDF_CLINICO' => self::EXPORTAR,
@@ -153,6 +153,8 @@ class PerfilesPredefinidos
             // Triaje: administra el personal de salud, ve los cargos y define y aprueba los parámetros clínicos.
             'PERSONAL_SALUD' => self::VER_CREAR_EDITAR, 'CARGOS_SALUD' => self::VER, 'PARAMETROS_CLINICOS' => ['VER', 'EDITAR'],
             'PDF_CLINICO' => self::EXPORTAR,
+            // Reposo médico: solo ver y sacar el PDF (no emite ni anula).
+            'REPOSO_MEDICO' => self::VER,
         ],
         self::AUDITOR => [
             'AUDITORIA' => self::VER,

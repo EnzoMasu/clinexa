@@ -25,6 +25,8 @@ class Permiso extends Model
         'PARAMETROS_CLINICOS' => ['VER', 'EDITAR'],
         // PDF clínico: solo se genera (EXPORTAR); no hay nada que crear, editar ni desactivar.
         'PDF_CLINICO' => ['EXPORTAR'],
+        // Reposo médico: se ve (y se saca su PDF), se emite y se anula; no se desactiva ni se borra.
+        'REPOSO_MEDICO' => ['VER', 'CREAR', 'EDITAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

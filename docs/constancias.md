@@ -36,4 +36,4 @@ emitidas conservan su texto y su marca (están en su snapshot y en su huella).
 
 ## Fuera de esta fase
 
-Derivación, reposo médico y constancia de triaje. Revisión legal del texto (ver `docs/produccion.md`).
+Derivación y constancia de triaje. El reposo médico está en `docs/reposo-medico.md`. Revisión legal del texto (ver `docs/produccion.md`).

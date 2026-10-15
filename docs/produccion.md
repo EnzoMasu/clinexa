@@ -15,4 +15,4 @@ Lista de control previa a cargar pacientes reales. Sin datos personales: marcar 
 - [ ] **Respaldos cifrados y fuera de la PC** (`docs/respaldo.md`), con una restauración de prueba.
 - [ ] **Desactivar los dos perfiles viejos sin usuarios.**
 - [ ] **PDF clínico.** Revisar el aspecto en papel de los PDF de triaje, de consulta y de la receta (`docs/pdf-clinico.md`) y quiénes tienen `PDF_CLINICO`.
-- [ ] **Revisión legal de los textos** que salen impresos: reposo y constancias de retiro y de estado (`config/constancias.php`; luego poner `borrador` en `false`).
+- [ ] **Revisión legal de los textos** que salen impresos: reposo (`config/reposo.php`) y constancias de retiro y de estado (`config/constancias.php`); luego poner `borrador` en `false` en cada uno.

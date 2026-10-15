@@ -18,7 +18,7 @@ navegador. Las recetas nuevas salen en PDF (ver "Receta en PDF", al final).
   lo escrito por el usuario sale escapado.
 - **Encabezado:** clínica, paciente (nombre, documento, ficha), fecha y hora de la consulta con su estado (En triaje, En curso,
   Finalizada), profesional, turno, y **quién lo generó y cuándo**.
-- **Fuera de esta fase:** indicaciones generales y reposo. Tampoco recetas ni adendas dentro del PDF de la consulta (la
+- **Fuera de esta fase:** indicaciones generales. El reposo tiene su propio PDF (`docs/reposo-medico.md`). Tampoco recetas ni adendas dentro del PDF de la consulta (la
   receta tiene su propio PDF).
 
 ## Contenido

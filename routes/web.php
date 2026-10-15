@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\ProcedimientoController;
 use App\Http\Controllers\Admin\ProfesionalController;
 use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\RecetaController;
+use App\Http\Controllers\Admin\ReposoMedicoController;
 use App\Http\Controllers\Admin\SalidaController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
 use App\Http\Controllers\Admin\SucursalController;
@@ -313,6 +314,19 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             Route::post("constancias-{$tipo}/{constancia}/anular", [ConstanciaController::class, 'anular'])->name("constancias-{$tipo}.anular")
                 ->whereNumber('constancia')->defaults('tipo', $tipo)->middleware("permiso:{$modulo},EDITAR");
         }
+
+        // Certificado de reposo médico (docs/reposo-medico.md): documento inmutable con huella, aparte de la consulta (se emite
+        // también con la consulta abierta). VER: la lista de la consulta, el detalle y el PDF (al vuelo, con su registro en
+        // Auditoría); CREAR: emitir; EDITAR: anular con motivo. No hay DELETE. Quién puede lo decide ReposoMedicoPolicy.
+        Route::middleware('permiso:REPOSO_MEDICO,VER')->group(function () {
+            Route::get('consultas/{consulta}/reposos', [ReposoMedicoController::class, 'index'])->name('reposos.consulta')->whereNumber('consulta');
+            Route::get('reposos/{reposo}', [ReposoMedicoController::class, 'show'])->name('reposos.show')->whereNumber('reposo');
+            Route::get('reposos/{reposo}/pdf', [ReposoMedicoController::class, 'pdf'])->name('reposos.pdf')->whereNumber('reposo');
+        });
+        Route::post('consultas/{consulta}/reposos', [ReposoMedicoController::class, 'emitir'])->name('reposos.emitir')
+            ->whereNumber('consulta')->middleware('permiso:REPOSO_MEDICO,CREAR');
+        Route::post('reposos/{reposo}/anular', [ReposoMedicoController::class, 'anular'])->name('reposos.anular')
+            ->whereNumber('reposo')->middleware('permiso:REPOSO_MEDICO,EDITAR');
     });
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
