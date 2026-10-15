@@ -28,7 +28,7 @@ test('emite con número, snapshot jsonb y versión con microsegundos', function 
 
     expect(DB::selectOne("select jsonb_typeof(snapshot) as tipo, snapshot->'paciente'->>'ficha' as ficha from recetas where id = ?", [$receta->id]))
         ->tipo->toBe('object')->ficha->toBe('FP-0000001');
-    $this->get(route('admin.recetas.imprimir', $receta))->assertOk()->assertSee('Receta N° RE-0000001');
+    $this->get(route('admin.recetas.imprimir', $receta))->assertOk()->assertSee('Receta RE-0000001');
 });
 
 test('el número es único en la base', function () {
