@@ -5,7 +5,7 @@
     $paciente = $consulta->historiaClinica->paciente;
 
     // Renglones: los del error de validación, o los guardados en su orden. Uno vacío en una receta nueva.
-    $vacio = ['id' => '', 'medicamento' => '', 'cantidad' => '', 'dosis' => '', 'via' => '', 'frecuencia' => '', 'duracion' => '', 'observaciones' => ''];
+    $vacio = ['id' => '', 'medicamento' => '', 'cantidad' => '', 'indicacion_uso' => ''];
     $guardados = $receta->exists ? $receta->detalles->sortBy(['orden', 'id'])->map(fn ($detalle) => ['id' => (string) $detalle->id, ...$detalle->only(array_keys(DetalleReceta::CAMPOS))])->values()->all() : [];
     $filas = collect(old('con_detalles') ? (array) old('detalles', []) : ($guardados ?: [$vacio]))
         ->map(fn ($fila) => ['uid' => uniqid('', true), ...collect($vacio)->map(fn ($valor, $campo) => (string) ($fila[$campo] ?? ''))->all()])
@@ -13,15 +13,11 @@
 
     $errores = collect($errors->get('detalles*'))->flatten()->unique();
     $clases = 'mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm text-sm';
-    // Campo => [etiqueta, máximo, obligatorio, ancho en la grilla].
+    // Campo => [etiqueta, máximo, obligatorio, ancho en la grilla]. La indicación de uso es un texto de varias líneas.
     $campos = [
         'medicamento' => ['Medicamento (nombre comercial)', 150, true, 'sm:col-span-4'],
         'cantidad' => ['Cantidad', 100, false, 'sm:col-span-2'],
-        'dosis' => ['Dosis', 100, true, 'sm:col-span-2'],
-        'via' => ['Vía', 50, false, 'sm:col-span-1'],
-        'frecuencia' => ['Frecuencia', 100, true, 'sm:col-span-2'],
-        'duracion' => ['Duración', 100, false, 'sm:col-span-1'],
-        'observaciones' => ['Observaciones', 200, false, 'sm:col-span-6'],
+        'indicacion_uso' => ['Indicación de uso (obligatoria)', DetalleReceta::MAXIMO_INDICACION, true, 'sm:col-span-6'],
     ];
 @endphp
 
@@ -57,16 +53,16 @@
         </dl>
 
         <p class="text-xs text-gray-500 dark:text-gray-400">
-            Escriba cada medicamento una sola vez, con su dosis, vía, frecuencia, duración y observaciones: con eso se arman las dos
-            mitades de la hoja (la receta y las indicaciones para el paciente). Entre {{ RecetaController::MINIMO_RENGLONES }} y
-            {{ RecetaController::MAXIMO_RENGLONES }} medicamentos, y todo tiene que entrar en media hoja. Las indicaciones generales
-            (reposo, dieta, control…) se cargan en la consulta.
+            Escriba cada medicamento con su indicación de uso (cómo usarlo, cada cuánto y por cuánto tiempo). La mitad de arriba
+            de la hoja lleva el medicamento y la cantidad; la de abajo, la indicación de uso de cada uno. Entre
+            {{ RecetaController::MINIMO_RENGLONES }} y {{ RecetaController::MAXIMO_RENGLONES }} medicamentos, y todo tiene que
+            entrar en media hoja.
         </p>
 
         <div x-data="{
                 filas: {{ Js::from($filas) }},
                 maximo: {{ RecetaController::MAXIMO_RENGLONES }},
-                agregar() { if (this.filas.length < this.maximo) this.filas.push({ uid: Date.now() + Math.random(), id: '', medicamento: '', cantidad: '', dosis: '', via: '', frecuencia: '', duracion: '', observaciones: '' }) },
+                agregar() { if (this.filas.length < this.maximo) this.filas.push({ uid: Date.now() + Math.random(), id: '', medicamento: '', cantidad: '', indicacion_uso: '' }) },
                 quitar(i) { this.filas.splice(i, 1) },
             }" class="space-y-3">
             <h3 class="font-medium text-gray-900 dark:text-gray-100">Medicamentos</h3>
@@ -85,8 +81,13 @@
                         @foreach ($campos as $campo => [$etiqueta, $maximo, $obligatorio, $ancho])
                             <div class="{{ $ancho }}">
                                 <label x-bind:for="`detalle_{{ $campo }}_${i}`" class="block font-medium text-sm text-gray-700 dark:text-gray-300">{{ $etiqueta }}</label>
-                                <input type="text" maxlength="{{ $maximo }}" @if ($obligatorio) required @endif autocomplete="off"
-                                    x-bind:id="`detalle_{{ $campo }}_${i}`" x-bind:name="`detalles[${i}][{{ $campo }}]`" x-model="fila.{{ $campo }}" class="{{ $clases }}">
+                                @if ($campo === 'indicacion_uso')
+                                    <textarea rows="2" maxlength="{{ $maximo }}" required
+                                        x-bind:id="`detalle_{{ $campo }}_${i}`" x-bind:name="`detalles[${i}][{{ $campo }}]`" x-model="fila.{{ $campo }}" class="{{ $clases }}"></textarea>
+                                @else
+                                    <input type="text" maxlength="{{ $maximo }}" @if ($obligatorio) required @endif autocomplete="off"
+                                        x-bind:id="`detalle_{{ $campo }}_${i}`" x-bind:name="`detalles[${i}][{{ $campo }}]`" x-model="fila.{{ $campo }}" class="{{ $clases }}">
+                                @endif
                             </div>
                         @endforeach
                     </div>

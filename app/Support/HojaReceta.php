@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\Consulta;
-use App\Models\Indicacion;
 use App\Models\Persona;
 use App\Models\Receta;
 use App\Models\Sucursal;
@@ -19,16 +18,23 @@ use Illuminate\Support\Carbon;
  *
  * Ninguna vista arma la hoja desde los modelos: así la vista previa y la hoja emitida no pueden
  * diferir en qué muestran.
+ *
+ * Formatos: las recetas nuevas llevan 'formato' => FORMATO_PDF (medicamento, cantidad e indicación de uso;
+ * se imprimen en PDF, PdfReceta). Un snapshot sin 'formato' es de una receta anterior (dosis, vía,
+ * frecuencia... e indicaciones generales de la consulta): se sigue imprimiendo desde el navegador
+ * (recetas/_hoja), tal como está.
  */
 final class HojaReceta
 {
+    /** Marca del snapshot de las recetas con indicación de uso, impresas en PDF. */
+    public const FORMATO_PDF = 'pdf-indicacion-uso';
+
     /** Relaciones que hacen falta para armar la hoja de una receta. */
     public const RELACIONES = [
         'detalles', 'reemplazaA',
         'consulta.historiaClinica.paciente.persona.tipoDocumento',
         'consulta.profesional.persona', 'consulta.profesional.especialidadesActivas',
         'consulta.turno.consultorio.sucursal',
-        'consulta.indicaciones.tipoIndicacion',
     ];
 
     /** @return array<string, mixed> */
@@ -42,6 +48,7 @@ final class HojaReceta
         $sucursal = self::sucursal($consulta);
 
         return [
+            'formato' => self::FORMATO_PDF,
             'clinica' => [
                 'nombre' => (string) config('clinexa.clinica.nombre'),
                 'direccion' => $sucursal?->direccion,
@@ -63,19 +70,30 @@ final class HojaReceta
                 'especialidades' => $profesional->especialidadesActivas->pluck('nombre')->sort()->values()->all(),
             ],
             'medicamentos' => $receta->detalles->sortBy(['orden', 'id'])
-                ->map(fn ($detalle) => $detalle->only(['medicamento', 'cantidad', 'dosis', 'via', 'frecuencia', 'duracion', 'observaciones']))
+                ->map(fn ($detalle) => $detalle->only(['medicamento', 'cantidad', 'indicacion_uso']))
                 ->values()->all(),
             'observaciones' => $receta->observaciones,
-            'indicaciones' => $consulta->indicaciones->where('activo', true)->sortBy(['orden', 'id'])
-                ->map(fn (Indicacion $indicacion) => ['tipo' => $indicacion->tipoIndicacion?->nombre, 'texto' => $indicacion->descripcion])
-                ->values()->all(),
         ];
     }
 
-    /** Si los datos de la hoja se pasan de media hoja en alguna de las dos mitades (MediaHoja). */
+    /** Si la hoja es del formato nuevo (PDF con indicación de uso) y no de una receta anterior. */
+    public static function esPdf(?array $hoja): bool
+    {
+        return ($hoja['formato'] ?? null) === self::FORMATO_PDF;
+    }
+
+    /** Si los datos de la hoja se pasan de media hoja en alguna de las dos mitades (MediaHoja), en su formato. */
     public static function excede(array $hoja): bool
     {
-        return MediaHoja::excede($hoja['medicamentos'], $hoja['observaciones'], $hoja['indicaciones'], filled($hoja['reemplaza_a']));
+        return self::esPdf($hoja)
+            ? MediaHoja::excedeConIndicacionUso($hoja['medicamentos'], $hoja['observaciones'], filled($hoja['reemplaza_a']))
+            : MediaHoja::excede($hoja['medicamentos'], $hoja['observaciones'], $hoja['indicaciones'], filled($hoja['reemplaza_a']));
+    }
+
+    /** Si algún medicamento no tiene su indicación de uso (no se emite así). */
+    public static function faltaIndicacion(array $hoja): bool
+    {
+        return collect($hoja['medicamentos'])->contains(fn (array $medicamento) => blank($medicamento['indicacion_uso'] ?? null));
     }
 
     /**

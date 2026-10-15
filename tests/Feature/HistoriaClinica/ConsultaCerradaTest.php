@@ -102,7 +102,7 @@ function intentosDeEscritura(): array
         'recetas: formulario de alta' => [fn () => test()->get(route('admin.recetas.create', $c)), ['RECETAS.CREAR']],
         'recetas: crear' => [fn () => test()->post(route('admin.recetas.store', $c), ['con_detalles' => '1', 'detalles' => [hcRenglon()], 'observaciones' => '']), ['RECETAS.CREAR']],
         'recetas: formulario de edición' => [fn () => test()->get(route('admin.recetas.edit', $r)), ['RECETAS.EDITAR']],
-        'recetas: guardar' => [fn () => test()->put(route('admin.recetas.update', $r), ['version' => $r->version(), 'con_detalles' => '1', 'detalles' => [hcRenglon(['dosis' => 'Otra'])]]), ['RECETAS.EDITAR']],
+        'recetas: guardar' => [fn () => test()->put(route('admin.recetas.update', $r), ['version' => $r->version(), 'con_detalles' => '1', 'detalles' => [hcRenglon(['indicacion_uso' => 'Otra'])]]), ['RECETAS.EDITAR']],
         'recetas: emitir' => [fn () => test()->post(route('admin.recetas.emitir', $r), ['version' => $r->version()]), ['RECETAS.CREAR']],
         'recetas: anular y corregir' => [fn () => test()->post(route('admin.recetas.corregir', $r), ['motivo' => 'Dosis equivocada']), ['RECETAS.EDITAR']],
     ];

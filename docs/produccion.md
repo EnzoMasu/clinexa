@@ -14,5 +14,5 @@ Lista de control previa a cargar pacientes reales. Sin datos personales: marcar 
 - [ ] **Borrar `users.perfil_acceso_id`** (columna vieja, reemplazada por varios perfiles por usuario).
 - [ ] **Respaldos cifrados y fuera de la PC** (`docs/respaldo.md`), con una restauración de prueba.
 - [ ] **Desactivar los dos perfiles viejos sin usuarios.**
-- [ ] **PDF clínico.** Revisar el aspecto en papel de los PDF de triaje y de consulta (`docs/pdf-clinico.md`) y quiénes tienen `PDF_CLINICO`.
+- [ ] **PDF clínico.** Revisar el aspecto en papel de los PDF de triaje, de consulta y de la receta (`docs/pdf-clinico.md`) y quiénes tienen `PDF_CLINICO`.
 - [ ] **Revisión legal de los textos** que salen impresos: reposo y constancias de retiro y de estado (`config/constancias.php`; luego poner `borrador` en `false`).

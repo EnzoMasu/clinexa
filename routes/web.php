@@ -279,6 +279,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         Route::middleware('permiso:RECETAS,VER')->group(function () {
             Route::get('recetas/{receta}/vista-previa', [RecetaController::class, 'vistaPrevia'])->name('recetas.vista-previa')->whereNumber('receta');
             Route::get('recetas/{receta}/imprimir', [RecetaController::class, 'imprimir'])->name('recetas.imprimir')->whereNumber('receta');
+            // PDF de una receta con indicación de uso (al vuelo, con su registro en Auditoría; docs/pdf-clinico.md).
+            Route::get('recetas/{receta}/pdf', [RecetaController::class, 'pdf'])->name('recetas.pdf')->whereNumber('receta');
         });
         Route::middleware('permiso:RECETAS,CREAR')->group(function () {
             Route::get('consultas/{consulta}/recetas/create', [RecetaController::class, 'create'])->name('recetas.create')->whereNumber('consulta')->middleware('consulta.abierta');

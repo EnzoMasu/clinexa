@@ -40,7 +40,7 @@ describe('auditoría de recetas', function () {
         $receta = hcReceta($this->consulta);
         Carbon::setTestNow(now()->addMinute());
         $this->put(route('admin.recetas.update', $receta), ['version' => $receta->version(), 'con_detalles' => '1',
-            'detalles' => [hcRenglon(['id' => (string) $receta->detalles()->first()->id, 'dosis' => '2 comprimidos'])]])->assertSessionHasNoErrors();
+            'detalles' => [hcRenglon(['id' => (string) $receta->detalles()->first()->id, 'indicacion_uso' => 'Indicación de prueba B'])]])->assertSessionHasNoErrors();
         hcEmitir($receta);
         $this->post(route('admin.recetas.anular', $receta), ['motivo' => 'Dosis equivocada']);
 
@@ -54,8 +54,8 @@ describe('auditoría de recetas', function () {
         ]);
 
         $renglones = $eventos->values()[2];
-        expect($renglones->valor_anterior)->toBe(['detalles' => ['Amoxicilina 500 mg · 1 caja x 21 · 1 comprimido · Oral · Cada 8 horas · 7 días · Tomar con las comidas']])
-            ->and($renglones->valor_nuevo)->toBe(['detalles' => ['Amoxicilina 500 mg · 1 caja x 21 · 2 comprimidos · Oral · Cada 8 horas · 7 días · Tomar con las comidas']])
+        expect($renglones->valor_anterior)->toBe(['detalles' => ['Amoxicilina 500 mg · 1 caja x 21 · Indicación de prueba A']])
+            ->and($renglones->valor_nuevo)->toBe(['detalles' => ['Amoxicilina 500 mg · 1 caja x 21 · Indicación de prueba B']])
             ->and($eventos->last()->detalle)->toBe('Motivo: Dosis equivocada')
             ->and($eventos->values()[3]->valor_nuevo['numero'])->toBe('RE-0000001');
     });
@@ -226,12 +226,12 @@ describe('indicaciones generales', function () {
 });
 
 describe('escapado', function () {
-    test('HTML y JS en medicamento, dosis, observaciones, indicaciones y motivo: escapados en formulario, consulta, popup, hoja y auditoría', function () {
+    test('HTML y JS en medicamento, indicación de uso, observaciones, indicaciones y motivo: escapados en formulario, consulta, popup, PDF y auditoría', function () {
         $img = '<img src=x onerror=alert(1)>';
         $script = '"><script>alert(1)</script>';
         Carbon::setTestNow(now()->addMinute());
         hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => "Indicación {$img}"]]))->assertSessionHasNoErrors();
-        $receta = hcReceta($this->consulta, [hcRenglon(['medicamento' => "Med {$img}", 'dosis' => "Dosis {$script}", 'observaciones' => "Obs {$img}"])], ['observaciones' => "Receta {$script}"]);
+        $receta = hcReceta($this->consulta, [hcRenglon(['medicamento' => "Med {$img}", 'indicacion_uso' => "Uso {$script}"])], ['observaciones' => "Receta {$script}"]);
 
         $sinCrudo = fn ($respuesta) => $respuesta->assertDontSee($img, false)->assertDontSee('<script>alert(1)</script>', false);
         $escapado = '&lt;img src=x onerror=alert(1)&gt;';
@@ -239,17 +239,18 @@ describe('escapado', function () {
         // Formulario del borrador: los renglones van a Alpine como JSON codificado; las observaciones, en el textarea.
         $sinCrudo($this->get(route('admin.recetas.edit', $receta))->assertOk())
             ->assertSee('Med \\\\u003Cimg src=x onerror=alert(1)\\\\u003E', false)->assertSee('Receta &quot;&gt;&lt;script&gt;', false);
-        // Vista previa (hoja con datos vivos).
-        $sinCrudo($this->get(route('admin.recetas.vista-previa', $receta))->assertOk())
-            ->assertSee("Med {$escapado}", false)->assertSee('Dosis &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;', false)
-            ->assertSee("Obs {$escapado}", false)->assertSee("Indicación {$escapado}", false);
+        // Vista previa: la página y el PDF con datos vivos (sin las indicaciones generales).
+        $sinCrudo($this->get(route('admin.recetas.vista-previa', $receta))->assertOk());
+        expect(hcPdfReceta($receta))->not->toContain($img)->not->toContain('<script>alert(1)</script>')
+            ->toContain("Med {$escapado}")->toContain('Uso &quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;')->toContain('Receta &quot;&gt;&lt;script&gt;');
 
         hcEmitir($receta);
         $this->post(route('admin.recetas.anular', $receta), ['motivo' => "Motivo {$script}"]);
         $this->flushSession();
 
         // Hoja (snapshot), página de la consulta y popup.
-        $sinCrudo($this->get(route('admin.recetas.imprimir', $receta))->assertOk())->assertSee("Med {$escapado}", false)->assertSee('Motivo: Motivo &quot;&gt;&lt;script&gt;', false);
+        $sinCrudo($this->get(route('admin.recetas.imprimir', $receta))->assertOk())->assertSee('Motivo: Motivo &quot;&gt;&lt;script&gt;', false);
+        expect(hcPdfReceta($receta))->not->toContain($img)->toContain("Med {$escapado}")->toContain('Uso &quot;&gt;&lt;script&gt;');
         $sinCrudo($this->get(route('admin.consultas.show', $this->consulta))->assertOk())
             ->assertSee("Med {$escapado}", false)->assertSee("Indicación {$escapado}", false)->assertSee('Motivo de la anulación: Motivo &quot;&gt;&lt;script&gt;', false);
         $sinCrudo($this->get(route('admin.consultas.detalle', $this->consulta), ['X-Requested-With' => 'XMLHttpRequest'])->assertOk())
@@ -266,7 +267,7 @@ describe('escapado', function () {
     });
 
     test('las vistas de recetas no usan {!! !!}', function () {
-        foreach (['recetas/form', 'recetas/hoja', 'recetas/_hoja', 'admin/consultas/_contenido', 'admin/consultas/show'] as $vista) {
+        foreach (['recetas/form', 'recetas/hoja', 'recetas/_hoja', 'recetas/pdf', 'recetas/_barra', 'pdf-receta/hoja', 'admin/consultas/_contenido', 'admin/consultas/show'] as $vista) {
             expect(file_get_contents(resource_path("views/{$vista}.blade.php")))->not->toContain('{!!');
         }
     });
