@@ -15,8 +15,8 @@ class Dieta extends Model
 {
     use Auditable, TieneEstado;
 
-    /** Mismo tope que el texto de una indicación general: la dieta siempre entra al copiarla. */
-    public const MAXIMO_TEXTO = 500;
+    /** Mismo tope que el texto de una indicación general (Indicacion::MAXIMO_DESCRIPCION): la dieta sola siempre entra al copiarla. */
+    public const MAXIMO_TEXTO = 3000;
 
     protected $table = 'dietas';
 

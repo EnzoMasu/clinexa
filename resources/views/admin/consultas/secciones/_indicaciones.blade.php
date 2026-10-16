@@ -10,7 +10,7 @@
         filas: {{ Js::from($datos['filasIndicaciones']) }},
         tiposActivos: {{ Js::from($datos['tiposIndicacion']) }},
         dietas: {{ Js::from($datos['dietas']) }},
-        maximo: 500,
+        maximo: {{ \App\Models\Indicacion::MAXIMO_DESCRIPCION }},
         // Los tipos activos, más el inactivo que esta fila ya tenía.
         tiposPara(fila) { return fila.tipoInactivo ? [...this.tiposActivos, fila.tipoInactivo] : this.tiposActivos },
         agregar() { this.filas.push({ uid: 'n-' + Date.now() + Math.random(), id: '', tipo_indicacion_id: '', descripcion: '', activo: true, tipoInactivo: null, incompleta: false }) },
@@ -21,7 +21,7 @@
             if (! dieta) { fila.avisoDieta = 'Elija una dieta.'; return; }
             const actual = (fila.descripcion ?? '').trimEnd();
             const nuevo = actual === '' ? dieta.texto : actual + '\n' + dieta.texto;
-            if (nuevo.length > this.maximo) { fila.avisoDieta = 'La dieta no entra: la indicación admite hasta ' + this.maximo + ' caracteres.'; return; }
+            if (nuevo.length > this.maximo) { fila.avisoDieta = 'La dieta no se insertó: no entra en lo que queda de la indicación (hasta ' + this.maximo + ' caracteres). Acorte la indicación o inserte la dieta en otra.'; return; }
             fila.descripcion = nuevo;
             fila.dietaElegida = '';
         },
@@ -61,7 +61,7 @@
             </div>
             <div x-bind:class="fila.activo ? '' : 'opacity-60'">
                 <label x-bind:for="`indicacion_descripcion_${i}`" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Indicación</label>
-                <textarea rows="2" maxlength="500" x-bind:id="`indicacion_descripcion_${i}`" x-bind:name="`indicaciones[${i}][descripcion]`" x-model="fila.descripcion" class="{{ $clases }}"></textarea>
+                <textarea rows="2" maxlength="{{ \App\Models\Indicacion::MAXIMO_DESCRIPCION }}" x-bind:id="`indicacion_descripcion_${i}`" x-bind:name="`indicaciones[${i}][descripcion]`" x-model="fila.descripcion" class="{{ $clases }}"></textarea>
                 <p x-show="fila.incompleta" class="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">{{ \App\Support\Atencion\FormularioConsulta::FILA_INCOMPLETA }}</p>
                 @if ($datos['dietas'])
                     {{-- Sin name: la dieta elegida no se envía; solo se copia su texto. change.stop: elegir no es un cambio. --}}

@@ -109,3 +109,41 @@ test('en la simulación (migrate --pretend), que no devuelve filas, no falla', f
 
     expect(DB::pretend(fn () => migracionDietasArchivo()->up()))->not->toBeEmpty();
 });
+
+function migracionDietasMedicoArchivo(): object
+{
+    return require base_path('database/migrations/2026_10_22_100001_medico_ve_dietas.php');
+}
+
+test('la migración que da VER de dietas al Médico: lo suma, es idempotente y no toca a los demás', function () {
+    $this->seed(ModuloSistemaSeeder::class);
+    PerfilesPredefinidos::asegurar();
+    // Base anterior: el Médico sin el permiso.
+    $medico = PerfilAcceso::where('codigo', PerfilesPredefinidos::MEDICO)->sole();
+    $medico->permisos()->detach(Permiso::whereHas('moduloSistema', fn ($q) => $q->where('codigo', 'DIETAS'))->pluck('id'));
+    expect(migracionDietasAcciones(PerfilesPredefinidos::MEDICO))->toBe([]);
+
+    migracionDietasMedicoArchivo()->up();
+    migracionDietasMedicoArchivo()->up();
+
+    expect(migracionDietasAcciones(PerfilesPredefinidos::MEDICO))->toBe(['VER'])
+        ->and(migracionDietasAcciones(PerfilesPredefinidos::ENFERMERIA))->toBe([])
+        ->and(migracionDietasAcciones(PerfilesPredefinidos::RECEPCION))->toBe([]);
+});
+
+test('la migración del Médico no hace nada contra un catálogo sin el módulo, sin perfiles o en simulación', function () {
+    // Instalación nueva: ni módulos ni perfiles.
+    expect(ModuloSistema::count())->toBe(0);
+    migracionDietasMedicoArchivo()->up();
+    expect(Permiso::count())->toBe(0)->and(PerfilAcceso::count())->toBe(0);
+
+    // Con módulos y perfiles pero sin DIETAS (base anterior a la fase de dietas).
+    $this->seed(ModuloSistemaSeeder::class);
+    PerfilesPredefinidos::asegurar();
+    migracionDietasSinNada();
+    $antes = DB::table('perfil_permiso')->count();
+    migracionDietasMedicoArchivo()->up();
+    expect(DB::table('perfil_permiso')->count())->toBe($antes);
+
+    expect(DB::pretend(fn () => migracionDietasMedicoArchivo()->up()))->toBeArray();
+});

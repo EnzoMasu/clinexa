@@ -5,6 +5,7 @@ namespace App\Support\Atencion;
 use App\Enums\TipoDiagnostico;
 use App\Models\CatalogoCIE10;
 use App\Models\Consulta;
+use App\Models\Indicacion;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoIndicacion;
 use Closure;
@@ -93,7 +94,8 @@ final class FormularioConsulta
      */
     private static function normalizar(array $entrada, array $grupos): array
     {
-        $recortar = fn ($valor) => is_string($valor) ? (trim($valor) === '' ? null : trim($valor)) : $valor;
+        // El navegador envía los saltos de línea como CRLF: se guardan y se cuentan como uno solo (LF).
+        $recortar = fn ($valor) => is_string($valor) ? (trim($valor) === '' ? null : str_replace("\r\n", "\n", trim($valor))) : $valor;
         $filas = fn (array $lista) => array_map(fn ($fila) => is_array($fila)
             ? [...array_map($recortar, $fila), ...(filled($fila['id'] ?? null) ? [] : ['activo' => '1'])]
             : $fila, $lista);
@@ -285,7 +287,7 @@ final class FormularioConsulta
                         $fail('Elija un tipo de indicación activo, o déjelo sin tipo.');
                     }
                 }],
-                'indicaciones.*.descripcion' => ['required', 'string', 'max:500'],
+                'indicaciones.*.descripcion' => ['required', 'string', 'max:'.Indicacion::MAXIMO_DESCRIPCION],
             ];
         }
 

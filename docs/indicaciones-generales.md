@@ -27,19 +27,20 @@ tiene su propio certificado (`docs/reposo-medico.md`).
 
 ## Catálogo de dietas
 
-- Tabla `dietas`: **nombre** (único, hasta 100) y **texto** (hasta 500, el mismo tope que una indicación: siempre entra).
+- Tabla `dietas`: **nombre** (único, hasta 100) y **texto** (hasta 3000, el mismo tope que una indicación general).
   Estado ACTIVO o INACTIVO. **Nada se borra: se desactiva.**
 - **Nace vacío.** Lo carga un médico o nutricionista; ninguna migración ni seeder trae contenido.
 - **Módulo `DIETAS`** (Catálogos), en la matriz de permisos: Supervisión médica VER, CREAR, EDITAR y DESACTIVAR; el
-  Administrador lo recibe solo. El **Médico no tiene el módulo**: solo las usa desde la consulta (como los tipos de
-  indicación, se cargan sin permiso del módulo). Recepción no ve nada.
+  Administrador lo recibe solo. El **Médico tiene solo VER** (migración `medico_ve_dietas`): las lista y las usa desde la
+  consulta, pero no las administra. Recepción no ve nada.
 - Pantalla Catálogos → Dietas (`admin.dietas.*`). Los cambios quedan en Auditoría (no es contenido clínico).
 
 ## "Insertar dieta"
 
 - En cada indicación vigente, con dietas activas en el catálogo: elegir una dieta y "Insertar dieta". El texto se **copia**
-  al final de la indicación (en una línea aparte), que sigue siendo texto libre y se puede editar. Si no entra en los 500
-  caracteres, no se toca y se avisa.
+  al final de la indicación (en una línea aparte), que sigue siendo texto libre y se puede editar. Si no entra en los 3000
+  caracteres de la indicación, **no se inserta, no se corta** y se avisa. Los saltos de línea se respetan en pantalla y en el PDF
+  (`white-space: pre-line`) y cuentan como un carácter.
 - **Sin enlace vivo:** la indicación no guarda de qué dieta salió. Editar o desactivar la dieta después no altera lo ya
   guardado. Una dieta desactivada deja de ofrecerse; lo copiado se conserva.
 - Está donde se editan las indicaciones: la atención (consulta abierta) y la corrección autorizada. Nunca en una consulta

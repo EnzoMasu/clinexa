@@ -50,11 +50,24 @@ describe('el catálogo', function () {
         }
     });
 
-    test('el Médico y Recepción no ven ni tocan el catálogo', function () {
+    test('el Médico solo las lista (VER); no crea, edita ni desactiva', function () {
+        $dieta = dietasCrear('Dieta listada de prueba', 'Texto de prueba.');
+        // Con los permisos del perfil Médico predefinido (la matriz), no con los de prueba del escenario.
+        $medico = User::factory()->conPermisos(PerfilesPredefinidos::MATRIZ[PerfilesPredefinidos::MEDICO])->create();
+
+        $this->actingAs($medico)->get(route('admin.dietas.index'))->assertOk()->assertSee('Dieta listada de prueba');
+        $this->actingAs($medico)->get(route('admin.dietas.create'))->assertForbidden();
+        $this->actingAs($medico)->post(route('admin.dietas.store'), ['nombre' => 'Otra', 'texto' => 'Otro.'])->assertForbidden();
+        $this->actingAs($medico)->put(route('admin.dietas.update', $dieta), ['nombre' => 'X', 'texto' => 'X.'])->assertForbidden();
+        $this->actingAs($medico)->patch(route('admin.dietas.desactivar', $dieta))->assertForbidden();
+        expect(Dieta::count())->toBe(1)->and($dieta->fresh()->texto)->toBe('Texto de prueba.');
+    });
+
+    test('Recepción no ve ni toca el catálogo', function () {
         $dieta = dietasCrear('Dieta de prueba', 'Texto de prueba.');
         $recepcion = User::factory()->conPermisos(['TURNOS' => ['VER', 'CREAR', 'EDITAR'], 'PACIENTES' => ['VER', 'CREAR', 'EDITAR']])->create();
 
-        foreach ([$this->medico, $recepcion] as $usuario) {
+        foreach ([$recepcion] as $usuario) {
             $this->actingAs($usuario)->get(route('admin.dietas.index'))->assertForbidden();
             $this->actingAs($usuario)->get(route('admin.dietas.create'))->assertForbidden();
             $this->actingAs($usuario)->post(route('admin.dietas.store'), ['nombre' => 'Otra', 'texto' => 'Otro.'])->assertForbidden();
@@ -64,9 +77,10 @@ describe('el catálogo', function () {
         expect(Dieta::count())->toBe(1)->and($dieta->fresh()->texto)->toBe('Texto de prueba.');
     });
 
-    test('la matriz predefinida: Supervisión médica lo administra; Médico, Enfermería y Recepción no lo tienen', function () {
-        expect(PerfilesPredefinidos::MATRIZ[PerfilesPredefinidos::SUPERVISION_MEDICA]['DIETAS'])->toBe(['VER', 'CREAR', 'EDITAR', 'DESACTIVAR']);
-        foreach ([PerfilesPredefinidos::MEDICO, PerfilesPredefinidos::ENFERMERIA, PerfilesPredefinidos::RECEPCION] as $perfil) {
+    test('la matriz predefinida: Supervisión médica lo administra, el Médico solo VER; Enfermería y Recepción no lo tienen', function () {
+        expect(PerfilesPredefinidos::MATRIZ[PerfilesPredefinidos::SUPERVISION_MEDICA]['DIETAS'])->toBe(['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'])
+            ->and(PerfilesPredefinidos::MATRIZ[PerfilesPredefinidos::MEDICO]['DIETAS'])->toBe(['VER']);
+        foreach ([PerfilesPredefinidos::ENFERMERIA, PerfilesPredefinidos::RECEPCION] as $perfil) {
             expect(PerfilesPredefinidos::MATRIZ[$perfil])->not->toHaveKey('DIETAS');
         }
     });
@@ -75,8 +89,11 @@ describe('el catálogo', function () {
         expect(Route::has('admin.dietas.destroy'))->toBeFalse();
     });
 
-    test('el texto es obligatorio y entra en una indicación (hasta 500 caracteres)', function () {
+    test('el texto es obligatorio y admite hasta 3000 caracteres (el tope de una indicación)', function () {
         $usuario = User::factory()->conPermisos(DIETAS_TODO)->create();
+        expect(Dieta::MAXIMO_TEXTO)->toBe(3000)->and(Indicacion::MAXIMO_DESCRIPCION)->toBe(3000);
+        $this->actingAs($usuario)->post(route('admin.dietas.store'), ['nombre' => 'Justa', 'texto' => str_repeat('a', 3000)])->assertSessionHasNoErrors();
+        Dieta::query()->delete();
 
         $this->actingAs($usuario)->post(route('admin.dietas.store'), ['nombre' => 'Larga', 'texto' => str_repeat('a', Dieta::MAXIMO_TEXTO + 1)])
             ->assertSessionHasErrors('texto');
@@ -86,6 +103,46 @@ describe('el catálogo', function () {
 });
 
 describe('Insertar dieta en la indicación', function () {
+    test('la indicación admite hasta 3000 caracteres, con los saltos de línea contados como uno', function () {
+        $consulta = hcEnCurso();
+        $enviar = fn (string $texto) => hcAutoguardar($consulta, hcDatos(['con_indicaciones' => '1', 'indicaciones' => [
+            ['uid' => 'n-1', 'id' => '', 'activo' => '1', 'tipo_indicacion_id' => '', 'descripcion' => $texto],
+        ]]));
+
+        $enviar(str_repeat('a', 3001))->assertUnprocessable()->assertJsonValidationErrors('indicaciones.0.descripcion');
+        expect(Indicacion::count())->toBe(0);
+        // 2999 letras + 1 salto de línea tal como lo envía el navegador (CRLF) = 3000: entra y se guarda con LF.
+        $enviar(str_repeat('a', 1499)."
+".str_repeat('b', 1500))->assertOk();
+        expect(Indicacion::sole()->descripcion)->toBe(str_repeat('a', 1499)."
+".str_repeat('b', 1500));
+    });
+
+    test('si la dieta no entra en lo que queda de la indicación, la pantalla avisa y no corta el texto', function () {
+        dietasCrear('Dieta ofrecida de prueba', 'Texto ofrecido.');
+        $html = $this->actingAs($this->medico)->get(route('admin.consultas.atencion', hcEnCurso()))->assertOk()->getContent();
+
+        expect($html)->toContain('maximo: 3000')->toContain('maxlength="3000"')
+            ->toContain('La dieta no se insertó: no entra en lo que queda de la indicación')
+            ->toContain('if (nuevo.length > this.maximo) {')
+            // El aviso corta ANTES de asignar: nunca se copia un texto recortado.
+            ->and(strpos($html, 'if (nuevo.length > this.maximo)'))->toBeLessThan(strpos($html, 'fila.descripcion = nuevo'));
+    });
+
+    test('los saltos de línea de la indicación se respetan en pantalla y en el PDF', function () {
+        $consulta = hcEnCurso();
+        hcAutoguardar($consulta, hcDatos(['con_indicaciones' => '1', 'indicaciones' => [
+            ['uid' => 'n-1', 'id' => '', 'activo' => '1', 'tipo_indicacion_id' => '', 'descripcion' => "Primera línea
+Segunda línea"],
+        ]]))->assertOk();
+        $consulta = $consulta->fresh();
+
+        expect(File::get(resource_path('views/admin/consultas/_contenido.blade.php')))->toContain('whitespace-pre-line">{{ $indicacion->descripcion }}')
+            ->and(File::get(resource_path('views/pdf-indicaciones/hoja.blade.php')))->toContain('.texto-libre { white-space: pre-line; }')
+            ->and(PdfIndicaciones::html($consulta, PdfIndicaciones::vigentes($consulta)))->toContain("Primera línea
+Segunda línea");
+    });
+
     test('la pantalla de atención ofrece solo las dietas activas', function () {
         dietasCrear('Dieta ofrecida de prueba', 'Texto ofrecido.');
         dietasCrear('Dieta apagada de prueba', 'Texto apagado.', Estado::INACTIVO);

@@ -122,6 +122,8 @@ class PerfilesPredefinidos
             'TURNOS' => self::VER, 'DISPONIBILIDAD' => self::VER, 'CONSULTORIOS' => self::VER, 'PACIENTES' => self::VER,
             'PARAMETROS_CLINICOS' => self::VER, 'CONSTANCIAS_ESTADO' => self::VER_CREAR_EDITAR,
             'PDF_CLINICO' => self::EXPORTAR, 'REPOSO_MEDICO' => self::VER_CREAR_EDITAR,
+            // Dietas: puede listarlas y usarlas en la indicación; no las administra (eso es de Supervisión médica).
+            'DIETAS' => self::VER,
         ],
         self::ENFERMERIA => [
             'PREPARACION' => self::VER_CREAR_EDITAR, 'PDF_CLINICO' => self::EXPORTAR,
@@ -155,7 +157,7 @@ class PerfilesPredefinidos
             'PDF_CLINICO' => self::EXPORTAR,
             // Reposo médico: solo ver y sacar el PDF (no emite ni anula).
             'REPOSO_MEDICO' => self::VER,
-            // Catálogo de dietas: lo administra (el Médico solo las usa en la indicación, sin permiso del módulo).
+            // Catálogo de dietas: lo administra (el Médico solo las ve y usa: VER).
             'DIETAS' => self::TODO,
         ],
         self::AUDITOR => [
