@@ -35,7 +35,7 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             // Correcciones de una consulta cerrada: los estados del desbloqueo.
             'CORRECCIONES_HC' => [['CANCELADO', 'REALIZADO', 'VENCIDO', 'VIGENTE'], 'VIGENTE'],
             // Constancias: nacen emitidas (inicial) y solo se anulan.
-            'CONSTANCIAS_RETIRO', 'CONSTANCIAS_ESTADO', 'REPOSO_MEDICO' => [['ANULADO', 'EMITIDO'], 'EMITIDO'],
+            'CONSTANCIAS_RETIRO', 'CONSTANCIAS_ESTADO', 'REPOSO_MEDICO', 'ORDENES_ESTUDIO' => [['ANULADO', 'EMITIDO'], 'EMITIDO'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

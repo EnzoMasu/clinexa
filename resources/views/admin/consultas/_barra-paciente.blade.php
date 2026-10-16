@@ -27,4 +27,5 @@
     </span>
     @include('admin.consultas._enlaces-pdf')
     @include('admin.reposos._enlace')
+    @include('admin.ordenes-estudio._enlace')
 </div>

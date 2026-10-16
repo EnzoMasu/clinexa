@@ -27,6 +27,8 @@ class Permiso extends Model
         'PDF_CLINICO' => ['EXPORTAR'],
         // Reposo médico: se ve (y se saca su PDF), se emite y se anula; no se desactiva ni se borra.
         'REPOSO_MEDICO' => ['VER', 'CREAR', 'EDITAR'],
+        // Orden de estudio: igual que el reposo (se ve, se emite y se anula).
+        'ORDENES_ESTUDIO' => ['VER', 'CREAR', 'EDITAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

@@ -24,6 +24,7 @@ use App\Models\Dieta;
 use App\Models\Disponibilidad;
 use App\Models\Especialidad;
 use App\Models\Estado;
+use App\Models\Estudio;
 use App\Models\ExamenFisico;
 use App\Models\HistoriaClinica;
 use App\Models\Indicacion;
@@ -40,6 +41,7 @@ use App\Models\Procedimiento;
 use App\Models\Profesional;
 use App\Models\Proveedor;
 use App\Models\NotaSalida;
+use App\Models\OrdenEstudio;
 use App\Models\Receta;
 use App\Models\ReposoMedico;
 use App\Models\ResponsablePago;
@@ -83,6 +85,8 @@ final class Auditoria
         OrigenTurno::class, Disponibilidad::class, CupoEntrePacientes::class, Turno::class, TipoRedSocial::class, TipoBloqueAnamnesis::class, TipoIndicacion::class,
         // Catálogo de dietas: texto general, sin datos de pacientes (lo ve quien ve la auditoría).
         Dieta::class,
+        // Catálogo de estudios: solo nombres, sin datos de pacientes.
+        Estudio::class,
         // Personal de salud, sus cargos y los parámetros clínicos: no son contenido clínico (los ve quien ve la auditoría).
         CargoSalud::class, PersonalSalud::class, ParametroClinico::class,
         // Historia clínica (módulo HISTORIA_CLINICA; la historia primero: es la tabla de sus lecturas).
@@ -97,6 +101,8 @@ final class Auditoria
         ConstanciaRetiro::class, ConstanciaEstado::class,
         // Certificados de reposo médico (módulo REPOSO_MEDICO): contenido clínico.
         ReposoMedico::class,
+        // Órdenes de estudio (módulo ORDENES_ESTUDIO): contenido clínico.
+        OrdenEstudio::class,
     ];
 
     /**
@@ -106,8 +112,8 @@ final class Auditoria
     public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos', 'indicaciones',
         // Adendas, desbloqueos (con su motivo) y versiones de las correcciones: también contenido clínico.
         'adendas_consulta', 'desbloqueos_consulta', 'consulta_versiones',
-        // La nota clínica de un retiro o rechazo y los certificados de reposo médico.
-        'notas_salida', 'reposos_medicos'];
+        // La nota clínica de un retiro o rechazo, los certificados de reposo médico y las órdenes de estudio.
+        'notas_salida', 'reposos_medicos', 'ordenes_estudio'];
 
     /** Tablas de recetas: sus valores solo los ve quien tiene VER sobre RECETAS (misma regla, otro permiso). */
     public const TABLAS_RECETAS = ['recetas', 'detalles_receta'];

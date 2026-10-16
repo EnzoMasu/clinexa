@@ -17,7 +17,9 @@ use App\Http\Controllers\Admin\DepartamentoController;
 use App\Http\Controllers\Admin\DietaController;
 use App\Http\Controllers\Admin\DisponibilidadController;
 use App\Http\Controllers\Admin\EspecialidadController;
+use App\Http\Controllers\Admin\EstudioController;
 use App\Http\Controllers\Admin\HistoriaClinicaController;
+use App\Http\Controllers\Admin\OrdenEstudioController;
 use App\Http\Controllers\Admin\MatrizPermisosController;
 use App\Http\Controllers\Admin\MedioPagoController;
 use App\Http\Controllers\Admin\OrigenTurnoController;
@@ -128,6 +130,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('tipos-indicacion', TipoIndicacionController::class, 'TIPOS_INDICACION', 'tipoIndicacion', conBaja: true);
     // Dietas: catálogo que se copia a la indicación general (docs/indicaciones-generales.md). No se borra: se desactiva.
     $seccion('dietas', DietaController::class, 'DIETAS', 'dieta', conBaja: true);
+    // Estudios: catálogo que se ofrece en la orden de estudio (docs/ordenes-estudio.md). No se borra: se desactiva.
+    $seccion('estudios', EstudioController::class, 'ESTUDIOS', 'estudio', conBaja: true);
     $seccion('cargos-salud', CargoSaludController::class, 'CARGOS_SALUD', 'cargoSalud', conBaja: true);
     // Parámetros clínicos: un juego fijo (no se crean ni se desactivan); se editan y se aprueban con EDITAR (aprobar,
     // además, siendo Profesional activo: el controlador).
@@ -332,6 +336,19 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             ->whereNumber('consulta')->middleware('permiso:REPOSO_MEDICO,CREAR');
         Route::post('reposos/{reposo}/anular', [ReposoMedicoController::class, 'anular'])->name('reposos.anular')
             ->whereNumber('reposo')->middleware('permiso:REPOSO_MEDICO,EDITAR');
+
+        // Orden de estudio (docs/ordenes-estudio.md): mismo patrón que el reposo. VER: la lista de la consulta, el detalle y
+        // el PDF (al vuelo, con su registro en Auditoría); CREAR: emitir; EDITAR: anular con motivo. No hay DELETE. Quién
+        // puede lo decide OrdenEstudioPolicy.
+        Route::middleware('permiso:ORDENES_ESTUDIO,VER')->group(function () {
+            Route::get('consultas/{consulta}/ordenes-estudio', [OrdenEstudioController::class, 'index'])->name('ordenes-estudio.consulta')->whereNumber('consulta');
+            Route::get('ordenes-estudio/{orden}', [OrdenEstudioController::class, 'show'])->name('ordenes-estudio.show')->whereNumber('orden');
+            Route::get('ordenes-estudio/{orden}/pdf', [OrdenEstudioController::class, 'pdf'])->name('ordenes-estudio.pdf')->whereNumber('orden');
+        });
+        Route::post('consultas/{consulta}/ordenes-estudio', [OrdenEstudioController::class, 'emitir'])->name('ordenes-estudio.emitir')
+            ->whereNumber('consulta')->middleware('permiso:ORDENES_ESTUDIO,CREAR');
+        Route::post('ordenes-estudio/{orden}/anular', [OrdenEstudioController::class, 'anular'])->name('ordenes-estudio.anular')
+            ->whereNumber('orden')->middleware('permiso:ORDENES_ESTUDIO,EDITAR');
     });
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
