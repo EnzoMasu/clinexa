@@ -68,6 +68,8 @@ class ModuloSistemaSeeder extends Seeder
             'CONSTANCIAS_ESTADO' => ['Constancias de estado del turno', [Estado::EMITIDO, Estado::ANULADO]],
             // PDF clínico (triaje y consulta en curso o cerrada): se genera al vuelo; solo EXPORTAR. Ver docs/pdf-clinico.md.
             'PDF_CLINICO' => ['PDF clínico (triaje y consulta)', self::ACTIVO_INACTIVO],
+            // Certificado de reposo médico: documento inmutable, nace emitido y solo se anula. Ver docs/reposo-medico.md.
+            'REPOSO_MEDICO' => ['Certificados de reposo médico', [Estado::EMITIDO, Estado::ANULADO]],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

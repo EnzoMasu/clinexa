@@ -40,6 +40,7 @@ use App\Models\Profesional;
 use App\Models\Proveedor;
 use App\Models\NotaSalida;
 use App\Models\Receta;
+use App\Models\ReposoMedico;
 use App\Models\ResponsablePago;
 use App\Models\SalidaSinAtencion;
 use App\Models\Sucursal;
@@ -91,6 +92,8 @@ final class Auditoria
         SalidaSinAtencion::class, NotaSalida::class,
         // Constancias de retiro y de estado: documentos sin contenido clínico (los ve quien ve la auditoría).
         ConstanciaRetiro::class, ConstanciaEstado::class,
+        // Certificados de reposo médico (módulo REPOSO_MEDICO): contenido clínico.
+        ReposoMedico::class,
     ];
 
     /**
@@ -100,8 +103,8 @@ final class Auditoria
     public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos', 'indicaciones',
         // Adendas, desbloqueos (con su motivo) y versiones de las correcciones: también contenido clínico.
         'adendas_consulta', 'desbloqueos_consulta', 'consulta_versiones',
-        // La nota clínica de un retiro o rechazo.
-        'notas_salida'];
+        // La nota clínica de un retiro o rechazo y los certificados de reposo médico.
+        'notas_salida', 'reposos_medicos'];
 
     /** Tablas de recetas: sus valores solo los ve quien tiene VER sobre RECETAS (misma regla, otro permiso). */
     public const TABLAS_RECETAS = ['recetas', 'detalles_receta'];

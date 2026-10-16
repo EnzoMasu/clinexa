@@ -26,4 +26,5 @@
         · {{ $consulta->profesional->persona->nombre_completo }}
     </span>
     @include('admin.consultas._enlaces-pdf')
+    @include('admin.reposos._enlace')
 </div>
