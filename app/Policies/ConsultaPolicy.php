@@ -51,7 +51,8 @@ class ConsultaPolicy
     public const PDF_NO_PERMITIDO = 'No tiene permiso para generar este PDF.';
 
     /**
-     * Generar el PDF de triaje o de la consulta (docs/pdf-clinico.md), con la consulta abierta o cerrada: EXPORTAR sobre
+     * Generar el PDF de triaje, de la consulta o de sus indicaciones generales (docs/pdf-clinico.md; el de indicaciones,
+     * docs/indicaciones-generales.md, sigue la regla del de la consulta), con la consulta abierta o cerrada: EXPORTAR sobre
      * PDF_CLINICO y además ser (a) el Administrador, (b) Supervisión médica (VER sobre CORRECCIONES_HC), (c) el profesional
      * ACTIVO de la consulta o (d) solo para el PDF de triaje, el personal de salud que cargó algo del triaje. Recepción
      * no tiene el permiso. Una consulta ANULADA no existe (404 antes de llegar acá).

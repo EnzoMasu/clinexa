@@ -155,6 +155,8 @@ class PerfilesPredefinidos
             'PDF_CLINICO' => self::EXPORTAR,
             // Reposo médico: solo ver y sacar el PDF (no emite ni anula).
             'REPOSO_MEDICO' => self::VER,
+            // Catálogo de dietas: lo administra (el Médico solo las usa en la indicación, sin permiso del módulo).
+            'DIETAS' => self::TODO,
         ],
         self::AUDITOR => [
             'AUDITORIA' => self::VER,

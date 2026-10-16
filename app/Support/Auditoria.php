@@ -20,6 +20,7 @@ use App\Models\Departamento;
 use App\Models\DesbloqueoConsulta;
 use App\Models\DetalleReceta;
 use App\Models\Diagnostico;
+use App\Models\Dieta;
 use App\Models\Disponibilidad;
 use App\Models\Especialidad;
 use App\Models\Estado;
@@ -80,6 +81,8 @@ final class Auditoria
         CategoriaProveedor::class, Procedimiento::class, Pais::class,
         Departamento::class, Ciudad::class, Consultorio::class,
         OrigenTurno::class, Disponibilidad::class, CupoEntrePacientes::class, Turno::class, TipoRedSocial::class, TipoBloqueAnamnesis::class, TipoIndicacion::class,
+        // Catálogo de dietas: texto general, sin datos de pacientes (lo ve quien ve la auditoría).
+        Dieta::class,
         // Personal de salud, sus cargos y los parámetros clínicos: no son contenido clínico (los ve quien ve la auditoría).
         CargoSalud::class, PersonalSalud::class, ParametroClinico::class,
         // Historia clínica (módulo HISTORIA_CLINICA; la historia primero: es la tabla de sus lecturas).
