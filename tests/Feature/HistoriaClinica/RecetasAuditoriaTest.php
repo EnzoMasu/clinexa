@@ -170,11 +170,11 @@ describe('indicaciones generales', function () {
         expect(Indicacion::where('activo', true)->count())->toBe(10);
     });
 
-    test('descripción obligatoria (al finalizar; en el borrador la fila queda incompleta) y de hasta 500; un tipo inactivo solo vale en la fila que ya lo tenía', function () {
+    test('descripción obligatoria (al finalizar; en el borrador la fila queda incompleta) y de hasta 3000; un tipo inactivo solo vale en la fila que ya lo tenía', function () {
         hcActualizar($this->consulta, conIndicaciones([['uid' => 'n-1', 'id' => '', 'tipo_indicacion_id' => '', 'descripcion' => ' ']]))->assertOk()->assertJsonPath('incompletas.indicaciones', ['n-1']);
         hcFinalizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => ' ']]))->assertSessionHasErrors('indicaciones.0.descripcion');
         expect($this->consulta->fresh()->enCurso())->toBeTrue()->and(Indicacion::count())->toBe(0);
-        hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => str_repeat('a', 501)]]))->assertStatus(422)->assertJsonValidationErrors('indicaciones.0.descripcion');
+        hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => '', 'descripcion' => str_repeat('a', 3001)]]))->assertStatus(422)->assertJsonValidationErrors('indicaciones.0.descripcion');
 
         hcActualizar($this->consulta, conIndicaciones([['id' => '', 'tipo_indicacion_id' => $this->reposo->id, 'descripcion' => 'Reposo']]))->assertSessionHasNoErrors();
         $this->reposo->desactivar();

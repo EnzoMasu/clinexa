@@ -16,6 +16,9 @@ class Indicacion extends Model
 {
     use Auditable, ProtegidoPorCierre;
 
+    /** Tope del texto de una indicación general (caracteres, con los saltos de línea contados como uno). */
+    public const MAXIMO_DESCRIPCION = 3000;
+
     protected $table = 'indicaciones';
 
     protected $fillable = [

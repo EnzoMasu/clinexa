@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\ConsultaController;
 use App\Http\Controllers\Admin\ConsultorioController;
 use App\Http\Controllers\Admin\CupoEntrePacientesController;
 use App\Http\Controllers\Admin\DepartamentoController;
+use App\Http\Controllers\Admin\DietaController;
 use App\Http\Controllers\Admin\DisponibilidadController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\HistoriaClinicaController;
@@ -125,6 +126,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
     $seccion('tipos-bloque-anamnesis', TipoBloqueAnamnesisController::class, 'TIPOS_BLOQUE_ANAMNESIS', 'tipoBloqueAnamnesis', conBaja: true);
     $seccion('tipos-indicacion', TipoIndicacionController::class, 'TIPOS_INDICACION', 'tipoIndicacion', conBaja: true);
+    // Dietas: catálogo que se copia a la indicación general (docs/indicaciones-generales.md). No se borra: se desactiva.
+    $seccion('dietas', DietaController::class, 'DIETAS', 'dieta', conBaja: true);
     $seccion('cargos-salud', CargoSaludController::class, 'CARGOS_SALUD', 'cargoSalud', conBaja: true);
     // Parámetros clínicos: un juego fijo (no se crean ni se desactivan); se editan y se aprueban con EDITAR (aprobar,
     // además, siendo Profesional activo: el controlador).
@@ -301,6 +304,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         Route::middleware(['permiso:PDF_CLINICO,EXPORTAR', SinAlmacenar::class])->group(function () {
             Route::get('consultas/{consulta}/pdf/triaje', [PdfClinicoController::class, 'triaje'])->name('pdf.triaje')->whereNumber('consulta');
             Route::get('consultas/{consulta}/pdf/consulta', [PdfClinicoController::class, 'consulta'])->name('pdf.consulta')->whereNumber('consulta');
+            // Indicaciones generales en hoja aparte (docs/indicaciones-generales.md): mismos permisos que el PDF de la consulta.
+            Route::get('consultas/{consulta}/pdf/indicaciones', [PdfClinicoController::class, 'indicaciones'])->name('pdf.indicaciones')->whereNumber('consulta');
         });
 
         // Constancias de retiro (Recepción) y de estado del turno (profesional del turno o Supervisión médica): documentos

@@ -43,7 +43,7 @@
 ## Mapa del proyecto
 Laravel + Blade + Tailwind + Vite (JS plano, sin framework). PDF nuevos con dompdf (`barryvdh/laravel-dompdf`), también la receta nueva; recetas anteriores y
 constancias ya hechas siguen imprimiéndose desde el navegador. Docs por tema en `docs/` (pdf-clinico, historia-clinica,
-agenda-urgencias, triaje, retiros, constancias, reposo-medico, perfiles, respaldo, pruebas).
+agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-generales, perfiles, respaldo, pruebas).
 - `app/Models/`: Eloquent. Clave: `Persona`, `Paciente`, `Profesional`, `Turno`, `Consulta`,
   `HistoriaClinica`, `Receta`, `PerfilAcceso`, `Permiso`, `ModuloSistema`, `LogAuditoria`,
   `CupoEntrePacientes`, `Disponibilidad`, `ReposoMedico`.
@@ -56,7 +56,7 @@ agenda-urgencias, triaje, retiros, constancias, reposo-medico, perfiles, respald
   `Finalizar`, `DeshacerAtencion`, `CerrarJornada`, `GuardarSecciones`, `Autoguardado`, `EvaluadorSignos`).
 - `app/Support/Turnos/`: `AgendarEntrePacientes`, `RegistrarUrgencia`. `app/Support/Agenda.php`.
 - `app/Support/`: `Permisos`, `PermisosDePerfil`, `PerfilesPredefinidos`, `Auditoria`,
-  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `Reposo/` (certificado de reposo: emitir, anular, PDF), `BuscadorPersonas`, `Unicidad`.
+  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `Reposo/` (certificado de reposo: emitir, anular, PDF), `BuscadorPersonas`, `Unicidad`.
 - `app/Console/Commands/`: `Respaldo` (`clinexa:respaldo`), `CrearAdmin`, `TraspasarPrincipal`,
   `MigrarUsuariosAPersona`.
 - `app/Policies/`, `app/Http/Middleware/`, `app/Http/Requests/`, `app/Rules/`: autorización y validación.

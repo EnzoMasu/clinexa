@@ -39,6 +39,8 @@ class ModuloSistemaSeeder extends Seeder
             'PROCEDIMIENTOS' => ['Procedimientos', self::ACTIVO_INACTIVO],
             'TIPOS_BLOQUE_ANAMNESIS' => ['Tipos de bloque de anamnesis', self::ACTIVO_INACTIVO],
             'TIPOS_INDICACION' => ['Tipos de indicación', self::ACTIVO_INACTIVO],
+            // Dietas: catálogo que se copia a la indicación general ("Insertar dieta"). Ver docs/indicaciones-generales.md.
+            'DIETAS' => ['Dietas', self::ACTIVO_INACTIVO],
             // Cargos del personal de salud (catálogo) y los parámetros clínicos de los signos vitales (los aprueba un médico).
             'CARGOS_SALUD' => ['Cargos de salud', self::ACTIVO_INACTIVO],
             'PARAMETROS_CLINICOS' => ['Parámetros clínicos', [Estado::PENDIENTE, Estado::APROBADO]],

@@ -59,6 +59,8 @@ final class Unicidad
             'mensaje' => 'Ya hay un tipo de bloque de anamnesis con este nombre.'],
         'tipo_indicacion.nombre' => ['tabla' => 'tipos_indicacion', 'columna' => 'nombre', 'modulo' => 'TIPOS_INDICACION',
             'mensaje' => 'Ya hay un tipo de indicación con este nombre.'],
+        'dieta.nombre' => ['tabla' => 'dietas', 'columna' => 'nombre', 'modulo' => 'DIETAS',
+            'mensaje' => 'Ya hay una dieta con este nombre.'],
         'cargo_salud.nombre' => ['tabla' => 'cargos_salud', 'columna' => 'nombre', 'modulo' => 'CARGOS_SALUD',
             'mensaje' => 'Ya hay un cargo de salud con este nombre.'],
         'categoria_proveedor.nombre' => ['tabla' => 'categorias_proveedor', 'columna' => 'nombre', 'modulo' => 'CATEGORIAS_PROVEEDOR',

@@ -5,6 +5,7 @@ namespace App\Support\Atencion;
 use App\Enums\TipoDiagnostico;
 use App\Models\CatalogoCIE10;
 use App\Models\Consulta;
+use App\Models\Dieta;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoIndicacion;
 use App\Models\User;
@@ -40,6 +41,9 @@ final class DatosFormulario
             'tiposDiagnostico' => collect(TipoDiagnostico::cases())->map(fn ($tipo) => ['valor' => $tipo->value, 'nombre' => $tipo->etiqueta()])->all(),
             'filasIndicaciones' => self::filasIndicaciones($consulta, $tiposIndicacion),
             'tiposIndicacion' => self::opciones($tiposIndicacion),
+            // Dietas activas para "Insertar dieta": el texto se copia a la indicación (sin enlace; docs/indicaciones-generales.md).
+            'dietas' => Dieta::activos()->orderBy('nombre')->get(['id', 'nombre', 'texto'])
+                ->map(fn (Dieta $dieta) => ['id' => (string) $dieta->id, 'nombre' => $dieta->nombre, 'texto' => $dieta->texto])->all(),
             // Coma decimal solo en los números con decimales; el resto (presión, hallazgos) tal cual.
             'valorExamen' => fn (string $campo) => old("examen.{$campo}", in_array($campo, ['temperatura', 'peso', 'talla'], true) ? self::decimalConComa($examen?->{$campo}) : $examen?->{$campo}),
             'autorSignos' => self::autoria($examen?->signosUsuario),
