@@ -124,6 +124,8 @@ class PerfilesPredefinidos
             'PDF_CLINICO' => self::EXPORTAR, 'REPOSO_MEDICO' => self::VER_CREAR_EDITAR,
             // Dietas: puede listarlas y usarlas en la indicación; no las administra (eso es de Supervisión médica).
             'DIETAS' => self::VER,
+            // Órdenes de estudio: las emite y anula; el catálogo de estudios solo lo usa.
+            'ORDENES_ESTUDIO' => self::VER_CREAR_EDITAR, 'ESTUDIOS' => self::VER,
         ],
         self::ENFERMERIA => [
             'PREPARACION' => self::VER_CREAR_EDITAR, 'PDF_CLINICO' => self::EXPORTAR,
@@ -159,6 +161,8 @@ class PerfilesPredefinidos
             'REPOSO_MEDICO' => self::VER,
             // Catálogo de dietas: lo administra (el Médico solo las ve y usa: VER).
             'DIETAS' => self::TODO,
+            // Órdenes de estudio: solo ver y sacar el PDF (no emite ni anula). Catálogo de estudios: lo administra.
+            'ORDENES_ESTUDIO' => self::VER, 'ESTUDIOS' => self::TODO,
         ],
         self::AUDITOR => [
             'AUDITORIA' => self::VER,

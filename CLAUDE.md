@@ -43,10 +43,10 @@
 ## Mapa del proyecto
 Laravel + Blade + Tailwind + Vite (JS plano, sin framework). PDF nuevos con dompdf (`barryvdh/laravel-dompdf`), también la receta nueva; recetas anteriores y
 constancias ya hechas siguen imprimiéndose desde el navegador. Docs por tema en `docs/` (pdf-clinico, historia-clinica,
-agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-generales, perfiles, respaldo, pruebas).
+agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-generales, ordenes-estudio, perfiles, respaldo, pruebas).
 - `app/Models/`: Eloquent. Clave: `Persona`, `Paciente`, `Profesional`, `Turno`, `Consulta`,
   `HistoriaClinica`, `Receta`, `PerfilAcceso`, `Permiso`, `ModuloSistema`, `LogAuditoria`,
-  `CupoEntrePacientes`, `Disponibilidad`, `ReposoMedico`.
+  `CupoEntrePacientes`, `Disponibilidad`, `ReposoMedico`, `OrdenEstudio`, `Estudio`.
 - `app/Enums/`: `TipoTurno`, `AccionAuditoria`, `TipoDiagnostico`.
 - `app/Http/Controllers/Admin/`: un controlador por pantalla (`TurnoController`, `UrgenciaController`,
   `AtencionController`, `ConsultaController`, `HistoriaClinicaController`, `RecetaController`,
@@ -56,7 +56,7 @@ agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-gene
   `Finalizar`, `DeshacerAtencion`, `CerrarJornada`, `GuardarSecciones`, `Autoguardado`, `EvaluadorSignos`).
 - `app/Support/Turnos/`: `AgendarEntrePacientes`, `RegistrarUrgencia`. `app/Support/Agenda.php`.
 - `app/Support/`: `Permisos`, `PermisosDePerfil`, `PerfilesPredefinidos`, `Auditoria`,
-  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `Reposo/` (certificado de reposo: emitir, anular, PDF), `BuscadorPersonas`, `Unicidad`.
+  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `Reposo/` (certificado de reposo: emitir, anular, PDF), `OrdenEstudio/` (orden de estudio: emitir, anular, PDF), `BuscadorPersonas`, `Unicidad`.
 - `app/Console/Commands/`: `Respaldo` (`clinexa:respaldo`), `CrearAdmin`, `TraspasarPrincipal`,
   `MigrarUsuariosAPersona`.
 - `app/Policies/`, `app/Http/Middleware/`, `app/Http/Requests/`, `app/Rules/`: autorización y validación.

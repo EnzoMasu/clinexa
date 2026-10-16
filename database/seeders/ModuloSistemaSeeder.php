@@ -41,6 +41,8 @@ class ModuloSistemaSeeder extends Seeder
             'TIPOS_INDICACION' => ['Tipos de indicación', self::ACTIVO_INACTIVO],
             // Dietas: catálogo que se copia a la indicación general ("Insertar dieta"). Ver docs/indicaciones-generales.md.
             'DIETAS' => ['Dietas', self::ACTIVO_INACTIVO],
+            // Estudios: catálogo que se ofrece en la orden de estudio. Ver docs/ordenes-estudio.md.
+            'ESTUDIOS' => ['Estudios', self::ACTIVO_INACTIVO],
             // Cargos del personal de salud (catálogo) y los parámetros clínicos de los signos vitales (los aprueba un médico).
             'CARGOS_SALUD' => ['Cargos de salud', self::ACTIVO_INACTIVO],
             'PARAMETROS_CLINICOS' => ['Parámetros clínicos', [Estado::PENDIENTE, Estado::APROBADO]],
@@ -72,6 +74,8 @@ class ModuloSistemaSeeder extends Seeder
             'PDF_CLINICO' => ['PDF clínico (triaje y consulta)', self::ACTIVO_INACTIVO],
             // Certificado de reposo médico: documento inmutable, nace emitido y solo se anula. Ver docs/reposo-medico.md.
             'REPOSO_MEDICO' => ['Certificados de reposo médico', [Estado::EMITIDO, Estado::ANULADO]],
+            // Orden de estudio: documento inmutable, nace emitido y solo se anula. Ver docs/ordenes-estudio.md.
+            'ORDENES_ESTUDIO' => ['Órdenes de estudio', [Estado::EMITIDO, Estado::ANULADO]],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

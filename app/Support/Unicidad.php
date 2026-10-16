@@ -61,6 +61,8 @@ final class Unicidad
             'mensaje' => 'Ya hay un tipo de indicación con este nombre.'],
         'dieta.nombre' => ['tabla' => 'dietas', 'columna' => 'nombre', 'modulo' => 'DIETAS',
             'mensaje' => 'Ya hay una dieta con este nombre.'],
+        'estudio.nombre' => ['tabla' => 'estudios', 'columna' => 'nombre', 'modulo' => 'ESTUDIOS',
+            'mensaje' => 'Ya hay un estudio con este nombre.'],
         'cargo_salud.nombre' => ['tabla' => 'cargos_salud', 'columna' => 'nombre', 'modulo' => 'CARGOS_SALUD',
             'mensaje' => 'Ya hay un cargo de salud con este nombre.'],
         'categoria_proveedor.nombre' => ['tabla' => 'categorias_proveedor', 'columna' => 'nombre', 'modulo' => 'CATEGORIAS_PROVEEDOR',
