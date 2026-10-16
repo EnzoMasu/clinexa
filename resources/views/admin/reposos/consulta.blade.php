@@ -69,10 +69,11 @@
                     </div>
                     <x-input-error class="mt-2" :messages="$errors->get('modalidad')" />
                 </fieldset>
-                <x-admin.input name="modalidad_otra" label="Otra indicación (solo si eligió &quot;Otra indicación&quot;)" maxlength="300" />
+                <x-admin.input name="modalidad_otra" label='Otra indicación (solo si eligió "Otra indicación")' maxlength="300" />
 
                 <x-admin.input name="empleador" label="Empleador o institución (opcional)" maxlength="200" />
                 <x-admin.textarea name="observaciones" label="Observaciones y recomendaciones (opcional)" rows="3" maxlength="2000" />
+                <p class="-mt-2 text-xs text-gray-500 dark:text-gray-400">No escriba el diagnóstico aquí si no quiere que figure.</p>
 
                 <div>
                     <x-input-label for="prorroga_de" value="Prórroga de un certificado anterior (opcional)" />

@@ -260,3 +260,19 @@ describe('prórroga', function () {
         expect(ReposoMedico::count())->toBe(2)->and(ReposoMedico::where('estado_id', Estado::idDe(Estado::EMITIDO))->count())->toBe(1);
     });
 });
+
+describe('textos de la pantalla y marca del PDF', function () {
+    test('la etiqueta de "Otra indicación" sale sin doble escapado y con el aviso del diagnóstico', function () {
+        $html = $this->actingAs($this->medico)->get(route('admin.reposos.consulta', hcConsulta()))->assertOk()->getContent();
+
+        expect($html)->toContain('Otra indicación (solo si eligió &quot;Otra indicación&quot;)')
+            ->not->toContain('&amp;quot;')
+            ->toContain('No escriba el diagnóstico aquí si no quiere que figure.');
+    });
+
+    test('el PDF lleva el cartel de borrador arriba y en el pie, sin marca diagonal que tape campos', function () {
+        $html = PdfReposo::html(rmReposo(hcConsulta()));
+
+        expect($html)->toContain('class="cartel"')->not->toContain('rotate(')->not->toContain('class="marca');
+    });
+});

@@ -1,8 +1,8 @@
 {{--
     PDF del certificado de reposo médico (App\Support\Reposo\PdfReposo). A4 vertical. Se dibuja SOLO desde el snapshot ($hoja):
     sale idéntico aunque después cambien los datos del paciente, del profesional o de la clínica. Todo escapado. Los textos
-    fijos vienen del snapshot (config/reposo.php al emitir). Un certificado marcado borrador lleva el cartel arriba, en el pie
-    y en diagonal; uno anulado, "ANULADO" en diagonal. El diagnóstico sale solo si el profesional lo eligió.
+    fijos vienen del snapshot (config/reposo.php al emitir). Un certificado marcado borrador lleva el cartel arriba y en el pie;
+    uno anulado, el cartel "ANULADO". Ninguna marca va en diagonal: taparía campos. El diagnóstico sale solo si el profesional lo eligió.
 --}}
 @php
     use App\Support\Fecha;
@@ -11,7 +11,6 @@
     $profesional = $hoja['profesional'];
     $borrador = (bool) ($hoja['borrador'] ?? false);
     $edad = $paciente['edad'] === null ? null : $paciente['edad'].' '.($paciente['edad'] === 1 ? 'año' : 'años');
-    $marca = $anulado ? 'ANULADO' : ($borrador ? $hoja['marca_borrador'] : null);
 @endphp
 <!doctype html>
 <html lang="es">
@@ -22,10 +21,8 @@
         @page { size: A4 portrait; margin: 12mm 16mm; }
         * { box-sizing: border-box; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 10pt; line-height: 1.3; color: #111; }
-        .marca { position: fixed; top: 120mm; left: 0; width: 100%; text-align: center; }
-        .marca span { display: inline-block; transform: rotate(-30deg); font-size: 26pt; font-weight: bold; color: #f2c9a0; border: 2pt solid #f2c9a0; padding: 3mm 6mm; }
-        .marca.anulado span { color: #f2b8b8; border-color: #f2b8b8; font-size: 34pt; }
         .cartel { margin: 0 0 4mm; padding: 1.5mm 3mm; border: 1.5pt solid #b45309; color: #92400e; font-weight: bold; text-align: center; letter-spacing: 1px; font-size: 9pt; }
+        .cartel.anulado { border-color: #b91c1c; color: #991b1b; font-size: 12pt; }
         table { border-collapse: collapse; width: 100%; }
         table.encabezado td { vertical-align: middle; padding: 0 4mm 0 0; }
         .logo { height: 14mm; }
@@ -47,8 +44,8 @@
     </style>
 </head>
 <body>
-    @if ($marca)
-        <div @class(['marca', 'anulado' => $anulado])><span>{{ $marca }}</span></div>
+    @if ($anulado)
+        <div class="cartel anulado">ANULADO</div>
     @endif
 
     @if ($borrador)
