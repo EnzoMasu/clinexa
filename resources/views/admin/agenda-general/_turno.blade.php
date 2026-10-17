@@ -4,7 +4,7 @@
 {{-- Un turno en la grilla: hora o tipo, paciente (apellido y nombre, ficha), estado del turno y del triaje, y sus acciones. Requiere $turno. --}}
 <div class="mb-1 rounded-md border border-gray-200 p-2 dark:border-gray-700" data-turno="{{ $turno->id }}">
     <div class="flex flex-wrap items-center gap-1.5">
-        <x-admin.turno-hora :turno="$turno" class="text-xs" />
+        <x-admin.turno-hora :turno="$turno" fin class="text-xs" />
         <x-admin.estado-badge :estado="$turno->estado" />
     </div>
     <div class="mt-1 font-medium">{{ $turno->paciente->persona->nombre_completo }}</div>

@@ -215,3 +215,15 @@ describe('misma paciente (turnos_sin_superposicion_paciente)', function () {
         Carbon::setTestNow();
     });
 });
+test('un turno largo (procedimiento de 120 min) rechaza uno corto que se le superpone, y no el consecutivo', function () {
+    ($this->turno)(['hora_inicio' => '08:00', 'hora_fin' => '10:00']);
+    $otraPaciente = Paciente::create(['persona_id' => Persona::factory()->create()->id, 'nro_ficha' => 'FP-0000003']);
+
+    expect(fn () => ($this->turno)(['paciente_id' => $otraPaciente->id, 'consultorio_id' => $this->consultorio2->id, 'hora_inicio' => '09:30', 'hora_fin' => '10:00']))
+        ->toThrow(fn (QueryException $e) => expect($e->getCode())->toBe('23P01')->and($e->getMessage())->toContain('turnos_sin_superposicion_profesional'));
+    expect(fn () => ($this->turno)(['paciente_id' => $otraPaciente->id, 'profesional_id' => $this->otroProfesional->id, 'hora_inicio' => '09:00', 'hora_fin' => '09:30']))
+        ->toThrow(fn (QueryException $e) => expect($e->getMessage())->toContain('turnos_sin_superposicion_consultorio'));
+
+    ($this->turno)(['paciente_id' => $otraPaciente->id, 'hora_inicio' => '10:00', 'hora_fin' => '10:30']);
+    expect(Turno::count())->toBe(2);
+});

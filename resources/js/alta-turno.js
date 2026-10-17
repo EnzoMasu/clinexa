@@ -4,14 +4,25 @@
 //
 // Escucha los eventos de los otros componentes del formulario: "elegido" (buscador de profesional)
 // y "fecha-cambiada" (campo de fecha).
+//
+// Con procedimiento, el turno dura lo del procedimiento (duraciones: id => minutos), ajustable de 5 a 480
+// minutos: los horarios se piden para esa duración (el servidor vuelve a validar todo al guardar).
 
-export default ({ url, urlCupo = '', modalidad = 'con_horario', profesionalId = null, fecha = '', hora = '' }) => ({
+const DURACION_MINIMA = 5;
+const DURACION_MAXIMA = 480;
+const limitar = (minutos) => (Number.isFinite(Number(minutos)) && minutos !== null
+    ? Math.min(DURACION_MAXIMA, Math.max(DURACION_MINIMA, Math.round(Number(minutos)))) : null);
+
+export default ({ url, urlCupo = '', modalidad = 'con_horario', profesionalId = null, fecha = '', hora = '', duraciones = {}, procedimientoId = '', duracion = null }) => ({
     modalidad, // "con_horario" o "entre_pacientes"
     cupo: null, // { cupo, usados } del profesional y la fecha (solo para informar)
     peticionCupo: null,
     profesionalId,
     fecha,
     hora, // hora_inicio elegida ("08:30")
+    procedimientoId: procedimientoId ?? '',
+    // Minutos, solo con procedimiento: lo enviado antes (tras un error) o la del procedimiento, dentro de los límites.
+    duracion: duracion !== null && duracion !== '' ? Number(duracion) : limitar(procedimientoId ? duraciones[procedimientoId] : null),
     horarios: [],
     cargando: false,
     cargado: false,
@@ -32,6 +43,12 @@ export default ({ url, urlCupo = '', modalidad = 'con_horario', profesionalId = 
     alCambiarFecha(evento) {
         if (evento.detail.campo !== 'fecha') return;
         this.fecha = evento.detail.valor;
+        this.cargar();
+    },
+
+    // Al elegir otro procedimiento, la duración vuelve a la suya (dentro de los límites).
+    alCambiarProcedimiento() {
+        this.duracion = limitar(this.procedimientoId ? duraciones[this.procedimientoId] : null);
         this.cargar();
     },
 
@@ -56,7 +73,12 @@ export default ({ url, urlCupo = '', modalidad = 'con_horario', profesionalId = 
         this.error = false;
 
         try {
-            const respuesta = await fetch(`${url}?${new URLSearchParams({ profesional_id: this.profesionalId, fecha: this.fecha })}`, {
+            const parametros = { profesional_id: this.profesionalId, fecha: this.fecha };
+            if (this.procedimientoId) {
+                parametros.procedimiento_id = this.procedimientoId;
+                if (Number.isInteger(this.duracion)) parametros.duracion_minutos = this.duracion;
+            }
+            const respuesta = await fetch(`${url}?${new URLSearchParams(parametros)}`, {
                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 signal: peticion.signal,
             });

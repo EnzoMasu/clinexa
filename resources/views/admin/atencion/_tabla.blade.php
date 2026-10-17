@@ -65,7 +65,7 @@
             <ul class="{{ $lista }}">
                 @foreach ($agenda as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-                        <span class="w-24 text-xs"><x-admin.turno-hora :turno="$turno" /></span>
+                        <span class="w-24 text-xs"><x-admin.turno-hora :turno="$turno" fin /></span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                         <span class="flex items-center gap-2">
                             @if ($turno->estado->codigo === Estado::CONFIRMADO)
@@ -119,7 +119,7 @@
             <ul class="{{ $lista }}">
                 @foreach ($porLlamar as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
-                        <span class="w-24 text-xs"><x-admin.turno-hora :turno="$turno" /></span>
+                        <span class="w-24 text-xs"><x-admin.turno-hora :turno="$turno" fin /></span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                         @include('admin.preparacion._estado', ['consulta' => $turno->consulta])
                         @include('admin.preparacion._alertas', ['consulta' => $turno->consulta])
@@ -175,7 +175,7 @@
             <ul class="{{ $lista }} mt-2">
                 @foreach ($ausentes as $turno)
                     <li class="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
-                        <span class="w-24 text-xs"><x-admin.turno-hora :turno="$turno" /></span>
+                        <span class="w-24 text-xs"><x-admin.turno-hora :turno="$turno" fin /></span>
                         <span class="flex-1">@include('admin.atencion._paciente', ['paciente' => $turno->paciente])</span>
                     </li>
                 @endforeach

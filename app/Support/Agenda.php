@@ -19,6 +19,8 @@ use Illuminate\Support\Collection;
  *    último solo si entra completo).
  * 4. Se descartan los bloques que se pisan con un turno no CANCELADO del profesional, o del
  *    consultorio con otro profesional (la base los rechazaría igual).
+ *    Con una duración propia (la del procedimiento del turno, ajustable): los inicios siguen esa misma grilla, pero
+ *    cada horario dura lo pedido y sirve solo si [inicio, inicio + duración) entra completo en la franja.
  * 5. No hay horarios en el pasado: fechas anteriores a hoy no tienen ninguno y, si es hoy, solo
  *    los que todavía no empezaron (hora de Paraguay). Los turnos sin horario (ENTRE_PACIENTES,
  *    URGENCIA) no ocupan ninguno. La regla es Fecha::yaLlego, la misma que valida el
@@ -26,10 +28,15 @@ use Illuminate\Support\Collection;
  */
 final class Agenda
 {
+    /** Límites de la duración de un turno con procedimiento, en minutos. */
+    public const DURACION_MINIMA = 5;
+
+    public const DURACION_MAXIMA = 480;
+
     /**
      * @return Collection<int, array{hora_inicio: string, hora_fin: string, consultorio_id: int, consultorio: string}>
      */
-    public static function horariosDisponibles(Profesional $profesional, CarbonInterface $fecha): Collection
+    public static function horariosDisponibles(Profesional $profesional, CarbonInterface $fecha, ?int $duracion = null): Collection
     {
         $fecha = Carbon::parse($fecha->format('Y-m-d'));
         $hoy = Fecha::hoy()->format('Y-m-d');
@@ -60,7 +67,7 @@ final class Agenda
             ->get(['profesional_id', 'consultorio_id', 'hora_inicio', 'hora_fin']);
 
         return $disponibilidades
-            ->flatMap(fn (Disponibilidad $disponibilidad) => self::bloques($disponibilidad))
+            ->flatMap(fn (Disponibilidad $disponibilidad) => self::bloques($disponibilidad, $duracion))
             ->reject(fn (array $bloque) => Fecha::yaLlego($fecha->format('Y-m-d'), $bloque['hora_inicio']))
             ->reject(fn (array $bloque) => $ocupados->contains(fn (Turno $turno) => ($turno->profesional_id === $profesional->id || $turno->consultorio_id === $bloque['consultorio_id'])
                 && self::sePisan($bloque['hora_inicio'], $bloque['hora_fin'], Disponibilidad::hora($turno->hora_inicio), Disponibilidad::hora($turno->hora_fin))))
@@ -99,26 +106,30 @@ final class Agenda
     }
 
     /** El bloque libre que empieza a esa hora (para guardar el turno), o null si no está libre. */
-    public static function horario(Profesional $profesional, CarbonInterface $fecha, string $horaInicio): ?array
+    public static function horario(Profesional $profesional, CarbonInterface $fecha, string $horaInicio, ?int $duracion = null): ?array
     {
-        return self::horariosDisponibles($profesional, $fecha)->firstWhere('hora_inicio', $horaInicio);
+        return self::horariosDisponibles($profesional, $fecha, $duracion)->firstWhere('hora_inicio', $horaInicio);
     }
 
-    /** [desde, hasta) en bloques de la duración del turno; el último solo si entra completo. */
-    public static function bloques(Disponibilidad $disponibilidad): array
+    /**
+     * [desde, hasta) en bloques de la duración del turno; el último solo si entra completo. Con $duracion, los inicios
+     * siguen la misma grilla pero cada bloque dura $duracion y solo se ofrece si entra completo en la franja.
+     */
+    public static function bloques(Disponibilidad $disponibilidad, ?int $duracion = null): array
     {
         $minutos = fn (string $hora) => (int) substr($hora, 0, 2) * 60 + (int) substr($hora, 3, 2);
         $hora = fn (int $minutos) => sprintf('%02d:%02d', intdiv($minutos, 60), $minutos % 60);
 
         $desde = $minutos(Disponibilidad::hora($disponibilidad->hora_desde));
         $hasta = $minutos(Disponibilidad::hora($disponibilidad->hora_hasta));
-        $duracion = max(1, $disponibilidad->duracion_turno_minutos);
+        $paso = max(1, $disponibilidad->duracion_turno_minutos);
+        $largo = $duracion !== null ? max(1, $duracion) : $paso;
 
         $bloques = [];
-        for ($inicio = $desde; $inicio + $duracion <= $hasta; $inicio += $duracion) {
+        for ($inicio = $desde; $inicio + $largo <= $hasta; $inicio += $paso) {
             $bloques[] = [
                 'hora_inicio' => $hora($inicio),
-                'hora_fin' => $hora($inicio + $duracion),
+                'hora_fin' => $hora($inicio + $largo),
                 'consultorio_id' => $disponibilidad->consultorio_id,
                 'consultorio' => $disponibilidad->consultorio->nombre_completo,
             ];

@@ -82,6 +82,8 @@ class TurnoController extends Controller
             'hora' => old('hora_inicio', $horaPedida),
             'modalidad' => old('modalidad') === self::ENTRE_PACIENTES || request('modalidad') === self::ENTRE_PACIENTES ? self::ENTRE_PACIENTES : self::CON_HORARIO,
             'procedimientos' => Procedimiento::activos()->orderBy('nombre')->pluck('nombre', 'id')->all(),
+            // Duración estimada de cada procedimiento: la duración por defecto de un turno con horario que lo lleva.
+            'duraciones' => Procedimiento::activos()->pluck('duracion_estimada_minutos', 'id')->all(),
             'origenes' => OrigenTurno::activos()->orderBy('nombre')->pluck('nombre', 'id')->all(),
         ]);
     }
@@ -92,6 +94,8 @@ class TurnoController extends Controller
     public const ENTRE_PACIENTES = 'entre_pacientes';
 
     public const FECHA_PASADA = 'No se agendan turnos en una fecha pasada.';
+
+    public const DURACION_FUERA_DE_RANGO = 'La duración debe estar entre '.Agenda::DURACION_MINIMA.' y '.Agenda::DURACION_MAXIMA.' minutos.';
 
     /** El horario elegido ya empezó (o la fecha ya pasó): Fecha::yaLlego, la regla de los horarios libres. */
     public const HORARIO_PASADO = 'Ese horario ya pasó. Elija uno posterior.';
@@ -193,6 +197,8 @@ class TurnoController extends Controller
         $validador = validator($request->query(), [
             'profesional_id' => ['required', 'integer'],
             'fecha' => ['required', ...Fecha::regla()],
+            'procedimiento_id' => ['nullable', 'integer'],
+            'duracion_minutos' => ['nullable', 'integer'],
         ]);
         if ($validador->fails()) {
             return response()->json([]);
@@ -200,11 +206,12 @@ class TurnoController extends Controller
         $datos = $validador->validated();
 
         $profesional = Profesional::find($datos['profesional_id']);
-        if (! $profesional) {
+        $duracion = $this->duracion($datos);
+        if (! $profesional || $duracion === false) {
             return response()->json([]);
         }
 
-        return response()->json(Agenda::horariosDisponibles($profesional, Carbon::parse(Fecha::aIso($datos['fecha'])))
+        return response()->json(Agenda::horariosDisponibles($profesional, Carbon::parse(Fecha::aIso($datos['fecha'])), $duracion)
             ->map(fn (array $bloque) => [
                 'hora_inicio' => $bloque['hora_inicio'],
                 'hora_fin' => $bloque['hora_fin'],
@@ -256,8 +263,26 @@ class TurnoController extends Controller
     }
 
     /**
+     * Duración de un turno con horario: sin procedimiento, null (el bloque de la disponibilidad, como siempre); con
+     * procedimiento, la pedida o, si no se pidió, la estimada del procedimiento. false si queda fuera de 5 a 480 minutos
+     * o el procedimiento no es uno activo.
+     */
+    private function duracion(array $datos): int|false|null
+    {
+        if (empty($datos['procedimiento_id'])) {
+            return null;
+        }
+        $duracion = filled($datos['duracion_minutos'] ?? null)
+            ? (int) $datos['duracion_minutos']
+            : Procedimiento::activos()->whereKey($datos['procedimiento_id'])->value('duracion_estimada_minutos');
+
+        return $duracion !== null && $duracion >= Agenda::DURACION_MINIMA && $duracion <= Agenda::DURACION_MAXIMA ? (int) $duracion : false;
+    }
+
+    /**
      * Valida el alta y completa lo que no se pide: el consultorio y la hora de fin salen del horario
-     * libre elegido (de la disponibilidad que lo generó).
+     * libre elegido (de la disponibilidad que lo generó). Con procedimiento, el turno dura lo del
+     * procedimiento (o lo ajustado, de 5 a 480 minutos) y tiene que entrar completo en la franja.
      */
     private function validar(Request $request): array
     {
@@ -271,12 +296,15 @@ class TurnoController extends Controller
             'procedimiento_id' => ['nullable', 'integer', Rule::exists('procedimientos', 'id')->where('estado_id', $activo)],
             'origen_turno_id' => ['nullable', 'integer', Rule::exists('origenes_turno', 'id')->where('estado_id', $activo)],
             'observaciones' => ['nullable', 'string', 'max:2000'],
+            'duracion_minutos' => ['nullable', 'integer', 'min:'.Agenda::DURACION_MINIMA, 'max:'.Agenda::DURACION_MAXIMA],
             'agendar_igual' => ['nullable', 'boolean'],
         ], [
             ...Fecha::mensajes('fecha'),
             'hora_inicio.required' => 'Elija uno de los horarios libres.',
+            'duracion_minutos.min' => self::DURACION_FUERA_DE_RANGO,
+            'duracion_minutos.max' => self::DURACION_FUERA_DE_RANGO,
         ], [
-            'paciente_id' => 'paciente', 'profesional_id' => 'profesional', 'hora_inicio' => 'horario',
+            'paciente_id' => 'paciente', 'profesional_id' => 'profesional', 'hora_inicio' => 'horario', 'duracion_minutos' => 'duración',
             'procedimiento_id' => 'procedimiento', 'origen_turno_id' => 'origen del turno',
         ]);
 
@@ -297,15 +325,24 @@ class TurnoController extends Controller
                 return;
             }
 
-            $horario = Agenda::horario(Profesional::findOrFail($datos['profesional_id']), Carbon::parse(Fecha::aIso($datos['fecha'])), $datos['hora_inicio']);
+            $duracion = $this->duracion($datos);
+            if ($duracion === false) {
+                // Solo llega aquí si la estimada del procedimiento está fuera de rango: hay que ajustarla.
+                $validador->errors()->add('duracion_minutos', self::DURACION_FUERA_DE_RANGO);
+
+                return;
+            }
+
+            $horario = Agenda::horario(Profesional::findOrFail($datos['profesional_id']), Carbon::parse(Fecha::aIso($datos['fecha'])), $datos['hora_inicio'], $duracion);
 
             if (! $horario) {
                 // Si lo que ocupa esa hora es un turno de la misma paciente (con este u otro profesional), el
                 // aviso es el de la paciente; si no, el horario simplemente no está libre.
                 $deLaPaciente = Turno::superpuestoDeLaPaciente((int) $datos['paciente_id'], $fecha, $datos['hora_inicio'],
                     Carbon::parse($datos['hora_inicio'])->addMinute()->format('H:i'));
-                $validador->errors()->add('hora_inicio', $deLaPaciente?->avisoSuperposicionPaciente()
-                    ?? 'Ese horario no está disponible para el profesional en esa fecha. Elija uno de los horarios libres.');
+                $validador->errors()->add('hora_inicio', $deLaPaciente?->avisoSuperposicionPaciente() ?? ($duracion === null
+                    ? 'Ese horario no está disponible para el profesional en esa fecha. Elija uno de los horarios libres.'
+                    : "Ese horario no está disponible para un turno de {$duracion} minutos: tiene que entrar completo en la franja del profesional y no pisarse con otros turnos. Elija uno de los horarios libres."));
 
                 return;
             }
@@ -327,11 +364,12 @@ class TurnoController extends Controller
         });
 
         $datos = $validador->validate();
-        unset($datos['agendar_igual']);
+        unset($datos['agendar_igual'], $datos['duracion_minutos']);
 
         return [
             'segundoDelDia' => $segundoDelDia,
-            ...$datos,            'fecha' => Fecha::aIso($datos['fecha']),
+            ...$datos,
+            'fecha' => Fecha::aIso($datos['fecha']),
             'hora_fin' => $horario['hora_fin'],
             'consultorio_id' => $horario['consultorio_id'],
         ];
