@@ -60,6 +60,12 @@
         "test:completo": [
             "Composer\\Config::disableProcessTimeout",
             "@php artisan config:clear --ansi",
+            "@php vendor/bin/pest --parallel --exclude-testsuite=Postgres",
+            "@php vendor/bin/pest --testsuite=Postgres"
+        ],
+        "test:completo-serial": [
+            "Composer\\Config::disableProcessTimeout",
+            "@php artisan config:clear --ansi",
             "@php vendor/bin/pest"
         ],
         "post-autoload-dump": [

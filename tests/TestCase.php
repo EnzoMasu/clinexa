@@ -20,6 +20,8 @@ abstract class TestCase extends BaseTestCase
      */
     public function createApplication()
     {
+        $this->aislarVistasCompiladas();
+
         $app = parent::createApplication();
 
         $this->configurarBaseDePrueba($app);
@@ -32,6 +34,24 @@ abstract class TestCase extends BaseTestCase
         }
 
         return $app;
+    }
+
+    /**
+     * Cada proceso de la corrida (el token de paratest; "serie" si no hay) compila las vistas en su propia
+     * carpeta. Sin esto, todos comparten storage/framework/views y dos procesos (o el servidor de desarrollo)
+     * pisan el mismo archivo: "rename(...): Acceso denegado" en Windows.
+     */
+    private function aislarVistasCompiladas(): void
+    {
+        $token = $_SERVER['TEST_TOKEN'] ?? getenv('TEST_TOKEN');
+        $carpeta = dirname(__DIR__).'/storage/framework/testing/views/'.(($token !== false && $token !== '' && $token !== null) ? 'proceso-'.$token : 'serie');
+
+        if (! is_dir($carpeta)) {
+            @mkdir($carpeta, 0777, true);
+        }
+
+        putenv('VIEW_COMPILED_PATH='.$carpeta);
+        $_ENV['VIEW_COMPILED_PATH'] = $_SERVER['VIEW_COMPILED_PATH'] = $carpeta;
     }
 
     /** Punto de extensión para que una clase de tests use otra conexión (ver PostgresTestCase). */

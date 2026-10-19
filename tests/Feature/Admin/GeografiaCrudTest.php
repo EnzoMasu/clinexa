@@ -141,18 +141,16 @@ test('permisos: las tres pantallas usan el módulo GEOGRAFIA', function () {
 
 test('con el volumen real, el listado y la búsqueda paginan y no hacen una consulta por fila', function (string $ruta, ?string $busqueda) {
     DB::enableQueryLog();
-    $inicio = microtime(true);
 
     $respuesta = $this->get(route("admin.{$ruta}.index", array_filter(['q' => $busqueda])))->assertOk();
 
-    $segundos = microtime(true) - $inicio;
     $consultas = count(DB::getQueryLog());
 
     // 20 por página (no los 249 / 263), con el paginador.
     expect(substr_count($respuesta->getContent(), '/edit"'))->toBeLessThanOrEqual(20)
         // Cantidad de consultas fija (precarga de relaciones), no proporcional a las filas.
-        ->and($consultas)->toBeLessThan(25)
-        ->and($segundos)->toBeLessThan(2.0);
+        // Sin tope de segundos: el reloj depende de la carga de la máquina (en paralelo fallaba por eso).
+        ->and($consultas)->toBeLessThan(25);
 })->with([
     ['paises', null], ['paises', 'an'],
     ['departamentos', null],

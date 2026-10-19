@@ -17,7 +17,8 @@ php vendor/bin/pest --parallel --exclude-testsuite=Postgres --exclude-group=lent
 ```
 
 - Corre en paralelo (un proceso por núcleo) todo menos el grupo `lento` y la suite de PostgreSQL.
-- Tiempo medido: unos **2 min 40 s** (951 tests, 8 procesos).
+- Tiempo: lo medido el 19/10/2026 con el grupo lento incluido fue de 9 a 13 min en esta máquina; sin el grupo
+  `lento` baja bastante (no se volvió a medir tras sumar los tests nuevos).
 - No usa PostgreSQL. No crea bases en el servidor.
 
 ## Comando completo: antes de lo importante
@@ -26,8 +27,15 @@ php vendor/bin/pest --parallel --exclude-testsuite=Postgres --exclude-group=lent
 composer test:completo
 ```
 
-Equivale a `php vendor/bin/pest`: todos los tests, **en serie**, incluidos el grupo `lento` y
-`tests/Postgres`. Tiempo medido: unos **6 minutos y medio** (1009 tests).
+Hace dos pasos seguidos:
+
+1. `php vendor/bin/pest --parallel --exclude-testsuite=Postgres`: Unit y Feature en paralelo (8 procesos),
+   **incluido el grupo `lento`**: 1495 tests.
+2. `php vendor/bin/pest --testsuite=Postgres`: los 47 tests de PostgreSQL, **en serie**, contra `clinexa_test`.
+
+Total: **1542 tests**. Tiempos medidos (tres corridas seguidas, mismos resultados, 0 fallas): 19, 11 y 32 min
+en total (paralelo 776 / 564 / 1702 s, PostgreSQL 85 / 81 / 187 s). La variación es de la máquina (carga y
+suspensión de Windows), no de los tests. Antes, en serie, eran unos 35 min.
 
 Córralo siempre:
 
@@ -35,9 +43,23 @@ Córralo siempre:
 - antes de cualquier merge;
 - antes de tocar la base real (migraciones, seeders, comandos de mantenimiento).
 
+Si hay que volver atrás o se sospecha del paralelo: `composer test:completo-serial` (todo en serie, un solo
+`pest`, unos 35 min).
+
 Los tests de escapado por mutación (`EscapadoAtencionTest`, "mutación: si se rompe el escapado...") son
 de **seguridad**: están en el grupo `lento` solo para que el comando rápido sea rápido. Antes de un merge
 no se omiten: el comando completo los incluye.
+
+## Vistas compiladas por proceso
+
+`Tests\TestCase` compila las vistas Blade de cada proceso en `storage/framework/testing/views/proceso-N`
+(`serie` si no hay paralelo). Antes todos compartían `storage/framework/views` y dos procesos (o
+`artisan serve`) pisaban el mismo archivo: `rename(...): Acceso denegado`.
+
+## Tiempos en los tests
+
+No se afirma un tope de segundos en un test: en paralelo depende de la carga y falla de forma intermitente
+(pasó en `GeografiaCrudTest`). Se mide la cantidad de consultas SQL.
 
 ## Qué queda fuera del comando rápido
 

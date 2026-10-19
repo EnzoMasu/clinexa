@@ -30,8 +30,9 @@
 - Siempre con datos inventados. Nunca datos reales, ni de pacientes ni credenciales.
 - Los tests nunca usan la base real: SQLite en memoria, y `clinexa_test` para `tests/Postgres`.
 - `composer test:rapido`: en paralelo, sin el grupo `lento` ni PostgreSQL. Para el trabajo diario.
-- `composer test:completo`: todo, en serie. Antes de cada commit que no sea WIP, de cualquier merge y de
-  tocar la base real.
+- `composer test:completo`: todo (Unit y Feature en paralelo con `lento`, y PostgreSQL en serie después).
+  Antes de cada commit que no sea WIP, de cualquier merge y de tocar la base real. `composer test:completo-serial`
+  es el anterior, todo en serie.
 - Los helpers de test definidos como funciones globales llevan el prefijo del archivo (p. ej.
   `perfilesPredefinidosExistente` en `PerfilesPredefinidosTest`): los choques de nombre ya rompieron la
   suite dos veces.
