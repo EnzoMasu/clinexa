@@ -133,7 +133,7 @@ describe('cálculo de horarios disponibles', function () {
         $this->getJson(route('admin.turnos.horarios-disponibles', ['profesional_id' => $this->profesional->id, 'fecha' => '06/10/2026']))
             ->assertOk()
             ->assertJsonCount(4)
-            ->assertJsonPath('0', ['hora_inicio' => '08:00', 'hora_fin' => '08:30', 'consultorio' => 'Consultorio 1 — Plenitud Mujer']);
+            ->assertJsonPath('0', ['hora_inicio' => '08:00', 'hora_fin' => '08:30', 'bloque_minutos' => 30, 'consultorio' => 'Consultorio 1 — Plenitud Mujer']);
 
         // Sin datos válidos: lista vacía.
         $this->getJson(route('admin.turnos.horarios-disponibles'))->assertOk()->assertExactJson([]);

@@ -1,6 +1,6 @@
 <x-admin.page title="Nuevo turno">
     <x-admin.form :action="route('admin.turnos.store')" :cancel="route('admin.turnos.index')" width="max-w-3xl"
-        x-data="altaTurno({ url: {{ Js::from(route('admin.turnos.horarios-disponibles')) }}, urlCupo: {{ Js::from(route('admin.turnos.cupo-del-dia')) }}, modalidad: {{ Js::from($modalidad) }}, profesionalId: {{ Js::from($profesionalInicial['id'] ?? null) }}, fecha: {{ Js::from($fecha) }}, hora: {{ Js::from($hora) }} })"
+        x-data="altaTurno({ url: {{ Js::from(route('admin.turnos.horarios-disponibles')) }}, urlCupo: {{ Js::from(route('admin.turnos.cupo-del-dia')) }}, modalidad: {{ Js::from($modalidad) }}, profesionalId: {{ Js::from($profesionalInicial['id'] ?? null) }}, fecha: {{ Js::from($fecha) }}, hora: {{ Js::from($hora) }}, duraciones: {{ Js::from($duraciones) }}, procedimientoId: {{ Js::from((string) old('procedimiento_id', '')) }}, duracion: {{ Js::from(old('duracion_minutos')) }} })"
         x-on:elegido="alElegir($event)" x-on:fecha-cambiada="alCambiarFecha($event)">
 
         {{-- Modalidad: con horario (de la agenda) o entre pacientes (sin horario, dentro del cupo del profesional ese día). --}}
@@ -29,6 +29,26 @@
             <x-admin.fecha name="fecha" label="Fecha" :value="$fecha" required />
         </div>
 
+        {{-- El procedimiento va antes del horario: con horario, el turno dura lo del procedimiento (ajustable). --}}
+        <div class="grid gap-6 sm:grid-cols-2">
+            <x-admin.select name="procedimiento_id" label="Procedimiento (opcional)" :options="$procedimientos" nullable
+                x-model="procedimientoId" x-on:change="alCambiarProcedimiento()" />
+            <x-admin.select name="origen_turno_id" label="Origen del turno (opcional)" :options="$origenes" nullable />
+        </div>
+
+        {{-- Duración del turno con procedimiento (5 a 480 minutos); sin procedimiento, el bloque de la disponibilidad. --}}
+        <div class="max-w-xs" x-show="modalidad === 'con_horario' && procedimientoId" style="display: none">
+            <x-input-label for="duracion_minutos" value="Duración (minutos)" />
+            <x-text-input id="duracion_minutos" name="duracion_minutos" type="number" class="mt-1 block w-full"
+                min="{{ \App\Support\Agenda::DURACION_MINIMA }}" max="{{ \App\Support\Agenda::DURACION_MAXIMA }}" step="1"
+                x-model.number="duracion" x-on:change="cargar()" x-bind:disabled="modalidad !== 'con_horario' || ! procedimientoId" />
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">La del procedimiento; puede ajustarla. El turno tiene que entrar completo en la franja del profesional.</p>
+            <p x-show="duracionLarga && ! cargando" style="display: none" data-aviso-duracion role="status"
+                class="mt-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100"
+                x-text="`Este estudio ocupa ${duracion} min: se ofrecen solo horarios con ese tiempo libre.`"></p>
+            <x-input-error class="mt-2" :messages="$errors->get('duracion_minutos')" />
+        </div>
+
         {{-- Horarios libres del profesional en esa fecha (App\Support\Agenda); el consultorio sale del horario elegido. --}}
         <div class="space-y-2" x-show="modalidad === 'con_horario'" @if ($modalidad === 'entre_pacientes') style="display: none" @endif>
             <span class="block font-medium text-sm text-gray-700 dark:text-gray-300">Horario</span>
@@ -36,10 +56,14 @@
 
             <p x-show="! listoParaBuscar" class="text-sm text-gray-500 dark:text-gray-400">Elija el profesional y la fecha para ver los horarios libres.</p>
             <p x-show="cargando" style="display: none" class="text-sm text-gray-500 dark:text-gray-400" role="status">Buscando horarios…</p>
-            <p x-show="listoParaBuscar && cargado && ! cargando && ! error && horarios.length === 0" style="display: none"
+            <p x-show="listoParaBuscar && cargado && ! cargando && ! error && horarios.length === 0 && ! duracionLarga" style="display: none"
                 class="text-sm text-amber-700 dark:text-amber-300">
                 No hay horarios libres para ese profesional en esa fecha.
             </p>
+            {{-- Turno largo (cualquier procedimiento que pase el bloque): no queda ese tiempo libre seguido en el día. --}}
+            <p x-show="listoParaBuscar && cargado && ! cargando && ! error && horarios.length === 0 && duracionLarga" style="display: none"
+                data-sin-horarios-duracion class="text-sm text-amber-700 dark:text-amber-300"
+                x-text="`No hay horarios con ${duracion} min libres seguidos ese día.`"></p>
             <p x-show="error && ! cargando" style="display: none" class="text-sm text-red-600 dark:text-red-400">
                 No se pudieron cargar los horarios. Revise la fecha.
             </p>
@@ -52,7 +76,7 @@
                         x-bind:class="hora === horario.hora_inicio
                             ? 'border-indigo-600 bg-indigo-600 text-white'
                             : 'border-gray-300 text-gray-900 hover:border-indigo-400 hover:bg-indigo-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-700'">
-                        <span class="block font-mono font-medium text-current" x-text="`${horario.hora_inicio} – ${horario.hora_fin}`"></span>
+                        <span class="block font-mono font-medium text-current" x-text="`${horario.hora_inicio} a ${horario.hora_fin}`"></span>
                         <span class="block text-xs opacity-80" x-text="horario.consultorio"></span>
                     </button>
                 </template>
@@ -84,10 +108,6 @@
             </div>
         @endif
 
-        <div class="grid gap-6 sm:grid-cols-2">
-            <x-admin.select name="procedimiento_id" label="Procedimiento (opcional)" :options="$procedimientos" nullable />
-            <x-admin.select name="origen_turno_id" label="Origen del turno (opcional)" :options="$origenes" nullable />
-        </div>
         <x-admin.textarea name="observaciones" label="Observaciones (opcional)" maxlength="2000" rows="3" />
     </x-admin.form>
 </x-admin.page>

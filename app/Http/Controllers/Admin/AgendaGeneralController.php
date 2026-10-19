@@ -138,7 +138,8 @@ class AgendaGeneralController extends Controller
 
     /**
      * Las filas de la grilla: cada hora de comienzo (de las disponibilidades de los profesionales mostrados o de sus
-     * turnos con horario) con una celda por profesional: ['turnos' => [...]] ocupada, ['libre' => bloque] libre,
+     * turnos con horario) con una celda por profesional: ['turnos' => [...]] ocupada, ['continua' => turno] tomada por
+     * un turno que empezó antes (uno largo, p. ej. de un procedimiento de 120 minutos), ['libre' => bloque] libre,
      * ['ocupado' => true] ocupada por un turno que los filtros ocultan, o null (no atiende a esa hora).
      *
      * @return Collection<string, array<int, array|null>> hora => profesional_id => celda
@@ -160,6 +161,11 @@ class AgendaGeneralController extends Controller
 
             if ($turnos->isNotEmpty()) {
                 return [$id => ['turnos' => $turnos]];
+            }
+            $continua = $columna['turnos']->first(fn (Turno $turno) => $turno->tieneHorario()
+                && Disponibilidad::hora($turno->hora_inicio) < $hora && $hora < Disponibilidad::hora($turno->hora_fin));
+            if ($continua) {
+                return [$id => ['continua' => $continua]];
             }
             if (! $bloque || Fecha::yaLlego($iso, $hora)) {
                 return [$id => null];

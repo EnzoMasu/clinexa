@@ -70,6 +70,12 @@
                                         @foreach ($celda['turnos'] as $turno)
                                             @include('admin.agenda-general._turno', ['turno' => $turno])
                                         @endforeach
+                                    @elseif ($celda && isset($celda['continua']))
+                                        {{-- Un turno largo que empezó en una fila anterior sigue ocupando esta. --}}
+                                        <div data-continua="{{ $celda['continua']->id }}" class="rounded-md border-s-4 border-indigo-300 bg-indigo-50 px-2 py-1 text-xs text-gray-700 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-gray-300">
+                                            Continúa: {{ $celda['continua']->paciente->persona->nombre_completo }}
+                                            <span class="dato">(hasta {{ substr($celda['continua']->hora_fin, 0, 5) }})</span>
+                                        </div>
                                     @elseif ($celda && isset($celda['libre']))
                                         @if ($puedeAgendar)
                                             <a href="{{ route('admin.turnos.create', ['profesional' => $columna['profesional']->id, 'fecha' => Fecha::mostrar($fecha), 'hora' => $hora]) }}" data-libre

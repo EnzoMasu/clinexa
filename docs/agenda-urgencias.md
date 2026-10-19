@@ -291,3 +291,29 @@ turnos de un día de todos los profesionales, para buscar disponibilidad cuando 
 - **Pendiente:** "Próximo horario libre" en el encabezado al filtrar por especialidad (próximos 14 días). Reutilizar
   `Agenda::horariosDisponibles` por profesional y día son varias consultas por profesional (no queda en cantidad fija);
   hace falta una versión por lotes del cálculo.
+
+## Duración por procedimiento (turnos con horario)
+
+Un turno con horario puede durar lo que dura su procedimiento (p. ej. una ecografía de 120 minutos), no solo el
+bloque fijo de la disponibilidad.
+
+- **Sin procedimiento** todo queda como antes: el turno dura `Disponibilidad.duracion_turno_minutos`.
+- **Con procedimiento** dura, por defecto, `Procedimiento.duracion_estimada_minutos`. La secretaria puede ajustarla en
+  el alta (campo "Duración (minutos)", de 5 a 480: `Agenda::DURACION_MINIMA` y `DURACION_MAXIMA`). Si la estimada
+  queda fuera de ese rango, el alta pide ajustarla.
+- **Horarios libres** (`Agenda::horariosDisponibles($profesional, $fecha, $duracion)`): los inicios siguen la grilla
+  de la disponibilidad; un inicio sirve solo si `[inicio, inicio + duración)` entra completo en la franja y no se pisa
+  con turnos no cancelados del profesional ni del consultorio. El endpoint `turnos/horarios-disponibles` recibe
+  `procedimiento_id` y `duracion_minutos`; el alta lo vuelve a validar todo.
+- Entre pacientes y urgencias no cambian. Los turnos existentes no se tocaron y no hubo migraciones: `hora_fin` ya
+  guardaba el fin y las tres EXCLUDE aceptan duraciones distintas (`tests/Postgres/TurnosSinSuperposicionTest`).
+- Consulta y estudio el mismo día son dos turnos separados.
+- **En pantalla:** la Agenda general muestra el turno en su fila de inicio con la hora de fin, y en cada fila que sigue
+  ocupando, "Continúa: PACIENTE (hasta HH:MM)" (`data-continua`). La pantalla del profesional muestra inicio y fin.
+- "No se presentó" sigue habilitándose desde la hora de inicio; Cerrar jornada no cambia.
+
+### Pendiente: equipos
+
+`turnos.equipo_id` existe pero no tiene FK ni uso, y esta fase no lo usa. Cuando exista el módulo de equipos (propios
+y de terceros), sumar una restricción EXCLUDE sobre el equipo (como las de profesional, consultorio y paciente, sobre
+`rango`) y descartar en `Agenda` los horarios en que el equipo está ocupado.

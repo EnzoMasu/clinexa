@@ -4,15 +4,28 @@
 //
 // Escucha los eventos de los otros componentes del formulario: "elegido" (buscador de profesional)
 // y "fecha-cambiada" (campo de fecha).
+//
+// Con procedimiento, el turno dura lo del procedimiento (duraciones: id => minutos), ajustable de 5 a 480
+// minutos: los horarios se piden para esa duración (el servidor vuelve a validar todo al guardar).
 
-export default ({ url, urlCupo = '', modalidad = 'con_horario', profesionalId = null, fecha = '', hora = '' }) => ({
+const DURACION_MINIMA = 5;
+const DURACION_MAXIMA = 480;
+// Un procedimiento sin duración cargada (vacía o 0) no la tiene: el turno dura el bloque, como sin procedimiento.
+const limitar = (minutos) => (minutos !== null && Number.isFinite(Number(minutos)) && Number(minutos) > 0
+    ? Math.min(DURACION_MAXIMA, Math.max(DURACION_MINIMA, Math.round(Number(minutos)))) : null);
+
+export default ({ url, urlCupo = '', modalidad = 'con_horario', profesionalId = null, fecha = '', hora = '', duraciones = {}, procedimientoId = '', duracion = null }) => ({
     modalidad, // "con_horario" o "entre_pacientes"
     cupo: null, // { cupo, usados } del profesional y la fecha (solo para informar)
     peticionCupo: null,
     profesionalId,
     fecha,
     hora, // hora_inicio elegida ("08:30")
+    procedimientoId: procedimientoId ?? '',
+    // Minutos, solo con procedimiento: lo enviado antes (tras un error) o la del procedimiento, dentro de los límites.
+    duracion: duracion !== null && duracion !== '' ? Number(duracion) : limitar(procedimientoId ? duraciones[procedimientoId] : null),
     horarios: [],
+    bloqueMinutos: null, // el bloque normal del día (cabecera X-Bloque-Minutos)
     cargando: false,
     cargado: false,
     error: false,
@@ -35,6 +48,22 @@ export default ({ url, urlCupo = '', modalidad = 'con_horario', profesionalId = 
         this.cargar();
     },
 
+    // Al elegir otro procedimiento, la duración vuelve a la suya (dentro de los límites).
+    alCambiarProcedimiento() {
+        this.duracion = limitar(this.procedimientoId ? duraciones[this.procedimientoId] : null);
+        this.cargar();
+    },
+
+    // Los horarios se pidieron para la duración del procedimiento (con horario y procedimiento elegido).
+    get conDuracion() {
+        return this.modalidad === 'con_horario' && Boolean(this.procedimientoId) && Number.isInteger(this.duracion);
+    },
+
+    // Cualquier procedimiento cuya duración pase el bloque normal del día: avisos de turno largo.
+    get duracionLarga() {
+        return this.conDuracion && this.bloqueMinutos !== null && this.duracion > this.bloqueMinutos;
+    },
+
     get listoParaBuscar() {
         return Boolean(this.profesionalId) && /^\d{2}\/\d{2}\/\d{4}$/.test(this.fecha ?? '');
     },
@@ -45,6 +74,7 @@ export default ({ url, urlCupo = '', modalidad = 'con_horario', profesionalId = 
 
         if (! this.listoParaBuscar) {
             this.horarios = [];
+            this.bloqueMinutos = null;
             this.cargado = false;
             this.hora = '';
             return;
@@ -56,12 +86,19 @@ export default ({ url, urlCupo = '', modalidad = 'con_horario', profesionalId = 
         this.error = false;
 
         try {
-            const respuesta = await fetch(`${url}?${new URLSearchParams({ profesional_id: this.profesionalId, fecha: this.fecha })}`, {
+            const parametros = { profesional_id: this.profesionalId, fecha: this.fecha };
+            if (this.procedimientoId) {
+                parametros.procedimiento_id = this.procedimientoId;
+                if (Number.isInteger(this.duracion)) parametros.duracion_minutos = this.duracion;
+            }
+            const respuesta = await fetch(`${url}?${new URLSearchParams(parametros)}`, {
                 headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 signal: peticion.signal,
             });
             if (this.peticion !== peticion) return;
 
+            const bloque = Number.parseInt(respuesta.headers.get('X-Bloque-Minutos') ?? '', 10);
+            this.bloqueMinutos = respuesta.ok && Number.isInteger(bloque) ? bloque : null;
             this.horarios = respuesta.ok ? await respuesta.json() : [];
             this.error = ! respuesta.ok;
             this.cargado = true;
