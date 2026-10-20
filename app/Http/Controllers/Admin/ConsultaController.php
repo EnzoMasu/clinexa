@@ -66,6 +66,8 @@ class ConsultaController extends Controller
         // Con la autoría ("Cargado por" / "modificado por") de la anamnesis y del examen físico.
         'bloquesAnamnesis.tipoBloqueAnamnesis', 'bloquesAnamnesis.usuario.persona.personalSalud.cargoSalud', 'bloquesAnamnesis.modificadoPor.persona.personalSalud.cargoSalud',
         'examenFisico.signosUsuario.persona.personalSalud.cargoSalud', 'examenFisico.hallazgosUsuario.persona.personalSalud.cargoSalud', 'diagnosticos.cie10', 'indicaciones.tipoIndicacion',
+        // Informes de estudio, con su autoría.
+        'informesEstudio.usuario.persona.personalSalud.cargoSalud', 'informesEstudio.modificadoPor.persona.personalSalud.cargoSalud',
         // Adendas (con su autor): se muestran debajo de lo original.
         'adendas.usuario.persona.personalSalud.cargoSalud',
     ];

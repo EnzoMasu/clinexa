@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Consulta;
+use App\Models\InformeEstudio;
 use App\Support\PdfClinico\GenerarPdf;
 use App\Support\PdfClinico\PdfIndicaciones;
+use App\Support\PdfClinico\PdfInformeEstudio;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
@@ -41,6 +43,18 @@ class PdfClinicoController extends Controller
         }
 
         return PdfIndicaciones::ejecutar($consulta, $indicaciones);
+    }
+
+    /**
+     * Un informe de estudio de la consulta (docs/informes-estudio.md): los mismos que pueden sacar el PDF de la consulta. Un
+     * informe de otra consulta, o retirado, no existe (404).
+     */
+    public function informeEstudio(Consulta $consulta, InformeEstudio $informe): Response
+    {
+        abort_if($consulta->anulada() || (int) $informe->consulta_id !== (int) $consulta->id || ! $informe->activo, 404);
+        Gate::authorize('generarPdf', [$consulta, PdfInformeEstudio::DOCUMENTO]);
+
+        return PdfInformeEstudio::ejecutar($consulta, $informe);
     }
 
     private function generar(Request $request, Consulta $consulta, string $documento): Response

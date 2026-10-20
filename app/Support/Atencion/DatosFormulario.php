@@ -6,6 +6,7 @@ use App\Enums\TipoDiagnostico;
 use App\Models\CatalogoCIE10;
 use App\Models\Consulta;
 use App\Models\Dieta;
+use App\Models\Estudio;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoIndicacion;
 use App\Models\User;
@@ -24,6 +25,7 @@ final class DatosFormulario
         'bloquesAnamnesis.tipoBloqueAnamnesis', 'bloquesAnamnesis.usuario.persona.personalSalud.cargoSalud', 'bloquesAnamnesis.modificadoPor.persona.personalSalud.cargoSalud',
         'examenFisico.signosUsuario.persona.personalSalud.cargoSalud', 'examenFisico.hallazgosUsuario.persona.personalSalud.cargoSalud',
         'diagnosticos.cie10', 'indicaciones.tipoIndicacion', 'urgentePor.persona.personalSalud.cargoSalud',
+        'informesEstudio.estudio.estado', 'informesEstudio.usuario.persona.personalSalud.cargoSalud', 'informesEstudio.modificadoPor.persona.personalSalud.cargoSalud',
     ];
 
     /** @return array<string, mixed> */
@@ -44,6 +46,10 @@ final class DatosFormulario
             // Dietas activas para "Insertar dieta": el texto se copia a la indicación (sin enlace; docs/indicaciones-generales.md).
             'dietas' => Dieta::activos()->orderBy('nombre')->get(['id', 'nombre', 'texto'])
                 ->map(fn (Dieta $dieta) => ['id' => (string) $dieta->id, 'nombre' => $dieta->nombre, 'texto' => $dieta->texto])->all(),
+            // Informes de estudio: los estudios activos del catálogo (el nombre se copia al guardar; docs/informes-estudio.md).
+            'filasInformes' => self::filasInformes($consulta),
+            'estudios' => Estudio::activos()->orderBy('nombre')->get(['id', 'nombre'])
+                ->map(fn (Estudio $estudio) => ['id' => (string) $estudio->id, 'nombre' => $estudio->nombre])->all(),
             // Coma decimal solo en los números con decimales; el resto (presión, hallazgos) tal cual.
             'valorExamen' => fn (string $campo) => old("examen.{$campo}", in_array($campo, ['temperatura', 'peso', 'talla'], true) ? self::decimalConComa($examen?->{$campo}) : $examen?->{$campo}),
             'autorSignos' => self::autoria($examen?->signosUsuario),
@@ -140,6 +146,41 @@ final class DatosFormulario
                     'descripcion' => (string) ($fila['descripcion'] ?? ''),
                     'activo' => filter_var($fila['activo'] ?? true, FILTER_VALIDATE_BOOLEAN),
                     'tipoInactivo' => $tipo && ! $tiposActivos->has($tipo->id) ? ['id' => (string) $tipo->id, 'nombre' => $tipo->nombre.' (inactivo)'] : null,
+                    'incompleta' => false,
+                ];
+            })->values()->all();
+    }
+
+    /**
+     * Cada informe con "eleccion": el id del estudio del catálogo, 'libre' (escrito a mano) o '' (todavía sin elegir). Un
+     * estudio guardado que hoy está inactivo se ofrece igual en su fila ("estudioInactivo").
+     */
+    private static function filasInformes(Consulta $consulta): array
+    {
+        $guardados = $consulta->informesEstudio->keyBy('id');
+
+        return collect(old('con_informes')
+                ? (array) old('informes', [])
+                : $guardados->sortBy(['orden', 'id'])->map(fn ($informe) => [
+                    ...$informe->only(['id', 'estudio_id', 'solicitante', 'texto', 'activo']),
+                    'estudio_libre' => $informe->estudio_id ? '' : $informe->estudio_nombre,
+                ])->all())
+            ->map(function ($fila) use ($guardados) {
+                $guardado = filled($fila['id'] ?? null) ? $guardados->get((int) $fila['id']) : null;
+                $estudioId = (string) ($fila['estudio_id'] ?? '');
+                $libre = (string) ($fila['estudio_libre'] ?? '');
+                $estudio = $guardado?->estudio;
+
+                return [
+                    'uid' => self::uid($fila, $guardado?->id),
+                    'id' => $guardado ? (string) $guardado->id : '',
+                    'eleccion' => $estudioId !== '' ? $estudioId : ($libre !== '' ? 'libre' : ''),
+                    'estudio_libre' => $libre,
+                    'solicitante' => (string) ($fila['solicitante'] ?? ''),
+                    'texto' => (string) ($fila['texto'] ?? ''),
+                    'activo' => filter_var($fila['activo'] ?? true, FILTER_VALIDATE_BOOLEAN),
+                    'estudioInactivo' => $estudio && ! $estudio->estaActivo() ? ['id' => (string) $estudio->id, 'nombre' => $guardado->estudio_nombre.' (inactivo)'] : null,
+                    'autor' => $guardado ? self::autoria($guardado->usuario, $guardado->modificadoPor) : null,
                     'incompleta' => false,
                 ];
             })->values()->all();

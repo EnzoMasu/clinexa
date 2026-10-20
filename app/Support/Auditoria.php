@@ -28,6 +28,7 @@ use App\Models\Estudio;
 use App\Models\ExamenFisico;
 use App\Models\HistoriaClinica;
 use App\Models\Indicacion;
+use App\Models\InformeEstudio;
 use App\Models\MedioPago;
 use App\Models\ModuloSistema;
 use App\Models\OrigenTurno;
@@ -90,7 +91,7 @@ final class Auditoria
         // Personal de salud, sus cargos y los parámetros clínicos: no son contenido clínico (los ve quien ve la auditoría).
         CargoSalud::class, PersonalSalud::class, ParametroClinico::class,
         // Historia clínica (módulo HISTORIA_CLINICA; la historia primero: es la tabla de sus lecturas).
-        HistoriaClinica::class, Consulta::class, BloqueAnamnesis::class, ExamenFisico::class, Diagnostico::class, Indicacion::class,
+        HistoriaClinica::class, Consulta::class, BloqueAnamnesis::class, ExamenFisico::class, Diagnostico::class, Indicacion::class, InformeEstudio::class,
         // Recetas (módulo RECETAS; la receta primero: es la tabla de sus lecturas).
         Receta::class, DetalleReceta::class,
         // Correcciones de una consulta cerrada (módulo CORRECCIONES_HC; el desbloqueo primero: es la tabla de sus lecturas).
@@ -109,7 +110,7 @@ final class Auditoria
      * Tablas con contenido clínico: en la pantalla de auditoría, sus valores solo los ve quien tiene
      * VER sobre HISTORIA_CLINICA (y el buscador no busca en ellos para los demás).
      */
-    public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos', 'indicaciones',
+    public const TABLAS_CLINICAS = ['historias_clinicas', 'consultas', 'bloques_anamnesis', 'examenes_fisicos', 'diagnosticos', 'indicaciones', 'informes_estudio',
         // Adendas, desbloqueos (con su motivo) y versiones de las correcciones: también contenido clínico.
         'adendas_consulta', 'desbloqueos_consulta', 'consulta_versiones',
         // La nota clínica de un retiro o rechazo, los certificados de reposo médico y las órdenes de estudio.

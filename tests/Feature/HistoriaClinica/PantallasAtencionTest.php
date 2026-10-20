@@ -213,13 +213,14 @@ describe('pantalla de atención', function () {
         $this->get(route('admin.consultas.atencion', $anulada))->assertNotFound();
     });
 
-    test('barra fija, secciones, "Estudios" deshabilitado y el panel inicial (Anamnesis sin bloques; si no, Motivo y diagnósticos)', function () {
+    test('barra fija, secciones (con "Estudios": los informes de estudio) y el panel inicial (Anamnesis sin bloques; si no, Motivo y diagnósticos)', function () {
         $consulta = hcEnCurso(hcTurno());
 
         $this->get(route('admin.consultas.atencion', $consulta))->assertOk()
             ->assertSeeInOrder(['Duarte, Carmen', 'Turno 08:00', 'En consulta desde 09:00', 'Guardar ahora',
                 'Finalizar consulta', 'Deshacer atención', 'Volver a la lista',
-                'Anamnesis', 'Examen físico', 'Motivo y diagnósticos', 'Indicaciones', 'Estudios', 'Próximamente'])
+                'Anamnesis', 'Examen físico', 'Motivo y diagnósticos', 'Indicaciones', 'Estudios', 'Informes de estudio'])
+            ->assertDontSee('Próximamente')
             ->assertViewHas('panelInicial', 'anamnesis');
 
         hcAutoguardar($consulta, ['con_anamnesis' => '1', 'anamnesis' => [['uid' => 'n', 'id' => '', 'activo' => '1', 'tipo_bloque_anamnesis_id' => $this->alergias->id, 'contenido' => 'Penicilina.']]]);

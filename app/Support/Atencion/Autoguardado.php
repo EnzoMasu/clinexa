@@ -45,7 +45,7 @@ final class Autoguardado
         abort_if($grupos === [], 403, Gate::forUser($usuario)->inspect('escribirPreparacion', $consulta)->message()
             ?? 'No tiene permiso para modificar esta consulta.');
         abort_if(FormularioConsulta::traeCamposClinicos($request->all()) && ! in_array(FormularioConsulta::CLINICO, $grupos, true), 403,
-            'No tiene permiso para cargar el motivo, los hallazgos, los diagnósticos ni las indicaciones.');
+            'No tiene permiso para cargar el motivo, los hallazgos, los diagnósticos, las indicaciones ni los informes de estudio.');
         abort_if((string) $request->input('version') !== $consulta->version(), 409, self::VERSION_VIEJA);
 
         [$datos, $incompletas] = FormularioConsulta::validar($request, $consulta, $grupos, final: false);

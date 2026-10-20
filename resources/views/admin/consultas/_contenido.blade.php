@@ -6,7 +6,7 @@
     Las secciones vacías se omiten. Requiere $consulta con historiaClinica.paciente.persona.tipoDocumento,
     profesional.persona, turno, bloquesAnamnesis.tipoBloqueAnamnesis (y su usuario y modificadoPor, con
     persona), examenFisico (y signosUsuario y hallazgosUsuario), diagnosticos.cie10 e
-    indicaciones.tipoIndicacion y recetas.detalles. La autoría se muestra como "Cargado por …" / "modificado por …".
+    indicaciones.tipoIndicacion, informesEstudio (con usuario y modificadoPor) y recetas.detalles. La autoría se muestra como "Cargado por …" / "modificado por …".
 
     Recetas: solo con VER sobre RECETAS, y sin acciones (Nueva receta, Editar, Imprimir, Anular van en la
     página, fuera de este partial: el fragmento del popup es idéntico al artículo de la página).
@@ -28,6 +28,8 @@
     // Vigentes primero (el principal arriba); los retirados al final, atenuados.
     $diagnosticos = $consulta->diagnosticos->sortBy([['activo', 'desc'], ['principal', 'desc'], ['id', 'asc']]);
     $indicaciones = $consulta->indicaciones->sortBy(['orden', 'id']);
+    $informes = $consulta->informesEstudio->sortBy(['orden', 'id']);
+    $puedePdfInforme = $informes->contains('activo', true) && \Illuminate\Support\Facades\Gate::allows('generarPdf', [$consulta, \App\Support\PdfClinico\PdfInformeEstudio::DOCUMENTO]);
     $recetas = auth()->user()?->tienePermiso('RECETAS', 'VER') ? $consulta->recetas->sortBy('id') : collect();
     $autoria = 'text-xs text-gray-500 dark:text-gray-400';
     $retirado = 'rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-300';
@@ -141,6 +143,36 @@
                         @unless ($indicacion->activo)
                             <span class="ms-1 {{ $retirado }}">Retirado</span>
                         @endunless
+                    </li>
+                @endforeach
+            </ul>
+        </section>
+    @endif
+
+    {{-- Informes de estudio (docs/informes-estudio.md): el PDF, solo de los vigentes y a quien puede generarlo (se abre en otra pestaña). --}}
+    @if ($informes->isNotEmpty())
+        <section data-informes-estudio>
+            <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Informes de estudio</h4>
+            <ul class="mt-1 space-y-2">
+                @foreach ($informes as $informe)
+                    <li @class(['opacity-60' => ! $informe->activo]) data-informe="{{ $informe->id }}">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">{{ $informe->estudio_nombre }}</span>
+                            @if ($informe->solicitante)
+                                <span class="text-xs text-gray-600 dark:text-gray-400">Solicitante: {{ $informe->solicitante }}</span>
+                            @endif
+                            @unless ($informe->activo)
+                                <span class="{{ $retirado }}">Retirado</span>
+                            @endunless
+                            @if ($puedePdfInforme && $informe->activo)
+                                <a href="{{ route('admin.pdf.informe-estudio', ['consulta' => $consulta, 'informe' => $informe]) }}" target="_blank" rel="noopener" data-pdf="informe-estudio"
+                                    class="text-xs font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">PDF del informe</a>
+                            @endif
+                        </div>
+                        <p class="whitespace-pre-line">{{ $informe->texto }}</p>
+                        @if ($texto = DatosFormulario::autoria($informe->usuario, $informe->modificadoPor))
+                            <p class="{{ $autoria }}">{{ $texto }}</p>
+                        @endif
                     </li>
                 @endforeach
             </ul>

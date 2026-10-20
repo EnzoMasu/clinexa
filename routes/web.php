@@ -310,6 +310,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             Route::get('consultas/{consulta}/pdf/consulta', [PdfClinicoController::class, 'consulta'])->name('pdf.consulta')->whereNumber('consulta');
             // Indicaciones generales en hoja aparte (docs/indicaciones-generales.md): mismos permisos que el PDF de la consulta.
             Route::get('consultas/{consulta}/pdf/indicaciones', [PdfClinicoController::class, 'indicaciones'])->name('pdf.indicaciones')->whereNumber('consulta');
+            // Un informe de estudio de la consulta (docs/informes-estudio.md): mismos permisos que el PDF de la consulta.
+            Route::get('consultas/{consulta}/pdf/informes/{informe}', [PdfClinicoController::class, 'informeEstudio'])->name('pdf.informe-estudio')
+                ->whereNumber(['consulta', 'informe']);
         });
 
         // Constancias de retiro (Recepción) y de estado del turno (profesional del turno o Supervisión médica): documentos

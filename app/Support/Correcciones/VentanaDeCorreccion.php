@@ -8,6 +8,7 @@ use App\Models\DesbloqueoConsulta;
 use App\Models\Diagnostico;
 use App\Models\ExamenFisico;
 use App\Models\Indicacion;
+use App\Models\InformeEstudio;
 use Illuminate\Database\Eloquent\Model;
 use LogicException;
 
@@ -27,6 +28,7 @@ final class VentanaDeCorreccion
         ExamenFisico::class => ['hallazgos', 'hallazgos_usuario_id'],
         Diagnostico::class => ['codigo_cie10', 'tipo', 'principal', 'descripcion_adicional', 'activo'],
         Indicacion::class => ['tipo_indicacion_id', 'descripcion', 'orden', 'activo'],
+        InformeEstudio::class => ['estudio_id', 'estudio_nombre', 'solicitante', 'texto', 'orden', 'activo', 'usuario_id', 'modificado_por_id'],
     ];
 
     /** @var array{consulta_id: int, desbloqueo_id: int}|null */

@@ -5,7 +5,9 @@ namespace App\Support\Atencion;
 use App\Enums\TipoDiagnostico;
 use App\Models\CatalogoCIE10;
 use App\Models\Consulta;
+use App\Models\Estudio;
 use App\Models\Indicacion;
+use App\Models\InformeEstudio;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoIndicacion;
 use Closure;
@@ -17,11 +19,11 @@ use Illuminate\Validation\Rule;
  * y las de BORRADOR (autoguardado, más permisivas), separadas por grupo de campos.
  *
  * - PREPARACION (en pantalla, TRIAJE): urgente y observación, bloques de anamnesis y signos vitales.
- * - CLINICO: motivo, hallazgos del examen, diagnósticos e indicaciones generales.
+ * - CLINICO: motivo, hallazgos del examen, diagnósticos, indicaciones generales e informes de estudio.
  *
  * Borrador: se validan formato, largos y rangos, pero ningún campo es obligatorio; las filas
- * incompletas (bloque sin contenido o sin tipo, diagnóstico sin código, indicación sin texto) no se
- * guardan y se informan por su uid ("Fila incompleta: todavía no se guardó"). Final: además, el motivo
+ * incompletas (bloque sin contenido o sin tipo, diagnóstico sin código, indicación sin texto, informe
+ * sin estudio o sin texto) no se guardan y se informan por su uid ("Fila incompleta: todavía no se guardó"). Final: además, el motivo
  * es obligatorio y entre los diagnósticos vigentes hay exactamente un principal.
  *
  * Los retirados (activo = false) no cuentan para los límites, los repetidos ni el principal.
@@ -41,11 +43,13 @@ final class FormularioConsulta
 
     public const MAXIMO_INDICACIONES = 10;
 
+    public const MAXIMO_INFORMES = 10;
+
     /** Campos del examen físico de cada grupo: los signos vitales son de la preparación; los hallazgos, clínicos. */
     public const SIGNOS_VITALES = ['presion_arterial', 'frecuencia_cardiaca', 'frecuencia_respiratoria', 'temperatura', 'peso', 'talla', 'saturacion_oxigeno'];
 
     /** Claves del pedido que son del grupo CLÍNICO (además de examen.hallazgos). */
-    public const CLAVES_CLINICAS = ['motivo_consulta', 'con_diagnosticos', 'diagnosticos', 'diagnostico_principal', 'con_indicaciones', 'indicaciones'];
+    public const CLAVES_CLINICAS = ['motivo_consulta', 'con_diagnosticos', 'diagnosticos', 'diagnostico_principal', 'con_indicaciones', 'indicaciones', 'con_informes', 'informes'];
 
     public const FILA_INCOMPLETA = 'Fila incompleta: todavía no se guardó.';
 
@@ -137,9 +141,16 @@ final class FormularioConsulta
             $salida['con_diagnosticos'] = $entrada['con_diagnosticos'] ?? null;
             $salida['diagnostico_principal'] = $entrada['diagnostico_principal'] ?? null;
             $salida['con_indicaciones'] = $entrada['con_indicaciones'] ?? null;
-            foreach (['diagnosticos', 'indicaciones'] as $lista) {
+            $salida['con_informes'] = $entrada['con_informes'] ?? null;
+            foreach (['diagnosticos', 'indicaciones', 'informes'] as $lista) {
                 if (is_array($entrada[$lista] ?? null)) {
                     $salida[$lista] = $filas($entrada[$lista]);
+                }
+            }
+            // Informe de estudio: si se eligió uno del catálogo, el nombre escrito a mano no cuenta.
+            foreach ($salida['informes'] ?? [] as $indice => $fila) {
+                if (is_array($fila) && filled($fila['estudio_id'] ?? null)) {
+                    $salida['informes'][$indice]['estudio_libre'] = null;
                 }
             }
         }
@@ -159,6 +170,7 @@ final class FormularioConsulta
             'anamnesis' => fn (array $fila) => ! filled($fila['contenido'] ?? null) || ! filled($fila['tipo_bloque_anamnesis_id'] ?? null),
             'diagnosticos' => fn (array $fila) => ! filled($fila['codigo_cie10'] ?? null) || ! filled($fila['tipo'] ?? null),
             'indicaciones' => fn (array $fila) => ! filled($fila['descripcion'] ?? null),
+            'informes' => fn (array $fila) => ! filled($fila['texto'] ?? null) || (! filled($fila['estudio_id'] ?? null) && ! filled($fila['estudio_libre'] ?? null)),
         ];
         $incompletas = [];
 
@@ -183,6 +195,7 @@ final class FormularioConsulta
             'anamnesis' => $consulta?->bloquesAnamnesis()->get()->keyBy('id') ?? collect(),
             'diagnosticos' => $consulta?->diagnosticos()->get()->keyBy('id') ?? collect(),
             'indicaciones' => $consulta?->indicaciones()->get()->keyBy('id') ?? collect(),
+            'informes' => $consulta?->informesEstudio()->get()->keyBy('id') ?? collect(),
         ];
         // El tipo (o el código) que la fila ya tenía guardado: vale aunque hoy esté inactivo.
         $original = function (string $atributo, string $lista, string $campo) use ($request, $guardados): mixed {
@@ -288,6 +301,25 @@ final class FormularioConsulta
                     }
                 }],
                 'indicaciones.*.descripcion' => ['required', 'string', 'max:'.Indicacion::MAXIMO_DESCRIPCION],
+                // Informes de estudio (docs/informes-estudio.md): estudio del catálogo o escrito a mano, solicitante opcional y texto libre.
+                'con_informes' => ['nullable', 'boolean'],
+                'informes' => ['nullable', 'array', function (string $atributo, mixed $filas, Closure $fail) use ($activas) {
+                    if ($activas($filas)->count() > self::MAXIMO_INFORMES) {
+                        $fail('La consulta puede tener hasta '.self::MAXIMO_INFORMES.' informes de estudio vigentes. Retire o descarte alguno.');
+                    }
+                }],
+                'informes.*.uid' => ['nullable', 'string', 'max:64'],
+                'informes.*.id' => ['nullable', 'integer', $deEstaConsulta('informes_estudio')],
+                'informes.*.activo' => ['nullable', 'boolean'],
+                // El estudio del catálogo tiene que estar activo, salvo el que la fila ya tenía guardado.
+                'informes.*.estudio_id' => ['nullable', 'integer', function (string $atributo, mixed $valor, Closure $fail) use ($original) {
+                    if (! Estudio::activos()->whereKey((int) $valor)->exists() && (int) $original($atributo, 'informes', 'estudio_id') !== (int) $valor) {
+                        $fail('Elija un estudio activo del catálogo, o escríbalo si no está.');
+                    }
+                }],
+                'informes.*.estudio_libre' => ['nullable', 'required_without:informes.*.estudio_id', 'string', 'max:'.Estudio::MAXIMO_NOMBRE],
+                'informes.*.solicitante' => ['nullable', 'string', 'max:'.InformeEstudio::MAXIMO_SOLICITANTE],
+                'informes.*.texto' => ['required', 'string', 'max:'.InformeEstudio::MAXIMO_TEXTO],
             ];
         }
 
@@ -312,6 +344,9 @@ final class FormularioConsulta
             'diagnosticos.*.id.exists' => 'Uno de los diagnósticos no pertenece a esta consulta.',
             'indicaciones.*.descripcion.required' => 'Escriba el texto de la indicación general.',
             'indicaciones.*.id.exists' => 'Una de las indicaciones generales no pertenece a esta consulta.',
+            'informes.*.estudio_libre.required_without' => 'Elija el estudio realizado del catálogo, o escríbalo si no está.',
+            'informes.*.texto.required' => 'Escriba el texto del informe de estudio.',
+            'informes.*.id.exists' => 'Uno de los informes de estudio no pertenece a esta consulta.',
         ];
     }
 
@@ -335,6 +370,10 @@ final class FormularioConsulta
             'diagnosticos.*.descripcion_adicional' => 'descripción adicional',
             'indicaciones.*.descripcion' => 'texto de la indicación',
             'indicaciones.*.tipo_indicacion_id' => 'tipo de indicación',
+            'informes.*.estudio_id' => 'estudio realizado',
+            'informes.*.estudio_libre' => 'estudio realizado',
+            'informes.*.solicitante' => 'solicitante',
+            'informes.*.texto' => 'texto del informe',
         ];
     }
 }

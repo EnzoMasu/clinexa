@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Gate;
  * La corrección de una consulta cerrada con un desbloqueo VIGENTE, en UN solo guardado y una transacción: con la
  * consulta y el desbloqueo bloqueados se revalida todo (consulta finalizada, desbloqueo de esa consulta, vigente y sin
  * vencer, supervisor que puede usarlo); se guarda la VERSIÓN con lo de antes; se escribe dentro de la ventana
- * (VentanaDeCorreccion: solo motivo, anamnesis, hallazgos, diagnósticos e indicaciones) y el desbloqueo pasa a
+ * (VentanaDeCorreccion: solo motivo, anamnesis, hallazgos, diagnósticos, indicaciones e informes de estudio) y el desbloqueo pasa a
  * REALIZADO. Si no cambió nada, no se consume. Queda en la auditoría como EDITAR de la consulta con "Corrección
  * autorizada (desbloqueo #N)", antes y después.
  */

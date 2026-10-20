@@ -52,8 +52,8 @@ Lista **cerrada**, armada campo por campo (`App\Support\OrdenEstudio\DatosOrden`
 **Nunca:** motivo de consulta, anamnesis o síntomas, signos, hallazgos, recetas ni indicaciones generales. Tampoco campos
 clínicos que no se pidieron (semanas de gestación, lateralidad, etc.).
 
-**Fuera de esta fase:** precio, cotización, quién paga, vigencia de la orden, resultados e informes, estudios realizados en la
-clínica.
+**Fuera de esta fase:** precio, cotización, quién paga, vigencia de la orden, resultados de otras instituciones. El informe de un estudio realizado en la
+clínica está en `docs/informes-estudio.md` (sin vínculo con la orden).
 
 ## Texto provisorio
 

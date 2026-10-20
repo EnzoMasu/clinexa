@@ -63,13 +63,14 @@ final class Apoyo
         return self::consultaDelTurno(Consulta::where('turno_id', $turno->id)->firstOrFail());
     }
 
-    /** Motivo, hallazgos, diagnósticos o indicaciones activos, o recetas sin anular. */
+    /** Motivo, hallazgos, diagnósticos, indicaciones o informes de estudio activos, o recetas sin anular. */
     public static function tieneContenidoClinico(Consulta $consulta): bool
     {
         return filled($consulta->motivo_consulta)
             || filled($consulta->examenFisico()->value('hallazgos'))
             || $consulta->diagnosticos()->where('activo', true)->exists()
             || $consulta->indicaciones()->where('activo', true)->exists()
+            || $consulta->informesEstudio()->where('activo', true)->exists()
             || $consulta->recetas()->where('estado_id', '!=', Estado::idDe(Estado::ANULADO))->exists();
     }
 

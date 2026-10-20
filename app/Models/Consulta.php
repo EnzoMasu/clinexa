@@ -145,6 +145,9 @@ class Consulta extends Model
             // "1. Reposo: 48 horas", "2. Control en 7 días (retirado)".
             'indicaciones' => fn (Collection $indicaciones) => $indicaciones->sortBy(['orden', 'id'])->loadMissing('tipoIndicacion')
                 ->mapWithKeys(fn (Indicacion $indicacion) => ["Indicación #{$indicacion->id}" => "{$indicacion->orden}. ".$indicacion->descripcionAuditoria()])->all(),
+            // "1. Ecografía: texto del informe", "2. … (retirado)".
+            'informesEstudio' => fn (Collection $informes) => $informes->sortBy(['orden', 'id'])
+                ->mapWithKeys(fn (InformeEstudio $informe) => ["Informe de estudio #{$informe->id}" => "{$informe->orden}. ".$informe->descripcionAuditoria()])->all(),
         ];
     }
 
@@ -202,6 +205,12 @@ class Consulta extends Model
     public function indicaciones(): HasMany
     {
         return $this->hasMany(Indicacion::class);
+    }
+
+    /** Informes de estudio (vigentes y retirados), sin orden fijo: ordenar al mostrar (docs/informes-estudio.md). */
+    public function informesEstudio(): HasMany
+    {
+        return $this->hasMany(InformeEstudio::class);
     }
 
     /** Recetas (borradores, emitidas y anuladas). */

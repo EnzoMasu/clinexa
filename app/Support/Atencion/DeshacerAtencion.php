@@ -13,14 +13,14 @@ use Illuminate\Support\Facades\Gate;
 
 /**
  * Deshacer atención (consulta EN_CURSO del profesional):
- * - con turno, si no hay contenido clínico (motivo, hallazgos, diagnósticos o indicaciones activos, recetas
+ * - con turno, si no hay contenido clínico (motivo, hallazgos, diagnósticos, indicaciones o informes de estudio activos, recetas
  *   sin anular): la consulta vuelve a EN_PREPARACION (sin iniciada_en; preparada_en se conserva) y el turno a
  *   PENDIENTE. Los datos de la preparación no lo impiden. La consulta no se anula.
  * - sin turno, solo si está completamente vacía: pasa a ANULADO.
  */
 final class DeshacerAtencion
 {
-    public const CON_CONTENIDO = 'No se puede deshacer: la consulta ya tiene motivo, hallazgos, diagnósticos, indicaciones o recetas.';
+    public const CON_CONTENIDO = 'No se puede deshacer: la consulta ya tiene motivo, hallazgos, diagnósticos, indicaciones, informes de estudio o recetas.';
 
     /** Devuelve 'preparacion' (volvió a preparación) o 'anulada'. */
     public static function ejecutar(User $usuario, Consulta $consulta): string

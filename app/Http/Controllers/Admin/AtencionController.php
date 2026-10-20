@@ -335,7 +335,7 @@ class AtencionController extends Controller
         }
 
         $errores = session('errors')?->getBag('default');
-        $seccionesConError = collect(['anamnesis' => 'anamnesis*', 'examen' => 'examen*', 'motivo' => ['motivo_consulta', 'diagnostico*'], 'indicaciones' => 'indicaciones*'])
+        $seccionesConError = collect(['anamnesis' => 'anamnesis*', 'examen' => 'examen*', 'motivo' => ['motivo_consulta', 'diagnostico*'], 'indicaciones' => 'indicaciones*', 'estudios' => 'informes*'])
             ->filter(fn ($claves) => collect((array) $claves)->contains(fn ($clave) => $errores?->has($clave)))->keys()->all();
         $panelInicial = $seccionesConError[0] ?? ($consulta->bloquesAnamnesis->where('activo', true)->isEmpty() ? 'anamnesis' : 'motivo');
 

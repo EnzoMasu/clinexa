@@ -1,13 +1,13 @@
 {{--
     Corrección de una consulta finalizada con un desbloqueo vigente (CorreccionController::corregir). Un solo
     guardado: la consulta vuelve a cerrarse. Solo las secciones corregibles: anamnesis, hallazgos, motivo y diagnósticos,
-    indicaciones (los signos vitales, el triaje y las recetas no se tocan). Sin autoguardado. Todo escapado.
+    indicaciones, informes de estudio (los signos vitales, el triaje y las recetas no se tocan). Sin autoguardado. Todo escapado.
 --}}
 @use('App\Support\Fecha')
 
 @php
     $clases = 'mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm';
-    $secciones = ['anamnesis' => 'Anamnesis', 'examen' => 'Hallazgos', 'motivo' => 'Motivo y diagnósticos', 'indicaciones' => 'Indicaciones'];
+    $secciones = ['anamnesis' => 'Anamnesis', 'examen' => 'Hallazgos', 'motivo' => 'Motivo y diagnósticos', 'indicaciones' => 'Indicaciones', 'estudios' => 'Estudios'];
     $panelInicial = $errors->hasAny(['motivo_consulta', 'diagnostico*']) ? 'motivo' : 'anamnesis';
 @endphp
 
@@ -35,7 +35,7 @@
         <form id="form-consulta" x-ref="formulario" method="POST" novalidate action="{{ route('admin.correcciones.corregir.guardar', $desbloqueo) }}"
             x-on:input="cambio()" x-on:change="cambio()" x-on:click="$event.target.closest('button[type=button]') && cambio()" x-on:submit="enviar($event)" class="space-y-6">
             @csrf
-            @foreach (['anamnesis' => ['secciones._anamnesis'], 'examen' => ['secciones._hallazgos'], 'motivo' => ['secciones._diagnosticos'], 'indicaciones' => ['secciones._indicaciones']] as $clave => $vistas)
+            @foreach (['anamnesis' => ['secciones._anamnesis'], 'examen' => ['secciones._hallazgos'], 'motivo' => ['secciones._diagnosticos'], 'indicaciones' => ['secciones._indicaciones'], 'estudios' => ['secciones._informes']] as $clave => $vistas)
                 <section data-panel="{{ $clave }}" x-show="panel === '{{ $clave }}'" class="space-y-6" aria-label="{{ $secciones[$clave] }}">
                     @foreach ($vistas as $vista)
                         @include('admin.consultas.'.$vista)

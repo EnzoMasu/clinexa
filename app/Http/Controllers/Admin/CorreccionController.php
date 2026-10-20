@@ -30,9 +30,9 @@ class CorreccionController extends Controller
 {
     /** Claves del pedido de corrección que se aceptan; cualquier otra (signos, triaje, recetas, paciente...) se rechaza. */
     private const CLAVES_PERMITIDAS = ['_token', '_method', 'motivo_consulta', 'con_anamnesis', 'anamnesis', 'examen',
-        'con_diagnosticos', 'diagnosticos', 'diagnostico_principal', 'con_indicaciones', 'indicaciones'];
+        'con_diagnosticos', 'diagnosticos', 'diagnostico_principal', 'con_indicaciones', 'indicaciones', 'con_informes', 'informes'];
 
-    public const SOLO_CORREGIBLE = 'Durante una corrección solo se pueden modificar el motivo, la anamnesis, los hallazgos, los diagnósticos y las indicaciones.';
+    public const SOLO_CORREGIBLE = 'Durante una corrección solo se pueden modificar el motivo, la anamnesis, los hallazgos, los diagnósticos, las indicaciones y los informes de estudio.';
 
     public function crearAdenda(Consulta $consulta): View
     {

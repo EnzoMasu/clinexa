@@ -5,7 +5,7 @@
 Una consulta **cerrada** (FINALIZADA o ANULADA) queda llaveada:
 
 - **No se modifica.** Ni la consulta ni nada de lo que cuelga de ella: bloques de anamnesis, examen físico
-  (signos vitales y hallazgos), diagnósticos, indicaciones, recetas en cualquier estado y sus renglones.
+  (signos vitales y hallazgos), diagnósticos, indicaciones, informes de estudio, recetas en cualquier estado y sus renglones.
 - **No se elimina.** Nada de la historia clínica se borra.
 - **No se desactiva.** Una paciente con consultas cerradas no pasa a INACTIVO, y tampoco su Persona.
 
@@ -73,7 +73,7 @@ registran sus lecturas). Lo reciben el perfil Supervisión médica (por la migra
   parcial en la base), cancelable. Estados del catálogo compartido: VIGENTE, REALIZADO (se usó), VENCIDO y CANCELADO. El
   vencimiento se aplica al consultar (pantalla, corrección o nuevo desbloqueo).
 - Mientras está vigente se corrigen **solo**: motivo, bloques de anamnesis (editar, agregar, retirar), hallazgos,
-  indicaciones y diagnósticos, con las validaciones de siempre (`FormularioConsulta`, grupos CLINICO y ANAMNESIS, reglas
+  indicaciones, diagnósticos e informes de estudio (`docs/informes-estudio.md`), con las validaciones de siempre (`FormularioConsulta`, grupos CLINICO y ANAMNESIS, reglas
   finales; `GuardarSecciones`). **Jamás**: signos vitales (ni su autoría ni sus alertas), triaje, recetas, paciente,
   profesional, fechas, estado ni autoría de la consulta. Un pedido con cualquiera de esos campos se rechaza entero.
 - **Un solo guardado**: al guardar, la ventana pasa a REALIZADO y la consulta queda cerrada otra vez. Si no cambió nada

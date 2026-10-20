@@ -83,6 +83,10 @@
                                 @foreach ($antes['indicaciones'] ?? [] as $indicacion)
                                     <div @class(['opacity-60' => ! $indicacion['activo']])><dt class="inline font-medium">Indicación{{ $indicacion['activo'] ? '' : ' (retirada)' }}:</dt> <dd class="inline whitespace-pre-line">{{ ($indicacion['tipo'] ? $indicacion['tipo'].': ' : '').$indicacion['descripcion'] }}</dd></div>
                                 @endforeach
+                                {{-- Las versiones anteriores a los informes de estudio no tienen la clave. --}}
+                                @foreach ($antes['informes'] ?? [] as $informe)
+                                    <div @class(['opacity-60' => ! $informe['activo']])><dt class="inline font-medium">Informe de estudio{{ $informe['activo'] ? '' : ' (retirado)' }}:</dt> <dd class="inline whitespace-pre-line">{{ $informe['estudio_nombre'].($informe['solicitante'] ? ' (solicitante: '.$informe['solicitante'].')' : '').': '.$informe['texto'] }}</dd></div>
+                                @endforeach
                             </dl>
                         </article>
                     @endforeach
@@ -184,7 +188,7 @@
                                 @if ($evento->tabla_afectada === 'recetas')
                                     Receta {{ $consulta->recetas->firstWhere('id', (int) $evento->registro_afectado_id)?->numero ?? 'en borrador' }}:
                                 @endif
-                                {{ collect($secciones)->map(fn ($campo) => ['bloquesAnamnesis' => 'anamnesis', 'examenFisico' => 'examen físico', 'diagnosticos' => 'diagnósticos', 'indicaciones' => 'indicaciones generales', 'motivo_consulta' => 'motivo', 'detalles' => 'medicamentos', 'estado_id' => 'estado', 'motivo_anulacion' => 'motivo de la anulación', 'numero' => 'número', 'emitida_en' => 'emisión', 'anulada_en' => 'anulación'][$campo] ?? $campo)->join(', ') }}
+                                {{ collect($secciones)->map(fn ($campo) => ['bloquesAnamnesis' => 'anamnesis', 'examenFisico' => 'examen físico', 'diagnosticos' => 'diagnósticos', 'indicaciones' => 'indicaciones generales', 'informesEstudio' => 'informes de estudio', 'motivo_consulta' => 'motivo', 'detalles' => 'medicamentos', 'estado_id' => 'estado', 'motivo_anulacion' => 'motivo de la anulación', 'numero' => 'número', 'emitida_en' => 'emisión', 'anulada_en' => 'anulación'][$campo] ?? $campo)->join(', ') }}
                             </td>
                             <td class="px-6 py-3 text-right whitespace-nowrap">
                                 <a href="{{ route('admin.auditoria.show', $evento) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Ver detalle</a>

@@ -10,7 +10,7 @@
     $clases = 'mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm';
     $boton = 'inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700';
     $botonPrincipal = 'inline-flex items-center rounded-md bg-gray-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white';
-    $secciones = ['anamnesis' => 'Anamnesis', 'examen' => 'Examen físico', 'motivo' => 'Motivo y diagnósticos', 'indicaciones' => 'Indicaciones'];
+    $secciones = ['anamnesis' => 'Anamnesis', 'examen' => 'Examen físico', 'motivo' => 'Motivo y diagnósticos', 'indicaciones' => 'Indicaciones', 'estudios' => 'Estudios'];
     // Historial (panel lateral): para el popup, los ids en el orden mostrado y las URL con marcador.
     $idsHistorial = $historial->pluck('id')->values()->all();
 @endphp
@@ -63,9 +63,6 @@
                         @endif
                     </button>
                 @endif
-                <button type="button" disabled title="Próximamente" class="inline-flex cursor-not-allowed items-center gap-1.5 rounded-md border border-dashed border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-400 dark:border-gray-600 dark:text-gray-500">
-                    Estudios <span class="font-normal">(Próximamente)</span>
-                </button>
                 <button type="button" x-on:click="historialAbierto = ! historialAbierto" x-bind:aria-expanded="(!! historialAbierto).toString()" aria-controls="historial-paciente"
                     class="{{ $boton }} lg:hidden">Historial</button>
             </nav>
@@ -80,7 +77,7 @@
                 {{-- Control de concurrencia: el autoguardado la actualiza en cada guardado. --}}
                 <input type="hidden" name="version" value="{{ $consulta->version() }}">
 
-                @foreach (['anamnesis' => ['secciones._triaje', 'secciones._anamnesis'], 'examen' => ['secciones._signos', 'secciones._hallazgos'], 'motivo' => ['secciones._diagnosticos'], 'indicaciones' => ['secciones._indicaciones']] as $clave => $vistas)
+                @foreach (['anamnesis' => ['secciones._triaje', 'secciones._anamnesis'], 'examen' => ['secciones._signos', 'secciones._hallazgos'], 'motivo' => ['secciones._diagnosticos'], 'indicaciones' => ['secciones._indicaciones'], 'estudios' => ['secciones._informes']] as $clave => $vistas)
                     <section data-panel="{{ $clave }}" x-show="panel === '{{ $clave }}'" class="space-y-6" aria-label="{{ $secciones[$clave] }}">
                         @foreach ($vistas as $vista)
                             @include('admin.consultas.'.$vista)

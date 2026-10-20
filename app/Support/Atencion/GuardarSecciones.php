@@ -3,6 +3,7 @@
 namespace App\Support\Atencion;
 
 use App\Models\Consulta;
+use App\Models\Estudio;
 use App\Models\ExamenFisico;
 use App\Models\User;
 use App\Support\Auditoria;
@@ -100,11 +101,32 @@ final class GuardarSecciones
             });
         }
 
+        // Informes de estudio: el nombre del estudio se COPIA (del catálogo o escrito a mano); si el estudio elegido no cambió,
+        // se conserva el nombre guardado, así renombrar el catálogo no altera lo escrito. Autoría como en la anamnesis.
+        if ($clinico && ! empty($datos['con_informes'])) {
+            $consulta->auditarRelacion('informesEstudio', function () use ($consulta, $datos, $usuario, &$creadas) {
+                $guardados = $consulta->informesEstudio()->get()->keyBy('id');
+                $creadas['informes'] = self::guardarFilas($consulta->informesEstudio(), $datos['informes'] ?? [],
+                    function (array $fila) use ($guardados) {
+                        $estudioId = filled($fila['estudio_id'] ?? null) ? (int) $fila['estudio_id'] : null;
+                        $guardado = filled($fila['id'] ?? null) ? $guardados->get((int) $fila['id']) : null;
+                        $nombre = match (true) {
+                            $estudioId === null => (string) $fila['estudio_libre'],
+                            $guardado !== null && (int) $guardado->estudio_id === $estudioId => $guardado->estudio_nombre,
+                            default => (string) Estudio::whereKey($estudioId)->value('nombre'),
+                        };
+
+                        return ['estudio_id' => $estudioId, 'estudio_nombre' => $nombre, 'solicitante' => $fila['solicitante'] ?? null, 'texto' => $fila['texto']];
+                    },
+                    nuevas: ['usuario_id' => $usuario->id], cambiadas: ['modificado_por_id' => $usuario->id]);
+            });
+        }
+
         return array_filter($creadas);
     }
 
     /**
-     * Filas con orden (anamnesis, indicaciones): actualiza o crea en el orden del formulario; nunca borra
+     * Filas con orden (anamnesis, indicaciones, informes de estudio): actualiza o crea en el orden del formulario; nunca borra
      * (las que no vienen quedan como estaban). $nuevas se suma al crear; $cambiadas, al cambiar el contenido.
      *
      * @return array<string, int> uid => id de las creadas
