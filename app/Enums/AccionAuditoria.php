@@ -21,6 +21,8 @@ enum AccionAuditoria: string
     case CIERRE_SESION = 'CIERRE_SESION';
     case BLOQUEO = 'BLOQUEO';
     case CAMBIO_CONTRASENA = 'CAMBIO_CONTRASENA';
+    /** Una acción automática que no se pudo hacer (p. ej. la prestación al finalizar una consulta). */
+    case FALLO = 'FALLO';
 
     /** Texto para la pantalla de auditoría. */
     public function etiqueta(): string
@@ -38,6 +40,7 @@ enum AccionAuditoria: string
             self::CIERRE_SESION => 'Cierre de sesión',
             self::BLOQUEO => 'Bloqueo',
             self::CAMBIO_CONTRASENA => 'Cambio de contraseña',
+            self::FALLO => 'Falla',
         };
     }
 }

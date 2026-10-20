@@ -16,3 +16,5 @@ Lista de control previa a cargar pacientes reales. Sin datos personales: marcar 
 - [ ] **Desactivar los dos perfiles viejos sin usuarios.**
 - [ ] **PDF clínico.** Revisar el aspecto en papel de los PDF de triaje, de consulta, de la receta y del informe de estudio (`docs/pdf-clinico.md`, `docs/informes-estudio.md`) y quiénes tienen `PDF_CLINICO`.
 - [ ] **Revisión legal de los textos** que salen impresos: reposo (`config/reposo.php`), orden de estudio (`config/ordenes_estudio.php`) y constancias de retiro y de estado (`config/constancias.php`); luego poner `borrador` en `false` en cada uno.
+- [ ] **Tarifas cargadas** (`docs/tarifas-prestaciones.md`): al menos la general de cada procedimiento, y el procedimiento
+  `CONS-001` (Consulta) activo. Sin tarifa, las prestaciones quedan pendientes de tarifar.

@@ -62,6 +62,12 @@ class Estado extends Model
     /** Parámetros clínicos: aprobado por un médico (si no, PENDIENTE: no marca alertas). */
     public const APROBADO = 'APROBADO';
 
+    /** Tarifas: la que se cerró al cambiar el monto (la abierta es VIGENTE). */
+    public const HISTORICO = 'HISTORICO';
+
+    /** Prestaciones: con su monto fijado (la que todavía no tiene usa PENDIENTE: "pendiente de tarifar"). */
+    public const TARIFADO = 'TARIFADO';
+
     protected $table = 'estados';
 
     protected $fillable = [

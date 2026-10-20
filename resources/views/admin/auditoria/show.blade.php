@@ -53,7 +53,7 @@
 
         @if ($contenidoOculto)
             <p role="status" class="rounded-md bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
-                Contenido clínico: se requiere permiso de lectura sobre {{ $moduloOculto }}
+                {{ $tipoOculto }}: se requiere permiso de lectura sobre {{ $moduloOculto }}
             </p>
         @endif
 

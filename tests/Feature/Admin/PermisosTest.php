@@ -100,7 +100,7 @@ test('el menú de Administración muestra solo las secciones con permiso VER', f
         ->assertDontSee(route('admin.usuarios.index'));
 });
 
-test('el Administrador ve los 5 grupos del menú, en orden y con sus secciones, en escritorio y en mobile', function () {
+test('el Administrador ve los grupos del menú, en orden y con sus secciones, en escritorio y en mobile', function () {
     $this->actingAs(User::factory()->administrador()->create());
 
     $grupos = [
@@ -108,6 +108,7 @@ test('el Administrador ve los 5 grupos del menú, en orden y con sus secciones, 
         'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'personal-salud', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
         'Agenda' => ['turnos', 'agenda-general', 'disponibilidades', 'consultorios', 'origenes-turno'],
         'Clínica' => ['atencion', 'preparacion', 'historias-clinicas'],
+        'Económico' => ['tarifas', 'prestaciones'],
         'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'dietas', 'estudios', 'cargos-salud', 'parametros-clinicos', 'paises', 'departamentos', 'ciudades'],
     ];
 
@@ -140,7 +141,7 @@ test('un perfil con permisos en un solo grupo no ve los encabezados de los grupo
         ->getContent();
 
     expect($html)->toContain('data-grupo-menu="Agenda"')->toContain('data-grupo-menu-movil="Agenda"');
-    foreach (['Seguridad', 'Personas y Roles', 'Clínica', 'Catálogos'] as $grupo) {
+    foreach (['Seguridad', 'Personas y Roles', 'Clínica', 'Económico', 'Catálogos'] as $grupo) {
         expect($html)->not->toContain('data-grupo-menu="'.$grupo.'"')->not->toContain('data-grupo-menu-movil="'.$grupo.'"');
     }
 });

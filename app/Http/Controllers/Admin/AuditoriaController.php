@@ -73,7 +73,12 @@ class AuditoriaController extends Controller
             'modulos' => $this->nombresDeModulos(),
             'cambios' => $contenidoOculto ? $this->soloCampos($log) : $this->cambios($log),
             'contenidoOculto' => $contenidoOculto,
-            'moduloOculto' => $contenidoOculto ? ($moduloProtegido === 'RECETAS' ? 'Recetas' : 'Historia Clínica') : null,
+            'tipoOculto' => isset(Auditoria::TABLAS_ECONOMICAS[$log->tabla_afectada]) ? 'Contenido económico' : 'Contenido clínico',
+            'moduloOculto' => $contenidoOculto ? match ($moduloProtegido) {
+                'RECETAS' => 'Recetas',
+                'HISTORIA_CLINICA' => 'Historia Clínica',
+                default => ModuloSistema::where('codigo', $moduloProtegido)->value('nombre') ?? $moduloProtegido,
+            } : null,
         ]);
     }
 
@@ -109,6 +114,7 @@ class AuditoriaController extends Controller
         return [
             ...($usuario->tienePermiso('HISTORIA_CLINICA', 'VER') ? [] : Auditoria::TABLAS_CLINICAS),
             ...($usuario->tienePermiso('RECETAS', 'VER') ? [] : Auditoria::TABLAS_RECETAS),
+            ...array_keys(array_filter(Auditoria::TABLAS_ECONOMICAS, fn (string $modulo) => ! $usuario->tienePermiso($modulo, 'VER'))),
         ];
     }
 

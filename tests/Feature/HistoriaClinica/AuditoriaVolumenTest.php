@@ -84,6 +84,7 @@ test('una consulta típica de 10 minutos: cuántos eventos deja y de qué tipo',
         'consultas / Finalizar (turno ATENDIDO)' => 1,
         'consultas / Iniciar triaje' => 1,
         'consultas / Terminar triaje' => 1,
+        'prestaciones / Al finalizar la consulta 1' => 1,
         'turnos / Atender' => 1,
         'turnos / Finalizar (turno ATENDIDO)' => 1,
     ])->and(LogAuditoria::where('accion', 'VER')->count())->toBe(0);

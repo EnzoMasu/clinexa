@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\PerfilAccesoController;
 use App\Http\Controllers\Admin\PersonaController;
 use App\Http\Controllers\Admin\PersonalSaludController;
 use App\Http\Controllers\Admin\PreparacionController;
+use App\Http\Controllers\Admin\PrestacionController;
 use App\Http\Controllers\Admin\ProcedimientoController;
 use App\Http\Controllers\Admin\ProfesionalController;
 use App\Http\Controllers\Admin\ProveedorController;
@@ -39,6 +40,7 @@ use App\Http\Controllers\Admin\ReposoMedicoController;
 use App\Http\Controllers\Admin\SalidaController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
 use App\Http\Controllers\Admin\SucursalController;
+use App\Http\Controllers\Admin\TarifaController;
 use App\Http\Controllers\Admin\TipoBloqueAnamnesisController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
 use App\Http\Controllers\Admin\TipoIndicacionController;
@@ -353,6 +355,21 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         Route::post('ordenes-estudio/{orden}/anular', [OrdenEstudioController::class, 'anular'])->name('ordenes-estudio.anular')
             ->whereNumber('orden')->middleware('permiso:ORDENES_ESTUDIO,EDITAR');
     });
+
+    // Económico (docs/tarifas-prestaciones.md). Tarifas: nunca se editan ni se borran; "Cambiar tarifa" cierra la vigente y abre
+    // otra. Prestaciones: nacen al finalizar la consulta; se tarifan (EDITAR) y se anulan con motivo (DESACTIVAR). No hay DELETE.
+    Route::get('tarifas', [TarifaController::class, 'index'])->name('tarifas.index')->middleware('permiso:TARIFAS,VER');
+    Route::get('tarifas/create', [TarifaController::class, 'create'])->name('tarifas.create')->middleware('permiso:TARIFAS,CREAR');
+    Route::post('tarifas', [TarifaController::class, 'store'])->name('tarifas.store')->middleware('permiso:TARIFAS,CREAR');
+    Route::get('tarifas/{tarifa}', [TarifaController::class, 'show'])->name('tarifas.show')->whereNumber('tarifa')->middleware('permiso:TARIFAS,VER');
+    Route::get('tarifas/{tarifa}/cambiar', [TarifaController::class, 'cambiar'])->name('tarifas.cambiar')->whereNumber('tarifa')->middleware('permiso:TARIFAS,EDITAR');
+    Route::post('tarifas/{tarifa}/cambiar', [TarifaController::class, 'guardarCambio'])->name('tarifas.guardar-cambio')->whereNumber('tarifa')->middleware('permiso:TARIFAS,EDITAR');
+    Route::get('prestaciones', [PrestacionController::class, 'index'])->name('prestaciones.index')->middleware('permiso:PRESTACIONES,VER');
+    Route::get('prestaciones/{prestacion}', [PrestacionController::class, 'show'])->name('prestaciones.show')->whereNumber('prestacion')->middleware('permiso:PRESTACIONES,VER');
+    Route::post('prestaciones/{prestacion}/tarifar', [PrestacionController::class, 'tarifar'])->name('prestaciones.tarifar')->whereNumber('prestacion')->middleware('permiso:PRESTACIONES,EDITAR');
+    // "Generar" la prestación de una consulta finalizada que no la tiene: solo quien administra tarifas (Administrador y Gerencia).
+    Route::post('prestaciones/consultas/{consulta}/generar', [PrestacionController::class, 'generar'])->name('prestaciones.generar')->whereNumber('consulta')->middleware('permiso:TARIFAS,EDITAR');
+    Route::post('prestaciones/{prestacion}/anular', [PrestacionController::class, 'anular'])->name('prestaciones.anular')->whereNumber('prestacion')->middleware('permiso:PRESTACIONES,DESACTIVAR');
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
     foreach ([

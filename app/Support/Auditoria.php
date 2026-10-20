@@ -38,6 +38,7 @@ use App\Models\ParametroClinico;
 use App\Models\PerfilAcceso;
 use App\Models\Persona;
 use App\Models\PersonalSalud;
+use App\Models\Prestacion;
 use App\Models\Procedimiento;
 use App\Models\Profesional;
 use App\Models\Proveedor;
@@ -48,6 +49,7 @@ use App\Models\ReposoMedico;
 use App\Models\ResponsablePago;
 use App\Models\SalidaSinAtencion;
 use App\Models\Sucursal;
+use App\Models\Tarifa;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
 use App\Models\TipoIndicacion;
@@ -104,6 +106,8 @@ final class Auditoria
         ReposoMedico::class,
         // Órdenes de estudio (módulo ORDENES_ESTUDIO): contenido clínico.
         OrdenEstudio::class,
+        // Económico (docs/tarifas-prestaciones.md): sus montos solo los ve quien tiene VER sobre su módulo.
+        Tarifa::class, Prestacion::class,
     ];
 
     /**
@@ -119,6 +123,9 @@ final class Auditoria
     /** Tablas de recetas: sus valores solo los ve quien tiene VER sobre RECETAS (misma regla, otro permiso). */
     public const TABLAS_RECETAS = ['recetas', 'detalles_receta'];
 
+    /** Tablas con montos (tabla => módulo): sus valores solo los ve quien tiene VER sobre ese módulo (el Médico, no). */
+    public const TABLAS_ECONOMICAS = ['tarifas' => 'TARIFAS', 'prestaciones' => 'PRESTACIONES'];
+
     /**
      * Módulo cuyo VER hace falta para ver los valores de los eventos de esa tabla en la pantalla de
      * auditoría, o null si no son contenido protegido.
@@ -128,6 +135,7 @@ final class Auditoria
         return match (true) {
             in_array($tabla, self::TABLAS_CLINICAS, true) => 'HISTORIA_CLINICA',
             in_array($tabla, self::TABLAS_RECETAS, true) => 'RECETAS',
+            isset(self::TABLAS_ECONOMICAS[$tabla]) => self::TABLAS_ECONOMICAS[$tabla],
             default => null,
         };
     }

@@ -9,6 +9,7 @@ use App\Models\Estado;
 use App\Models\Turno;
 use App\Models\User;
 use App\Support\Auditoria;
+use App\Support\Prestaciones\GenerarPrestacion;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -20,7 +21,8 @@ use Illuminate\Support\Facades\Gate;
  * consulta (secciones que cambiaron y estado). Si la consulta ya no está EN_CURSO (Deshacer en otra
  * pestaña), 409 y no se finaliza. Un segundo envío encuentra la consulta cerrada: 409 (ConsultaCerrada),
  * sin escribir nada. Con recetas en BORRADOR no se finaliza: hay que emitirlas o anularlas antes (después,
- * con la consulta cerrada, ya no se podría). Devuelve los avisos (el del turno).
+ * con la consulta cerrada, ya no se podría). Crea la prestación de la consulta (GenerarPrestacion; nunca impide finalizar).
+ * Devuelve los avisos (el del turno).
  */
 final class Finalizar
 {
@@ -62,6 +64,8 @@ final class Finalizar
                 if ($atiende) {
                     $turno->pasarA(Estado::ATENDIDO);
                 }
+                // La prestación (docs/tarifas-prestaciones.md): nunca impide finalizar.
+                GenerarPrestacion::alFinalizar($consulta, $turno);
 
                 return $turno && ! $atiende
                     ? [($turno->tieneHorario() ? 'El turno de las '.substr($turno->hora_inicio, 0, 5) : 'El turno ('.mb_strtolower($turno->tipo->etiqueta()).')')." estaba en estado {$turno->estado->nombre} y no se marcó como atendido. Revíselo en Turnos."]

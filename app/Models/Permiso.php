@@ -29,6 +29,10 @@ class Permiso extends Model
         'REPOSO_MEDICO' => ['VER', 'CREAR', 'EDITAR'],
         // Orden de estudio: igual que el reposo (se ve, se emite y se anula).
         'ORDENES_ESTUDIO' => ['VER', 'CREAR', 'EDITAR'],
+        // Tarifas: alta (CREAR) y "Cambiar tarifa" (EDITAR, cierra la vigente y abre otra); no se desactivan ni se borran.
+        'TARIFAS' => ['VER', 'CREAR', 'EDITAR'],
+        // Prestaciones: nacen solas al finalizar la consulta; se tarifan (EDITAR) y se anulan con motivo (DESACTIVAR).
+        'PRESTACIONES' => ['VER', 'EDITAR', 'DESACTIVAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

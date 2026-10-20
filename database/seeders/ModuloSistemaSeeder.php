@@ -76,6 +76,9 @@ class ModuloSistemaSeeder extends Seeder
             'REPOSO_MEDICO' => ['Certificados de reposo médico', [Estado::EMITIDO, Estado::ANULADO]],
             // Orden de estudio: documento inmutable, nace emitido y solo se anula. Ver docs/ordenes-estudio.md.
             'ORDENES_ESTUDIO' => ['Órdenes de estudio', [Estado::EMITIDO, Estado::ANULADO]],
+            // Económico (docs/tarifas-prestaciones.md): tarifas versionadas (la abierta es VIGENTE) y la prestación de cada consulta.
+            'TARIFAS' => ['Tarifas', [Estado::VIGENTE, Estado::HISTORICO]],
+            'PRESTACIONES' => ['Prestaciones', [Estado::PENDIENTE, Estado::TARIFADO, Estado::ANULADO]],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

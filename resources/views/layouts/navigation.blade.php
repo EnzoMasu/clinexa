@@ -31,6 +31,11 @@
             'admin.preparacion' => 'Triaje',
             'admin.historias-clinicas' => 'Historias clínicas',
         ],
+        // Económico (docs/tarifas-prestaciones.md): sin montos para quien no tiene el módulo (Médico, Enfermería).
+        'Económico' => [
+            'admin.tarifas' => 'Tarifas',
+            'admin.prestaciones' => 'Prestaciones',
+        ],
         'Catálogos' => [
             'admin.especialidades' => 'Especialidades',
             'admin.sucursales' => 'Sucursales',

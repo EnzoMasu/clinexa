@@ -21,6 +21,14 @@ return [
     ],
 
     /*
+    | Prestaciones (docs/tarifas-prestaciones.md): código del procedimiento que se usa cuando la consulta no tiene turno o su
+    | turno no tiene procedimiento.
+    */
+    'prestaciones' => [
+        'procedimiento_consulta' => env('CLINEXA_PROCEDIMIENTO_CONSULTA', 'CONS-001'),
+    ],
+
+    /*
     | Respaldos de la base (php artisan clinexa:respaldo). Ver docs/respaldo.md.
     |
     | - carpeta: dónde se guardan. FUERA del repositorio: los respaldos tienen datos de salud.

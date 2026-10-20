@@ -112,6 +112,8 @@ class PerfilesPredefinidos
             'TIPOS_INDICACION' => self::VER, 'GEOGRAFIA' => self::VER, 'AUDITORIA' => self::VER,
             // Triaje (2026-10-13): ver el personal de salud, sus cargos y los parámetros clínicos.
             'PERSONAL_SALUD' => self::VER, 'CARGOS_SALUD' => self::VER, 'PARAMETROS_CLINICOS' => self::VER,
+            // Económico: administra las tarifas, tarifa y anula prestaciones.
+            'TARIFAS' => self::VER_CREAR_EDITAR, 'PRESTACIONES' => ['VER', 'EDITAR', 'DESACTIVAR'],
         ],
         // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
         // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones
@@ -139,13 +141,17 @@ class PerfilesPredefinidos
             'PACIENTES' => self::VER_CREAR_EDITAR, 'PERSONAS' => self::VER_CREAR_EDITAR, 'RESPONSABLES_PAGO' => self::VER_CREAR_EDITAR,
             // Constancia de retiro: sin contenido clínico (se suma por la migración de las constancias).
             'CONSTANCIAS_RETIRO' => self::VER_CREAR_EDITAR,
+            // Económico: solo ver tarifas y prestaciones.
+            'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
         ],
         // Caja, Facturación y Compras: sus módulos todavía no existen; solo lo que sirve hoy. Nada clínico.
         self::CAJA => [
             'PACIENTES' => self::VER, 'MEDIOS_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER,
+            'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
         ],
         self::FACTURACION => [
             'RESPONSABLES_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER, 'MEDIOS_PAGO' => self::VER,
+            'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
         ],
         self::COMPRAS_TESORERIA => [
             'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::VER,

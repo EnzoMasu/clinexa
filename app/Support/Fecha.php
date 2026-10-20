@@ -57,6 +57,12 @@ final class Fecha
             : Carbon::parse($fecha)->format(self::FORMATO);
     }
 
+    /** El día (aaaa-mm-dd) de un instante, en la hora local de la clínica. */
+    public static function diaLocal(CarbonInterface $instante): string
+    {
+        return Carbon::parse($instante)->setTimezone(config('app.zona_horaria_local'))->format('Y-m-d');
+    }
+
     /** Lo que se cargó en un formulario (dd/mm/aaaa) -> ISO para guardar. */
     public static function aIso(?string $fecha): ?string
     {
