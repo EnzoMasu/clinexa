@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AcuerdoRepartoController;
 use App\Http\Controllers\Admin\AgendaGeneralController;
 use App\Http\Controllers\Admin\AtencionController;
 use App\Http\Controllers\Admin\AuditoriaController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Admin\CupoEntrePacientesController;
 use App\Http\Controllers\Admin\DepartamentoController;
 use App\Http\Controllers\Admin\DietaController;
 use App\Http\Controllers\Admin\DisponibilidadController;
+use App\Http\Controllers\Admin\EquipoController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\EstudioController;
 use App\Http\Controllers\Admin\HistoriaClinicaController;
@@ -43,6 +45,7 @@ use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TarifaController;
 use App\Http\Controllers\Admin\TipoBloqueAnamnesisController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
+use App\Http\Controllers\Admin\TipoEquipoController;
 use App\Http\Controllers\Admin\TipoIndicacionController;
 use App\Http\Controllers\Admin\TipoRedSocialController;
 use App\Http\Controllers\Admin\TurnoController;
@@ -369,7 +372,21 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::post('prestaciones/{prestacion}/tarifar', [PrestacionController::class, 'tarifar'])->name('prestaciones.tarifar')->whereNumber('prestacion')->middleware('permiso:PRESTACIONES,EDITAR');
     // "Generar" la prestación de una consulta finalizada que no la tiene: solo quien administra tarifas (Administrador y Gerencia).
     Route::post('prestaciones/consultas/{consulta}/generar', [PrestacionController::class, 'generar'])->name('prestaciones.generar')->whereNumber('consulta')->middleware('permiso:TARIFAS,EDITAR');
+    Route::post('prestaciones/informes/{informe}/generar', [PrestacionController::class, 'generarInforme'])->name('prestaciones.generar-informe')->whereNumber('informe')->middleware('permiso:TARIFAS,EDITAR');
     Route::post('prestaciones/{prestacion}/anular', [PrestacionController::class, 'anular'])->name('prestaciones.anular')->whereNumber('prestacion')->middleware('permiso:PRESTACIONES,DESACTIVAR');
+    // "Repartir" una prestación pendiente de reparto: quien administra los acuerdos (docs/reparto-economico.md).
+    Route::post('prestaciones/{prestacion}/repartir', [PrestacionController::class, 'repartir'])->name('prestaciones.repartir')->whereNumber('prestacion')->middleware('permiso:ACUERDOS_REPARTO,EDITAR');
+
+    // Reparto (docs/reparto-economico.md). Acuerdos: nunca se editan ni se borran; "Cambiar porcentaje" cierra el vigente y abre
+    // otro. Equipos y tipos de equipo: CRUD sin borrado. No hay DELETE.
+    Route::get('acuerdos-reparto', [AcuerdoRepartoController::class, 'index'])->name('acuerdos-reparto.index')->middleware('permiso:ACUERDOS_REPARTO,VER');
+    Route::get('acuerdos-reparto/create', [AcuerdoRepartoController::class, 'create'])->name('acuerdos-reparto.create')->middleware('permiso:ACUERDOS_REPARTO,CREAR');
+    Route::post('acuerdos-reparto', [AcuerdoRepartoController::class, 'store'])->name('acuerdos-reparto.store')->middleware('permiso:ACUERDOS_REPARTO,CREAR');
+    Route::get('acuerdos-reparto/{acuerdo}', [AcuerdoRepartoController::class, 'show'])->name('acuerdos-reparto.show')->whereNumber('acuerdo')->middleware('permiso:ACUERDOS_REPARTO,VER');
+    Route::get('acuerdos-reparto/{acuerdo}/cambiar', [AcuerdoRepartoController::class, 'cambiar'])->name('acuerdos-reparto.cambiar')->whereNumber('acuerdo')->middleware('permiso:ACUERDOS_REPARTO,EDITAR');
+    Route::post('acuerdos-reparto/{acuerdo}/cambiar', [AcuerdoRepartoController::class, 'guardarCambio'])->name('acuerdos-reparto.guardar-cambio')->whereNumber('acuerdo')->middleware('permiso:ACUERDOS_REPARTO,EDITAR');
+    $seccion('equipos', EquipoController::class, 'EQUIPOS', 'equipo', conBaja: true);
+    $seccion('tipos-equipo', TipoEquipoController::class, 'TIPOS_EQUIPO', 'tipoEquipo', conBaja: true);
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
     foreach ([

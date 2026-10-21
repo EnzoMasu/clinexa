@@ -8,13 +8,14 @@ use App\Models\Prestacion;
 use App\Models\User;
 use App\Support\Auditoria;
 use App\Support\Fecha;
+use App\Support\Repartos\RepartirPrestacion;
 use App\Support\Tarifas\BuscarTarifa;
 use Illuminate\Support\Facades\DB;
 
 /**
  * "Tarifar" una prestación PENDIENTE: con la tarifa que se aplica a su fecha de servicio (la del profesional o la general).
  * El monto queda fijado: no cambia si la tarifa cambia después. Sin monto manual. Queda en Auditoría como EDITAR con el
- * detalle "Tarifado".
+ * detalle "Tarifado". Después calcula su reparto (RepartirPrestacion::alFijarMonto), sin frenar el tarifado.
  */
 final class TarifarPrestacion
 {
@@ -42,6 +43,8 @@ final class TarifarPrestacion
                 'tarifada_por' => $usuario->id,
             ])->save());
             $actual->unsetRelation('estado');
+            // Su reparto, con los acuerdos de la fecha de servicio (docs/reparto-economico.md): nunca impide tarifar.
+            RepartirPrestacion::alFijarMonto($actual);
 
             return $actual;
         });

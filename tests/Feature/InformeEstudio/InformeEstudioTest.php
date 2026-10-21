@@ -2,7 +2,8 @@
 
 /*
  * Informes de estudio (docs/informes-estudio.md): parte de la consulta. Quién escribe y quién no (Recepción, Enfermería, otro
- * médico, el Administrador), varios informes, estudio del catálogo o escrito a mano, retirar (nada se borra), consulta cerrada
+ * médico, el Administrador), varios informes, el estudio realizado como procedimiento de tipo ESTUDIO (los anteriores conservan
+ * su estudio sin procedimiento), retirar (nada se borra), consulta cerrada
  * de solo lectura, corrección solo por desbloqueo (con versión) y adenda, PDF con la consulta abierta y cerrada (quién, no-store,
  * nada se guarda, auditoría de cada generación), contenido oculto en Auditoría y Recepción sin acceso. La migración, contra un
  * catálogo sin datos. Datos inventados (escenario.php). Funciones con el prefijo "infEst".
@@ -18,6 +19,7 @@ use App\Models\Estado;
 use App\Models\Estudio;
 use App\Models\InformeEstudio;
 use App\Models\LogAuditoria;
+use App\Models\Procedimiento;
 use App\Models\User;
 use App\Support\Auditoria;
 use App\Support\PdfClinico\PdfInformeEstudio;
@@ -28,17 +30,23 @@ use Illuminate\Support\Facades\Schema;
 beforeEach(function () {
     hcEscenario();
     hcDarPermisos($this->medico, ['PDF_CLINICO' => ['EXPORTAR'], 'ESTUDIOS' => ['VER']]);
-    $this->ecografia = Estudio::create(['nombre' => 'Ecografía inventada']);
+    $this->ecografia = infEstProcedimiento('ECO-T1', 'Ecografía inventada');
+    $this->doppler = infEstProcedimiento('DOP-T1', 'Doppler inventado');
 });
 
-/** Lo que manda el formulario: dos informes, uno del catálogo con solicitante y otro escrito a mano. */
+function infEstProcedimiento(string $codigo, string $nombre, string $tipo = 'ESTUDIO'): Procedimiento
+{
+    return Procedimiento::create(['codigo' => $codigo, 'nombre' => $nombre, 'tipo' => $tipo, 'duracion_estimada_minutos' => 30]);
+}
+
+/** Lo que manda el formulario: dos informes de procedimientos de estudio, uno con solicitante. */
 function infEstDatos(array $informes = []): array
 {
     return [
         'con_informes' => '1',
         'informes' => $informes ?: [
-            ['uid' => 'n-1', 'id' => '', 'estudio_id' => (string) test()->ecografia->id, 'solicitante' => 'Dr. Externo Inventado', 'texto' => "Informe de prueba uno.\nSegunda línea."],
-            ['uid' => 'n-2', 'id' => '', 'estudio_id' => '', 'estudio_libre' => 'Estudio escrito a mano', 'solicitante' => '', 'texto' => 'Informe de prueba dos.'],
+            ['uid' => 'n-1', 'id' => '', 'procedimiento_id' => (string) test()->ecografia->id, 'solicitante' => 'Dr. Externo Inventado', 'texto' => "Informe de prueba uno.\nSegunda línea."],
+            ['uid' => 'n-2', 'id' => '', 'procedimiento_id' => (string) test()->doppler->id, 'solicitante' => '', 'texto' => 'Informe de prueba dos.'],
         ],
     ];
 }
@@ -65,8 +73,8 @@ function infEstCerrada(): Consulta
 function infEstFilas(Consulta $consulta): array
 {
     return $consulta->informesEstudio()->orderBy('orden')->get()->map(fn (InformeEstudio $informe) => [
-        'id' => (string) $informe->id, 'activo' => $informe->activo ? '1' : '0', 'estudio_id' => (string) ($informe->estudio_id ?? ''),
-        'estudio_libre' => $informe->estudio_id ? '' : $informe->estudio_nombre, 'solicitante' => (string) $informe->solicitante, 'texto' => $informe->texto,
+        'id' => (string) $informe->id, 'activo' => $informe->activo ? '1' : '0', 'procedimiento_id' => (string) ($informe->procedimiento_id ?? ''),
+        'solicitante' => (string) $informe->solicitante, 'texto' => $informe->texto,
     ])->all();
 }
 
@@ -94,45 +102,66 @@ function infEstPdfs(): array
 }
 
 describe('quién escribe', function () {
-    test('el profesional de la consulta: varios informes, del catálogo (nombre copiado) o escritos a mano, con su autoría', function () {
+    test('el profesional de la consulta: varios informes, cada uno con su procedimiento (nombre copiado) y su autoría', function () {
         $consulta = infEstAbierta();
         $informes = $consulta->informesEstudio()->orderBy('orden')->get();
 
         expect($informes)->toHaveCount(2)
-            ->and($informes[0]->estudio_id)->toBe($this->ecografia->id)->and($informes[0]->estudio_nombre)->toBe('Ecografía inventada')
+            ->and($informes[0]->procedimiento_id)->toBe($this->ecografia->id)->and($informes[0]->estudio_nombre)->toBe('Ecografía inventada')
             ->and($informes[0]->solicitante)->toBe('Dr. Externo Inventado')->and($informes[0]->texto)->toBe("Informe de prueba uno.\nSegunda línea.")
-            ->and($informes[1]->estudio_id)->toBeNull()->and($informes[1]->estudio_nombre)->toBe('Estudio escrito a mano')->and($informes[1]->solicitante)->toBeNull()
+            ->and($informes[1]->procedimiento_id)->toBe($this->doppler->id)->and($informes[1]->estudio_nombre)->toBe('Doppler inventado')->and($informes[1]->solicitante)->toBeNull()
+            ->and($informes->pluck('estudio_id')->filter()->all())->toBe([])
             ->and($informes->pluck('usuario_id')->unique()->all())->toBe([$this->medico->id]);
-        // El escrito a mano no se agrega al catálogo; renombrar o desactivar el estudio no altera lo guardado.
-        expect(Estudio::count())->toBe(1);
+        // Renombrar o desactivar el procedimiento no altera lo guardado.
         $this->ecografia->update(['nombre' => 'Ecografía renombrada']);
         $this->ecografia->desactivar();
         hcAutoguardar($consulta, infEstDatos(infEstFilas($consulta)))->assertOk();
         expect($informes[0]->fresh()->estudio_nombre)->toBe('Ecografía inventada');
 
-        // Un estudio inactivo no se elige en un informe nuevo (el que la fila ya tenía, sí).
-        hcAutoguardar($consulta, infEstDatos([...infEstFilas($consulta), ['uid' => 'n-3', 'id' => '', 'estudio_id' => (string) $this->ecografia->id, 'texto' => 'Otro.']]))
-            ->assertStatus(422)->assertJsonValidationErrors('informes.2.estudio_id');
+        // Un procedimiento inactivo no se elige en un informe nuevo (el que la fila ya tenía, sí), ni uno que no es de estudio.
+        hcAutoguardar($consulta, infEstDatos([...infEstFilas($consulta), ['uid' => 'n-3', 'id' => '', 'procedimiento_id' => (string) $this->ecografia->id, 'texto' => 'Otro.']]))
+            ->assertStatus(422)->assertJsonValidationErrors('informes.2.procedimiento_id');
+        $consultaComun = infEstProcedimiento('CONS-T1', 'Consulta inventada', 'CONSULTA');
+        hcAutoguardar($consulta, infEstDatos([...infEstFilas($consulta), ['uid' => 'n-3', 'id' => '', 'procedimiento_id' => (string) $consultaComun->id, 'texto' => 'Otro.']]))
+            ->assertStatus(422)->assertJsonValidationErrors('informes.2.procedimiento_id');
+        // Ya no hay "Otro" escrito a mano: el nombre libre no cuenta.
+        hcAutoguardar($consulta, infEstDatos([...infEstFilas($consulta), ['uid' => 'n-3', 'id' => '', 'procedimiento_id' => '', 'estudio_libre' => 'A mano', 'texto' => 'Otro.']]))
+            ->assertOk()->assertJsonPath('incompletas.informes', ['n-3']);
+        expect(InformeEstudio::count())->toBe(2);
+    });
+
+    test('un informe anterior (sin procedimiento) conserva su estudio y se puede finalizar así; uno nuevo sin procedimiento, no', function () {
+        $consulta = hcEnCurso();
+        $anterior = $consulta->informesEstudio()->create(['estudio_nombre' => 'Estudio anterior inventado', 'texto' => 'Informe anterior.', 'orden' => 1]);
+
+        hcAutoguardar($consulta, infEstDatos([...infEstFilas($consulta)]))->assertOk();
+        expect($anterior->fresh()->procedimiento_id)->toBeNull()->and($anterior->fresh()->estudio_nombre)->toBe('Estudio anterior inventado');
+        $this->get(route('admin.consultas.atencion', $consulta))->assertOk()->assertSee('Estudio anterior inventado');
+
+        hcFinalizar($consulta, hcDatos(infEstDatos([...infEstFilas($consulta), ['id' => '', 'procedimiento_id' => '', 'texto' => 'Nuevo sin estudio.']])))
+            ->assertSessionHasErrors('informes.1');
+        hcFinalizar($consulta->fresh(), hcDatos(infEstDatos(infEstFilas($consulta))))->assertSessionHasNoErrors();
+        expect($consulta->fresh()->finalizada())->toBeTrue()->and($anterior->fresh()->estudio_nombre)->toBe('Estudio anterior inventado');
     });
 
     test('borrador: el informe sin estudio o sin texto no se guarda y se informa; al finalizar, es un error', function () {
         $consulta = hcEnCurso();
         hcAutoguardar($consulta, infEstDatos([
-            ['uid' => 'sin-texto', 'id' => '', 'estudio_id' => (string) $this->ecografia->id, 'texto' => ''],
-            ['uid' => 'sin-estudio', 'id' => '', 'estudio_id' => '', 'estudio_libre' => '', 'texto' => 'Texto sin estudio.'],
+            ['uid' => 'sin-texto', 'id' => '', 'procedimiento_id' => (string) $this->ecografia->id, 'texto' => ''],
+            ['uid' => 'sin-estudio', 'id' => '', 'procedimiento_id' => '', 'texto' => 'Texto sin estudio.'],
         ]))->assertOk()->assertJsonPath('incompletas.informes', ['sin-texto', 'sin-estudio']);
         expect(InformeEstudio::count())->toBe(0);
 
-        hcFinalizar($consulta, hcDatos(infEstDatos([['id' => '', 'estudio_id' => '', 'estudio_libre' => '', 'texto' => 'Texto sin estudio.']])))
-            ->assertSessionHasErrors('informes.0.estudio_libre');
+        hcFinalizar($consulta, hcDatos(infEstDatos([['id' => '', 'procedimiento_id' => '', 'texto' => 'Texto sin estudio.']])))
+            ->assertSessionHasErrors('informes.0');
         expect($consulta->fresh()->enCurso())->toBeTrue();
     });
 
     test('hasta 5000 caracteres de texto', function () {
         $consulta = hcEnCurso();
-        hcAutoguardar($consulta, infEstDatos([['uid' => 'n', 'id' => '', 'estudio_id' => (string) $this->ecografia->id, 'texto' => str_repeat('a', 5001)]]))
+        hcAutoguardar($consulta, infEstDatos([['uid' => 'n', 'id' => '', 'procedimiento_id' => (string) $this->ecografia->id, 'texto' => str_repeat('a', 5001)]]))
             ->assertStatus(422)->assertJsonValidationErrors('informes.0.texto');
-        hcAutoguardar($consulta, infEstDatos([['uid' => 'n', 'id' => '', 'estudio_id' => (string) $this->ecografia->id, 'texto' => str_repeat('a', 5000)]]))->assertOk();
+        hcAutoguardar($consulta, infEstDatos([['uid' => 'n', 'id' => '', 'procedimiento_id' => (string) $this->ecografia->id, 'texto' => str_repeat('a', 5000)]]))->assertOk();
     });
 
     test('no escriben: Enfermería (triaje), otro médico, el Administrador ni Recepción', function () {
@@ -147,11 +176,13 @@ describe('quién escribe', function () {
         expect(InformeEstudio::orderBy('id')->get()->toJson())->toBe($antes);
     });
 
-    test('la pantalla de atención ofrece "Estudios" (ya no "Próximamente") con los informes y el catálogo activo', function () {
+    test('la pantalla de atención ofrece "Estudios" (ya no "Próximamente") con los informes y los procedimientos de estudio', function () {
         $consulta = infEstAbierta();
+        infEstProcedimiento('CONS-T1', 'Consulta inventada', 'CONSULTA');
 
         $this->get(route('admin.consultas.atencion', $consulta))->assertOk()
-            ->assertSee('Informes de estudio')->assertSee('Otro (no está en el catálogo)')->assertSee('Ecograf')
+            ->assertSee('Informes de estudio')->assertDontSee('Otro (no está en el catálogo)')->assertSee('Ecograf')->assertSee('Doppler inventado')
+            ->assertDontSee('Consulta inventada')
             ->assertSee('Informe de prueba dos.')->assertDontSee('Próximamente');
     });
 });
@@ -324,7 +355,7 @@ describe('Recepción, Administrador y Auditoría', function () {
         $this->get(route('admin.turnos.index'))->assertOk()->assertDontSee('Informe de prueba');
 
         $this->actingAs(User::factory()->administrador()->create())->get(route('admin.consultas.show', $consulta))->assertOk()
-            ->assertSee('Informe de prueba uno.')->assertSee('Estudio escrito a mano');
+            ->assertSee('Informe de prueba uno.')->assertSee('Doppler inventado');
     });
 
     test('contenido clínico: oculto en Auditoría a quien no tiene VER sobre la historia clínica', function () {
@@ -342,7 +373,8 @@ describe('Recepción, Administrador y Auditoría', function () {
     test('HTML y JS en el estudio, el solicitante y el texto: escapados en la pantalla, la lectura y el PDF', function () {
         $consulta = hcEnCurso();
         $malo = '<script>alert(1)</script>';
-        hcAutoguardar($consulta, infEstDatos([['uid' => 'n', 'id' => '', 'estudio_id' => '', 'estudio_libre' => "E{$malo}", 'solicitante' => "S{$malo}", 'texto' => "T{$malo}"]]))->assertOk();
+        $estudio = infEstProcedimiento('MAL-T1', "E{$malo}");
+        hcAutoguardar($consulta, infEstDatos([['uid' => 'n', 'id' => '', 'procedimiento_id' => (string) $estudio->id, 'solicitante' => "S{$malo}", 'texto' => "T{$malo}"]]))->assertOk();
 
         $this->get(route('admin.consultas.atencion', $consulta))->assertOk()->assertDontSee($malo, false);
         hcFinalizar($consulta, hcDatos(infEstDatos(infEstFilas($consulta))))->assertSessionHasNoErrors();
@@ -354,9 +386,7 @@ describe('Recepción, Administrador y Auditoría', function () {
 test('la migración corre contra un catálogo sin datos (sin estudios ni módulos) y en simulación', function () {
     $migracion = require base_path('database/migrations/2026_10_24_100001_create_informes_estudio.php');
     $migracion->down();
-    expect(Schema::hasTable('informes_estudio'))->toBeFalse()->and(Estudio::count())->toBe(1);
-    // Catálogo vacío: la migración no lee filas ni depende de módulos, permisos ni estudios.
-    Estudio::query()->delete();
+    expect(Schema::hasTable('informes_estudio'))->toBeFalse()->and(Estudio::count())->toBe(0);
 
     $sentencias = DB::pretend(fn () => $migracion->up());
     expect($sentencias)->not->toBeEmpty()->and(Schema::hasTable('informes_estudio'))->toBeFalse();

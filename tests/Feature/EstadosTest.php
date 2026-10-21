@@ -8,12 +8,12 @@ use App\Models\Persona;
 use App\Models\User;
 use Database\Seeders\ModuloSistemaSeeder;
 
-test('la tabla estados tiene los 29 estados, con código y nombre (los del flujo de atención con su nombre legible)', function () {
+test('la tabla estados tiene los 30 estados, con código y nombre (los del flujo de atención con su nombre legible)', function () {
     expect(Estado::orderBy('id')->pluck('codigo')->all())->toBe([
         'ACTIVO', 'INACTIVO', 'BLOQUEADO', 'PENDIENTE', 'CONFIRMADO', 'ATENDIDO', 'CANCELADO', 'AUSENTE',
         'REALIZADO', 'VIGENTE', 'VENCIDO', 'SUSPENDIDO', 'MANTENIMIENTO', 'FACTURADO', 'ANULADO', 'HISTORICO',
         'GENERADO', 'PAGADO', 'PARCIAL', 'EMITIDO', 'APROBADO', 'RECHAZADO',
-        'EN_CONSULTA', 'SALTADO', 'EN_PREPARACION', 'EN_CURSO', 'FINALIZADO', 'RETIRADO', 'TARIFADO',
+        'EN_CONSULTA', 'SALTADO', 'EN_PREPARACION', 'EN_CURSO', 'FINALIZADO', 'RETIRADO', 'TARIFADO', 'REPARTIDO',
     ])->and(Estado::whereColumn('codigo', '!=', 'nombre')->pluck('nombre', 'codigo')->all())->toBe([
         'EN_CONSULTA' => 'EN CONSULTA', 'EN_PREPARACION' => 'EN TRIAJE', 'EN_CURSO' => 'EN CURSO',
     ]);
@@ -39,6 +39,9 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             // Tarifas: la abierta (VIGENTE, inicial) y las cerradas. Prestaciones: pendiente de tarifar (inicial), tarifada, anulada.
             'TARIFAS' => [['HISTORICO', 'VIGENTE'], 'VIGENTE'],
             'PRESTACIONES' => [['ANULADO', 'PENDIENTE', 'TARIFADO'], 'PENDIENTE'],
+            // Acuerdos de reparto: como las tarifas. Repartos: pendiente (inicial), repartido, anulado.
+            'ACUERDOS_REPARTO' => [['HISTORICO', 'VIGENTE'], 'VIGENTE'],
+            'REPARTOS' => [['ANULADO', 'PENDIENTE', 'REPARTIDO'], 'PENDIENTE'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

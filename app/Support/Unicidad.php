@@ -71,7 +71,11 @@ final class Unicidad
             'mensaje' => 'Ya hay un perfil de acceso con este nombre.'],
         'sucursal.nombre' => ['tabla' => 'sucursales', 'columna' => 'nombre', 'modulo' => 'SUCURSALES',
             'mensaje' => 'Ya hay una sucursal con este nombre.'],
-        'medio_pago.nombre' => ['tabla' => 'medios_pago', 'columna' => 'nombre', 'modulo' => 'MEDIOS_PAGO',
+        'tipo_equipo.nombre' => ['tabla' => 'tipos_equipo', 'columna' => 'nombre', 'modulo' => 'TIPOS_EQUIPO',
+            'mensaje' => 'Ya hay un tipo de equipo con este nombre.'],
+        'equipo.nombre' => ['tabla' => 'equipos', 'columna' => 'nombre', 'modulo' => 'EQUIPOS',
+            'mensaje' => 'Ya hay un equipo con este nombre.'],
+        'medio_pago.nombre' =>['tabla' => 'medios_pago', 'columna' => 'nombre', 'modulo' => 'MEDIOS_PAGO',
             'mensaje' => 'Ya hay un medio de pago con este nombre.'],
     ];
 

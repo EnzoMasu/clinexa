@@ -33,7 +33,7 @@ final class Instantanea
                 'descripcion' => $indicacion->descripcion, 'orden' => $indicacion->orden, 'activo' => (bool) $indicacion->activo,
             ])->all(),
             'informes' => $consulta->informesEstudio()->orderBy('id')->get()->map(fn ($informe) => [
-                'id' => $informe->id, 'estudio_id' => $informe->estudio_id, 'estudio_nombre' => $informe->estudio_nombre, 'solicitante' => $informe->solicitante,
+                'id' => $informe->id, 'estudio_id' => $informe->estudio_id, 'procedimiento_id' => $informe->procedimiento_id, 'estudio_nombre' => $informe->estudio_nombre, 'solicitante' => $informe->solicitante,
                 'texto' => $informe->texto, 'orden' => $informe->orden, 'activo' => (bool) $informe->activo,
                 'usuario_id' => $informe->usuario_id, 'modificado_por_id' => $informe->modificado_por_id,
             ])->all(),

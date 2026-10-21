@@ -8,10 +8,12 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * Prestación: el servicio prestado (docs/tarifas-prestaciones.md). Nace al finalizar la consulta (Prestaciones\GenerarPrestacion),
- * una por consulta. Sin contenido clínico: paciente, profesional, procedimiento, fecha de servicio, consulta y turno.
+ * Prestación: el servicio prestado (docs/tarifas-prestaciones.md). Nace al finalizar la consulta (Prestaciones\GenerarPrestacion):
+ * la base (una por consulta) y una por cada informe de estudio (informe_estudio_id). Sin contenido clínico: paciente, profesional,
+ * procedimiento, fecha de servicio, consulta, turno e informe (solo el vínculo).
  *
  * - PENDIENTE ("pendiente de tarifar"): sin monto; no había tarifa para ese día.
  * - TARIFADO: con monto, moneda y la tarifa usada, fijados una vez; no cambian aunque la tarifa cambie después.
@@ -25,13 +27,16 @@ class Prestacion extends Model
 
     protected $table = 'prestaciones';
 
+    /** El origen, para mostrar y filtrar: la base de la consulta (o el turno) o un informe de estudio. */
+    public const ORIGENES = ['CONSULTA' => 'Consulta/Turno', 'INFORME' => 'Informe de estudio'];
+
     public const ETIQUETAS = [Estado::PENDIENTE => 'Pendiente de tarifar', Estado::TARIFADO => 'Tarifada', Estado::ANULADO => 'Anulada'];
 
     private const CAMPOS_DE_TARIFADO = ['estado_id', 'monto', 'moneda_id', 'tarifa_id', 'tarifada_en', 'tarifada_por', 'updated_at'];
 
     private const CAMPOS_DE_ANULACION = ['estado_id', 'anulada_en', 'motivo_anulacion', 'anulada_por', 'updated_at'];
 
-    protected $fillable = ['consulta_id', 'turno_id', 'paciente_id', 'profesional_id', 'procedimiento_id', 'fecha_servicio'];
+    protected $fillable = ['consulta_id', 'turno_id', 'informe_estudio_id', 'paciente_id', 'profesional_id', 'procedimiento_id', 'fecha_servicio'];
 
     public static function moduloEstado(): string
     {
@@ -80,6 +85,12 @@ class Prestacion extends Model
         return $this->belongsTo(Turno::class);
     }
 
+    /** El informe de estudio que la originó (vacío en la base). Solo el vínculo: su contenido es clínico. */
+    public function informeEstudio(): BelongsTo
+    {
+        return $this->belongsTo(InformeEstudio::class);
+    }
+
     public function paciente(): BelongsTo
     {
         return $this->belongsTo(Paciente::class);
@@ -105,6 +116,12 @@ class Prestacion extends Model
         return $this->belongsTo(Tarifa::class);
     }
 
+    /** Su reparto (docs/reparto-economico.md), si ya se calculó: uno por prestación. */
+    public function reparto(): HasOne
+    {
+        return $this->hasOne(RepartoPrestacion::class);
+    }
+
     public function tarifadaPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'tarifada_por');
@@ -123,6 +140,11 @@ class Prestacion extends Model
     public function anulada(): bool
     {
         return $this->tieneEstado(Estado::ANULADO);
+    }
+
+    public function origenTexto(): string
+    {
+        return self::ORIGENES[$this->informe_estudio_id ? 'INFORME' : 'CONSULTA'];
     }
 
     public function etiquetaEstado(): string

@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Informe de un estudio hecho en la clínica (docs/informes-estudio.md), parte de la consulta: texto libre, el estudio
- * (del catálogo o escrito a mano; el nombre se copia en estudio_nombre) y el solicitante opcional. No se borra: se retira
+ * Informe de un estudio hecho en la clínica (docs/informes-estudio.md), parte de la consulta: texto libre, el procedimiento
+ * (de tipo ESTUDIO; el nombre se copia en estudio_nombre) y el solicitante opcional. Los anteriores a los procedimientos no
+ * tienen procedimiento: conservan su estudio (del catálogo o escrito a mano). Cada informe vigente genera su prestación al
+ * finalizar (Prestaciones\GenerarPrestacion). No se borra: se retira
  * (activo = false) y se puede reponer. Sus cambios quedan en la auditoría como EDITAR de la consulta.
  */
 class InformeEstudio extends Model
@@ -25,6 +27,7 @@ class InformeEstudio extends Model
     protected $fillable = [
         'consulta_id',
         'estudio_id',
+        'procedimiento_id',
         'estudio_nombre',
         'solicitante',
         'texto',
@@ -55,6 +58,12 @@ class InformeEstudio extends Model
     public function estudio(): BelongsTo
     {
         return $this->belongsTo(Estudio::class);
+    }
+
+    /** El procedimiento (de tipo ESTUDIO) del informe; vacío en los anteriores. */
+    public function procedimiento(): BelongsTo
+    {
+        return $this->belongsTo(Procedimiento::class);
     }
 
     /** Quién lo escribió. */

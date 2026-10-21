@@ -108,8 +108,8 @@ test('el Administrador ve los grupos del menú, en orden y con sus secciones, en
         'Personas y Roles' => ['personas', 'pacientes', 'profesionales', 'personal-salud', 'proveedores', 'categorias-proveedor', 'tipos-red-social', 'responsables-pago'],
         'Agenda' => ['turnos', 'agenda-general', 'disponibilidades', 'consultorios', 'origenes-turno'],
         'Clínica' => ['atencion', 'preparacion', 'historias-clinicas'],
-        'Económico' => ['tarifas', 'prestaciones'],
-        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'dietas', 'estudios', 'cargos-salud', 'parametros-clinicos', 'paises', 'departamentos', 'ciudades'],
+        'Económico' => ['tarifas', 'prestaciones', 'acuerdos-reparto', 'equipos'],
+        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'dietas', 'estudios', 'cargos-salud', 'parametros-clinicos', 'tipos-equipo', 'paises', 'departamentos', 'ciudades'],
     ];
 
     // Cada encabezado seguido de sus links, en el desplegable de escritorio y en el menú de mobile.

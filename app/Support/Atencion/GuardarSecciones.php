@@ -3,8 +3,8 @@
 namespace App\Support\Atencion;
 
 use App\Models\Consulta;
-use App\Models\Estudio;
 use App\Models\ExamenFisico;
+use App\Models\Procedimiento;
 use App\Models\User;
 use App\Support\Auditoria;
 use App\Support\Correcciones\VentanaDeCorreccion;
@@ -101,22 +101,25 @@ final class GuardarSecciones
             });
         }
 
-        // Informes de estudio: el nombre del estudio se COPIA (del catálogo o escrito a mano); si el estudio elegido no cambió,
-        // se conserva el nombre guardado, así renombrar el catálogo no altera lo escrito. Autoría como en la anamnesis.
+        // Informes de estudio: el nombre del procedimiento se COPIA; si el procedimiento elegido no cambió, se conserva el nombre
+        // guardado, así renombrar el procedimiento no altera lo escrito. Uno anterior a los procedimientos que sigue sin procedimiento
+        // conserva su estudio (del catálogo o escrito a mano). Autoría como en la anamnesis.
         if ($clinico && ! empty($datos['con_informes'])) {
             $consulta->auditarRelacion('informesEstudio', function () use ($consulta, $datos, $usuario, &$creadas) {
                 $guardados = $consulta->informesEstudio()->get()->keyBy('id');
                 $creadas['informes'] = self::guardarFilas($consulta->informesEstudio(), $datos['informes'] ?? [],
                     function (array $fila) use ($guardados) {
-                        $estudioId = filled($fila['estudio_id'] ?? null) ? (int) $fila['estudio_id'] : null;
+                        $procedimientoId = filled($fila['procedimiento_id'] ?? null) ? (int) $fila['procedimiento_id'] : null;
                         $guardado = filled($fila['id'] ?? null) ? $guardados->get((int) $fila['id']) : null;
-                        $nombre = match (true) {
-                            $estudioId === null => (string) $fila['estudio_libre'],
-                            $guardado !== null && (int) $guardado->estudio_id === $estudioId => $guardado->estudio_nombre,
-                            default => (string) Estudio::whereKey($estudioId)->value('nombre'),
-                        };
+                        $texto = ['solicitante' => $fila['solicitante'] ?? null, 'texto' => $fila['texto']];
+                        if ($procedimientoId === null) {
+                            return $texto; // anterior: conserva su estudio
+                        }
+                        $nombre = $guardado !== null && (int) $guardado->procedimiento_id === $procedimientoId
+                            ? $guardado->estudio_nombre
+                            : (string) Procedimiento::whereKey($procedimientoId)->value('nombre');
 
-                        return ['estudio_id' => $estudioId, 'estudio_nombre' => $nombre, 'solicitante' => $fila['solicitante'] ?? null, 'texto' => $fila['texto']];
+                        return ['procedimiento_id' => $procedimientoId, 'estudio_id' => null, 'estudio_nombre' => $nombre, ...$texto];
                     },
                     nuevas: ['usuario_id' => $usuario->id], cambiadas: ['modificado_por_id' => $usuario->id]);
             });

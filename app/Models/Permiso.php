@@ -33,6 +33,10 @@ class Permiso extends Model
         'TARIFAS' => ['VER', 'CREAR', 'EDITAR'],
         // Prestaciones: nacen solas al finalizar la consulta; se tarifan (EDITAR) y se anulan con motivo (DESACTIVAR).
         'PRESTACIONES' => ['VER', 'EDITAR', 'DESACTIVAR'],
+        // Acuerdos de reparto: alta (CREAR), "Cambiar porcentaje" y "Repartir" una prestación pendiente (EDITAR); no se borran.
+        'ACUERDOS_REPARTO' => ['VER', 'CREAR', 'EDITAR'],
+        // Repartos de las prestaciones: nacen solos; solo se ven (el detalle dentro de la prestación).
+        'REPARTOS' => ['VER'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

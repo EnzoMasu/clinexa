@@ -18,3 +18,5 @@ Lista de control previa a cargar pacientes reales. Sin datos personales: marcar 
 - [ ] **Revisión legal de los textos** que salen impresos: reposo (`config/reposo.php`), orden de estudio (`config/ordenes_estudio.php`) y constancias de retiro y de estado (`config/constancias.php`); luego poner `borrador` en `false` en cada uno.
 - [ ] **Tarifas cargadas** (`docs/tarifas-prestaciones.md`): al menos la general de cada procedimiento, y el procedimiento
   `CONS-001` (Consulta) activo. Sin tarifa, las prestaciones quedan pendientes de tarifar.
+- [ ] **Acuerdos de reparto cargados** (`docs/reparto-economico.md`): el general de cada profesional y el de cada equipo activo,
+  aprobados por Gerencia. Sin acuerdo, las prestaciones quedan pendientes de reparto.

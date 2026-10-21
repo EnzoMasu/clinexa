@@ -1,6 +1,7 @@
 {{--
     Informes de estudio (grupo CLÍNICO; docs/informes-estudio.md): el informe de un estudio hecho en la clínica, en texto
-    libre. El estudio se elige del catálogo o se escribe a mano (no se agrega al catálogo); el solicitante es opcional. No se
+    libre. El estudio realizado es un procedimiento de tipo ESTUDIO (solo el nombre, nunca montos); uno anterior a los
+    procedimientos conserva su estudio y puede quedar así. El solicitante es opcional. No se
     borran: se retiran y se reponen. Cada fila lleva su uid (ver _anamnesis). Requiere $datos y $clases.
     El PDF de cada informe sale de lo YA guardado: el enlace aparece cuando la fila tiene id (solo a quien puede generarlo).
 --}}
@@ -13,9 +14,9 @@
         filas: {{ Js::from($datos['filasInformes']) }},
         estudios: {{ Js::from($datos['estudios']) }},
         urlPdf: {{ Js::from($puedePdf ? route('admin.pdf.informe-estudio', ['consulta' => $consulta, 'informe' => '__ID__']) : null) }},
-        // Los estudios activos, más el inactivo que esta fila ya tenía.
+        // Los procedimientos de estudio activos, más el inactivo que esta fila ya tenía.
         estudiosPara(fila) { return fila.estudioInactivo ? [...this.estudios, fila.estudioInactivo] : this.estudios },
-        agregar() { this.filas.push({ uid: 'n-' + Date.now() + Math.random(), id: '', eleccion: '', estudio_libre: '', solicitante: '', texto: '', activo: true, estudioInactivo: null, autor: null, incompleta: false }) },
+        agregar() { this.filas.push({ uid: 'n-' + Date.now() + Math.random(), id: '', procedimiento_id: '', anterior: null, solicitante: '', texto: '', activo: true, estudioInactivo: null, autor: null, incompleta: false }) },
         descartar(i) { this.filas.splice(i, 1) },
         guardada(detalle) {
             const ids = detalle.ids?.informes ?? {};
@@ -38,8 +39,6 @@
             <input type="hidden" x-bind:name="`informes[${i}][uid]`" x-bind:value="fila.uid">
             <input type="hidden" x-bind:name="`informes[${i}][id]`" x-bind:value="fila.id">
             <input type="hidden" x-bind:name="`informes[${i}][activo]`" x-bind:value="fila.activo ? 1 : 0">
-            {{-- El estudio del catálogo (o vacío si se escribe a mano). --}}
-            <input type="hidden" x-bind:name="`informes[${i}][estudio_id]`" x-bind:value="fila.eleccion === 'libre' ? '' : fila.eleccion">
 
             <div class="grid gap-3 sm:grid-cols-2" x-bind:class="fila.activo ? '' : 'opacity-60'">
                 <div>
@@ -47,20 +46,12 @@
                         Estudio realizado
                         <span x-show="! fila.activo" class="ms-1 rounded-full bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-700 dark:text-gray-300">Retirado</span>
                     </label>
-                    {{-- Sin name: lo que se envía es el campo oculto de arriba (o el texto escrito a mano). --}}
-                    <select x-bind:id="`informe_estudio_${i}`" x-model="fila.eleccion" class="{{ $clases }}">
-                        <option value="">Elegir estudio…</option>
+                    <select x-bind:id="`informe_estudio_${i}`" x-bind:name="`informes[${i}][procedimiento_id]`" x-model="fila.procedimiento_id" class="{{ $clases }}">
+                        <option value="" x-text="fila.anterior ? fila.anterior + ' (anterior, sin procedimiento)' : 'Elegir estudio…'"></option>
                         <template x-for="estudio in estudiosPara(fila)" x-bind:key="estudio.id">
-                            <option x-bind:value="estudio.id" x-text="estudio.nombre" x-bind:selected="estudio.id === fila.eleccion"></option>
+                            <option x-bind:value="estudio.id" x-text="estudio.nombre" x-bind:selected="estudio.id === fila.procedimiento_id"></option>
                         </template>
-                        <option value="libre">Otro (no está en el catálogo)</option>
                     </select>
-                    <div x-show="fila.eleccion === 'libre'" class="mt-2">
-                        <label x-bind:for="`informe_estudio_libre_${i}`" class="sr-only">Nombre del estudio</label>
-                        <input type="text" maxlength="{{ \App\Models\Estudio::MAXIMO_NOMBRE }}" placeholder="Nombre del estudio"
-                            x-bind:id="`informe_estudio_libre_${i}`" x-bind:name="`informes[${i}][estudio_libre]`" x-bind:disabled="fila.eleccion !== 'libre'"
-                            x-model="fila.estudio_libre" class="{{ $clases }}">
-                    </div>
                 </div>
                 <div>
                     <label x-bind:for="`informe_solicitante_${i}`" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Solicitante (opcional)</label>

@@ -114,6 +114,8 @@ class PerfilesPredefinidos
             'PERSONAL_SALUD' => self::VER, 'CARGOS_SALUD' => self::VER, 'PARAMETROS_CLINICOS' => self::VER,
             // Económico: administra las tarifas, tarifa y anula prestaciones.
             'TARIFAS' => self::VER_CREAR_EDITAR, 'PRESTACIONES' => ['VER', 'EDITAR', 'DESACTIVAR'],
+            // Reparto (docs/reparto-economico.md): administra los acuerdos, los equipos y sus tipos, y ve los repartos.
+            'ACUERDOS_REPARTO' => self::VER_CREAR_EDITAR, 'REPARTOS' => self::VER, 'EQUIPOS' => self::TODO, 'TIPOS_EQUIPO' => self::TODO,
         ],
         // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
         // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones

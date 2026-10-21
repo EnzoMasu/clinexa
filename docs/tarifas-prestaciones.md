@@ -1,7 +1,8 @@
 # Tarifas y prestaciones (fase 1 económica)
 
 Las **tarifas** versionadas por procedimiento y la **prestación** (el servicio prestado) con su monto fijado. Sin descuentos,
-cambio manual de monto, cobros, reparto, convenios ni facturación: son fases futuras. Nada se borra.
+cambio manual de monto, cobros, convenios ni facturación: son fases futuras. El reparto de cada prestación está en
+`docs/reparto-economico.md`. Nada se borra.
 
 ## Moneda
 
@@ -46,16 +47,28 @@ del procedimiento.
   Si tampoco existe, queda sin procedimiento (pendiente y no se puede tarifar).
 - **Fecha de servicio:** el día de la atención (`iniciada_en`, en la hora local).
 - Con tarifa para ese día: **TARIFADO**, con el monto fijado. Sin tarifa: **PENDIENTE** ("Pendiente de tarifar"), sin monto.
-- **Nunca impide finalizar:** corre en un punto de guardado propio; si falla, se deshace solo lo suyo, se reporta en el log, queda
-  un evento **FALLO** en Auditoría (tabla `prestaciones`, solo consulta, profesional y fecha de servicio, sin contenido clínico)
-  y la consulta se finaliza igual (sin prestación).
-- **Una por consulta** (`prestaciones.consulta_id` único). La adenda y el desbloqueo no pasan por Finalizar: no crean otra.
+- **Nunca impide finalizar:** cada prestación (la base y la de cada informe) corre en un punto de guardado propio; si falla, se
+  deshace solo lo suyo, se reporta en el log, queda un evento **FALLO** en Auditoría (tabla `prestaciones`, solo consulta,
+  informe si es de uno, profesional y fecha de servicio, sin contenido clínico) y la consulta se finaliza igual.
+- **La base, una por consulta** (`prestaciones_base_unica`). La adenda y el desbloqueo no pasan por Finalizar: no crean otra.
+- **Una por cada informe de estudio** (`prestaciones.informe_estudio_id`, `prestaciones_informe_unica`): al finalizar, cada informe
+  **vigente** con procedimiento (de tipo ESTUDIO, `docs/informes-estudio.md`) genera la suya: profesional de la consulta,
+  procedimiento del informe, misma fecha de servicio, tarifa y reparto como la base (el equipo entra solo si el procedimiento usa
+  uno). Sin tarifa, pendiente de tarifar; sin acuerdo, pendiente de reparto. **Sin duplicar:** si el turno es de ese mismo
+  procedimiento, la base cubre UN informe (el primero en la pantalla); un segundo informe igual genera la suya. Un informe
+  agregado o repuesto por adenda o desbloqueo no genera nada; uno retirado después **no** anula su prestación (la anula Gerencia
+  con motivo). Informes de consultas finalizadas antes del hito `PRESTACIONES_INFORMES`, y los anteriores sin procedimiento,
+  nunca generan. Una consulta puede tener varias prestaciones; el detalle muestra las demás de la misma consulta.
+- **Origen** (`Prestacion::ORIGENES`): "Consulta/Turno" (la base) o "Informe de estudio", en el listado, el filtro y el detalle.
+  Nunca se muestra el contenido del informe.
 - **Consultas ya cerradas no generan prestación retroactiva** (la migración no crea ninguna). La migración guarda en
   `hitos_sistema` (código PRESTACIONES) el momento en que corre: lo finalizado antes nunca aparece ni se genera.
-- **Consultas sin prestación** (en Prestaciones): las FINALIZADAS desde ese momento que no tienen prestación
-  (`GenerarPrestacion::sinPrestacion`). Todos los que ven la pantalla ven un aviso con la cantidad; la lista (las 50 más
-  antiguas) y el botón **"Generar"** son solo de quien administra tarifas (EDITAR sobre TARIFAS: Administrador y Gerencia).
-  "Generar" usa el mismo servicio que al finalizar (tarifa vigente el día del servicio, o pendiente); dos veces no duplica.
+- **Consultas sin prestación** (en Prestaciones): las FINALIZADAS desde ese momento que no tienen la base
+  (`GenerarPrestacion::sinPrestacion`) y los informes que debían generar la suya y no la tienen
+  (`GenerarPrestacion::informesSinPrestacion`), con su origen. Todos los que ven la pantalla ven un aviso con las cantidades; la
+  lista (las 50 más antiguas) y el botón **"Generar"** (`admin.prestaciones.generar` y `admin.prestaciones.generar-informe`) son
+  solo de quien administra tarifas (EDITAR sobre TARIFAS: Administrador y Gerencia). "Generar" usa el mismo servicio que al
+  finalizar (tarifa vigente el día del servicio, o pendiente); dos veces no duplica.
 - **Tarifar** una pendiente: con la tarifa que se aplica a su **fecha de servicio** (no la de hoy). El monto queda fijado y no
   cambia si la tarifa cambia después. Sin monto manual.
 - **Anular:** con motivo (5 a 300 caracteres), pendiente o tarifada. Se conservan fecha, motivo y quién. Nada se borra.
@@ -65,7 +78,7 @@ del procedimiento.
 
 - **Tarifas** (`admin.tarifas.*`): listado (solo vigentes, o también históricas; búsqueda por procedimiento o profesional),
   "Nueva tarifa", "Cambiar tarifa" e "Historial" (todas las versiones de ese procedimiento y profesional).
-- **Prestaciones** (`admin.prestaciones.*`): listado con filtros de fecha de servicio (desde, hasta), profesional, estado y
+- **Prestaciones** (`admin.prestaciones.*`): listado con filtros de fecha de servicio (desde, hasta), profesional, estado, origen y
   paciente; botón "Tarifar" en las pendientes; detalle con "Anular la prestación"; aviso y bloque "Consultas sin prestación".
 
 ## Permisos
@@ -80,7 +93,8 @@ Módulos nuevos (en la matriz, grupo Económico):
 | Recepción, Caja, Facturación y convenios | VER | VER |
 | Médico, Enfermería, Supervisión médica, Auditor, Compras | nada | nada |
 
-El Médico no ve montos: no tiene los módulos y la pantalla de atención no muestra nada económico.
+El Médico no ve montos: no tiene los módulos y la pantalla de atención no muestra nada económico (en el informe de estudio ve solo
+el nombre del procedimiento).
 
 ## Auditoría
 
@@ -95,7 +109,13 @@ CREAR de la nueva con el detalle "Cambio de tarifa"; EDITAR "Tarifado" al tarifa
 ANULADO), la moneda PYG y los dos módulos con su reparto. Crea los estados que falten, no lee filas durante
 `migrate --pretend`, no duplica nada, no carga tarifas y en una instalación nueva deja los módulos al seeder.
 
+`prestacion_de_informes_de_estudio`: `informes_estudio.procedimiento_id` y `prestaciones.informe_estudio_id` (vacíos), cambia el
+único por consulta por los índices únicos parciales `prestaciones_base_unica` (consulta_id WHERE informe_estudio_id IS NULL) y
+`prestaciones_informe_unica` (informe_estudio_id WHERE IS NOT NULL), en SQLite y PostgreSQL, y guarda el hito
+`PRESTACIONES_INFORMES`. Las prestaciones existentes son todas base y cumplen las dos. No lee filas (`--pretend`) ni depende del
+catálogo. El `down` solo vale sin prestaciones de informes.
+
 ## Tests
 
-`tests/Feature/Economico/TarifasPrestacionesTest.php`, `MigracionTarifasTest.php` y `tests/Postgres/TarifasTest.php`
-(solapamiento y CHECK).
+`tests/Feature/Economico/TarifasPrestacionesTest.php`, `MigracionTarifasTest.php`, `PrestacionInformesTest.php`,
+`tests/Postgres/TarifasTest.php` (solapamiento y CHECK) y `tests/Postgres/PrestacionInformesTest.php` (índices parciales).

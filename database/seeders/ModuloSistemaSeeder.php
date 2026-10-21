@@ -79,6 +79,12 @@ class ModuloSistemaSeeder extends Seeder
             // Económico (docs/tarifas-prestaciones.md): tarifas versionadas (la abierta es VIGENTE) y la prestación de cada consulta.
             'TARIFAS' => ['Tarifas', [Estado::VIGENTE, Estado::HISTORICO]],
             'PRESTACIONES' => ['Prestaciones', [Estado::PENDIENTE, Estado::TARIFADO, Estado::ANULADO]],
+            // Reparto (docs/reparto-economico.md): acuerdos versionados (el abierto es VIGENTE), el reparto de cada prestación
+            // (pendiente, repartido o anulado) y los equipos con su catálogo de tipos.
+            'ACUERDOS_REPARTO' => ['Acuerdos de reparto', [Estado::VIGENTE, Estado::HISTORICO]],
+            'REPARTOS' => ['Repartos de prestaciones', [Estado::PENDIENTE, Estado::REPARTIDO, Estado::ANULADO]],
+            'EQUIPOS' => ['Equipos', self::ACTIVO_INACTIVO],
+            'TIPOS_EQUIPO' => ['Tipos de equipo', self::ACTIVO_INACTIVO],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

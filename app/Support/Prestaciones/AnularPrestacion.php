@@ -6,11 +6,12 @@ use App\Exceptions\AccionRechazada;
 use App\Models\Estado;
 use App\Models\Prestacion;
 use App\Models\User;
+use App\Support\Repartos\RepartirPrestacion;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Anula una prestación (pendiente o tarifada) con su motivo. Nada se borra: cambian el estado, la fecha, el motivo y quién.
- * Queda en Auditoría como ANULAR con el motivo. El permiso (DESACTIVAR sobre PRESTACIONES: Administrador y Gerencia) lo
+ * Su reparto, si tiene, también queda anulado. Queda en Auditoría como ANULAR con el motivo. El permiso (DESACTIVAR sobre PRESTACIONES: Administrador y Gerencia) lo
  * controla la ruta.
  */
 final class AnularPrestacion
@@ -39,6 +40,8 @@ final class AnularPrestacion
                 'anulada_por' => $usuario->id,
             ])->save();
             $actual->unsetRelation('estado');
+            // Su reparto también se anula, con el mismo motivo (docs/reparto-economico.md).
+            RepartirPrestacion::anular($usuario, $actual, $actual->motivo_anulacion);
 
             return $actual;
         });

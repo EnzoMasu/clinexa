@@ -8,11 +8,15 @@ que viene solo por el estudio entra como cualquier consulta (con turno o sin tur
 
 - **Texto libre**, hasta 5000 caracteres. Sin campos clínicos específicos (semanas de gestación, medidas, etc.): se definen
   más adelante.
-- Cada informe tiene: **estudio realizado** (del catálogo de estudios, solo los activos, o **escrito a mano** si no está; no
-  se agrega al catálogo), **solicitante** (texto libre opcional, hasta 150, por si lo pidió un médico externo) y el **texto**.
+- Cada informe tiene: **estudio realizado**, un **procedimiento de tipo ESTUDIO** activo (`procedimiento_id`, obligatorio en los
+  nuevos; ya no hay "Otro" escrito a mano), **solicitante** (texto libre opcional, hasta 150, por si lo pidió un médico externo) y
+  el **texto**. El profesional ve solo el nombre del procedimiento, nunca montos.
+- Los informes **anteriores** a los procedimientos conservan su estudio (del catálogo o escrito a mano, `estudio_id`) y quedan sin
+  procedimiento: se pueden seguir corrigiendo así. El catálogo de estudios sigue solo para las órdenes de estudio.
+- Cada informe vigente genera **su prestación** al finalizar la consulta (`docs/tarifas-prestaciones.md`).
 - **Varios por consulta** (hasta 10 vigentes), en el orden de la pantalla.
-- El nombre del estudio se **copia** (`informes_estudio.estudio_nombre`): renombrar o desactivar el estudio en el catálogo no
-  altera lo ya escrito. Un estudio que hoy está inactivo se conserva en la fila que ya lo tenía.
+- El nombre del procedimiento se **copia** (`informes_estudio.estudio_nombre`): renombrarlo o desactivarlo no altera lo ya
+  escrito. Un procedimiento que hoy está inactivo se conserva en la fila que ya lo tenía.
 - Autoría: quién lo escribió (`usuario_id`) y el último que lo cambió (`modificado_por_id`), como la anamnesis.
 
 ## Parte de la consulta
@@ -55,13 +59,14 @@ Es una lista más del **grupo CLÍNICO** (`FormularioConsulta`, `GuardarSeccione
 
 ## Fuera de esta fase
 
-Precio y cobro, equipo (no se usa `turnos.equipo_id`), vínculo con una orden de estudio de la clínica, unificación entre
-procedimientos y catálogo de estudios, resultados de estudios hechos en otra institución y rangos de referencia.
+Cobro y descuentos por combinar consulta y estudio, equipo en la agenda (no se usa `turnos.equipo_id`), vínculo con una orden
+de estudio de la clínica, vínculo entre el catálogo de estudios y los procedimientos, resultados de estudios hechos en otra
+institución y rangos de referencia.
 
 ## Migración
 
 `create_informes_estudio`: solo la tabla nueva. No lee ni cambia filas y no depende de ningún dato de catálogo (sin módulos ni
-permisos nuevos).
+permisos nuevos). `prestacion_de_informes_de_estudio` agrega `procedimiento_id` (ver `docs/tarifas-prestaciones.md`).
 
 ## Pendiente
 
@@ -69,4 +74,4 @@ El diseño del PDF es sobrio y provisorio: revisar el aspecto en papel antes de 
 
 ## Tests
 
-`tests/Feature/InformeEstudio/InformeEstudioTest.php`.
+`tests/Feature/InformeEstudio/InformeEstudioTest.php` y `tests/Feature/Economico/PrestacionInformesTest.php`.

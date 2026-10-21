@@ -35,6 +35,9 @@
         'Económico' => [
             'admin.tarifas' => 'Tarifas',
             'admin.prestaciones' => 'Prestaciones',
+            // Reparto (docs/reparto-economico.md): solo Administrador y Gerencia.
+            'admin.acuerdos-reparto' => 'Acuerdos de reparto',
+            'admin.equipos' => 'Equipos',
         ],
         'Catálogos' => [
             'admin.especialidades' => 'Especialidades',
@@ -50,6 +53,7 @@
             'admin.estudios' => 'Estudios',
             'admin.cargos-salud' => 'Cargos de salud',
             'admin.parametros-clinicos' => 'Parámetros clínicos',
+            'admin.tipos-equipo' => 'Tipos de equipo',
             'admin.paises' => 'Países',
             'admin.departamentos' => 'Departamentos',
             'admin.ciudades' => 'Ciudades',

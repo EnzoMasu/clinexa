@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\AccionAuditoria;
+use App\Models\AcuerdoReparto;
 use App\Models\AdendaConsulta;
 use App\Models\BloqueAnamnesis;
 use App\Models\CargoSalud;
@@ -22,6 +23,7 @@ use App\Models\DetalleReceta;
 use App\Models\Diagnostico;
 use App\Models\Dieta;
 use App\Models\Disponibilidad;
+use App\Models\Equipo;
 use App\Models\Especialidad;
 use App\Models\Estado;
 use App\Models\Estudio;
@@ -29,6 +31,7 @@ use App\Models\ExamenFisico;
 use App\Models\HistoriaClinica;
 use App\Models\Indicacion;
 use App\Models\InformeEstudio;
+use App\Models\LineaReparto;
 use App\Models\MedioPago;
 use App\Models\ModuloSistema;
 use App\Models\OrigenTurno;
@@ -45,6 +48,7 @@ use App\Models\Proveedor;
 use App\Models\NotaSalida;
 use App\Models\OrdenEstudio;
 use App\Models\Receta;
+use App\Models\RepartoPrestacion;
 use App\Models\ReposoMedico;
 use App\Models\ResponsablePago;
 use App\Models\SalidaSinAtencion;
@@ -52,6 +56,7 @@ use App\Models\Sucursal;
 use App\Models\Tarifa;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
+use App\Models\TipoEquipo;
 use App\Models\TipoIndicacion;
 use App\Models\TipoRedSocial;
 use App\Models\Turno;
@@ -108,6 +113,9 @@ final class Auditoria
         OrdenEstudio::class,
         // Económico (docs/tarifas-prestaciones.md): sus montos solo los ve quien tiene VER sobre su módulo.
         Tarifa::class, Prestacion::class,
+        // Reparto (docs/reparto-economico.md): porcentajes y montos solo para quien tiene VER sobre su módulo. El reparto antes
+        // que sus líneas (es la tabla del módulo REPARTOS). Los equipos y sus tipos no tienen montos.
+        AcuerdoReparto::class, RepartoPrestacion::class, LineaReparto::class, Equipo::class, TipoEquipo::class,
     ];
 
     /**
@@ -124,7 +132,8 @@ final class Auditoria
     public const TABLAS_RECETAS = ['recetas', 'detalles_receta'];
 
     /** Tablas con montos (tabla => módulo): sus valores solo los ve quien tiene VER sobre ese módulo (el Médico, no). */
-    public const TABLAS_ECONOMICAS = ['tarifas' => 'TARIFAS', 'prestaciones' => 'PRESTACIONES'];
+    public const TABLAS_ECONOMICAS = ['tarifas' => 'TARIFAS', 'prestaciones' => 'PRESTACIONES',
+        'acuerdos_reparto' => 'ACUERDOS_REPARTO', 'repartos_prestacion' => 'REPARTOS', 'lineas_reparto' => 'REPARTOS'];
 
     /**
      * Módulo cuyo VER hace falta para ver los valores de los eventos de esa tabla en la pantalla de

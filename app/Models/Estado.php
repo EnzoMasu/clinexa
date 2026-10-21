@@ -68,6 +68,9 @@ class Estado extends Model
     /** Prestaciones: con su monto fijado (la que todavía no tiene usa PENDIENTE: "pendiente de tarifar"). */
     public const TARIFADO = 'TARIFADO';
 
+    /** Reparto de una prestación: hecho, con sus líneas fijadas (el que no se pudo calcular usa PENDIENTE, con el motivo). */
+    public const REPARTIDO = 'REPARTIDO';
+
     protected $table = 'estados';
 
     protected $fillable = [

@@ -1,6 +1,6 @@
 @use('App\Support\Fecha')
 
-<x-admin.table :headers="['Fecha', 'Paciente', 'Profesional', 'Procedimiento', 'Monto', 'Estado']" :paginator="$prestaciones">
+<x-admin.table :headers="['Fecha', 'Paciente', 'Profesional', 'Procedimiento', 'Origen', 'Monto', 'Estado']" :paginator="$prestaciones">
     @forelse ($prestaciones as $prestacion)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($prestacion->fecha_servicio) }}</td>
@@ -10,6 +10,7 @@
             </td>
             <td class="px-6 py-4">{{ $prestacion->profesional->persona->nombre_completo }}</td>
             <td class="px-6 py-4">{{ $prestacion->procedimiento?->nombre ?? 'Sin procedimiento' }}</td>
+            <td class="px-6 py-4">{{ $prestacion->origenTexto() }}</td>
             <td class="px-6 py-4 whitespace-nowrap tabular-nums">{{ $prestacion->montoTexto() }}</td>
             <td class="px-6 py-4">
                 <span @class([
@@ -26,12 +27,18 @@
                         <button type="submit" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Tarifar</button>
                     </form>
                 @endif
+                @if (isset($pendientesDeReparto[$prestacion->id]))
+                    <form method="POST" action="{{ route('admin.prestaciones.repartir', $prestacion) }}" class="inline">
+                        @csrf
+                        <button type="submit" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Repartir</button>
+                    </form>
+                @endif
                 <a href="{{ route('admin.prestaciones.show', $prestacion) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Ver</a>
             </x-admin.actions>
         </tr>
     @empty
         <tr>
-            <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+            <td colspan="8" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                 @if ($busqueda !== '')
                     No hay resultados para «{{ $busqueda }}».
                 @else
