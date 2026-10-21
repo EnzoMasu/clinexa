@@ -26,6 +26,8 @@ test('todos los formularios de alta de /admin llevan novalidate', function () {
         ->reject(fn (string $nombre) => $nombre === 'admin.recetas.create')
         // Adenda y desbloqueo cuelgan de una consulta cerrada: sus formularios (x-admin.form, novalidate) se prueban en CorreccionesTest.
         ->reject(fn (string $nombre) => str_starts_with($nombre, 'admin.correcciones.'))
+        // El cobro muestra su formulario recién con una paciente con prestaciones sin cobrar: su novalidate se prueba en CobrosCajaTest.
+        ->reject(fn (string $nombre) => $nombre === 'admin.cobros.create')
         ->values();
 
     expect($altas)->not->toBeEmpty();

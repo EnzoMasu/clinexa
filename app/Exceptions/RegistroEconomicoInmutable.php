@@ -5,8 +5,8 @@ namespace App\Exceptions;
 use LogicException;
 
 /**
- * Intento de editar o borrar una tarifa, una prestación, un acuerdo o un reparto fuera de lo permitido
- * (docs/tarifas-prestaciones.md, docs/reparto-economico.md). Es un error de
+ * Intento de editar o borrar una tarifa, una prestación, un acuerdo, un reparto, una caja o un cobro fuera de lo permitido
+ * (docs/tarifas-prestaciones.md, docs/reparto-economico.md, docs/cobros-caja.md). Es un error de
  * programación: las pantallas nunca lo ofrecen.
  */
 class RegistroEconomicoInmutable extends LogicException
@@ -31,8 +31,18 @@ class RegistroEconomicoInmutable extends LogicException
         return new self('Un reparto solo se completa (una vez) o se anula; sus líneas no cambian.');
     }
 
+    public static function caja(): self
+    {
+        return new self('Una caja solo se cierra, se aprueba o se devuelve; sus movimientos y cierres no cambian.');
+    }
+
+    public static function cobro(): self
+    {
+        return new self('Un cobro no se edita: sus prestaciones, líneas y movimientos quedan como se registraron.');
+    }
+
     public static function borrado(): self
     {
-        return new self('Las tarifas, las prestaciones, los acuerdos y los repartos no se borran.');
+        return new self('Las tarifas, las prestaciones, los acuerdos, los repartos, las cajas y los cobros no se borran.');
     }
 }

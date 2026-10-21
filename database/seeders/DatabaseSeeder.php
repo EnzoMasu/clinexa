@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             ModuloSistemaSeeder::class,
+            // Los medios de pago de referencia (Efectivo, Transferencia, Tarjeta): los usa la caja.
+            MediosPagoSeeder::class,
             ModulosSensiblesSeeder::class,
             PerfilAdministradorSeeder::class,
             PerfilesPredefinidosSeeder::class,

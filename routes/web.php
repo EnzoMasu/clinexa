@@ -8,9 +8,11 @@ use App\Http\Controllers\Admin\CargoSaludController;
 use App\Http\Controllers\Admin\ConstanciaController;
 use App\Http\Controllers\Admin\CorreccionController;
 use App\Http\Controllers\Admin\CatalogoCIE10Controller;
+use App\Http\Controllers\Admin\CajaController;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
 use App\Http\Controllers\Admin\CiudadController;
+use App\Http\Controllers\Admin\CobroController;
 use App\Http\Controllers\Admin\ConsultaController;
 use App\Http\Controllers\Admin\ConsultorioController;
 use App\Http\Controllers\Admin\CupoEntrePacientesController;
@@ -376,6 +378,19 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::post('prestaciones/{prestacion}/anular', [PrestacionController::class, 'anular'])->name('prestaciones.anular')->whereNumber('prestacion')->middleware('permiso:PRESTACIONES,DESACTIVAR');
     // "Repartir" una prestación pendiente de reparto: quien administra los acuerdos (docs/reparto-economico.md).
     Route::post('prestaciones/{prestacion}/repartir', [PrestacionController::class, 'repartir'])->name('prestaciones.repartir')->whereNumber('prestacion')->middleware('permiso:ACUERDOS_REPARTO,EDITAR');
+
+    // Cobros y caja (docs/cobros-caja.md). Cajas: el cajero abre (CREAR) y cierra (EDITAR) la suya; Gerencia aprueba o devuelve los
+    // cierres (EDITAR sobre CIERRES_CAJA). Cobros: siempre completos y sin edición (la reversión es de la fase 3b). No hay DELETE.
+    Route::get('cajas', [CajaController::class, 'index'])->name('cajas.index')->middleware('permiso:CAJAS,VER');
+    Route::post('cajas', [CajaController::class, 'abrir'])->name('cajas.abrir')->middleware('permiso:CAJAS,CREAR');
+    Route::get('cajas/{caja}', [CajaController::class, 'show'])->name('cajas.show')->whereNumber('caja')->middleware('permiso:CAJAS,VER');
+    Route::post('cajas/{caja}/cerrar', [CajaController::class, 'cerrar'])->name('cajas.cerrar')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
+    Route::post('cajas/{caja}/aprobar', [CajaController::class, 'aprobar'])->name('cajas.aprobar')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
+    Route::post('cajas/{caja}/devolver', [CajaController::class, 'devolver'])->name('cajas.devolver')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
+    Route::get('cobros', [CobroController::class, 'index'])->name('cobros.index')->middleware('permiso:COBROS,VER');
+    Route::get('cobros/create', [CobroController::class, 'create'])->name('cobros.create')->middleware('permiso:COBROS,CREAR');
+    Route::post('cobros', [CobroController::class, 'store'])->name('cobros.store')->middleware('permiso:COBROS,CREAR');
+    Route::get('cobros/{cobro}', [CobroController::class, 'show'])->name('cobros.show')->whereNumber('cobro')->middleware('permiso:COBROS,VER');
 
     // Reparto (docs/reparto-economico.md). Acuerdos: nunca se editan ni se borran; "Cambiar porcentaje" cierra el vigente y abre
     // otro. Equipos y tipos de equipo: CRUD sin borrado. No hay DELETE.

@@ -35,6 +35,9 @@
         'Económico' => [
             'admin.tarifas' => 'Tarifas',
             'admin.prestaciones' => 'Prestaciones',
+            // Cobros y caja (docs/cobros-caja.md): Caja cobra y maneja su caja; Gerencia aprueba los cierres; Facturación ve los cobros.
+            'admin.cobros' => 'Cobros',
+            'admin.cajas' => 'Cajas',
             // Reparto (docs/reparto-economico.md): solo Administrador y Gerencia.
             'admin.acuerdos-reparto' => 'Acuerdos de reparto',
             'admin.equipos' => 'Equipos',

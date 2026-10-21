@@ -1,4 +1,5 @@
 @use('App\Support\Fecha')
+@use('App\Support\Permisos')
 @use('App\Support\Prestaciones\AnularPrestacion')
 
 {{-- Detalle de una prestación (PrestacionController::show). Sin contenido clínico de la consulta. --}}
@@ -12,6 +13,20 @@
             <div><dt class="text-gray-500 dark:text-gray-400">Procedimiento</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->procedimiento?->nombre ?? 'Sin procedimiento' }}</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Origen</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->origenTexto() }} · {{ $prestacion->turno ? 'Turno del '.Fecha::mostrar($prestacion->turno->fecha) : 'Sin turno' }} · consulta N.º {{ $prestacion->consulta_id }}</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Monto</dt><dd class="font-medium text-gray-900 dark:text-gray-100 tabular-nums">{{ $prestacion->montoTexto() }}</dd></div>
+            @if ($prestacion->estadoCobroTexto() !== '')
+                <div>
+                    <dt class="text-gray-500 dark:text-gray-400">Cobro</dt>
+                    <dd class="font-medium text-gray-900 dark:text-gray-100">
+                        @include('admin.prestaciones._estado-cobro', ['estadoCobro' => $prestacion->estadoCobroTexto()])
+                        @if ($cobro)
+                            <span class="ml-1 font-normal text-gray-600 dark:text-gray-400">el {{ Fecha::mostrar($cobro->cobrado_en, conHora: true) }}</span>
+                            @if ($veCobros)
+                                · <a href="{{ route('admin.cobros.show', $cobro) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">Ver el cobro N.º {{ $cobro->id }}</a>
+                            @endif
+                        @endif
+                    </dd>
+                </div>
+            @endif
             @if ($prestacion->tarifa)
                 <div><dt class="text-gray-500 dark:text-gray-400">Tarifa usada</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->tarifa->profesionalTexto() }} · {{ $prestacion->tarifa->vigenciaTexto() }}</dd></div>
                 <div><dt class="text-gray-500 dark:text-gray-400">Tarifada</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ Fecha::mostrar($prestacion->tarifada_en, conHora: true) }}{{ $prestacion->tarifadaPor ? ' por '.$prestacion->tarifadaPor->persona?->nombre_completo : ' al finalizar la consulta' }}</dd></div>
@@ -25,13 +40,14 @@
         @if ($otrasDeLaConsulta->isNotEmpty())
             <section aria-labelledby="otras-de-la-consulta" class="max-w-3xl space-y-3">
                 <h3 id="otras-de-la-consulta" class="font-semibold text-gray-900 dark:text-gray-100">Otras prestaciones de la consulta N.º {{ $prestacion->consulta_id }}</h3>
-                <x-admin.table :headers="['Procedimiento', 'Origen', 'Monto', 'Estado']">
+                <x-admin.table :headers="['Procedimiento', 'Origen', 'Monto', 'Estado', 'Cobro']">
                     @foreach ($otrasDeLaConsulta as $otra)
                         <tr>
                             <td class="px-6 py-3">{{ $otra->procedimiento?->nombre ?? 'Sin procedimiento' }}</td>
                             <td class="px-6 py-3">{{ $otra->origenTexto() }}</td>
                             <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $otra->montoTexto() }}</td>
                             <td class="px-6 py-3">{{ $otra->etiquetaEstado() }}</td>
+                            <td class="px-6 py-3">@include('admin.prestaciones._estado-cobro', ['estadoCobro' => $otra->estadoCobroTexto()])</td>
                             <td class="px-6 py-3 text-right">
                                 <a href="{{ route('admin.prestaciones.show', $otra) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Ver</a>
                             </td>
@@ -110,6 +126,10 @@
             @endif
             <a href="{{ route('admin.prestaciones.index') }}" class="text-gray-600 hover:underline dark:text-gray-400">Volver a Prestaciones</a>
         </div>
+
+        @if ($cobro && ! $prestacion->anulada() && Permisos::puedeRuta('admin.prestaciones.anular'))
+            <p class="max-w-xl text-gray-600 dark:text-gray-400">Está cobrada: no se puede anular mientras su cobro esté vigente.</p>
+        @endif
 
         @if ($puedeAnular)
             <details class="max-w-xl rounded-md border border-red-200 p-3 dark:border-red-900" @if ($errors->has('motivo')) open @endif>

@@ -1,6 +1,6 @@
 @use('App\Support\Fecha')
 
-<x-admin.table :headers="['Fecha', 'Paciente', 'Profesional', 'Procedimiento', 'Origen', 'Monto', 'Estado']" :paginator="$prestaciones">
+<x-admin.table :headers="['Fecha', 'Paciente', 'Profesional', 'Procedimiento', 'Origen', 'Monto', 'Estado', 'Cobro']" :paginator="$prestaciones">
     @forelse ($prestaciones as $prestacion)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($prestacion->fecha_servicio) }}</td>
@@ -20,6 +20,7 @@
                     'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300' => $prestacion->anulada(),
                 ])>{{ $prestacion->etiquetaEstado() }}</span>
             </td>
+            <td class="px-6 py-4">@include('admin.prestaciones._estado-cobro', ['estadoCobro' => $prestacion->estadoCobroTexto()])</td>
             <x-admin.actions>
                 @if ($puedeTarifar && $prestacion->pendiente())
                     <form method="POST" action="{{ route('admin.prestaciones.tarifar', $prestacion) }}" class="inline">
@@ -38,7 +39,7 @@
         </tr>
     @empty
         <tr>
-            <td colspan="8" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+            <td colspan="9" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                 @if ($busqueda !== '')
                     No hay resultados para «{{ $busqueda }}».
                 @else

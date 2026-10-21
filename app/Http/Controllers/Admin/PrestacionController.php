@@ -61,6 +61,8 @@ class PrestacionController extends Controller
             ->orderByDesc('prestaciones.fecha_servicio')->orderByDesc('prestaciones.id')
             ->select('prestaciones.*')
             ->with(['paciente.persona', 'profesional.persona', 'procedimiento', 'moneda'])
+            // El estado de cobro (Cobrada / Pendiente), derivado de si tiene un cobro vigente (docs/cobros-caja.md).
+            ->withExists('cobroVigente')
             ->paginate(20)->withQueryString();
 
         // "Consultas sin prestación" (solo lo finalizado desde el inicio del módulo): las consultas sin la base y los informes de
@@ -119,7 +121,8 @@ class PrestacionController extends Controller
 
     public function show(Request $request, Prestacion $prestacion): View
     {
-        $prestacion->load(['paciente.persona', 'profesional.persona', 'procedimiento', 'moneda', 'tarifa', 'turno', 'tarifadaPor.persona', 'anuladaPor.persona']);
+        $prestacion->load(['paciente.persona', 'profesional.persona', 'procedimiento', 'moneda', 'tarifa', 'turno', 'tarifadaPor.persona', 'anuladaPor.persona',
+            'cobroVigente.cobro']);
         // El detalle del reparto, solo con VER sobre REPARTOS (Administrador y Gerencia).
         $veRepartos = $request->user()->tienePermiso('REPARTOS', 'VER');
         if ($veRepartos) {
@@ -131,12 +134,16 @@ class PrestacionController extends Controller
             'prestacion' => $prestacion,
             // Las demás de la misma consulta (la base y las de sus informes de estudio).
             'otrasDeLaConsulta' => Prestacion::where('consulta_id', $prestacion->consulta_id)->whereKeyNot($prestacion->id)
-                ->with(['procedimiento', 'moneda'])->orderBy('id')->get(),
+                ->with(['procedimiento', 'moneda'])->withExists('cobroVigente')->orderBy('id')->get(),
+            // El cobro, con su enlace solo para quien ve los cobros (Recepción ve el estado, no el cobro).
+            'cobro' => $prestacion->cobroVigente?->cobro,
+            'veCobros' => Permisos::puedeRuta('admin.cobros.show'),
             'veRepartos' => $veRepartos,
             'pendienteDeReparto' => $veRepartos && RepartirPrestacion::pendientes()->whereKey($prestacion->id)->exists(),
             'puedeRepartir' => Permisos::puedeRuta('admin.prestaciones.repartir'),
             'puedeTarifar' => $prestacion->pendiente() && Permisos::puedeRuta('admin.prestaciones.tarifar'),
-            'puedeAnular' => ! $prestacion->anulada() && Permisos::puedeRuta('admin.prestaciones.anular'),
+            // Una cobrada no se anula: la reversión del cobro es de la fase 3b.
+            'puedeAnular' => ! $prestacion->anulada() && $prestacion->cobroVigente === null && Permisos::puedeRuta('admin.prestaciones.anular'),
         ]);
     }
 

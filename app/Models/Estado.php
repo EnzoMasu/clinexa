@@ -71,6 +71,13 @@ class Estado extends Model
     /** Reparto de una prestación: hecho, con sus líneas fijadas (el que no se pudo calcular usa PENDIENTE, con el motivo). */
     public const REPARTIDO = 'REPARTIDO';
 
+    /** Caja (docs/cobros-caja.md): abierta, cerrada (pendiente de aprobación), aprobada (APROBADO) o devuelta para corregir. */
+    public const ABIERTO = 'ABIERTO';
+
+    public const CERRADO = 'CERRADO';
+
+    public const DEVUELTO = 'DEVUELTO';
+
     protected $table = 'estados';
 
     protected $fillable = [

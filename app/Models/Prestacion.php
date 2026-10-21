@@ -32,6 +32,11 @@ class Prestacion extends Model
 
     public const ETIQUETAS = [Estado::PENDIENTE => 'Pendiente de tarifar', Estado::TARIFADO => 'Tarifada', Estado::ANULADO => 'Anulada'];
 
+    /** Estado de cobro (docs/cobros-caja.md): derivado de si tiene un cobro vigente; no es un estado de la prestación. */
+    public const COBRADA = 'Cobrada';
+
+    public const PENDIENTE_DE_COBRO = 'Pendiente';
+
     private const CAMPOS_DE_TARIFADO = ['estado_id', 'monto', 'moneda_id', 'tarifa_id', 'tarifada_en', 'tarifada_por', 'updated_at'];
 
     private const CAMPOS_DE_ANULACION = ['estado_id', 'anulada_en', 'motivo_anulacion', 'anulada_por', 'updated_at'];
@@ -122,6 +127,12 @@ class Prestacion extends Model
         return $this->hasOne(RepartoPrestacion::class);
     }
 
+    /** Su cobro vigente (docs/cobros-caja.md), si tiene: a lo sumo uno. */
+    public function cobroVigente(): HasOne
+    {
+        return $this->hasOne(CobroPrestacion::class)->whereNull('revertido_en');
+    }
+
     public function tarifadaPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'tarifada_por');
@@ -150,6 +161,22 @@ class Prestacion extends Model
     public function etiquetaEstado(): string
     {
         return self::ETIQUETAS[$this->estado?->codigo] ?? (string) $this->estado?->nombre;
+    }
+
+    /**
+     * El estado de cobro, derivado de si tiene un cobro vigente: "Cobrada" o "Pendiente" (vacío en una anulada sin cobro). Usa
+     * `cobro_vigente_exists` (withExists('cobroVigente')) si se cargó.
+     */
+    public function estadoCobroTexto(): string
+    {
+        $cobrada = $this->cobro_vigente_exists
+            ?? ($this->relationLoaded('cobroVigente') ? $this->cobroVigente !== null : $this->cobroVigente()->exists());
+
+        return match (true) {
+            (bool) $cobrada => self::COBRADA,
+            $this->anulada() => '',
+            default => self::PENDIENTE_DE_COBRO,
+        };
     }
 
     public function montoTexto(): string

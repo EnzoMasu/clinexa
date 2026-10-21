@@ -44,11 +44,12 @@
 ## Mapa del proyecto
 Laravel + Blade + Tailwind + Vite (JS plano, sin framework). PDF nuevos con dompdf (`barryvdh/laravel-dompdf`), también la receta nueva; recetas anteriores y
 constancias ya hechas siguen imprimiéndose desde el navegador. Docs por tema en `docs/` (pdf-clinico, historia-clinica,
-agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-generales, ordenes-estudio, informes-estudio, tarifas-prestaciones, reparto-economico, perfiles, respaldo, pruebas).
+agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-generales, ordenes-estudio, informes-estudio, tarifas-prestaciones, reparto-economico, cobros-caja, perfiles, respaldo, pruebas).
 - `app/Models/`: Eloquent. Clave: `Persona`, `Paciente`, `Profesional`, `Turno`, `Consulta`,
   `HistoriaClinica`, `Receta`, `PerfilAcceso`, `Permiso`, `ModuloSistema`, `LogAuditoria`,
   `CupoEntrePacientes`, `Disponibilidad`, `ReposoMedico`, `OrdenEstudio`, `Estudio`, `InformeEstudio`, `Moneda`, `Tarifa`,
-  `Prestacion`, `AcuerdoReparto`, `Equipo`, `RepartoPrestacion`, `LineaReparto`.
+  `Prestacion`, `AcuerdoReparto`, `Equipo`, `RepartoPrestacion`, `LineaReparto`, `MedioPago`, `Caja`, `CierreCaja`,
+  `Cobro`, `CobroPrestacion`, `LineaCobro`, `MovimientoCaja`.
 - `app/Enums/`: `TipoTurno`, `AccionAuditoria`, `TipoDiagnostico`.
 - `app/Http/Controllers/Admin/`: un controlador por pantalla (`TurnoController`, `UrgenciaController`,
   `AtencionController`, `ConsultaController`, `HistoriaClinicaController`, `RecetaController`,
@@ -58,7 +59,7 @@ agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-gene
   `Finalizar`, `DeshacerAtencion`, `CerrarJornada`, `GuardarSecciones`, `Autoguardado`, `EvaluadorSignos`).
 - `app/Support/Turnos/`: `AgendarEntrePacientes`, `RegistrarUrgencia`. `app/Support/Agenda.php`.
 - `app/Support/`: `Permisos`, `PermisosDePerfil`, `PerfilesPredefinidos`, `Auditoria`,
-  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `PdfClinico/PdfInformeEstudio` (informe de estudio), `Reposo/` (certificado de reposo: emitir, anular, PDF), `OrdenEstudio/` (orden de estudio: emitir, anular, PDF), `Tarifas/` (buscar, alta, cambiar), `Prestaciones/` (generar al finalizar, tarifar, anular), `Repartos/` (acuerdos: buscar, alta, cambiar; calcular y repartir la prestación), `BuscadorPersonas`, `Unicidad`.
+  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `PdfClinico/PdfInformeEstudio` (informe de estudio), `Reposo/` (certificado de reposo: emitir, anular, PDF), `OrdenEstudio/` (orden de estudio: emitir, anular, PDF), `Tarifas/` (buscar, alta, cambiar), `Prestaciones/` (generar al finalizar, tarifar, anular), `Repartos/` (acuerdos: buscar, alta, cambiar; calcular y repartir la prestación), `Cobros/` (abrir, cobrar, cerrar y revisar la caja), `BuscadorPersonas`, `Unicidad`.
 - `app/Console/Commands/`: `Respaldo` (`clinexa:respaldo`), `CrearAdmin`, `TraspasarPrincipal`,
   `MigrarUsuariosAPersona`.
 - `app/Policies/`, `app/Http/Middleware/`, `app/Http/Requests/`, `app/Rules/`: autorización y validación.
@@ -66,7 +67,7 @@ agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-gene
 - `database/migrations`, `database/seeders`: esquema y datos base (módulos, permisos, perfiles, CIE10).
 - `resources/views/admin/`: vistas por módulo; `resources/views/components/`: componentes Blade.
 - `resources/js/`: un script por comportamiento (`popup-consultas`, `consulta-autoguardado`,
-  `listado-en-vivo`, `alta-turno`, `selector-persona`, `buscador-cie10`). Sin datos clínicos en el navegador.
+  `listado-en-vivo`, `alta-turno`, `selector-persona`, `buscador-cie10`, `pantalla-cobro`). Sin datos clínicos en el navegador.
 - `tests/Feature` y `tests/Unit` (SQLite en memoria); `tests/Postgres` (`clinexa_test`).
 - `.claude/commands/`: `/aplicar RAMA` (migrar la base real con foto y respaldo) y
   `/fusionar RAMA "mensaje"` (squash a main).

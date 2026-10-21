@@ -6,11 +6,16 @@ use App\Enums\AccionAuditoria;
 use App\Models\AcuerdoReparto;
 use App\Models\AdendaConsulta;
 use App\Models\BloqueAnamnesis;
+use App\Models\Caja;
 use App\Models\CargoSalud;
 use App\Models\CatalogoCIE10;
+use App\Models\CierreCaja;
+use App\Models\CierreCajaMedio;
 use App\Models\CategoriaGasto;
 use App\Models\CategoriaProveedor;
 use App\Models\Ciudad;
+use App\Models\Cobro;
+use App\Models\CobroPrestacion;
 use App\Models\Consulta;
 use App\Models\ConstanciaEstado;
 use App\Models\ConstanciaRetiro;
@@ -31,6 +36,7 @@ use App\Models\ExamenFisico;
 use App\Models\HistoriaClinica;
 use App\Models\Indicacion;
 use App\Models\InformeEstudio;
+use App\Models\LineaCobro;
 use App\Models\LineaReparto;
 use App\Models\MedioPago;
 use App\Models\ModuloSistema;
@@ -116,6 +122,9 @@ final class Auditoria
         // Reparto (docs/reparto-economico.md): porcentajes y montos solo para quien tiene VER sobre su módulo. El reparto antes
         // que sus líneas (es la tabla del módulo REPARTOS). Los equipos y sus tipos no tienen montos.
         AcuerdoReparto::class, RepartoPrestacion::class, LineaReparto::class, Equipo::class, TipoEquipo::class,
+        // Cobros y caja (docs/cobros-caja.md): montos solo para quien tiene VER sobre su módulo. La tabla principal de cada módulo
+        // primero (la caja, el cierre, el cobro).
+        Caja::class, CierreCaja::class, CierreCajaMedio::class, Cobro::class, CobroPrestacion::class, LineaCobro::class,
     ];
 
     /**
@@ -133,7 +142,10 @@ final class Auditoria
 
     /** Tablas con montos (tabla => módulo): sus valores solo los ve quien tiene VER sobre ese módulo (el Médico, no). */
     public const TABLAS_ECONOMICAS = ['tarifas' => 'TARIFAS', 'prestaciones' => 'PRESTACIONES',
-        'acuerdos_reparto' => 'ACUERDOS_REPARTO', 'repartos_prestacion' => 'REPARTOS', 'lineas_reparto' => 'REPARTOS'];
+        'acuerdos_reparto' => 'ACUERDOS_REPARTO', 'repartos_prestacion' => 'REPARTOS', 'lineas_reparto' => 'REPARTOS',
+        // Las cajas y sus cierres los ve quien ve las cajas (Caja y Gerencia); los cobros, quien ve los cobros (también Facturación).
+        'cajas' => 'CAJAS', 'cierres_caja' => 'CAJAS', 'cierre_caja_medios' => 'CAJAS',
+        'cobros' => 'COBROS', 'cobro_prestaciones' => 'COBROS', 'lineas_cobro' => 'COBROS'];
 
     /**
      * Módulo cuyo VER hace falta para ver los valores de los eventos de esa tabla en la pantalla de

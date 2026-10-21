@@ -37,6 +37,11 @@ class Permiso extends Model
         'ACUERDOS_REPARTO' => ['VER', 'CREAR', 'EDITAR'],
         // Repartos de las prestaciones: nacen solos; solo se ven (el detalle dentro de la prestación).
         'REPARTOS' => ['VER'],
+        // Cajas: ver, abrir (CREAR) y cerrar (EDITAR) la propia. La aprobación de cierres: ver todas las cajas y aprobar o devolver
+        // (EDITAR). Cobros: ver y cobrar (CREAR); un cobro no se edita (la reversión es de la fase 3b).
+        'CAJAS' => ['VER', 'CREAR', 'EDITAR'],
+        'CIERRES_CAJA' => ['VER', 'EDITAR'],
+        'COBROS' => ['VER', 'CREAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */
