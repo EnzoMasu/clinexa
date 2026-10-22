@@ -391,6 +391,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::get('cobros/create', [CobroController::class, 'create'])->name('cobros.create')->middleware('permiso:COBROS,CREAR');
     Route::post('cobros', [CobroController::class, 'store'])->name('cobros.store')->middleware('permiso:COBROS,CREAR');
     Route::get('cobros/{cobro}', [CobroController::class, 'show'])->name('cobros.show')->whereNumber('cobro')->middleware('permiso:COBROS,VER');
+    // Reversión de un cobro: Caja revierte (un cobro de su caja abierta) o solicita la reversión (DESACTIVAR); Gerencia ve las
+    // solicitudes pendientes (una pestaña de Cobros) y las aprueba o rechaza.
+    Route::post('cobros/{cobro}/revertir', [CobroController::class, 'revertir'])->name('cobros.revertir')->whereNumber('cobro')->middleware('permiso:COBROS,DESACTIVAR');
+    Route::post('cobros/{cobro}/solicitar-reversion', [CobroController::class, 'solicitarReversion'])->name('cobros.solicitar-reversion')->whereNumber('cobro')->middleware('permiso:COBROS,DESACTIVAR');
+    Route::get('cobros/reversiones', [CobroController::class, 'reversiones'])->name('cobros.reversiones')->middleware('permiso:REVERSIONES_COBRO,VER');
+    Route::post('cobros/reversiones/{solicitud}/aprobar', [CobroController::class, 'aprobarReversion'])->name('cobros.reversiones.aprobar')->whereNumber('solicitud')->middleware('permiso:REVERSIONES_COBRO,EDITAR');
+    Route::post('cobros/reversiones/{solicitud}/rechazar', [CobroController::class, 'rechazarReversion'])->name('cobros.reversiones.rechazar')->whereNumber('solicitud')->middleware('permiso:REVERSIONES_COBRO,EDITAR');
 
     // Reparto (docs/reparto-economico.md). Acuerdos: nunca se editan ni se borran; "Cambiar porcentaje" cierra el vigente y abre
     // otro. Equipos y tipos de equipo: CRUD sin borrado. No hay DELETE.

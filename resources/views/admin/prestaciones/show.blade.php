@@ -128,7 +128,7 @@
         </div>
 
         @if ($cobro && ! $prestacion->anulada() && Permisos::puedeRuta('admin.prestaciones.anular'))
-            <p class="max-w-xl text-gray-600 dark:text-gray-400">Está cobrada: no se puede anular mientras su cobro esté vigente.</p>
+            <p class="max-w-xl text-gray-600 dark:text-gray-400">Está cobrada: para anularla, primero hay que revertir su cobro.</p>
         @endif
 
         @if ($puedeAnular)

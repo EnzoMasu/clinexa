@@ -142,7 +142,7 @@ class PrestacionController extends Controller
             'pendienteDeReparto' => $veRepartos && RepartirPrestacion::pendientes()->whereKey($prestacion->id)->exists(),
             'puedeRepartir' => Permisos::puedeRuta('admin.prestaciones.repartir'),
             'puedeTarifar' => $prestacion->pendiente() && Permisos::puedeRuta('admin.prestaciones.tarifar'),
-            // Una cobrada no se anula: la reversión del cobro es de la fase 3b.
+            // Una cobrada no se anula: primero se revierte su cobro (docs/cobros-caja.md).
             'puedeAnular' => ! $prestacion->anulada() && $prestacion->cobroVigente === null && Permisos::puedeRuta('admin.prestaciones.anular'),
         ]);
     }

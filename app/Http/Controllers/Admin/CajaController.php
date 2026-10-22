@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Caja;
 use App\Models\Estado;
 use App\Models\MedioPago;
+use App\Models\MovimientoCaja;
 use App\Models\User;
 use App\Support\Cobros\AbrirCaja;
 use App\Support\Cobros\CerrarCaja;
@@ -69,7 +70,9 @@ class CajaController extends Controller
             'esperado' => $esperado,
             'mediosADeclarar' => $puedeCerrar ? CerrarCaja::mediosADeclarar($caja) : collect(),
             'mediosConMovimientos' => MedioPago::whereKey(array_keys($esperado))->orderBy('nombre')->get(),
-            'cobros' => $caja->cobros()->with(['paciente.persona', 'lineas.medioPago', 'moneda'])->orderBy('id')->get(),
+            'cobros' => $caja->cobros()->with(['paciente.persona', 'lineas.medioPago', 'moneda', 'estado'])->orderBy('id')->get(),
+            // Los egresos de los cobros revertidos que se devolvieron desde esta caja (el cobro puede ser de otra).
+            'devoluciones' => $caja->movimientos()->where('tipo', MovimientoCaja::REVERSION)->with(['cobro.paciente.persona', 'medioPago'])->orderBy('id')->get(),
             'puedeCerrar' => $puedeCerrar,
             'puedeRevisar' => ! $propia && $caja->cerrada() && Permisos::puedeRuta('admin.cajas.aprobar'),
             'veCobros' => $usuario->tienePermiso('COBROS', 'VER'),
@@ -94,7 +97,8 @@ class CajaController extends Controller
     {
         $datos = $request->validate([
             'contado' => ['required', 'array'],
-            'contado.*' => Guaranies::regla(admiteCero: true),
+            // Con signo: en los medios que no son efectivo lo esperado puede ser negativo (CerrarCaja rechaza el efectivo negativo).
+            'contado.*' => Guaranies::regla(admiteCero: true, conSigno: true),
             'motivo' => ['nullable', 'string', 'max:'.CerrarCaja::MOTIVO_MAXIMO],
         ], ['contado.*.regex' => Guaranies::MENSAJE, 'contado.*.required' => 'Declare lo contado (cero si no hay nada).'], ['contado.*' => 'lo contado', 'motivo' => 'motivo de la diferencia']);
 

@@ -7,14 +7,17 @@ use App\Models\Concerns\Auditable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/** Un medio de pago de un cierre de caja: lo esperado, lo contado y la diferencia (contado - esperado). Una foto: no cambia. */
+/**
+ * Un medio de pago de un cierre de caja: lo esperado, lo contado y la diferencia (contado - esperado), y si el medio es el efectivo
+ * (solo ahí lo esperado y lo contado son >= 0; en los demás pueden ser negativos por las devoluciones). Una foto: no cambia.
+ */
 class CierreCajaMedio extends Model
 {
     use Auditable;
 
     protected $table = 'cierre_caja_medios';
 
-    protected $fillable = ['cierre_caja_id', 'medio_pago_id', 'esperado', 'contado', 'diferencia'];
+    protected $fillable = ['cierre_caja_id', 'medio_pago_id', 'esperado', 'contado', 'diferencia', 'es_efectivo'];
 
     /** Sin estados propios: su auditoría es la de los cierres. */
     public static function moduloAuditoria(): string

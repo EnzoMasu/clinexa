@@ -15,7 +15,7 @@
 
         <section aria-labelledby="esperado" class="max-w-3xl space-y-3">
             <h3 id="esperado" class="font-semibold text-gray-900 dark:text-gray-100">Lo esperado por medio de pago</h3>
-            <p class="text-gray-600 dark:text-gray-400">El monto inicial (solo en efectivo) más los cobros.</p>
+            <p class="text-gray-600 dark:text-gray-400">El monto inicial (solo en efectivo) más los cobros, menos lo devuelto por cobros revertidos.</p>
             <x-admin.table :headers="['Medio de pago', 'Esperado']">
                 @forelse ($mediosConMovimientos as $medio)
                     <tr>
@@ -37,7 +37,7 @@
                         <td class="px-6 py-3 whitespace-nowrap">{{ Fecha::mostrar($cobro->cobrado_en, conHora: true) }}</td>
                         <td class="px-6 py-3">{{ $cobro->paciente->persona->nombre_completo }}</td>
                         <td class="px-6 py-3">{{ $cobro->lineas->map(fn ($linea) => $linea->medioPago->nombre.' '.$cobro->moneda->formatear($linea->monto))->join(' · ') }}</td>
-                        <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $cobro->totalTexto() }}</td>
+                        <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $cobro->totalTexto() }}@if ($cobro->revertido()) <span class="font-semibold text-red-700 dark:text-red-300">(revertido)</span>@endif</td>
                         <td class="px-6 py-3 text-right">
                             @if ($veCobros)
                                 <a href="{{ route('admin.cobros.show', $cobro) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Ver</a>
@@ -50,21 +50,48 @@
             </x-admin.table>
         </section>
 
+        @if ($devoluciones->isNotEmpty())
+            <section aria-labelledby="devoluciones-caja" class="max-w-4xl space-y-3">
+                <h3 id="devoluciones-caja" class="font-semibold text-gray-900 dark:text-gray-100">Devoluciones de cobros revertidos ({{ $devoluciones->count() }})</h3>
+                <x-admin.table :headers="['Hora', 'Cobro', 'Paciente', 'Medio de pago', 'Egreso']">
+                    @foreach ($devoluciones as $devolucion)
+                        <tr>
+                            <td class="px-6 py-3 whitespace-nowrap">{{ Fecha::mostrar($devolucion->registrado_en, conHora: true) }}</td>
+                            <td class="px-6 py-3 whitespace-nowrap">N.º {{ $devolucion->cobro_id }}</td>
+                            <td class="px-6 py-3">{{ $devolucion->cobro->paciente->persona->nombre_completo }}</td>
+                            <td class="px-6 py-3">{{ $devolucion->medioPago->nombre }}</td>
+                            <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $caja->moneda->formatear($devolucion->monto) }}</td>
+                            <td class="px-6 py-3 text-right">
+                                @if ($veCobros)
+                                    <a href="{{ route('admin.cobros.show', $devolucion->cobro_id) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Ver</a>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </x-admin.table>
+            </section>
+        @endif
+
         @if ($puedeCerrar)
             <section aria-labelledby="cerrar-caja" class="max-w-3xl space-y-3 rounded-md border border-gray-200 p-4 dark:border-gray-700">
                 <h3 id="cerrar-caja" class="font-semibold text-gray-900 dark:text-gray-100">{{ $caja->devuelta() ? 'Corregir y volver a cerrar' : 'Cerrar la caja' }}</h3>
                 @if ($caja->devuelta() && $caja->cierres->first()?->nota_revision)
                     <p role="status" class="rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">Nota de Gerencia: {{ $caja->cierres->first()->nota_revision }}</p>
                 @endif
-                <p class="text-gray-600 dark:text-gray-400">Declare lo que contó en cada medio (cero si no hay nada). Si no coincide con lo esperado, indique el motivo. Cerrada, la caja ya no recibe cobros.</p>
+                <p class="text-gray-600 dark:text-gray-400">Declare lo que contó en cada medio (cero si no hay nada; fuera del efectivo puede ser negativo si se devolvió más de lo que entró). Si no coincide con lo esperado, indique el motivo. Cerrada, la caja ya no recibe cobros.</p>
                 <form method="POST" action="{{ route('admin.cajas.cerrar', $caja) }}" novalidate class="space-y-3">
                     @csrf
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                         @foreach ($mediosADeclarar as $medio)
                             <div>
                                 <x-input-label for="contado_{{ $medio->id }}" :value="$medio->nombre.' (esperado: '.$caja->moneda->formatear($esperado[$medio->id] ?? 0).')'" />
-                                <input id="contado_{{ $medio->id }}" name="contado[{{ $medio->id }}]" value="{{ old('contado.'.$medio->id) }}" inputmode="numeric" maxlength="17" autocomplete="off" required
+                                {{-- Fuera del efectivo se admite el signo menos (el teclado numérico del teléfono no lo tiene). --}}
+                                <input id="contado_{{ $medio->id }}" name="contado[{{ $medio->id }}]" value="{{ old('contado.'.$medio->id) }}" inputmode="{{ $medio->esEfectivo() ? 'numeric' : 'text' }}" maxlength="18" autocomplete="off" required
+                                    @if (($esperado[$medio->id] ?? 0) < 0) aria-describedby="negativo_{{ $medio->id }}" @endif
                                     class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                @if (($esperado[$medio->id] ?? 0) < 0)
+                                    <p id="negativo_{{ $medio->id }}" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Se devolvió más de lo que entró por este medio: declare el neto con el signo menos (por ejemplo, -150.000).</p>
+                                @endif
                                 <x-input-error class="mt-1" :messages="$errors->get('contado.'.$medio->id)" />
                             </div>
                         @endforeach

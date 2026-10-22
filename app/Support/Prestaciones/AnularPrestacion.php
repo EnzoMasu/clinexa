@@ -34,7 +34,7 @@ final class AnularPrestacion
             if ($actual->anulada()) {
                 throw new AccionRechazada('Esta prestación ya está anulada.');
             }
-            // Una cobrada no se anula: primero habría que revertir el cobro, que llega en la fase 3b (docs/cobros-caja.md).
+            // Una cobrada no se anula: primero se revierte su cobro (docs/cobros-caja.md).
             if ($actual->cobroVigente()->exists()) {
                 throw new AccionRechazada(self::COBRADA);
             }

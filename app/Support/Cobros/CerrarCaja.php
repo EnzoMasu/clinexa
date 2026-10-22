@@ -17,7 +17,8 @@ use Illuminate\Support\Facades\DB;
  * El cierre de una caja por su cajero (docs/cobros-caja.md): declara lo contado en cada medio; el sistema calcula lo esperado
  * (Caja::esperadoPorMedio: el monto inicial solo en efectivo, más los cobros) y la diferencia (contado - esperado). Si algún medio
  * tiene diferencia, el motivo es obligatorio. La caja pasa a CERRADO (pendiente de aprobación) y ya no recibe cobros. Una caja
- * DEVUELTA se cierra igual, con otro cierre (el anterior se conserva). Queda en Auditoría: CREAR del cierre y de sus medios, EDITAR
+ * DEVUELTA se cierra igual, con otro cierre (el anterior se conserva). Lo contado en efectivo es cero o más; en los demás medios
+ * puede ser negativo (lo esperado lo es cuando se devolvió por ese medio más de lo que entró). Queda en Auditoría: CREAR del cierre y de sus medios, EDITAR
  * de la caja. El permiso (EDITAR sobre CAJAS) lo controla la ruta.
  */
 final class CerrarCaja
@@ -25,6 +26,8 @@ final class CerrarCaja
     public const MOTIVO_MINIMO = 5;
 
     public const MOTIVO_MAXIMO = 300;
+
+    public const EFECTIVO_NEGATIVO = 'Lo contado en efectivo no puede ser negativo.';
 
     public const FALTA_MOTIVO = 'Lo contado no coincide con lo esperado: indique el motivo de la diferencia (al menos 5 caracteres).';
 
@@ -63,10 +66,10 @@ final class CerrarCaja
                 if (! array_key_exists($medio->id, $contado)) {
                     throw new AccionRechazada('Declare lo contado en todos los medios de pago (cero si no hay nada).');
                 }
-                if ((int) $contado[$medio->id] < 0) {
-                    throw new AccionRechazada('Lo contado no puede ser negativo.');
+                if ($medio->esEfectivo() && (int) $contado[$medio->id] < 0) {
+                    throw new AccionRechazada(self::EFECTIVO_NEGATIVO);
                 }
-                $filas[$medio->id] = ['esperado' => $esperado[$medio->id] ?? 0, 'contado' => (int) $contado[$medio->id]];
+                $filas[$medio->id] = ['esperado' => $esperado[$medio->id] ?? 0, 'contado' => (int) $contado[$medio->id], 'es_efectivo' => $medio->esEfectivo()];
             }
             if (array_diff(array_keys($contado), $medios->modelKeys()) !== []) {
                 throw new AccionRechazada('Uno de los medios de pago declarados no corresponde a esta caja.');
@@ -87,6 +90,7 @@ final class CerrarCaja
                     CierreCajaMedio::create([
                         'cierre_caja_id' => $cierre->id, 'medio_pago_id' => $medioId,
                         'esperado' => $fila['esperado'], 'contado' => $fila['contado'], 'diferencia' => $fila['contado'] - $fila['esperado'],
+                        'es_efectivo' => $fila['es_efectivo'],
                     ]);
                 }
                 $actual->forceFill(['estado_id' => Estado::idDe(Estado::CERRADO), 'cerrada_en' => $cierre->cerrado_en])->save();

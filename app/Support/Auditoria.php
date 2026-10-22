@@ -58,6 +58,7 @@ use App\Models\RepartoPrestacion;
 use App\Models\ReposoMedico;
 use App\Models\ResponsablePago;
 use App\Models\SalidaSinAtencion;
+use App\Models\SolicitudReversionCobro;
 use App\Models\Sucursal;
 use App\Models\Tarifa;
 use App\Models\TipoBloqueAnamnesis;
@@ -125,6 +126,8 @@ final class Auditoria
         // Cobros y caja (docs/cobros-caja.md): montos solo para quien tiene VER sobre su módulo. La tabla principal de cada módulo
         // primero (la caja, el cierre, el cobro).
         Caja::class, CierreCaja::class, CierreCajaMedio::class, Cobro::class, CobroPrestacion::class, LineaCobro::class,
+        // Solicitudes de reversión de un cobro (módulo REVERSIONES_COBRO); su contenido, para quien ve los cobros.
+        SolicitudReversionCobro::class,
     ];
 
     /**
@@ -145,7 +148,7 @@ final class Auditoria
         'acuerdos_reparto' => 'ACUERDOS_REPARTO', 'repartos_prestacion' => 'REPARTOS', 'lineas_reparto' => 'REPARTOS',
         // Las cajas y sus cierres los ve quien ve las cajas (Caja y Gerencia); los cobros, quien ve los cobros (también Facturación).
         'cajas' => 'CAJAS', 'cierres_caja' => 'CAJAS', 'cierre_caja_medios' => 'CAJAS',
-        'cobros' => 'COBROS', 'cobro_prestaciones' => 'COBROS', 'lineas_cobro' => 'COBROS'];
+        'cobros' => 'COBROS', 'cobro_prestaciones' => 'COBROS', 'lineas_cobro' => 'COBROS', 'solicitudes_reversion_cobro' => 'COBROS'];
 
     /**
      * Módulo cuyo VER hace falta para ver los valores de los eventos de esa tabla en la pantalla de
@@ -456,6 +459,8 @@ final class Auditoria
             Estado::idDe(Estado::BLOQUEADO) => AccionAuditoria::BLOQUEO,
             // Documentos (recetas): pasar a ANULADO es ANULAR.
             Estado::idDe(Estado::ANULADO) => AccionAuditoria::ANULAR,
+            // Cobros: pasar a REVERTIDO es REVERTIR (docs/cobros-caja.md).
+            Estado::idDe(Estado::REVERTIDO) => AccionAuditoria::REVERTIR,
             default => AccionAuditoria::EDITAR,
         };
     }

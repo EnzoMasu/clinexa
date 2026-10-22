@@ -78,6 +78,12 @@ class Estado extends Model
 
     public const DEVUELTO = 'DEVUELTO';
 
+    /** Cobro revertido (docs/cobros-caja.md): se conserva, con el motivo; sus prestaciones vuelven a estar sin cobrar. */
+    public const REVERTIDO = 'REVERTIDO';
+
+    /** Solicitud de reversión de un cobro rechazada por Gerencia (la aprobada usa APROBADO; la pendiente, PENDIENTE). */
+    public const RECHAZADO = 'RECHAZADO';
+
     protected $table = 'estados';
 
     protected $fillable = [

@@ -118,6 +118,8 @@ class PerfilesPredefinidos
             'ACUERDOS_REPARTO' => self::VER_CREAR_EDITAR, 'REPARTOS' => self::VER, 'EQUIPOS' => self::TODO, 'TIPOS_EQUIPO' => self::TODO,
             // Cobros y caja (docs/cobros-caja.md): ve los cobros y todas las cajas, y aprueba o devuelve los cierres. No cobra.
             'COBROS' => self::VER, 'CAJAS' => self::VER, 'CIERRES_CAJA' => ['VER', 'EDITAR'],
+            // Reversiones de cobro: aprueba o rechaza las solicitudes. No revierte (no tiene caja).
+            'REVERSIONES_COBRO' => ['VER', 'EDITAR'],
         ],
         // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
         // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones
@@ -148,12 +150,12 @@ class PerfilesPredefinidos
             // Económico: solo ver tarifas y prestaciones.
             'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
         ],
-        // Caja: abre y cierra su caja y cobra (docs/cobros-caja.md). Facturación ve los cobros. Compras: sus módulos todavía no
+        // Caja: abre y cierra su caja, cobra y revierte (o solicita revertir) un cobro (docs/cobros-caja.md). Facturación ve los cobros. Compras: sus módulos todavía no
         // existen. Nada clínico.
         self::CAJA => [
             'PACIENTES' => self::VER, 'MEDIOS_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER,
             'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
-            'CAJAS' => self::VER_CREAR_EDITAR, 'COBROS' => ['VER', 'CREAR'],
+            'CAJAS' => self::VER_CREAR_EDITAR, 'COBROS' => ['VER', 'CREAR', 'DESACTIVAR'],
         ],
         self::FACTURACION => [
             'RESPONSABLES_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER, 'MEDIOS_PAGO' => self::VER,
@@ -190,6 +192,15 @@ class PerfilesPredefinidos
         'CAJAS' => [self::CAJA => self::VER_CREAR_EDITAR, self::GERENCIA => self::VER],
         'CIERRES_CAJA' => [self::GERENCIA => ['VER', 'EDITAR']],
         'COBROS' => [self::CAJA => ['VER', 'CREAR'], self::GERENCIA => self::VER, self::FACTURACION => self::VER],
+    ];
+
+    /**
+     * Lo que la migración de reversiones de cobro (2026_10_29_100001) suma a los perfiles existentes: Caja revierte y solicita
+     * (DESACTIVAR sobre COBROS) y Gerencia aprueba o rechaza (REVERSIONES_COBRO). Lo mismo que la matriz. Los demás, nada.
+     */
+    public const PERMISOS_REVERSIONES_COBRO = [
+        'COBROS' => [self::CAJA => ['DESACTIVAR']],
+        'REVERSIONES_COBRO' => [self::GERENCIA => ['VER', 'EDITAR']],
     ];
 
     /**

@@ -95,7 +95,7 @@ test('un cobro vigente por prestación: la base rechaza el segundo; uno revertid
     ])))->toBe(['23505', 'cobro_prestaciones_un_cobro_vigente'])
         ->and(CobroPrestacion::where('prestacion_id', $prestacion->id)->count())->toBe(1);
 
-    // Revertido (lo que hará la fase 3b), ya no es el vigente: la base admite otro.
+    // Revertido, ya no es el vigente: la base admite otro.
     DB::table('cobro_prestaciones')->where('prestacion_id', $prestacion->id)->update(['revertido_en' => now()]);
     DB::table('cobro_prestaciones')->insert(['cobro_id' => $otro->id, 'prestacion_id' => $prestacion->id, 'monto' => 100000, 'created_at' => now(), 'updated_at' => now()]);
     expect(CobroPrestacion::where('prestacion_id', $prestacion->id)->count())->toBe(2)
@@ -120,6 +120,8 @@ test('los CHECK de montos', function () {
 test('la migración con prestaciones ya existentes: no las cobra; en simulación no cambia nada', function () {
     $migracion = require base_path('database/migrations/2026_10_28_100001_create_cobros_y_caja.php');
     hcConsulta(); // una prestación tarifada existente
+    // La de reversiones (fase 3b) depende de sus tablas: se baja antes.
+    (require base_path('database/migrations/2026_10_29_100001_reversiones_de_cobro.php'))->down();
     $migracion->down();
     $antes = DB::table('prestaciones')->orderBy('id')->get()->map(fn ($fila) => (array) $fila)->all();
     expect($antes)->toHaveCount(1);

@@ -34,6 +34,15 @@ function migracionCobrosArchivo(): object
     return require base_path('database/migrations/2026_10_28_100001_create_cobros_y_caja.php');
 }
 
+/** Baja la migración de cobros y caja; antes, la de reversiones (fase 3b), que depende de sus tablas, si está aplicada. */
+function migracionCobrosBajar(): void
+{
+    if (Schema::hasTable('solicitudes_reversion_cobro')) {
+        (require base_path('database/migrations/2026_10_29_100001_reversiones_de_cobro.php'))->down();
+    }
+    migracionCobrosArchivo()->down();
+}
+
 /** Olvida los ids de estados que Estado guarda en memoria (si no, devolvería ids de filas ya borradas). */
 function migracionCobrosOlvidarIds(): void
 {
@@ -55,7 +64,7 @@ function migracionCobrosAcciones(string $codigoPerfil, string $modulo): array
 /** Base anterior a esta fase: sin las tablas, sin los módulos, sin los estados nuevos ni nada de lo que cuelga de ellos. */
 function migracionCobrosSinNada(): void
 {
-    migracionCobrosArchivo()->down();
+    migracionCobrosBajar();
     foreach (ModuloSistema::whereIn('codigo', MIGRACION_COBROS_MODULOS)->get() as $modulo) {
         DB::table('perfil_permiso')->whereIn('permiso_id', Permiso::where('modulo_sistema_id', $modulo->id)->pluck('id'))->delete();
         Permiso::where('modulo_sistema_id', $modulo->id)->delete();
@@ -82,7 +91,7 @@ test('en una base sin los módulos, los estados ni los medios: los crea, arma la
     }
     expect(Estado::whereIn('codigo', MIGRACION_COBROS_ESTADOS_NUEVOS)->count())->toBe(3)
         ->and(MedioPago::orderBy('id')->pluck('codigo', 'nombre')->all())->toBe(['Efectivo' => 'EFECTIVO', 'Transferencia' => 'TRANSFERENCIA', 'Tarjeta (POS)' => 'TARJETA'])
-        ->and(MedioPago::efectivo()->estaActivo())->toBeTrue()
+        ->and(MedioPago::where('codigo', MedioPago::EFECTIVO)->sole()->estaActivo())->toBeTrue()
         ->and(ModuloSistema::where('codigo', 'CAJAS')->sole()->estados()->pluck('codigo')->sort()->values()->all())->toBe(['ABIERTO', 'APROBADO', 'CERRADO', 'DEVUELTO'])
         ->and(ModuloSistema::where('codigo', 'CIERRES_CAJA')->sole()->estados()->pluck('codigo')->sort()->values()->all())->toBe(['APROBADO', 'DEVUELTO', 'PENDIENTE'])
         ->and(ModuloSistema::where('codigo', 'COBROS')->sole()->estados()->pluck('codigo')->all())->toBe(['VIGENTE']);
@@ -99,10 +108,10 @@ test('en una base sin los módulos, los estados ni los medios: los crea, arma la
             expect(migracionCobrosAcciones($perfil, $modulo))->toBe($esperado, "{$perfil} sobre {$modulo}");
         }
     }
-    // Lo que suma la migración es lo mismo que la matriz de los perfiles que se creen en adelante.
+    // Lo que suma la migración está en la matriz de los perfiles que se creen en adelante (la fase 3b sumó DESACTIVAR a COBROS).
     foreach (PerfilesPredefinidos::PERMISOS_COBROS_Y_CAJA as $modulo => $porPerfil) {
         foreach ($porPerfil as $perfil => $acciones) {
-            expect(PerfilesPredefinidos::MATRIZ[$perfil][$modulo])->toBe($acciones);
+            expect(array_diff($acciones, PerfilesPredefinidos::MATRIZ[$perfil][$modulo]))->toBe([]);
         }
     }
     foreach ([PerfilesPredefinidos::RECEPCION, PerfilesPredefinidos::MEDICO, PerfilesPredefinidos::ENFERMERIA] as $perfil) {
@@ -130,7 +139,7 @@ test('adopta los medios de pago existentes por el nombre, sin duplicar ni cambia
 });
 
 test('en una instalación nueva (sin módulos) crea las tablas y no toca el catálogo', function () {
-    migracionCobrosArchivo()->down();
+    migracionCobrosBajar();
     expect(ModuloSistema::count())->toBe(0);
 
     migracionCobrosArchivo()->up();
@@ -142,9 +151,9 @@ test('en una instalación nueva (sin módulos) crea las tablas y no toca el cat�
 test('con el catálogo ya completo no duplica estados, módulos, permisos ni medios', function () {
     $this->seed(ModuloSistemaSeeder::class);
     PerfilesPredefinidos::asegurar();
-    migracionCobrosArchivo()->down();
+    migracionCobrosBajar();
     migracionCobrosArchivo()->up();
-    migracionCobrosArchivo()->down();
+    migracionCobrosBajar();
     [$estados, $modulos, $permisos, $medios] = [Estado::count(), ModuloSistema::count(), Permiso::count(), MedioPago::count()];
     expect($medios)->toBe(3);
 

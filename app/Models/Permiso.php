@@ -38,10 +38,12 @@ class Permiso extends Model
         // Repartos de las prestaciones: nacen solos; solo se ven (el detalle dentro de la prestación).
         'REPARTOS' => ['VER'],
         // Cajas: ver, abrir (CREAR) y cerrar (EDITAR) la propia. La aprobación de cierres: ver todas las cajas y aprobar o devolver
-        // (EDITAR). Cobros: ver y cobrar (CREAR); un cobro no se edita (la reversión es de la fase 3b).
+        // (EDITAR). Cobros: ver, cobrar (CREAR) y revertir o solicitar la reversión (DESACTIVAR); un cobro no se edita. La
+        // aprobación de reversiones: ver las solicitudes y aprobarlas o rechazarlas (EDITAR).
         'CAJAS' => ['VER', 'CREAR', 'EDITAR'],
         'CIERRES_CAJA' => ['VER', 'EDITAR'],
-        'COBROS' => ['VER', 'CREAR'],
+        'COBROS' => ['VER', 'CREAR', 'DESACTIVAR'],
+        'REVERSIONES_COBRO' => ['VER', 'EDITAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

@@ -315,13 +315,13 @@ test('nadie aprueba ni devuelve el cierre de su propia caja', function () {
     expect($caja->fresh()->cerrada())->toBeTrue();
 });
 
-test('una prestación cobrada no se anula (la reversión es de la fase 3b)', function () {
+test('una prestación cobrada no se anula mientras su cobro esté vigente', function () {
     $prestacion = cobrosCajaPrestacion();
     cobrosCajaAbrir();
     cobrosCajaCobrar([$prestacion], [[$this->efectivo, '100.000']]);
 
     $this->actingAs($this->gerente)->get(route('admin.prestaciones.show', $prestacion))->assertOk()
-        ->assertSee('Cobrada')->assertSee('Está cobrada: no se puede anular mientras su cobro esté vigente.')->assertDontSee('Anular la prestación');
+        ->assertSee('Cobrada')->assertSee('Está cobrada: para anularla, primero hay que revertir su cobro.')->assertDontSee('Anular la prestación');
     $this->post(route('admin.prestaciones.anular', $prestacion), ['motivo' => 'Motivo inventado de prueba.'])->assertSessionHas('error', AnularPrestacion::COBRADA);
     expect($prestacion->fresh()->anulada())->toBeFalse();
 

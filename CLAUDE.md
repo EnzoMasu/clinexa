@@ -49,7 +49,7 @@ agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-gene
   `HistoriaClinica`, `Receta`, `PerfilAcceso`, `Permiso`, `ModuloSistema`, `LogAuditoria`,
   `CupoEntrePacientes`, `Disponibilidad`, `ReposoMedico`, `OrdenEstudio`, `Estudio`, `InformeEstudio`, `Moneda`, `Tarifa`,
   `Prestacion`, `AcuerdoReparto`, `Equipo`, `RepartoPrestacion`, `LineaReparto`, `MedioPago`, `Caja`, `CierreCaja`,
-  `Cobro`, `CobroPrestacion`, `LineaCobro`, `MovimientoCaja`.
+  `Cobro`, `CobroPrestacion`, `LineaCobro`, `MovimientoCaja`, `SolicitudReversionCobro`.
 - `app/Enums/`: `TipoTurno`, `AccionAuditoria`, `TipoDiagnostico`.
 - `app/Http/Controllers/Admin/`: un controlador por pantalla (`TurnoController`, `UrgenciaController`,
   `AtencionController`, `ConsultaController`, `HistoriaClinicaController`, `RecetaController`,
@@ -59,7 +59,7 @@ agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-gene
   `Finalizar`, `DeshacerAtencion`, `CerrarJornada`, `GuardarSecciones`, `Autoguardado`, `EvaluadorSignos`).
 - `app/Support/Turnos/`: `AgendarEntrePacientes`, `RegistrarUrgencia`. `app/Support/Agenda.php`.
 - `app/Support/`: `Permisos`, `PermisosDePerfil`, `PerfilesPredefinidos`, `Auditoria`,
-  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `PdfClinico/PdfInformeEstudio` (informe de estudio), `Reposo/` (certificado de reposo: emitir, anular, PDF), `OrdenEstudio/` (orden de estudio: emitir, anular, PDF), `Tarifas/` (buscar, alta, cambiar), `Prestaciones/` (generar al finalizar, tarifar, anular), `Repartos/` (acuerdos: buscar, alta, cambiar; calcular y repartir la prestación), `Cobros/` (abrir, cobrar, cerrar y revisar la caja), `BuscadorPersonas`, `Unicidad`.
+  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `PdfClinico/PdfInformeEstudio` (informe de estudio), `Reposo/` (certificado de reposo: emitir, anular, PDF), `OrdenEstudio/` (orden de estudio: emitir, anular, PDF), `Tarifas/` (buscar, alta, cambiar), `Prestaciones/` (generar al finalizar, tarifar, anular), `Repartos/` (acuerdos: buscar, alta, cambiar; calcular y repartir la prestación), `Cobros/` (abrir, cobrar, cerrar y revisar la caja; revertir cobros), `BuscadorPersonas`, `Unicidad`.
 - `app/Console/Commands/`: `Respaldo` (`clinexa:respaldo`), `CrearAdmin`, `TraspasarPrincipal`,
   `MigrarUsuariosAPersona`.
 - `app/Policies/`, `app/Http/Middleware/`, `app/Http/Requests/`, `app/Rules/`: autorización y validación.

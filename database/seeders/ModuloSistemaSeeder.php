@@ -86,10 +86,12 @@ class ModuloSistemaSeeder extends Seeder
             'EQUIPOS' => ['Equipos', self::ACTIVO_INACTIVO],
             'TIPOS_EQUIPO' => ['Tipos de equipo', self::ACTIVO_INACTIVO],
             // Cobros y caja (docs/cobros-caja.md): la caja de cada cajero (abierta, cerrada, aprobada o devuelta), la aprobación de
-            // sus cierres (pendiente, aprobado o devuelto) y los cobros de las prestaciones (vigentes; la reversión es de la fase 3b).
+            // sus cierres (pendiente, aprobado o devuelto), los cobros de las prestaciones (vigentes o revertidos) y las solicitudes de
+            // reversión (pendiente, aprobada o rechazada).
             'CAJAS' => ['Cajas', [Estado::ABIERTO, Estado::CERRADO, Estado::APROBADO, Estado::DEVUELTO]],
             'CIERRES_CAJA' => ['Aprobación de cierres de caja', [Estado::PENDIENTE, Estado::APROBADO, Estado::DEVUELTO]],
-            'COBROS' => ['Cobros', [Estado::VIGENTE]],
+            'COBROS' => ['Cobros', [Estado::VIGENTE, Estado::REVERTIDO]],
+            'REVERSIONES_COBRO' => ['Aprobación de reversiones de cobro', [Estado::PENDIENTE, Estado::APROBADO, Estado::RECHAZADO]],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

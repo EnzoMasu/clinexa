@@ -14,7 +14,7 @@ test('la tabla estados tiene los 33 estados, con código y nombre (los del flujo
         'REALIZADO', 'VIGENTE', 'VENCIDO', 'SUSPENDIDO', 'MANTENIMIENTO', 'FACTURADO', 'ANULADO', 'HISTORICO',
         'GENERADO', 'PAGADO', 'PARCIAL', 'EMITIDO', 'APROBADO', 'RECHAZADO',
         'EN_CONSULTA', 'SALTADO', 'EN_PREPARACION', 'EN_CURSO', 'FINALIZADO', 'RETIRADO', 'TARIFADO', 'REPARTIDO',
-        'ABIERTO', 'CERRADO', 'DEVUELTO',
+        'ABIERTO', 'CERRADO', 'DEVUELTO', 'REVERTIDO',
     ])->and(Estado::whereColumn('codigo', '!=', 'nombre')->pluck('nombre', 'codigo')->all())->toBe([
         'EN_CONSULTA' => 'EN CONSULTA', 'EN_PREPARACION' => 'EN TRIAJE', 'EN_CURSO' => 'EN CURSO',
     ]);
@@ -43,10 +43,12 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             // Acuerdos de reparto: como las tarifas. Repartos: pendiente (inicial), repartido, anulado.
             'ACUERDOS_REPARTO' => [['HISTORICO', 'VIGENTE'], 'VIGENTE'],
             'REPARTOS' => [['ANULADO', 'PENDIENTE', 'REPARTIDO'], 'PENDIENTE'],
-            // Cajas: abierta (inicial), cerrada, aprobada o devuelta. Sus cierres: pendiente (inicial), aprobado o devuelto. Cobros: vigentes.
+            // Cajas: abierta (inicial), cerrada, aprobada o devuelta. Sus cierres: pendiente (inicial), aprobado o devuelto. Cobros:
+            // vigentes (inicial) o revertidos; las solicitudes de reversión: pendiente (inicial), aprobada o rechazada.
             'CAJAS' => [['ABIERTO', 'APROBADO', 'CERRADO', 'DEVUELTO'], 'ABIERTO'],
             'CIERRES_CAJA' => [['APROBADO', 'DEVUELTO', 'PENDIENTE'], 'PENDIENTE'],
-            'COBROS' => [['VIGENTE'], 'VIGENTE'],
+            'COBROS' => [['REVERTIDO', 'VIGENTE'], 'VIGENTE'],
+            'REVERSIONES_COBRO' => [['APROBADO', 'PENDIENTE', 'RECHAZADO'], 'PENDIENTE'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

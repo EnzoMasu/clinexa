@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Una prestación cubierta por un cobro, con su monto. Vigente mientras no tenga `revertido_en` (la reversión es de la fase 3b): a lo
- * sumo una vigente por prestación (`cobro_prestaciones_un_cobro_vigente`). No se edita ni se borra.
+ * Una prestación cubierta por un cobro, con su monto. Vigente mientras no tenga `revertido_en` (lo pone la reversión del cobro, una
+ * vez): a lo sumo una vigente por prestación (`cobro_prestaciones_un_cobro_vigente`). Fuera de eso no se edita ni se borra.
  */
 class CobroPrestacion extends Model
 {
@@ -33,7 +33,12 @@ class CobroPrestacion extends Model
 
     protected static function booted(): void
     {
-        static::updating(fn () => throw RegistroEconomicoInmutable::cobro());
+        static::updating(function (CobroPrestacion $cubierta) {
+            if ($cubierta->getOriginal('revertido_en') !== null || $cubierta->revertido_en === null
+                || array_diff(array_keys($cubierta->getDirty()), ['revertido_en', 'updated_at']) !== []) {
+                throw RegistroEconomicoInmutable::cobro();
+            }
+        });
         static::deleting(fn () => throw RegistroEconomicoInmutable::borrado());
     }
 
