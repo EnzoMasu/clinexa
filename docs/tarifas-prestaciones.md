@@ -46,7 +46,8 @@ del procedimiento.
   procedimiento **Consulta**, por su código (`config('clinexa.prestaciones.procedimiento_consulta')`, `CONS-001` por defecto).
   Si tampoco existe, queda sin procedimiento (pendiente y no se puede tarifar).
 - **Fecha de servicio:** el día de la atención (`iniciada_en`, en la hora local).
-- Con tarifa para ese día: **TARIFADO**, con el monto fijado. Sin tarifa: **PENDIENTE** ("Pendiente de tarifar"), sin monto.
+- Con tarifa para ese día: **TARIFADO**, con el monto fijado. Sin tarifa: **PENDIENTE** ("Pendiente de tarifar"), sin monto. Con una
+  visación aprobada se usa la tarifa del convenio y se guarda quién paga cada parte (`docs/convenios-seguros.md`).
 - **Nunca impide finalizar:** cada prestación (la base y la de cada informe) corre en un punto de guardado propio; si falla, se
   deshace solo lo suyo, se reporta en el log, queda un evento **FALLO** en Auditoría (tabla `prestaciones`, solo consulta,
   informe si es de uno, profesional y fecha de servicio, sin contenido clínico) y la consulta se finaliza igual.

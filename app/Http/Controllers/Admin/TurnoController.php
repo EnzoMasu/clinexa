@@ -14,6 +14,7 @@ use App\Models\Turno;
 use App\Support\Agenda;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
+use App\Support\Convenios\EstadoVisacionTurnos;
 use App\Support\Fecha;
 use App\Support\Atencion\RegistrarSalida;
 use App\Support\Turnos\AgendarEntrePacientes;
@@ -64,7 +65,9 @@ class TurnoController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.turnos', compact('turnos', 'busqueda'));
+        $visacionesTurnos = EstadoVisacionTurnos::para($turnos->getCollection());
+
+        return $this->listado($request, 'admin.turnos', compact('turnos', 'busqueda', 'visacionesTurnos'));
     }
 
     public function create(): View

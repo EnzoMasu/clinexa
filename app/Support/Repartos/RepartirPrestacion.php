@@ -24,6 +24,8 @@ use Throwable;
  * - repartir: el botón "Repartir" de una pendiente (quien administra los acuerdos), con los acuerdos de su fecha de servicio.
  *   Dos veces no duplica: un reparto por prestación, y uno REPARTIDO ya no se recalcula.
  * - anular: al anular la prestación, su reparto queda ANULADO con el motivo (nada se borra).
+ * - reemplazar: al aplicar una visación que cambia el total (docs/convenios-seguros.md), el reparto anterior queda ANULADO (con sus
+ *   líneas) y se calcula otro sobre el total nuevo. Uno por prestación entre los no anulados.
  *
  * Sin acuerdo del profesional, sin el del equipo (si el procedimiento usa uno) o con porcentajes que superan 100, queda
  * PENDIENTE con el motivo. Solo las prestaciones creadas desde que existe el módulo (hito REPARTOS) se reparten.
@@ -73,7 +75,7 @@ final class RepartirPrestacion
     /** Al anular la prestación (en su transacción): su reparto, si tiene, queda ANULADO con el motivo. */
     public static function anular(User $usuario, Prestacion $prestacion, string $motivo): void
     {
-        $reparto = RepartoPrestacion::query()->where('prestacion_id', $prestacion->id)->lockForUpdate()->first();
+        $reparto = RepartoPrestacion::query()->where('prestacion_id', $prestacion->id)->whereNull('anulado_en')->lockForUpdate()->first();
         if ($reparto === null || $reparto->anulado()) {
             return;
         }
@@ -84,6 +86,25 @@ final class RepartirPrestacion
             'motivo_anulacion' => "Prestación anulada: {$motivo}",
             'anulado_por' => $usuario->id,
         ])->save();
+    }
+
+    /**
+     * Al aplicar una visación que cambió el total (en su transacción): anula el reparto vigente, si hay, y calcula otro con los
+     * acuerdos de la fecha de servicio. Sin acuerdos, el nuevo queda pendiente. Nunca frena la aplicación (como alFijarMonto).
+     */
+    public static function reemplazar(User $usuario, Prestacion $prestacion, string $motivo): ?RepartoPrestacion
+    {
+        $reparto = RepartoPrestacion::query()->where('prestacion_id', $prestacion->id)->whereNull('anulado_en')->lockForUpdate()->first();
+        if ($reparto !== null) {
+            $reparto->forceFill([
+                'estado_id' => Estado::idDe(Estado::ANULADO),
+                'anulado_en' => now(),
+                'motivo_anulacion' => $motivo,
+                'anulado_por' => $usuario->id,
+            ])->save();
+        }
+
+        return self::alFijarMonto($prestacion);
     }
 
     /** Desde cuándo se reparten prestaciones (null si la migración todavía no corrió). */
@@ -116,12 +137,13 @@ final class RepartirPrestacion
             ->when($inicio, fn ($query) => $query->where('prestaciones.created_at', '>=', $inicio), fn ($query) => $query->whereRaw('1 = 0'))
             ->whereNotExists(fn ($query) => $query->select(DB::raw(1))->from('repartos_prestacion')
                 ->whereColumn('repartos_prestacion.prestacion_id', 'prestaciones.id')
+                ->whereNull('repartos_prestacion.anulado_en')
                 ->where('repartos_prestacion.estado_id', '!=', Estado::idDe(Estado::PENDIENTE)));
     }
 
     private static function calcular(Prestacion $prestacion, ?User $usuario): RepartoPrestacion
     {
-        $reparto = RepartoPrestacion::query()->where('prestacion_id', $prestacion->id)->lockForUpdate()->first();
+        $reparto = RepartoPrestacion::query()->where('prestacion_id', $prestacion->id)->whereNull('anulado_en')->lockForUpdate()->first();
         if ($reparto && ! $reparto->pendiente()) {
             throw new AccionRechazada($reparto->repartido() ? self::YA_REPARTIDA : self::NO_CORRESPONDE);
         }

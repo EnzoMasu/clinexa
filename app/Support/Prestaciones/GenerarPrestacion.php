@@ -11,9 +11,9 @@ use App\Models\Prestacion;
 use App\Models\Procedimiento;
 use App\Models\Turno;
 use App\Support\Auditoria;
+use App\Support\Convenios\CalcularCobertura;
 use App\Support\Fecha;
 use App\Support\Repartos\RepartirPrestacion;
-use App\Support\Tarifas\BuscarTarifa;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
@@ -29,8 +29,9 @@ use Throwable;
  * - Una por cada INFORME DE ESTUDIO vigente con procedimiento (informe_estudio_id), escrito antes de finalizar. Si el turno era
  *   de ese mismo procedimiento, la base cubre UN informe (el primero en la pantalla); los demás generan la suya.
  * - Fecha de servicio: el día de la atención (iniciada_en, en la hora local). Profesional: el de la consulta.
- * - Con tarifa para ese día (la del profesional o la general): nace TARIFADO, con el monto fijado. Sin tarifa: PENDIENTE
- *   ("pendiente de tarifar"), sin monto.
+ * - Con tarifa para ese día (la del profesional o la general; con una visación aprobada, la del convenio): nace TARIFADO, con el
+ *   monto y quién paga fijados (Convenios\CalcularCobertura, docs/convenios-seguros.md). Sin tarifa: PENDIENTE ("pendiente de
+ *   tarifar"), sin monto.
  * - Sin duplicar: si ya existe, no hace nada (y la base tiene índices únicos parciales). La adenda y el desbloqueo no pasan por
  *   acá; retirar un informe después no anula su prestación (la anula Gerencia con motivo).
  * - Con monto, calcula su reparto (Repartos\RepartirPrestacion::alFijarMonto, docs/reparto-economico.md), que tampoco frena nada.
@@ -176,9 +177,8 @@ final class GenerarPrestacion
 
         $procedimientoId = $informe ? $informe->procedimiento_id : self::procedimientoBase($turno);
         $dia = Fecha::diaLocal($consulta->fechaAtencion());
-        $tarifa = BuscarTarifa::para($procedimientoId, $consulta->profesional_id, $dia);
 
-        return Auditoria::conDetalle($detalle, function () use ($consulta, $turno, $informe, $procedimientoId, $dia, $tarifa) {
+        return Auditoria::conDetalle($detalle, function () use ($consulta, $turno, $informe, $procedimientoId, $dia) {
             $prestacion = new Prestacion([
                 'consulta_id' => $consulta->id,
                 'turno_id' => $turno?->id,
@@ -188,9 +188,11 @@ final class GenerarPrestacion
                 'procedimiento_id' => $procedimientoId,
                 'fecha_servicio' => $dia,
             ]);
-            $prestacion->forceFill($tarifa
-                ? ['estado_id' => Estado::idDe(Estado::TARIFADO), 'monto' => $tarifa->monto, 'moneda_id' => $tarifa->moneda_id,
-                    'tarifa_id' => $tarifa->id, 'tarifada_en' => now()]
+            // La tarifa y quién paga (docs/convenios-seguros.md): con visación, la del convenio y la parte de cada uno; sin visación,
+            // particular (con un aviso si la paciente tenía cobertura). Nunca frena la finalización.
+            $atributos = CalcularCobertura::atributos($prestacion);
+            $prestacion->forceFill($atributos
+                ? ['estado_id' => Estado::idDe(Estado::TARIFADO), ...$atributos, 'tarifada_en' => now()]
                 : ['estado_id' => Estado::idDe(Estado::PENDIENTE)])->save();
             // Con monto, su reparto (docs/reparto-economico.md): nunca impide crearla; sin acuerdos queda pendiente de reparto.
             RepartirPrestacion::alFijarMonto($prestacion);

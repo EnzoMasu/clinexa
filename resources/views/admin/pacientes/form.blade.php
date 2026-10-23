@@ -7,6 +7,10 @@
         :cancel="route('admin.pacientes.index')">
         @if ($registro->exists)
             <x-admin.persona-solo-lectura :persona="$registro->persona" />
+            {{-- Cobertura y visaciones (docs/convenios-seguros.md), en su propia página. --}}
+            @if (\App\Http\Controllers\Admin\CoberturaController::puedeVer())
+                <p class="text-sm"><a href="{{ route('admin.coberturas.show', $registro) }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Cobertura y visaciones</a></p>
+            @endif
         @else
             <x-admin.selector-persona :url="route('admin.pacientes.personas-disponibles')" />
         @endif

@@ -18,6 +18,14 @@
         </div>
     @endif
 
+    {{-- Avisos de cobertura (docs/convenios-seguros.md): particulares de pacientes con cobertura y visaciones anuladas ya aplicadas. --}}
+    @if ($cantidadConAviso > 0)
+        <div role="status" class="mx-4 mt-4 rounded-md bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+            {{ $cantidadConAviso === 1 ? 'Hay 1 prestación con aviso de cobertura.' : "Hay {$cantidadConAviso} prestaciones con aviso de cobertura." }}
+            <a href="{{ route('admin.prestaciones.index', ['cobertura' => 'AVISO']) }}" class="font-medium underline">Ver las prestaciones con aviso</a>
+        </div>
+    @endif
+
     @if ($cantidadPendientesDeReparto > 0)
         <div role="status" class="mx-4 mt-4 rounded-md bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
             {{ $cantidadPendientesDeReparto === 1 ? 'Hay 1 prestación pendiente de reparto.' : "Hay {$cantidadPendientesDeReparto} prestaciones pendientes de reparto." }}
@@ -70,6 +78,9 @@
             <div class="w-56"><x-admin.select name="profesional" label="Profesional" :options="$opcionesProfesional" :value="$filtros['profesional']" nullable /></div>
             <div class="w-48"><x-admin.select name="estado" label="Estado" :options="$opcionesEstado" :value="$filtros['estado']" nullable /></div>
             <div class="w-48"><x-admin.select name="origen" label="Origen" :options="$opcionesOrigen" :value="$filtros['origen']" nullable /></div>
+            @if ($veAvisos)
+                <div class="w-48"><x-admin.select name="cobertura" label="Cobertura" :options="['AVISO' => 'Con aviso de cobertura']" :value="$filtros['cobertura']" nullable /></div>
+            @endif
             @if ($veRepartos)
                 <div class="w-48"><x-admin.select name="reparto" label="Reparto" :options="['PENDIENTE' => 'Pendientes de reparto']" :value="$filtros['reparto']" nullable /></div>
             @endif

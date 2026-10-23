@@ -12,9 +12,11 @@ use App\Http\Controllers\Admin\CajaController;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
 use App\Http\Controllers\Admin\CiudadController;
+use App\Http\Controllers\Admin\CoberturaController;
 use App\Http\Controllers\Admin\CobroController;
 use App\Http\Controllers\Admin\ConsultaController;
 use App\Http\Controllers\Admin\ConsultorioController;
+use App\Http\Controllers\Admin\ConvenioController;
 use App\Http\Controllers\Admin\CupoEntrePacientesController;
 use App\Http\Controllers\Admin\DepartamentoController;
 use App\Http\Controllers\Admin\DietaController;
@@ -409,6 +411,36 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::post('acuerdos-reparto/{acuerdo}/cambiar', [AcuerdoRepartoController::class, 'guardarCambio'])->name('acuerdos-reparto.guardar-cambio')->whereNumber('acuerdo')->middleware('permiso:ACUERDOS_REPARTO,EDITAR');
     $seccion('equipos', EquipoController::class, 'EQUIPOS', 'equipo', conBaja: true);
     $seccion('tipos-equipo', TipoEquipoController::class, 'TIPOS_EQUIPO', 'tipoEquipo', conBaja: true);
+
+    // Convenios (docs/convenios-seguros.md): un solo módulo con dos pestañas (convenios y planes, tarifas del convenio). Nada se borra:
+    // el convenio pasa a histórico, el plan se desactiva y la tarifa se cierra.
+    Route::get('convenios', [ConvenioController::class, 'index'])->name('convenios.index')->middleware('permiso:CONVENIOS,VER');
+    Route::get('convenios/create', [ConvenioController::class, 'create'])->name('convenios.create')->middleware('permiso:CONVENIOS,CREAR');
+    Route::post('convenios', [ConvenioController::class, 'store'])->name('convenios.store')->middleware('permiso:CONVENIOS,CREAR');
+    Route::get('convenios/tarifas', [ConvenioController::class, 'tarifas'])->name('convenios.tarifas')->middleware('permiso:CONVENIOS,VER');
+    Route::get('convenios/tarifas/create', [ConvenioController::class, 'crearTarifa'])->name('convenios.tarifas.create')->middleware('permiso:CONVENIOS,CREAR');
+    Route::post('convenios/tarifas', [ConvenioController::class, 'guardarTarifa'])->name('convenios.tarifas.store')->middleware('permiso:CONVENIOS,CREAR');
+    Route::get('convenios/tarifas/{tarifa}', [ConvenioController::class, 'tarifa'])->name('convenios.tarifas.show')->whereNumber('tarifa')->middleware('permiso:CONVENIOS,VER');
+    Route::post('convenios/tarifas/{tarifa}/baja', [ConvenioController::class, 'bajaTarifa'])->name('convenios.tarifas.baja')->whereNumber('tarifa')->middleware('permiso:CONVENIOS,DESACTIVAR');
+    Route::get('convenios/{convenio}', [ConvenioController::class, 'show'])->name('convenios.show')->whereNumber('convenio')->middleware('permiso:CONVENIOS,VER');
+    Route::post('convenios/{convenio}/historico', [ConvenioController::class, 'pasarAHistorico'])->name('convenios.historico')->whereNumber('convenio')->middleware('permiso:CONVENIOS,DESACTIVAR');
+    Route::post('convenios/{convenio}/planes', [ConvenioController::class, 'agregarPlan'])->name('convenios.planes.store')->whereNumber('convenio')->middleware('permiso:CONVENIOS,EDITAR');
+    Route::patch('convenios/planes/{plan}/estado', [ConvenioController::class, 'estadoPlan'])->name('convenios.planes.estado')->whereNumber('plan')->middleware('permiso:CONVENIOS,DESACTIVAR');
+
+    // Cobertura y visaciones de la paciente (docs/convenios-seguros.md): una sola página, sin entrada en el menú (desde la ficha, el
+    // turno o la prestación). La cobertura es de COBERTURAS; la visación, aplicarla, la firma y el ticket, de VISACIONES.
+    Route::get('pacientes/{paciente}/cobertura', [CoberturaController::class, 'show'])->name('coberturas.show')->whereNumber('paciente')
+        ->middleware('permiso.alguno:COBERTURAS.VER,VISACIONES.VER');
+    Route::post('pacientes/{paciente}/cobertura', [CoberturaController::class, 'guardarCobertura'])->name('coberturas.store')->whereNumber('paciente')->middleware('permiso:COBERTURAS,CREAR');
+    Route::post('coberturas/{cobertura}/baja', [CoberturaController::class, 'bajaCobertura'])->name('coberturas.baja')->whereNumber('cobertura')->middleware('permiso:COBERTURAS,EDITAR');
+    Route::post('pacientes/{paciente}/visaciones', [CoberturaController::class, 'guardarVisacion'])->name('visaciones.store')->whereNumber('paciente')->middleware('permiso:VISACIONES,CREAR');
+    Route::post('visaciones/{visacion}/anular', [CoberturaController::class, 'anularVisacion'])->name('visaciones.anular')->whereNumber('visacion')->middleware('permiso:VISACIONES,DESACTIVAR');
+    Route::post('prestaciones/{prestacion}/aplicar-visacion', [CoberturaController::class, 'aplicar'])->name('visaciones.aplicar')->whereNumber('prestacion')->middleware('permiso:VISACIONES,EDITAR');
+    Route::post('prestaciones/{prestacion}/firma', [CoberturaController::class, 'marcarFirma'])->name('visaciones.firma')->whereNumber('prestacion')->middleware('permiso:VISACIONES,EDITAR');
+    Route::post('prestaciones/{prestacion}/firma/desmarcar', [CoberturaController::class, 'desmarcarFirma'])->name('visaciones.firma.desmarcar')->whereNumber('prestacion')->middleware('permiso:VISACIONES,EDITAR');
+    // El ticket de la aseguradora: PDF al vuelo, sin montos ni nada clínico; no se guarda en la caché.
+    Route::get('consultas/{consulta}/ticket-aseguradora', [CoberturaController::class, 'ticket'])->name('visaciones.ticket')->whereNumber('consulta')
+        ->middleware(['permiso:VISACIONES,EXPORTAR', SinAlmacenar::class]);
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
     foreach ([

@@ -12,6 +12,7 @@ use App\Models\Turno;
 use App\Support\Agenda;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
+use App\Support\Convenios\EstadoVisacionTurnos;
 use App\Support\Fecha;
 use App\Support\Turnos\RegistrarUrgencia;
 use Illuminate\Http\RedirectResponse;
@@ -35,7 +36,9 @@ class UrgenciaController extends Controller
             ->orderBy('llegada_en')->orderBy('id')
             ->get();
 
-        return view('admin.urgencias.index', compact('urgencias'));
+        $visacionesTurnos = EstadoVisacionTurnos::para($urgencias);
+
+        return view('admin.urgencias.index', compact('urgencias', 'visacionesTurnos'));
     }
 
     public function create(): View

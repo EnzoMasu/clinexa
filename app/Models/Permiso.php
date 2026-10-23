@@ -44,6 +44,11 @@ class Permiso extends Model
         'CIERRES_CAJA' => ['VER', 'EDITAR'],
         'COBROS' => ['VER', 'CREAR', 'DESACTIVAR'],
         'REVERSIONES_COBRO' => ['VER', 'EDITAR'],
+        // Convenios (docs/convenios-seguros.md): convenios, planes y tarifas del convenio (alta, cambio y baja; nada se borra).
+        // Coberturas: ver, cargar (CREAR, también la que reemplaza a la vigente) y dar de baja (EDITAR). Visaciones: todas (EDITAR =
+        // aplicar una visación y la firma recibida; DESACTIVAR = anular; EXPORTAR = el ticket).
+        'CONVENIOS' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
+        'COBERTURAS' => ['VER', 'CREAR', 'EDITAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

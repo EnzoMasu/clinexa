@@ -13,6 +13,60 @@
             <div><dt class="text-gray-500 dark:text-gray-400">Procedimiento</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->procedimiento?->nombre ?? 'Sin procedimiento' }}</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Origen</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->origenTexto() }} · {{ $prestacion->turno ? 'Turno del '.Fecha::mostrar($prestacion->turno->fecha) : 'Sin turno' }} · consulta N.º {{ $prestacion->consulta_id }}</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Monto</dt><dd class="font-medium text-gray-900 dark:text-gray-100 tabular-nums">{{ $prestacion->montoTexto() }}</dd></div>
+            {{-- Quién paga (docs/convenios-seguros.md): el snapshot fijado con el monto. Vacío en las anteriores a los convenios. --}}
+            @if ($prestacion->pagador)
+                <div>
+                    <dt class="text-gray-500 dark:text-gray-400">Pagador</dt>
+                    <dd class="font-medium text-gray-900 dark:text-gray-100">
+                        {{ $prestacion->pagadorTexto() }}
+                        @if ($prestacion->deAseguradora())
+                            <div class="font-normal text-gray-600 dark:text-gray-400">{{ $prestacion->responsablePago->persona->nombre_completo }} · {{ $prestacion->convenio->nombre }} · plan {{ $prestacion->plan->nombre }}</div>
+                        @endif
+                        @if ($prestacion->numero_visacion)
+                            <div class="font-normal text-gray-600 dark:text-gray-400">Visación N.º {{ $prestacion->numero_visacion }}{{ $prestacion->deAseguradora() ? '' : ' (no cubierto)' }}</div>
+                        @endif
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-gray-500 dark:text-gray-400">A cargo de la paciente / de la aseguradora</dt>
+                    <dd class="font-medium text-gray-900 dark:text-gray-100 tabular-nums">
+                        {{ $prestacion->montoPacienteTexto() }} / {{ $prestacion->montoAseguradoraTexto() }}
+                        @if ($prestacion->liquidacion === \App\Models\Prestacion::PENDIENTE_DE_LIQUIDAR)
+                            <div class="font-normal text-gray-600 dark:text-gray-400">Lo de la aseguradora, pendiente de liquidar.</div>
+                        @endif
+                    </dd>
+                </div>
+                @if ($prestacion->deAseguradora())
+                    <div>
+                        <dt class="text-gray-500 dark:text-gray-400">Firma de la paciente</dt>
+                        <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->firma_recibida_en ? 'Recibida el '.Fecha::mostrar($prestacion->firma_recibida_en, conHora: true).' por '.$prestacion->firmaRecibidaPor?->persona?->nombre_completo : 'Pendiente' }}</dd>
+                    </div>
+                @endif
+                @if ($prestacion->visacion_aplicada_en)
+                    <div class="sm:col-span-2">
+                        <dt class="text-gray-500 dark:text-gray-400">Visación aplicada después</dt>
+                        <dd class="font-medium text-gray-900 dark:text-gray-100">{{ Fecha::mostrar($prestacion->visacion_aplicada_en, conHora: true) }} por {{ $prestacion->visacionAplicadaPor?->persona?->nombre_completo }}: {{ $prestacion->motivo_aplicacion }}</dd>
+                    </div>
+                @endif
+            @endif
+            @if ($prestacion->aviso_cobertura || $prestacion->visacion?->anulada())
+                <p role="status" class="sm:col-span-2 rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                    {{ $prestacion->aviso_cobertura }}
+                    @if ($prestacion->visacion?->anulada())
+                        La visación N.º {{ $prestacion->visacion->numero }} fue anulada: la prestación quedó como estaba. Corríjala a mano (revierta el cobro si lo hubo y aplique otra visación).
+                    @endif
+                </p>
+            @endif
+            @if ($veCobertura || $puedeTicket)
+                <div class="sm:col-span-2 space-x-4">
+                    @if ($veCobertura)
+                        <a href="{{ route('admin.coberturas.show', ['paciente' => $prestacion->paciente_id, 'consulta' => $prestacion->consulta_id]) }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Cobertura y visaciones de la paciente</a>
+                    @endif
+                    @if ($puedeTicket)
+                        <a href="{{ route('admin.visaciones.ticket', $prestacion->consulta_id) }}" target="_blank" rel="noopener" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Ticket de la aseguradora</a>
+                    @endif
+                </div>
+            @endif
             @if ($prestacion->estadoCobroTexto() !== '')
                 <div>
                     <dt class="text-gray-500 dark:text-gray-400">Cobro</dt>
@@ -27,8 +81,8 @@
                     </dd>
                 </div>
             @endif
-            @if ($prestacion->tarifa)
-                <div><dt class="text-gray-500 dark:text-gray-400">Tarifa usada</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->tarifa->profesionalTexto() }} · {{ $prestacion->tarifa->vigenciaTexto() }}</dd></div>
+            @if ($prestacion->tarifa || $prestacion->tarifaConvenio)
+                <div><dt class="text-gray-500 dark:text-gray-400">Tarifa usada</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->tarifa ? $prestacion->tarifa->profesionalTexto().' · '.$prestacion->tarifa->vigenciaTexto() : 'Del convenio · '.$prestacion->tarifaConvenio->vigenciaTexto() }}</dd></div>
                 <div><dt class="text-gray-500 dark:text-gray-400">Tarifada</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ Fecha::mostrar($prestacion->tarifada_en, conHora: true) }}{{ $prestacion->tarifadaPor ? ' por '.$prestacion->tarifadaPor->persona?->nombre_completo : ' al finalizar la consulta' }}</dd></div>
             @endif
             @if ($prestacion->anulada())

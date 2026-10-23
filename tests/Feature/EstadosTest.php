@@ -49,6 +49,9 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             'CIERRES_CAJA' => [['APROBADO', 'DEVUELTO', 'PENDIENTE'], 'PENDIENTE'],
             'COBROS' => [['REVERTIDO', 'VIGENTE'], 'VIGENTE'],
             'REVERSIONES_COBRO' => [['APROBADO', 'PENDIENTE', 'RECHAZADO'], 'PENDIENTE'],
+            // Convenios y coberturas: el vigente (inicial) y los históricos. Visaciones: vigente (inicial) o anulada.
+            'CONVENIOS', 'COBERTURAS' => [['HISTORICO', 'VIGENTE'], 'VIGENTE'],
+            'VISACIONES' => [['ANULADO', 'VIGENTE'], 'VIGENTE'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

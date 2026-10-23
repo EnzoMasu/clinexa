@@ -9,6 +9,7 @@ use App\Models\Estado;
 use App\Models\InformeEstudio;
 use App\Models\Prestacion;
 use App\Models\Profesional;
+use App\Support\Convenios\CalcularCobertura;
 use App\Support\Fecha;
 use App\Support\Permisos;
 use App\Support\Prestaciones\AnularPrestacion;
@@ -44,7 +45,11 @@ class PrestacionController extends Controller
         $veRepartos = $request->user()->tienePermiso('REPARTOS', 'VER');
         $soloPendientesDeReparto = $veRepartos && $request->query('reparto') === 'PENDIENTE';
 
-        $prestaciones = ($soloPendientesDeReparto ? RepartirPrestacion::pendientes() : Prestacion::query())
+        // Los avisos de cobertura (docs/convenios-seguros.md), para quien ve las visaciones (Recepción, Facturación, Gerencia).
+        $veAvisos = $request->user()->tienePermiso('VISACIONES', 'VER');
+        $soloConAviso = $veAvisos && $request->query('cobertura') === 'AVISO';
+
+        $prestaciones = ($soloPendientesDeReparto ? RepartirPrestacion::pendientes() : ($soloConAviso ? CalcularCobertura::conAviso() : Prestacion::query()))
             ->join('pacientes', 'pacientes.id', '=', 'prestaciones.paciente_id')
             ->join('personas', 'personas.id', '=', 'pacientes.persona_id')
             ->when($desde, fn ($query) => $query->whereDate('prestaciones.fecha_servicio', '>=', $desde))
@@ -80,13 +85,16 @@ class PrestacionController extends Controller
                 ? RepartirPrestacion::pendientes()->whereIn('prestaciones.id', $prestaciones->getCollection()->modelKeys())->pluck('prestaciones.id')->flip()->all()
                 : [],
             'puedeRepartir' => $puedeRepartir,
+            'veAvisos' => $veAvisos,
+            'cantidadConAviso' => $veAvisos && ! $request->ajax() ? CalcularCobertura::conAviso()->count() : 0,
             'cantidadSinPrestacion' => $sinPrestacion?->count() ?? 0,
             'cantidadInformesSinPrestacion' => $informesSinPrestacion?->count() ?? 0,
             'pendientesDeGenerar' => $sinPrestacion && $puedeGenerar ? $this->pendientesDeGenerar($sinPrestacion, $informesSinPrestacion) : collect(),
             'puedeGenerar' => $puedeGenerar,
             'prestaciones' => $prestaciones,
             'busqueda' => $busqueda,
-            'filtros' => ['desde' => $desde, 'hasta' => $hasta, 'profesional' => $profesionalId, 'estado' => $estado, 'origen' => $origen, 'reparto' => $soloPendientesDeReparto ? 'PENDIENTE' : null],
+            'filtros' => ['desde' => $desde, 'hasta' => $hasta, 'profesional' => $profesionalId, 'estado' => $estado, 'origen' => $origen, 'reparto' => $soloPendientesDeReparto ? 'PENDIENTE' : null,
+                'cobertura' => $soloConAviso ? 'AVISO' : null],
             'opcionesProfesional' => Profesional::with('persona')->get()->sortBy('persona.nombre_completo')
                 ->mapWithKeys(fn ($profesional) => [$profesional->id => $profesional->persona->nombre_completo])->all(),
             'opcionesEstado' => Prestacion::ETIQUETAS,
@@ -122,7 +130,7 @@ class PrestacionController extends Controller
     public function show(Request $request, Prestacion $prestacion): View
     {
         $prestacion->load(['paciente.persona', 'profesional.persona', 'procedimiento', 'moneda', 'tarifa', 'turno', 'tarifadaPor.persona', 'anuladaPor.persona',
-            'cobroVigente.cobro']);
+            'cobroVigente.cobro', 'tarifaConvenio', 'responsablePago.persona', 'convenio', 'plan', 'visacion', 'firmaRecibidaPor.persona', 'visacionAplicadaPor.persona']);
         // El detalle del reparto, solo con VER sobre REPARTOS (Administrador y Gerencia).
         $veRepartos = $request->user()->tienePermiso('REPARTOS', 'VER');
         if ($veRepartos) {
@@ -139,6 +147,9 @@ class PrestacionController extends Controller
             'cobro' => $prestacion->cobroVigente?->cobro,
             'veCobros' => Permisos::puedeRuta('admin.cobros.show'),
             'veRepartos' => $veRepartos,
+            // Cobertura y visaciones (docs/convenios-seguros.md): la página de la paciente y el ticket de la aseguradora.
+            'veCobertura' => CoberturaController::puedeVer(),
+            'puedeTicket' => $prestacion->deAseguradora() && ! $prestacion->anulada() && Permisos::puedeRuta('admin.visaciones.ticket'),
             'pendienteDeReparto' => $veRepartos && RepartirPrestacion::pendientes()->whereKey($prestacion->id)->exists(),
             'puedeRepartir' => Permisos::puedeRuta('admin.prestaciones.repartir'),
             'puedeTarifar' => $prestacion->pendiente() && Permisos::puedeRuta('admin.prestaciones.tarifar'),

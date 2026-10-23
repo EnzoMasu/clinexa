@@ -1,5 +1,8 @@
 @use('App\Support\Fecha')
 @use('App\Support\Permisos')
+@use('App\Http\Controllers\Admin\CoberturaController')
+
+@php($veCobertura = CoberturaController::puedeVer())
 
 <x-admin.table :headers="['Nro. ficha', 'Nombre', 'Documento', 'Fecha de alta', 'Estado']" :paginator="$registros">
     @forelse ($registros as $registro)
@@ -18,6 +21,10 @@
                 {{-- Con VER sobre la historia clínica. --}}
                 @if ($registro->historiaClinica && ($urlHistoria = Permisos::url('admin.historias-clinicas.show', $registro->historiaClinica)))
                     <a href="{{ $urlHistoria }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Historia clínica</a>
+                @endif
+                {{-- Cobertura y visaciones (docs/convenios-seguros.md): Recepción, Facturación y convenios y Gerencia. --}}
+                @if ($veCobertura)
+                    <a href="{{ route('admin.coberturas.show', $registro) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Cobertura y visaciones</a>
                 @endif
             </x-admin.actions>
         </tr>

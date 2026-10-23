@@ -1,6 +1,7 @@
 @use('App\Support\Fecha')
 @use('App\Http\Controllers\Admin\CobroController')
 @use('App\Support\Cobros\Cobrar')
+@use('App\Models\Prestacion')
 
 {{-- Pantalla de cobro (CobroController::create, docs/cobros-caja.md), en un solo flujo: buscar la paciente, tildar sus prestaciones
      sin cobrar, cargar los medios y montos y confirmar. El total es la suma de las tildadas; los pagos deben sumar exactamente eso. --}}
@@ -55,6 +56,17 @@
                 · <a href="{{ route('admin.cobros.create') }}" class="text-indigo-600 hover:underline dark:text-indigo-400">Elegir otra paciente</a>
             </p>
 
+            @if ($aCargoDeAseguradora->isNotEmpty())
+                <div class="text-sm text-gray-600 dark:text-gray-400">
+                    <p class="font-medium">{{ Prestacion::A_CARGO_DE_ASEGURADORA }} (no se cobran a la paciente):</p>
+                    <ul class="list-disc ps-5">
+                        @foreach ($aCargoDeAseguradora as $prestacion)
+                            <li>{{ Fecha::mostrar($prestacion->fecha_servicio) }} · {{ $prestacion->procedimiento?->nombre ?? 'Sin procedimiento' }} · Visación N.º {{ $prestacion->numero_visacion }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
             @if ($prestaciones->isEmpty())
                 <p class="text-gray-600 dark:text-gray-400">No tiene prestaciones sin cobrar (las pendientes de tarifar se cobran después de tarifarlas).</p>
             @else
@@ -64,24 +76,30 @@
 
                     <fieldset class="space-y-3">
                         <legend class="font-semibold text-gray-900 dark:text-gray-100">Prestaciones sin cobrar</legend>
-                        <x-admin.table :headers="['Cobrar', 'Fecha de servicio', 'Procedimiento', 'Profesional', 'Monto']">
+                        <x-admin.table :headers="['Cobrar', 'Fecha de servicio', 'Procedimiento', 'Profesional', 'A cobrar']">
                             @foreach ($prestaciones as $prestacion)
                                 @php($elegida = in_array((string) $prestacion->id, array_map('strval', (array) old('prestaciones', $prestaciones->modelKeys())), true))
                                 <tr>
                                     <td class="px-6 py-3">
-                                        <input type="checkbox" id="prestacion_{{ $prestacion->id }}" name="prestaciones[]" value="{{ $prestacion->id }}" data-monto="{{ (int) $prestacion->monto }}"
+                                        <input type="checkbox" id="prestacion_{{ $prestacion->id }}" name="prestaciones[]" value="{{ $prestacion->id }}" data-monto="{{ $prestacion->montoPaciente() }}"
                                             @checked($elegida) x-on:change="alTildar()"
                                             class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900">
                                     </td>
                                     <td class="px-6 py-3 whitespace-nowrap"><label for="prestacion_{{ $prestacion->id }}">{{ Fecha::mostrar($prestacion->fecha_servicio) }}</label></td>
                                     <td class="px-6 py-3">{{ $prestacion->procedimiento?->nombre ?? 'Sin procedimiento' }}</td>
                                     <td class="px-6 py-3">{{ $prestacion->profesional->persona->nombre_completo }}</td>
-                                    <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $prestacion->montoTexto() }}</td>
+                                    <td class="px-6 py-3 whitespace-nowrap tabular-nums">
+                                        {{ $prestacion->montoPacienteTexto() }}
+                                        {{-- Con aseguradora (docs/convenios-seguros.md) se cobra solo la parte de la paciente. --}}
+                                        @if ($prestacion->deAseguradora())
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">Parte de la paciente (total {{ $prestacion->montoTexto() }})</div>
+                                        @endif
+                                    </td>
                                     <td></td>
                                 </tr>
                             @endforeach
                         </x-admin.table>
-                        <p class="font-semibold text-gray-900 dark:text-gray-100" aria-live="polite">Total: <span x-text="totalTexto">{{ $moneda->formatear($prestaciones->sum(fn ($p) => (int) $p->monto)) }}</span></p>
+                        <p class="font-semibold text-gray-900 dark:text-gray-100" aria-live="polite">Total: <span x-text="totalTexto">{{ $moneda->formatear($prestaciones->sum(fn ($p) => $p->montoPaciente())) }}</span></p>
                     </fieldset>
 
                     <fieldset class="space-y-3">
@@ -102,7 +120,7 @@
                                 <div>
                                     <x-input-label for="lineas_{{ $i }}_monto" value="Monto (₲)" />
                                     <input id="lineas_{{ $i }}_monto" name="lineas[{{ $i }}][monto]" data-pago inputmode="numeric" maxlength="17" autocomplete="off"
-                                        value="{{ old("lineas.{$i}.monto", $i === 0 ? (string) $prestaciones->sum(fn ($p) => (int) $p->monto) : '') }}" x-on:input="recalcular()"
+                                        value="{{ old("lineas.{$i}.monto", $i === 0 ? (string) $prestaciones->sum(fn ($p) => $p->montoPaciente()) : '') }}" x-on:input="recalcular()"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                     <x-input-error class="mt-1" :messages="$errors->get('lineas.'.$i.'.monto')" />
                                 </div>

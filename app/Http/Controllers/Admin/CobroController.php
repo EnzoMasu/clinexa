@@ -199,6 +199,12 @@ class CobroController extends Controller
                 ? Cobrar::pendientes()->where('prestaciones.paciente_id', $paciente->id)->with(['procedimiento', 'profesional.persona', 'moneda'])
                     ->orderBy('prestaciones.fecha_servicio')->orderBy('prestaciones.id')->get()
                 : collect(),
+            // Las de aseguradora sin parte de la paciente no se ofrecen: se muestran como "A cargo de aseguradora".
+            'aCargoDeAseguradora' => $paciente
+                ? Prestacion::query()->where('paciente_id', $paciente->id)->whereNotNull('monto')->where('estado_id', '!=', Estado::idDe(Estado::ANULADO))
+                    ->whereRaw(Cobrar::PARTE_PACIENTE.' = 0')->whereDoesntHave('cobroVigente')->with('procedimiento')
+                    ->orderByDesc('fecha_servicio')->orderByDesc('id')->limit(20)->get()
+                : collect(),
             'medios' => MedioPago::activos()->orderByDesc('es_efectivo')->orderBy('nombre')->get(),
             'moneda' => Moneda::guarani(),
         ]);
@@ -250,7 +256,7 @@ class CobroController extends Controller
             ->join('personas', 'personas.id', '=', 'pacientes.persona_id')
             ->when($busqueda !== '', fn ($query) => $this->buscarPaciente($query, $busqueda))
             ->groupBy('prestaciones.paciente_id')
-            ->select('prestaciones.paciente_id', DB::raw('COUNT(*) AS cantidad'), DB::raw('SUM(prestaciones.monto) AS total'), DB::raw('MIN(prestaciones.fecha_servicio) AS desde'))
+            ->select('prestaciones.paciente_id', DB::raw('COUNT(*) AS cantidad'), DB::raw('SUM('.Cobrar::PARTE_PACIENTE.') AS total'), DB::raw('MIN(prestaciones.fecha_servicio) AS desde'))
             ->orderBy('desde')->limit(30)->toBase()->get();
         $pacientes = Paciente::with('persona')->whereKey($pendientes->pluck('paciente_id'))->get()->keyBy('id');
 

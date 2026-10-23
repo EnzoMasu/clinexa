@@ -23,8 +23,10 @@ use Illuminate\Support\Facades\DB;
  * El cobro de una o varias prestaciones de una paciente (docs/cobros-caja.md), siempre completo:
  *
  * - En la caja ABIERTA del cajero, del día de hoy (una de un día anterior se cierra primero).
- * - Prestaciones de la misma paciente, con monto (tarifadas), no anuladas y sin cobro vigente. El reparto no importa.
- * - Total = la suma exacta de sus montos; la suma de las líneas de pago (medio activo, monto, referencia opcional) = el total. Sin
+ * - Prestaciones de la misma paciente, con monto (tarifadas), no anuladas, sin cobro vigente y con algo a cargo de la paciente. El
+ *   reparto no importa. Con aseguradora (docs/convenios-seguros.md) se cobra SOLO la parte de la paciente; una con su parte en cero
+ *   no se ofrece ("A cargo de aseguradora").
+ * - Total = la suma exacta de lo que paga la paciente en cada una; la suma de las líneas de pago (medio activo, monto, referencia opcional) = el total. Sin
  *   pagos parciales, saldos ni vuelto. Cada línea es un movimiento de la caja.
  *
  * Las prestaciones se bloquean mientras se cobra (también frente a su anulación) y `cobro_prestaciones_un_cobro_vigente` frena un
@@ -41,11 +43,17 @@ final class Cobrar
 
     public const REFERENCIA_MAXIMA = 100;
 
-    /** Lo que se puede cobrar: con monto, no anuladas y sin un cobro vigente. */
+    /** Lo que paga la paciente en cada prestación: su parte (en las anteriores a los convenios, el monto). */
+    public const PARTE_PACIENTE = 'COALESCE(prestaciones.monto_paciente, prestaciones.monto)';
+
+    public const A_CARGO_DE_ASEGURADORA = 'Esta prestación está a cargo de la aseguradora: no hay nada que cobrarle a la paciente.';
+
+    /** Lo que se puede cobrar: con monto, no anuladas, sin un cobro vigente y con algo a cargo de la paciente. */
     public static function pendientes(): Builder
     {
         return Prestacion::query()
             ->whereNotNull('prestaciones.monto')
+            ->whereRaw(self::PARTE_PACIENTE.' > 0')
             ->where('prestaciones.estado_id', '!=', Estado::idDe(Estado::ANULADO))
             ->whereDoesntHave('cobroVigente');
     }
@@ -77,7 +85,7 @@ final class Cobrar
                     self::verificarPrestacion($prestacion, $pacienteId);
                 }
 
-                $total = $prestaciones->sum(fn (Prestacion $prestacion) => self::entero($prestacion->monto));
+                $total = $prestaciones->sum(fn (Prestacion $prestacion) => $prestacion->montoPaciente());
                 $medios = MedioPago::query()->whereKey(array_column($lineas, 'medio_pago_id'))->with('estado')->get()->keyBy('id');
                 $pagos = 0;
                 foreach ($lineas as $linea) {
@@ -139,6 +147,9 @@ final class Cobrar
         if ($prestacion->monto === null) {
             throw new AccionRechazada('Una de las prestaciones elegidas no está tarifada: tarifela antes de cobrarla.');
         }
+        if ($prestacion->montoPaciente() === 0) {
+            throw new AccionRechazada(self::A_CARGO_DE_ASEGURADORA);
+        }
         if ($prestacion->cobroVigente()->exists()) {
             throw new AccionRechazada(self::YA_COBRADA);
         }
@@ -157,7 +168,7 @@ final class Cobrar
         return Auditoria::conDetalle('Cobro de '.count($prestaciones).(count($prestaciones) === 1 ? ' prestación' : ' prestaciones'), function () use ($cobro, $cajero, $caja, $prestaciones, $lineas, $ahora) {
             $cobro->save();
             foreach ($prestaciones as $prestacion) {
-                CobroPrestacion::create(['cobro_id' => $cobro->id, 'prestacion_id' => $prestacion->id, 'monto' => self::entero($prestacion->monto)]);
+                CobroPrestacion::create(['cobro_id' => $cobro->id, 'prestacion_id' => $prestacion->id, 'monto' => $prestacion->montoPaciente()]);
             }
             foreach ($lineas as $linea) {
                 $referencia = trim((string) ($linea['referencia'] ?? ''));
@@ -173,10 +184,5 @@ final class Cobrar
 
             return $cobro;
         });
-    }
-
-    private static function entero(string|int|float|null $monto): int
-    {
-        return (int) round((float) $monto);
     }
 }

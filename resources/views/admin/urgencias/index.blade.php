@@ -19,6 +19,7 @@
                 <td class="px-6 py-4">
                     <div class="font-medium">{{ $turno->paciente->persona->nombre_completo }}</div>
                     <div class="text-xs text-gray-500 dark:text-gray-400">Ficha {{ $turno->paciente->nro_ficha }}</div>
+                    @include('admin.coberturas._visacion-turno')
                 </td>
                 <td class="px-6 py-4">{{ $turno->profesional->persona->nombre_completo }}</td>
                 <td class="px-6 py-4"><x-admin.estado-badge :estado="$turno->estado" /></td>

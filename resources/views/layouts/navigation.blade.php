@@ -41,6 +41,9 @@
             // Reparto (docs/reparto-economico.md): solo Administrador y Gerencia.
             'admin.acuerdos-reparto' => 'Acuerdos de reparto',
             'admin.equipos' => 'Equipos',
+            // Convenios (docs/convenios-seguros.md): Administrador, Gerencia y Facturación y convenios. La cobertura y las visaciones se
+            // cargan desde la ficha de la paciente, el turno o la prestación (sin entrada propia).
+            'admin.convenios' => 'Convenios',
         ],
         'Catálogos' => [
             'admin.especialidades' => 'Especialidades',

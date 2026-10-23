@@ -6,12 +6,14 @@ fases futuras. Nada se borra. Ver también `docs/tarifas-prestaciones.md` y `doc
 
 ## Reglas
 
-- La paciente paga **siempre después de finalizar la consulta**, cuando la prestación ya existe. Sin cobros anticipados. La
-  responsable de pago es siempre la paciente (sin convenios, seguros, saldos ni crédito).
+- La paciente paga **siempre después de finalizar la consulta**, cuando la prestación ya existe. Sin cobros anticipados. Sin saldos
+  ni crédito. Con una visación de aseguradora (fase 4a, `docs/convenios-seguros.md`) se cobra **solo la parte de la paciente**; una
+  prestación con su parte en cero no se ofrece ("A cargo de aseguradora").
 - Se cobran prestaciones **con monto** (tarifadas), **no anuladas**, de la **misma paciente**. Pueden estar pendientes de reparto: el
   cobro no depende del reparto. Las pendientes de tarifar se cobran después de tarifarlas.
 - Una prestación tiene **a lo sumo un cobro vigente** (`cobro_prestaciones_un_cobro_vigente`).
-- El cobro es **siempre completo**: el total es la suma exacta de los montos de las prestaciones elegidas y la suma de las líneas
+- El cobro es **siempre completo**: el total es la suma exacta de lo que paga la paciente en las prestaciones elegidas (su parte; en
+  las particulares, el monto) y la suma de las líneas
   de pago es igual al total. Sin pagos parciales. El vuelto no se registra (se carga el monto exacto). Pueden combinarse medios.
   Una vez hecho, **no se edita**.
 - **Anular una prestación cobrada no se permite** ("Esta prestación está cobrada: no se puede anular mientras su cobro esté

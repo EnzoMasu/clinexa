@@ -19,6 +19,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * - TARIFADO: con monto, moneda y la tarifa usada, fijados una vez; no cambian aunque la tarifa cambie después.
  * - ANULADO: con motivo, fecha y quién; se conserva.
  *
+ * Al fijar el monto guarda también el snapshot del pagador (docs/convenios-seguros.md): PACIENTE o ASEGURADORA, el responsable de
+ * pago, convenio, plan y visación, la tarifa usada (la general o la del convenio) y la parte de cada uno, que suman exacto. Vacío en
+ * las anteriores a los convenios: son particulares (la paciente paga el monto). Lo de la aseguradora queda "pendiente de liquidar".
+ * Una tarifada solo cambia al "Aplicar visación" (recalcula el snapshot, con motivo) y con la firma recibida.
+ *
  * El modelo rechaza cualquier otro cambio, y el borrado.
  */
 class Prestacion extends Model
@@ -37,7 +42,28 @@ class Prestacion extends Model
 
     public const PENDIENTE_DE_COBRO = 'Pendiente';
 
-    private const CAMPOS_DE_TARIFADO = ['estado_id', 'monto', 'moneda_id', 'tarifa_id', 'tarifada_en', 'tarifada_por', 'updated_at'];
+    /** Sin nada que cobrarle a la paciente: lo cubre todo la aseguradora. */
+    public const A_CARGO_DE_ASEGURADORA = 'A cargo de aseguradora';
+
+    public const PACIENTE = 'PACIENTE';
+
+    public const ASEGURADORA = 'ASEGURADORA';
+
+    public const PAGADORES = [self::PACIENTE => 'Particular (paciente)', self::ASEGURADORA => 'Aseguradora'];
+
+    /** Lo de la aseguradora, pendiente de liquidar (la liquidación mensual es de la fase 4b). */
+    public const PENDIENTE_DE_LIQUIDAR = 'PENDIENTE';
+
+    /** El snapshot del pagador (docs/convenios-seguros.md): se fija con el monto y solo cambia al aplicar una visación. */
+    public const CAMPOS_DEL_PAGADOR = ['pagador', 'responsable_pago_id', 'convenio_id', 'plan_convenio_id', 'visacion_id', 'linea_visacion_id',
+        'numero_visacion', 'tarifa_convenio_id', 'monto_paciente', 'monto_aseguradora', 'liquidacion', 'aviso_cobertura'];
+
+    private const CAMPOS_DE_TARIFADO = ['estado_id', 'monto', 'moneda_id', 'tarifa_id', 'tarifada_en', 'tarifada_por', 'updated_at', ...self::CAMPOS_DEL_PAGADOR];
+
+    private const CAMPOS_DE_FIRMA = ['firma_recibida_en', 'firma_recibida_por', 'updated_at'];
+
+    /** "Aplicar visación": el monto, la tarifa y el snapshot, con quién, cuándo y por qué (y la firma vuelve a pedirse). */
+    private const CAMPOS_DE_APLICACION = [...self::CAMPOS_DE_TARIFADO, 'visacion_aplicada_en', 'visacion_aplicada_por', 'motivo_aplicacion', 'firma_recibida_en', 'firma_recibida_por'];
 
     private const CAMPOS_DE_ANULACION = ['estado_id', 'anulada_en', 'motivo_anulacion', 'anulada_por', 'updated_at'];
 
@@ -54,6 +80,8 @@ class Prestacion extends Model
             'fecha_servicio' => 'date',
             'tarifada_en' => 'datetime',
             'anulada_en' => 'datetime',
+            'firma_recibida_en' => 'datetime',
+            'visacion_aplicada_en' => 'datetime',
         ];
     }
 
@@ -62,8 +90,11 @@ class Prestacion extends Model
         static::updating(function (Prestacion $prestacion) {
             $desde = Estado::find($prestacion->getOriginal('estado_id'))?->codigo;
             $hacia = Estado::find($prestacion->estado_id)?->codigo;
+            $aplica = $prestacion->isDirty('visacion_aplicada_en') && $prestacion->visacion_aplicada_en !== null;
             $permitidos = match (true) {
+                in_array($desde, [Estado::PENDIENTE, Estado::TARIFADO], true) && $hacia === Estado::TARIFADO && $prestacion->monto !== null && $aplica => self::CAMPOS_DE_APLICACION,
                 $desde === Estado::PENDIENTE && $hacia === Estado::TARIFADO && $prestacion->monto !== null => self::CAMPOS_DE_TARIFADO,
+                $desde === Estado::TARIFADO && $hacia === Estado::TARIFADO => self::CAMPOS_DE_FIRMA,
                 in_array($desde, [Estado::PENDIENTE, Estado::TARIFADO], true) && $hacia === Estado::ANULADO => self::CAMPOS_DE_ANULACION,
                 default => null,
             };
@@ -121,10 +152,53 @@ class Prestacion extends Model
         return $this->belongsTo(Tarifa::class);
     }
 
-    /** Su reparto (docs/reparto-economico.md), si ya se calculó: uno por prestación. */
+    /**
+     * Su reparto (docs/reparto-economico.md), si ya se calculó: uno por prestación entre los no anulados. Al aplicar una visación que
+     * cambia el total, el anterior se anula y se calcula otro: es el último.
+     */
     public function reparto(): HasOne
     {
-        return $this->hasOne(RepartoPrestacion::class);
+        return $this->hasOne(RepartoPrestacion::class)->latestOfMany();
+    }
+
+    public function responsablePago(): BelongsTo
+    {
+        return $this->belongsTo(ResponsablePago::class);
+    }
+
+    public function convenio(): BelongsTo
+    {
+        return $this->belongsTo(Convenio::class);
+    }
+
+    public function plan(): BelongsTo
+    {
+        return $this->belongsTo(PlanConvenio::class, 'plan_convenio_id');
+    }
+
+    public function visacion(): BelongsTo
+    {
+        return $this->belongsTo(Visacion::class);
+    }
+
+    public function lineaVisacion(): BelongsTo
+    {
+        return $this->belongsTo(LineaVisacion::class);
+    }
+
+    public function tarifaConvenio(): BelongsTo
+    {
+        return $this->belongsTo(TarifaConvenio::class);
+    }
+
+    public function firmaRecibidaPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'firma_recibida_por');
+    }
+
+    public function visacionAplicadaPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'visacion_aplicada_por');
     }
 
     /** Su cobro vigente (docs/cobros-caja.md), si tiene: a lo sumo uno. */
@@ -153,6 +227,24 @@ class Prestacion extends Model
         return $this->tieneEstado(Estado::ANULADO);
     }
 
+    public function deAseguradora(): bool
+    {
+        return $this->pagador === self::ASEGURADORA;
+    }
+
+    /** Lo que se le cobra a la paciente: su parte (en las anteriores a los convenios, el monto). Null sin monto. */
+    public function montoPaciente(): ?int
+    {
+        $monto = $this->monto_paciente ?? $this->monto;
+
+        return $monto === null ? null : (int) round((float) $monto);
+    }
+
+    public function pagadorTexto(): string
+    {
+        return self::PAGADORES[$this->pagador ?? self::PACIENTE];
+    }
+
     public function origenTexto(): string
     {
         return self::ORIGENES[$this->informe_estudio_id ? 'INFORME' : 'CONSULTA'];
@@ -164,7 +256,8 @@ class Prestacion extends Model
     }
 
     /**
-     * El estado de cobro, derivado de si tiene un cobro vigente: "Cobrada" o "Pendiente" (vacío en una anulada sin cobro). Usa
+     * El estado de cobro, derivado de si tiene un cobro vigente y de la parte de la paciente: "Cobrada", "Pendiente" o "A cargo de
+     * aseguradora" (sin nada que cobrarle a la paciente); vacío en una anulada sin cobro. Usa
      * `cobro_vigente_exists` (withExists('cobroVigente')) si se cargó.
      */
     public function estadoCobroTexto(): string
@@ -175,6 +268,7 @@ class Prestacion extends Model
         return match (true) {
             (bool) $cobrada => self::COBRADA,
             $this->anulada() => '',
+            $this->monto !== null && $this->montoPaciente() === 0 => self::A_CARGO_DE_ASEGURADORA,
             default => self::PENDIENTE_DE_COBRO,
         };
     }
@@ -182,5 +276,16 @@ class Prestacion extends Model
     public function montoTexto(): string
     {
         return $this->monto === null ? '—' : $this->moneda->formatear($this->monto);
+    }
+
+    /** La parte de la paciente ("₲ 100.000"), o "—" sin monto. */
+    public function montoPacienteTexto(): string
+    {
+        return $this->monto === null ? '—' : $this->moneda->formatear($this->montoPaciente());
+    }
+
+    public function montoAseguradoraTexto(): string
+    {
+        return $this->monto === null ? '—' : $this->moneda->formatear((int) round((float) ($this->monto_aseguradora ?? 0)));
     }
 }

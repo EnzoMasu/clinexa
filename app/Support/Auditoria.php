@@ -16,7 +16,9 @@ use App\Models\CategoriaProveedor;
 use App\Models\Ciudad;
 use App\Models\Cobro;
 use App\Models\CobroPrestacion;
+use App\Models\CoberturaPaciente;
 use App\Models\Consulta;
+use App\Models\Convenio;
 use App\Models\ConstanciaEstado;
 use App\Models\ConstanciaRetiro;
 use App\Models\ConsultaVersion;
@@ -38,6 +40,7 @@ use App\Models\Indicacion;
 use App\Models\InformeEstudio;
 use App\Models\LineaCobro;
 use App\Models\LineaReparto;
+use App\Models\LineaVisacion;
 use App\Models\MedioPago;
 use App\Models\ModuloSistema;
 use App\Models\OrigenTurno;
@@ -47,6 +50,7 @@ use App\Models\ParametroClinico;
 use App\Models\PerfilAcceso;
 use App\Models\Persona;
 use App\Models\PersonalSalud;
+use App\Models\PlanConvenio;
 use App\Models\Prestacion;
 use App\Models\Procedimiento;
 use App\Models\Profesional;
@@ -61,6 +65,7 @@ use App\Models\SalidaSinAtencion;
 use App\Models\SolicitudReversionCobro;
 use App\Models\Sucursal;
 use App\Models\Tarifa;
+use App\Models\TarifaConvenio;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
 use App\Models\TipoEquipo;
@@ -68,6 +73,7 @@ use App\Models\TipoIndicacion;
 use App\Models\TipoRedSocial;
 use App\Models\Turno;
 use App\Models\User;
+use App\Models\Visacion;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -128,6 +134,9 @@ final class Auditoria
         Caja::class, CierreCaja::class, CierreCajaMedio::class, Cobro::class, CobroPrestacion::class, LineaCobro::class,
         // Solicitudes de reversión de un cobro (módulo REVERSIONES_COBRO); su contenido, para quien ve los cobros.
         SolicitudReversionCobro::class,
+        // Convenios y visaciones (docs/convenios-seguros.md): el convenio antes que sus planes y tarifas, la visación antes que sus
+        // líneas (son las tablas de cada módulo). Montos y copagos solo para quien tiene VER sobre su módulo.
+        Convenio::class, PlanConvenio::class, TarifaConvenio::class, CoberturaPaciente::class, Visacion::class, LineaVisacion::class,
     ];
 
     /**
@@ -148,7 +157,10 @@ final class Auditoria
         'acuerdos_reparto' => 'ACUERDOS_REPARTO', 'repartos_prestacion' => 'REPARTOS', 'lineas_reparto' => 'REPARTOS',
         // Las cajas y sus cierres los ve quien ve las cajas (Caja y Gerencia); los cobros, quien ve los cobros (también Facturación).
         'cajas' => 'CAJAS', 'cierres_caja' => 'CAJAS', 'cierre_caja_medios' => 'CAJAS',
-        'cobros' => 'COBROS', 'cobro_prestaciones' => 'COBROS', 'lineas_cobro' => 'COBROS', 'solicitudes_reversion_cobro' => 'COBROS'];
+        'cobros' => 'COBROS', 'cobro_prestaciones' => 'COBROS', 'lineas_cobro' => 'COBROS', 'solicitudes_reversion_cobro' => 'COBROS',
+        // Convenios y visaciones (docs/convenios-seguros.md): tarifas del convenio, afiliación y copagos.
+        'convenios' => 'CONVENIOS', 'planes_convenio' => 'CONVENIOS', 'tarifas_convenio' => 'CONVENIOS',
+        'coberturas_paciente' => 'COBERTURAS', 'visaciones' => 'VISACIONES', 'lineas_visacion' => 'VISACIONES'];
 
     /**
      * Módulo cuyo VER hace falta para ver los valores de los eventos de esa tabla en la pantalla de

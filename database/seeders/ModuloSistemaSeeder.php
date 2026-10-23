@@ -92,6 +92,11 @@ class ModuloSistemaSeeder extends Seeder
             'CIERRES_CAJA' => ['Aprobación de cierres de caja', [Estado::PENDIENTE, Estado::APROBADO, Estado::DEVUELTO]],
             'COBROS' => ['Cobros', [Estado::VIGENTE, Estado::REVERTIDO]],
             'REVERSIONES_COBRO' => ['Aprobación de reversiones de cobro', [Estado::PENDIENTE, Estado::APROBADO, Estado::RECHAZADO]],
+            // Convenios (docs/convenios-seguros.md): convenios con su vigencia (y sus planes y tarifas), la cobertura de cada paciente
+            // (la abierta es VIGENTE) y las visaciones (vigentes o anuladas).
+            'CONVENIOS' => ['Convenios', [Estado::VIGENTE, Estado::HISTORICO]],
+            'COBERTURAS' => ['Coberturas de pacientes', [Estado::VIGENTE, Estado::HISTORICO]],
+            'VISACIONES' => ['Visaciones', [Estado::VIGENTE, Estado::ANULADO]],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

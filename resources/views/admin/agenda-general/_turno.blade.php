@@ -10,6 +10,7 @@
     <div class="mt-1 font-medium">{{ $turno->paciente->persona->nombre_completo }}</div>
     <div class="text-xs text-gray-500 dark:text-gray-400">Ficha {{ $turno->paciente->nro_ficha }}</div>
     <div class="mt-1">@include('admin.preparacion._estado', ['consulta' => $turno->consulta])</div>
+    @include('admin.coberturas._visacion-turno')
     @if ($puedeCambiarEstado)
         <div class="mt-1 flex flex-wrap gap-3">
             @foreach ($turno->accionesPosibles() as $accion)

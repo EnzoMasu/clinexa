@@ -64,7 +64,7 @@ class PerfilesPredefinidos
         self::ENFERMERIA => 'Triaje (anamnesis y signos vitales)',
         self::RECEPCION => 'Agenda, turnos, disponibilidades y alta de personas y pacientes',
         self::CAJA => 'Lectura de pacientes, medios de pago y procedimientos',
-        self::FACTURACION => 'Lectura de responsables de pago, procedimientos y medios de pago',
+        self::FACTURACION => 'Convenios con aseguradoras, visaciones y lectura de responsables de pago, procedimientos y medios de pago',
         self::COMPRAS_TESORERIA => 'Proveedores y sus categorías, categorías de gasto',
         self::SUPERVISION_MEDICA => 'Lectura de historias clínicas, recetas, pacientes, profesionales y auditoría',
         self::AUDITOR => 'Lectura de la auditoría',
@@ -95,8 +95,11 @@ class PerfilesPredefinidos
 
     private const TODO = ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'];
 
+    /** Visaciones: VER, CREAR (cargar), EDITAR (aplicar y firma recibida), DESACTIVAR (anular) y EXPORTAR (el ticket). */
+    private const VISACIONES_TODO = ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR', 'EXPORTAR'];
+
     /**
-     * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO: no hay otra exportación; TURNOS no tiene
+     * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO y en VISACIONES, el ticket; TURNOS no tiene
      * DESACTIVAR: un turno se cancela, con EDITAR). Ningún perfil, salvo ADMINISTRADOR, escribe en USUARIOS
      * ni en PERFILES_ACCESO (lo verifica PerfilesPredefinidosTest).
      */
@@ -120,6 +123,8 @@ class PerfilesPredefinidos
             'COBROS' => self::VER, 'CAJAS' => self::VER, 'CIERRES_CAJA' => ['VER', 'EDITAR'],
             // Reversiones de cobro: aprueba o rechaza las solicitudes. No revierte (no tiene caja).
             'REVERSIONES_COBRO' => ['VER', 'EDITAR'],
+            // Convenios (docs/convenios-seguros.md): administra convenios, planes y sus tarifas; ve coberturas y visaciones y genera el ticket.
+            'CONVENIOS' => self::TODO, 'COBERTURAS' => self::VER, 'VISACIONES' => ['VER', 'EXPORTAR'],
         ],
         // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
         // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones
@@ -149,6 +154,8 @@ class PerfilesPredefinidos
             'CONSTANCIAS_RETIRO' => self::VER_CREAR_EDITAR,
             // Económico: solo ver tarifas y prestaciones.
             'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
+            // Convenios (docs/convenios-seguros.md): carga la cobertura y las visaciones, aplica visaciones, marca la firma y genera el ticket.
+            'COBERTURAS' => self::VER_CREAR_EDITAR, 'VISACIONES' => self::VISACIONES_TODO,
         ],
         // Caja: abre y cierra su caja, cobra y revierte (o solicita revertir) un cobro (docs/cobros-caja.md). Facturación ve los cobros. Compras: sus módulos todavía no
         // existen. Nada clínico.
@@ -161,6 +168,8 @@ class PerfilesPredefinidos
             'RESPONSABLES_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER, 'MEDIOS_PAGO' => self::VER,
             'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
             'COBROS' => self::VER,
+            // Convenios (docs/convenios-seguros.md): los administra, y también carga coberturas y visaciones, la firma y el ticket.
+            'CONVENIOS' => self::TODO, 'COBERTURAS' => self::VER_CREAR_EDITAR, 'VISACIONES' => self::VISACIONES_TODO,
         ],
         self::COMPRAS_TESORERIA => [
             'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::VER,
@@ -201,6 +210,16 @@ class PerfilesPredefinidos
     public const PERMISOS_REVERSIONES_COBRO = [
         'COBROS' => [self::CAJA => ['DESACTIVAR']],
         'REVERSIONES_COBRO' => [self::GERENCIA => ['VER', 'EDITAR']],
+    ];
+
+    /**
+     * Lo que la migración de convenios y visaciones (2026_10_30_100001) suma a los perfiles existentes. Lo mismo que la matriz para
+     * esos tres módulos. Caja cobra la parte de la paciente sin módulo nuevo; Médico, Enfermería y los demás, nada.
+     */
+    public const PERMISOS_CONVENIOS = [
+        'CONVENIOS' => [self::GERENCIA => self::TODO, self::FACTURACION => self::TODO],
+        'COBERTURAS' => [self::GERENCIA => self::VER, self::RECEPCION => self::VER_CREAR_EDITAR, self::FACTURACION => self::VER_CREAR_EDITAR],
+        'VISACIONES' => [self::GERENCIA => ['VER', 'EXPORTAR'], self::RECEPCION => self::VISACIONES_TODO, self::FACTURACION => self::VISACIONES_TODO],
     ];
 
     /**

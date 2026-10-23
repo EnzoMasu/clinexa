@@ -41,8 +41,13 @@ class RegistroEconomicoInmutable extends LogicException
         return new self('Un cobro no se edita: sus prestaciones, líneas y movimientos quedan como se registraron.');
     }
 
+    public static function convenio(): self
+    {
+        return new self('Un convenio, su tarifa, una cobertura o una visación no se editan: se cierran (o se anulan) y se carga otra.');
+    }
+
     public static function borrado(): self
     {
-        return new self('Las tarifas, las prestaciones, los acuerdos, los repartos, las cajas y los cobros no se borran.');
+        return new self('Las tarifas, las prestaciones, los acuerdos, los repartos, las cajas, los cobros, los convenios y las visaciones no se borran.');
     }
 }

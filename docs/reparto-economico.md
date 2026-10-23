@@ -51,7 +51,9 @@ paciente ni reserva en la agenda: son fases futuras. Nada se borra. Ver también
 - **Nunca frena** la finalización ni el tarifado: corre en un punto de guardado propio; si falla, se deshace solo lo suyo, se
   reporta en el log y queda un evento **FALLO** en Auditoría (tabla `repartos_prestacion`, solo prestación, profesional y fecha de
   servicio, sin contenido clínico). La prestación queda sin reparto y aparece entre las pendientes.
-- **Fijo**: un reparto hecho no cambia aunque cambien los acuerdos.
+- **Fijo**: un reparto hecho no cambia aunque cambien los acuerdos. Siempre sobre el monto total, pague la paciente o una aseguradora
+  (`docs/convenios-seguros.md`). La única excepción: "Aplicar visación" que cambia el total anula el reparto (con sus líneas) y calcula
+  otro; por eso el único por prestación es entre los no anulados (`repartos_prestacion_uno_vigente`).
 - **Anular** la prestación anula su reparto ("Prestación anulada: motivo"); las líneas se conservan.
 - La adenda y el desbloqueo no pasan por Finalizar: no crean otra prestación ni otro reparto.
 - **Prestaciones anteriores** a esta migración no se reparten: la migración guarda el hito `REPARTOS` en `hitos_sistema`; solo
