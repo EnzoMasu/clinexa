@@ -10,7 +10,7 @@
     $clases = 'mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm';
     $boton = 'inline-flex items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700';
     $botonPrincipal = 'inline-flex items-center rounded-md bg-gray-800 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white';
-    $secciones = ['anamnesis' => 'Anamnesis', 'examen' => 'Examen físico', 'motivo' => 'Motivo y diagnósticos', 'indicaciones' => 'Indicaciones', 'estudios' => 'Estudios'];
+    $secciones = ['anamnesis' => 'Anamnesis', 'examen' => 'Examen físico', 'motivo' => 'Motivo y diagnósticos', 'indicaciones' => 'Indicaciones', 'estudios' => 'Informe de estudio'];
     // Historial (panel lateral): para el popup, los ids en el orden mostrado y las URL con marcador.
     $idsHistorial = $historial->pluck('id')->values()->all();
 @endphp
@@ -24,7 +24,7 @@
         })" x-on:keydown.escape.window="historialAbierto = false">
         {{-- Barra fija: paciente, estado del guardado y acciones. --}}
         <div class="sticky top-0 z-30 space-y-3 rounded-t-lg border-b border-gray-200 bg-white px-6 py-3 dark:border-gray-700 dark:bg-gray-800">
-            @include('admin.consultas._barra-paciente')
+            @include('admin.consultas._barra-paciente', ['enPantalla' => true])
             @include('admin.consultas._franja-triaje')
 
             <div class="flex flex-wrap items-center justify-between gap-3">

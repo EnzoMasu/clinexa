@@ -213,13 +213,13 @@ describe('pantalla de atención', function () {
         $this->get(route('admin.consultas.atencion', $anulada))->assertNotFound();
     });
 
-    test('barra fija, secciones (con "Estudios": los informes de estudio) y el panel inicial (Anamnesis sin bloques; si no, Motivo y diagnósticos)', function () {
+    test('barra fija, secciones (con "Informe de estudio") y el panel inicial (Anamnesis sin bloques; si no, Motivo y diagnósticos)', function () {
         $consulta = hcEnCurso(hcTurno());
 
         $this->get(route('admin.consultas.atencion', $consulta))->assertOk()
             ->assertSeeInOrder(['Duarte, Carmen', 'Turno 08:00', 'En consulta desde 09:00', 'Guardar ahora',
                 'Finalizar consulta', 'Deshacer atención', 'Volver a la lista',
-                'Anamnesis', 'Examen físico', 'Motivo y diagnósticos', 'Indicaciones', 'Estudios', 'Informes de estudio'])
+                'Anamnesis', 'Examen físico', 'Motivo y diagnósticos', 'Indicaciones', 'Informe de estudio'])
             ->assertDontSee('Próximamente')
             ->assertViewHas('panelInicial', 'anamnesis');
 

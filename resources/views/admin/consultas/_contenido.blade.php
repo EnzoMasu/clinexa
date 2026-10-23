@@ -131,7 +131,7 @@
     @endif
 
     @if ($indicaciones->isNotEmpty())
-        <section>
+        <section id="indicaciones-consulta">
             <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Indicaciones generales</h4>
             <ul class="mt-1 space-y-1">
                 @foreach ($indicaciones as $indicacion)
@@ -151,7 +151,7 @@
 
     {{-- Informes de estudio (docs/informes-estudio.md): el PDF, solo de los vigentes y a quien puede generarlo (se abre en otra pestaña). --}}
     @if ($informes->isNotEmpty())
-        <section data-informes-estudio>
+        <section id="informes-estudio-consulta" data-informes-estudio>
             <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Informes de estudio</h4>
             <ul class="mt-1 space-y-2">
                 @foreach ($informes as $informe)

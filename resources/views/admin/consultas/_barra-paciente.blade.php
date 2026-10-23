@@ -25,7 +25,5 @@
         @endif
         · {{ $consulta->profesional->persona->nombre_completo }}
     </span>
-    @include('admin.consultas._enlaces-pdf')
-    @include('admin.reposos._enlace')
-    @include('admin.ordenes-estudio._enlace')
+    @include('admin.consultas._documentos')
 </div>

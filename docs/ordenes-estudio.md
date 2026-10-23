@@ -19,7 +19,7 @@ La regla está en `OrdenEstudioPolicy`. Módulo nuevo **`ORDENES_ESTUDIO`** (Cl�
 - Matriz: Médico VER, CREAR y EDITAR; Supervisión médica solo VER (como en el reposo); el Administrador lo recibe solo.
   Recepción no ve nada.
 - Se emite con la consulta **en curso** o **finalizada**; no en triaje ni anulada. Emitirla no modifica la consulta.
-- Entrada: enlace **"Órdenes de estudio"** en la barra del paciente (atención) y en la consulta cerrada; abre en otra pestaña
+- Entrada: botón **"Pedir estudio"** en la barra "Documentos de la consulta" (atención y consulta cerrada); abre en otra pestaña
   la lista de órdenes de la consulta, con el formulario para el profesional.
 - Rutas: `admin.ordenes-estudio.consulta`, `.emitir`, `.show`, `.pdf`, `.anular`. No hay DELETE.
 

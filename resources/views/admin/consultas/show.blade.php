@@ -16,10 +16,11 @@
                     class="text-sm text-gray-600 hover:underline dark:text-gray-400">Volver a la historia</a>
                 <a href="{{ route('admin.atencion.index') }}" data-volver-consulta
                     class="text-sm text-gray-600 hover:underline dark:text-gray-400">Volver a Consulta</a>
-                @include('admin.consultas._enlaces-pdf')
-                @include('admin.reposos._enlace')
-                @include('admin.ordenes-estudio._enlace')
             </div>
+        </div>
+
+        <div class="flex flex-wrap">
+            @include('admin.consultas._documentos', ['enContenido' => true])
         </div>
 
         @include('admin.consultas._contenido', ['consulta' => $consulta])
