@@ -254,8 +254,10 @@ describe('contenido', function () {
 });
 
 describe('el catálogo de estudios', function () {
+    // Salvo los datos de DESARROLLO (EconomiaDemo, solo por clinexa:datos-demo, que se niega a correr en producción).
     test('nace vacío: ningún seeder ni migración carga estudios', function () {
-        $archivos = collect(File::allFiles(database_path('seeders')))->merge(File::allFiles(database_path('migrations')));
+        $archivos = collect(File::allFiles(database_path('seeders')))->merge(File::allFiles(database_path('migrations')))
+            ->reject(fn ($archivo) => $archivo->getPathname() === database_path('seeders/Demo/EconomiaDemo.php'));
         $conEstudios = $archivos->filter(fn ($archivo) => preg_match('/Estudio::(create|firstOrCreate|updateOrCreate|insert)|table\(\'estudios\'\)->insert/', File::get($archivo->getPathname())));
 
         expect($conEstudios->all())->toBe([]);

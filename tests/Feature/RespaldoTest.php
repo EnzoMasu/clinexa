@@ -37,6 +37,12 @@ afterEach(function () {
     File::deleteDirectory(dirname($this->carpeta));
 });
 
+/** Nombre del ejecutable como lo arma Respaldos::herramienta(): con .exe solo en Windows. */
+function respaldoEjecutable(string $nombre): string
+{
+    return PHP_OS_FAMILY === 'Windows' ? "{$nombre}.exe" : $nombre;
+}
+
 /** Simula las herramientas: pg_dump escribe un archivo y pg_restore --list lista 3 tablas. */
 function simularHerramientas(string $listado = "; Archive\n201; 1259 16390 TABLE public personas postgres\n202; 1259 16391 TABLE public pacientes postgres\n203; 1259 16392 TABLE public users postgres\n3401; 0 16390 TABLE DATA public personas postgres\n"): void
 {
@@ -64,7 +70,7 @@ test('respalda en la carpeta configurada (la crea), con nombre en hora de Paragu
     expect(File::exists($ruta))->toBeTrue();
 
     Process::assertRan(fn (PendingProcess $p) => basename($p->command[0], '.exe') === 'pg_restore' && $p->command === [
-        'C:\\Program Files\\PostgreSQL\\18\\bin'.DIRECTORY_SEPARATOR.'pg_restore.exe', '--list', $ruta,
+        'C:\\Program Files\\PostgreSQL\\18\\bin'.DIRECTORY_SEPARATOR.respaldoEjecutable('pg_restore'), '--list', $ruta,
     ]);
 });
 
@@ -91,7 +97,7 @@ test('las rutas con espacios van como un único argumento, sin comillas ni conso
         $destino = $p->command[array_search('-f', $p->command, true) + 1] ?? null;
 
         return is_array($p->command)
-            && $p->command[0] === 'C:\\Program Files\\PostgreSQL\\18\\bin'.DIRECTORY_SEPARATOR.'pg_dump.exe'
+            && $p->command[0] === 'C:\\Program Files\\PostgreSQL\\18\\bin'.DIRECTORY_SEPARATOR.respaldoEjecutable('pg_dump')
             && $destino === $this->carpeta.DIRECTORY_SEPARATOR.'clinexa-20261008-1505.dump'
             && end($p->command) === 'base_simulada';
     });

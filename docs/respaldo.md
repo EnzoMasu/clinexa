@@ -7,13 +7,14 @@
 
 ## Respaldar
 
-```powershell
+```bash
 php artisan clinexa:respaldo
 ```
 
 - Respalda la base configurada (`DB_DATABASE` del `.env`) con `pg_dump` en formato custom (`-Fc`).
-- Guarda el archivo en `C:\clinexa\respaldos`, fuera del repositorio. La carpeta se cambia con la
-  variable `CLINEXA_RESPALDOS` del `.env` y se crea si no existe.
+- Guarda el archivo en la carpeta de la variable `CLINEXA_RESPALDOS` del `.env` (en este servidor,
+  `/home/enzo/clinexa-respaldos`), fuera del repositorio. Se crea si no existe. **En Linux hay que
+  definirla:** si falta, se usa el valor por defecto de `config/clinexa.php`, que es una ruta de Windows.
 - El nombre es `clinexa-AAAAMMDD-HHMM.dump`, en hora de Paraguay. Si ya hay uno de ese mismo
   minuto, agrega `-2`, `-3`, etc.; nunca pisa uno existente.
 - Al terminar verifica el archivo con `pg_restore --list` y muestra la ruta, el tamaño y la cantidad
@@ -21,12 +22,13 @@ php artisan clinexa:respaldo
 - No borra respaldos viejos: solo informa cuántos hay. Borrarlos es una decisión manual.
 - La contraseña se toma de la configuración y se pasa a `pg_dump` solo por la variable de entorno
   `PGPASSWORD` del proceso: no aparece en la línea de comandos, en archivos ni en logs.
-- `pg_dump` y las demás herramientas se buscan en `C:\Program Files\PostgreSQL\<versión>\bin` (la
-  más nueva). Otra carpeta se indica con `CLINEXA_PG_BIN`.
+- `pg_dump` y las demás herramientas se toman del `PATH` (en Linux, `/usr/bin`, del paquete de
+  PostgreSQL). Otra carpeta se indica con `CLINEXA_PG_BIN`. En Windows, sin esa variable, se busca la
+  versión más nueva en `C:\Program Files\PostgreSQL\<versión>\bin`.
 
 ### Probar que el respaldo se puede restaurar
 
-```powershell
+```bash
 php artisan clinexa:respaldo --probar
 ```
 
@@ -47,27 +49,28 @@ Conviene correr `--probar` de vez en cuando: un respaldo que nunca se probó no 
 Restaurar reemplaza datos: hágalo con calma, con el sistema detenido y con un respaldo recién hecho
 de la base actual (aunque esté dañada), por si hay que volver atrás.
 
-Las herramientas están en `C:\Program Files\PostgreSQL\18\bin` (ajuste la versión). En los ejemplos,
-`-W` hace que pidan la contraseña por teclado: así no queda en el historial de la consola.
+Las herramientas (`createdb`, `pg_restore`, `psql`) están en el `PATH`. En los ejemplos, `-W` hace que
+pidan la contraseña por teclado: así no queda en el historial de la consola. El usuario es el dueño de
+las bases de la clínica (`clinexa`, que tiene permiso para crear bases).
 
 1. Respaldar la base actual:
 
-   ```powershell
+   ```bash
    php artisan clinexa:respaldo
    ```
 
 2. Restaurar primero en una base nueva y revisarla (no toca la base en uso):
 
-   ```powershell
-   & "C:\Program Files\PostgreSQL\18\bin\createdb.exe" -h 127.0.0.1 -U postgres -W clinexa_restaurada
-   & "C:\Program Files\PostgreSQL\18\bin\pg_restore.exe" -h 127.0.0.1 -U postgres -W --no-owner --no-privileges -d clinexa_restaurada "C:\clinexa\respaldos\clinexa-AAAAMMDD-HHMM.dump"
+   ```bash
+   createdb -h 127.0.0.1 -U clinexa -W clinexa_restaurada
+   pg_restore -h 127.0.0.1 -U clinexa -W --no-owner --no-privileges -d clinexa_restaurada /home/enzo/clinexa-respaldos/clinexa-AAAAMMDD-HHMM.dump
    ```
 
    Para revisarla, se puede apuntar una copia del sistema a `clinexa_restaurada` (`DB_DATABASE` en
    un `.env` aparte) o consultarla con `psql`.
 
-3. Si está bien, ponerla en lugar de la actual. Con el sistema detenido, desde `psql` conectado a
-   la base `postgres`:
+3. Si está bien, ponerla en lugar de la actual. Con el sistema detenido, desde
+   `psql -h 127.0.0.1 -U clinexa -W -d postgres`:
 
    ```sql
    ALTER DATABASE clinexa RENAME TO clinexa_anterior;

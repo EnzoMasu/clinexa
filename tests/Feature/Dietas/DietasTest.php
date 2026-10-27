@@ -28,9 +28,11 @@ function dietasCrear(string $nombre, string $texto, string $estado = Estado::ACT
 }
 
 describe('el catálogo', function () {
+    // Salvo los datos de DESARROLLO (EconomiaDemo, solo por clinexa:datos-demo, que se niega a correr en producción).
     test('nace vacío: ningún seeder ni migración carga dietas', function () {
         expect(Dieta::count())->toBe(0);
-        $archivos = collect(File::allFiles(database_path('seeders')))->merge(File::allFiles(database_path('migrations')));
+        $archivos = collect(File::allFiles(database_path('seeders')))->merge(File::allFiles(database_path('migrations')))
+            ->reject(fn ($archivo) => $archivo->getPathname() === database_path('seeders/Demo/EconomiaDemo.php'));
         $conDietas = $archivos->filter(fn ($archivo) => preg_match('/Dieta::(create|firstOrCreate|updateOrCreate|insert)|table\(\'dietas\'\)->insert/', File::get($archivo->getPathname())));
 
         expect($conDietas->all())->toBe([]);
