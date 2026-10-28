@@ -167,29 +167,28 @@ test('desactivar el predeterminado conserva la marca pero no se preelige hasta r
 });
 
 test('destildar un módulo no rompe las personas que ya usan ese tipo de documento', function () {
-    $empresa = Persona::factory()->create([
-        'tipo_persona' => 'JURIDICA', 'razon_social' => 'Laboratorio Central S.A.', 'apellidos' => null, 'nombres' => null,
-        'tipo_documento_id' => $this->ruc->id, 'nro_documento' => '80012345-6',
-    ]);
+    $pasaporte = TipoDocumento::create(['codigo' => 'PASAPORTE', 'nombre' => 'Pasaporte']);
+    $this->personas->configurarTiposDocumento(['CI', 'RUC', 'PASAPORTE']);
+    $viajera = Persona::factory()->create(['tipo_documento_id' => $pasaporte->id, 'nro_documento' => 'X1234567', 'apellidos' => 'Ejemplo', 'nombres' => 'Viajera']);
 
-    editarTipo($this->ruc, ['modulos' => []])->assertSessionHasNoErrors();
+    editarTipo($pasaporte, ['modulos' => []])->assertSessionHasNoErrors();
 
     // La persona sigue igual, se lista y se puede editar conservando su tipo.
-    expect($empresa->fresh()->tipo_documento_id)->toBe($this->ruc->id)
-        ->and(TipoDocumento::whereKey($this->ruc->id)->exists())->toBeTrue();
-    $this->get(route('admin.personas.index'))->assertOk()->assertSee('Laboratorio Central S.A.');
-    $this->get(route('admin.personas.edit', $empresa))->assertOk()->assertSee('RUC');
-    $this->put(route('admin.personas.update', $empresa), enFormulario([
-        'tipo_persona' => 'JURIDICA', 'tipo_documento_id' => $this->ruc->id, 'nro_documento' => '80012345-6',
-        'razon_social' => 'Laboratorio Central S.A. (nuevo nombre)', 'email' => 'lab@example.com',
+    expect($viajera->fresh()->tipo_documento_id)->toBe($pasaporte->id)
+        ->and(TipoDocumento::whereKey($pasaporte->id)->exists())->toBeTrue();
+    $this->get(route('admin.personas.index'))->assertOk()->assertSee('Ejemplo, Viajera');
+    $this->get(route('admin.personas.edit', $viajera))->assertOk()->assertSee('PASAPORTE');
+    $datos = [
+        'tipo_persona' => 'FISICA', 'tipo_documento_id' => $pasaporte->id, 'nro_documento' => 'X1234567',
+        'apellidos' => 'Ejemplo', 'nombres' => 'Viajera', 'fecha_nacimiento' => '1990-05-10', 'email' => 'viajera@example.com',
         'telefono' => '021 000 000', 'direccion' => 'Asunción', 'estado_id' => estadoId('ACTIVO'),
-    ]))->assertSessionHasNoErrors();
-    expect($empresa->fresh())->razon_social->toBe('Laboratorio Central S.A. (nuevo nombre)')->tipo_documento_id->toBe($this->ruc->id);
+    ];
+    $this->put(route('admin.personas.update', $viajera), enFormulario([...$datos, 'nombres' => 'Viajera Nueva']))->assertSessionHasNoErrors();
+    expect($viajera->fresh())->nombres->toBe('Viajera Nueva')->tipo_documento_id->toBe($pasaporte->id);
 
     // Lo que cambia: ya no se ofrece para personas nuevas.
-    $this->post(route('admin.personas.store'), enFormulario([
-        'tipo_persona' => 'JURIDICA', 'tipo_documento_id' => $this->ruc->id, 'nro_documento' => '80099999-1', 'razon_social' => 'Otra S.A.',
-    ]))->assertSessionHasErrors('tipo_documento_id');
+    $this->post(route('admin.personas.store'), enFormulario([...$datos, 'nro_documento' => 'X7654321', 'email' => 'otra@example.com']))
+        ->assertSessionHasErrors('tipo_documento_id');
 });
 
 test('el listado muestra en qué módulos está habilitado y dónde es predeterminado', function () {

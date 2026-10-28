@@ -105,6 +105,7 @@ abstract class RolPersonaController extends Controller
             ->withCount($this->conteosListado())
             ->when($busqueda !== '', fn ($query) => $query->where(function ($query) use ($busqueda, $tabla) {
                 $query->whereLike('personas.nro_documento', "{$busqueda}%")
+                    ->orWhereLike('personas.ruc', "{$busqueda}%")
                     ->orWhereLike('personas.apellidos', "%{$busqueda}%")
                     ->orWhereLike('personas.nombres', "%{$busqueda}%")
                     ->orWhereLike('personas.razon_social', "%{$busqueda}%");

@@ -139,7 +139,7 @@ final class ArmarLiquidacion
         return [
             'prestacion_id' => $prestacion->id,
             'paciente' => mb_substr($persona->nombre_completo, 0, 200),
-            'documento' => mb_substr(trim(($persona->tipoDocumento?->codigo ?? '').' '.$persona->nro_documento), 0, 40),
+            'documento' => mb_substr($persona->documentoPrincipal(), 0, 40),
             'numero_asegurado' => (string) $prestacion->visacion->cobertura->numero_asegurado,
             'fecha_servicio' => $prestacion->fecha_servicio->format('Y-m-d'),
             'procedimiento' => mb_substr($prestacion->procedimiento?->nombre ?? 'Sin procedimiento', 0, 150),

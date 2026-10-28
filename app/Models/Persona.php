@@ -21,6 +21,9 @@ class Persona extends Model
 
     public const CAMPOS_JURIDICA = ['razon_social', 'nombre_fantasia', 'representante_legal'];
 
+    /** Documentos que identifican a una persona física (el RUC es un campo aparte; ver docs/ruc.md). PAS: código anterior del pasaporte. */
+    public const DOCUMENTOS_FISICA = ['CI', 'PASAPORTE', 'PAS'];
+
     public const SEXOS = ['M' => 'Masculino', 'F' => 'Femenino', 'OTRO' => 'Otro'];
 
     public const ESTADOS_CIVILES = ['SOLTERO', 'CASADO', 'VIUDO', 'UNIDO', 'SEPARADO', 'DIVORCIADO'];
@@ -31,6 +34,7 @@ class Persona extends Model
         'tipo_persona',
         'tipo_documento_id',
         'nro_documento',
+        'ruc',
         'apellidos',
         'nombres',
         'fecha_nacimiento',
@@ -124,6 +128,35 @@ class Persona extends Model
     public function edad(): ?int
     {
         return $this->fecha_nacimiento ? (int) $this->fecha_nacimiento->diffInYears(\App\Support\Fecha::hoy()) : null;
+    }
+
+    /**
+     * Identificador para mostrar, con su tipo ("CI 4567890", "RUC 80012345-1"); vacío si no tiene ninguno. Jurídica: su RUC.
+     * Física: su CI o pasaporte (u otro documento que no sea RUC) y, si no tiene, su RUC. Los documentos viejos de tipo RUC
+     * se siguen mostrando. Único lugar que arma este texto: las vistas, PDF y servicios no deben leer tipoDocumento->codigo.
+     */
+    public function documentoPrincipal(): string
+    {
+        $documento = filled($this->nro_documento) ? trim(($this->tipoDocumento?->codigo ?? '').' '.$this->nro_documento) : '';
+        $esRuc = $this->tipoDocumento?->codigo === 'RUC';
+        $ruc = filled($this->ruc) ? 'RUC '.$this->ruc : '';
+
+        return $this->tipo_persona === 'JURIDICA'
+            ? ($ruc ?: $documento)
+            : ($documento !== '' && ! $esRuc ? $documento : ($ruc ?: $documento));
+    }
+
+    /** Persona jurídica sin RUC: se corrige a mano (no se rechaza lo ya guardado). */
+    public function faltaRuc(): bool
+    {
+        return $this->tipo_persona === 'JURIDICA' && blank($this->ruc);
+    }
+
+    /** Persona física sin CI ni pasaporte (p. ej. con su RUC como único documento). */
+    public function faltaCi(): bool
+    {
+        return $this->tipo_persona === 'FISICA'
+            && (blank($this->nro_documento) || ! in_array($this->tipoDocumento?->codigo, self::DOCUMENTOS_FISICA, true));
     }
 
     public function tipoDocumento(): BelongsTo

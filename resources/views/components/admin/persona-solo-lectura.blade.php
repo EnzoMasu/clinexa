@@ -11,7 +11,7 @@
         </div>
         <div>
             <dt class="text-gray-500 dark:text-gray-400">Documento</dt>
-            <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $persona->tipoDocumento->codigo }} {{ $persona->nro_documento }}</dd>
+            <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $persona->documentoPrincipal() }}</dd>
         </div>
     </dl>
     <p class="text-xs text-gray-500 dark:text-gray-400">

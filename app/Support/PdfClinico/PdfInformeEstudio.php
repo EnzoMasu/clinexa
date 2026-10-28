@@ -42,7 +42,7 @@ final class PdfInformeEstudio
             'logo' => public_path(config('clinexa.clinica.logo')),
             'paciente' => [
                 'nombre' => HojaReceta::nombreNatural($persona),
-                'documento' => trim(($persona->tipoDocumento?->codigo ?? '').' '.$persona->nro_documento),
+                'documento' => $persona->documentoPrincipal(),
                 'fecha_nacimiento' => $persona->fecha_nacimiento ? Fecha::mostrar($persona->fecha_nacimiento) : null,
                 'edad' => $edad === null ? null : $edad.' '.($edad === 1 ? 'año' : 'años'),
                 'ficha' => $paciente->nro_ficha,

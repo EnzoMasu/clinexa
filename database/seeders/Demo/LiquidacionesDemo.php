@@ -5,11 +5,11 @@ namespace Database\Seeders\Demo;
 use App\Models\Liquidacion;
 use App\Models\MedioPago;
 use App\Models\ResponsablePago;
-use App\Models\TipoDocumento;
 use App\Support\Fecha;
 use App\Support\Liquidaciones\ArmarLiquidacion;
 use App\Support\Liquidaciones\FlujoLiquidacion;
 use App\Support\Liquidaciones\PagosAseguradora;
+use App\Support\Ruc;
 
 /**
  * Liquidaciones demo (docs/liquidaciones-aseguradoras.md), con corte hoy, sobre las prestaciones de seguro ya firmadas de los días
@@ -23,9 +23,8 @@ class LiquidacionesDemo extends EtapaDemo
 {
     public function run(): void
     {
-        $ruc = TipoDocumento::where('codigo', 'RUC')->value('id');
         [$primera, $segunda] = array_map(fn (string $base) => ResponsablePago::whereHas('persona', fn ($query) => $query
-            ->where('tipo_documento_id', $ruc)->where('nro_documento', Ruc::conDigito($base)))->first(), array_keys(SegurosDemo::ASEGURADORAS));
+            ->where('ruc', Ruc::conDigito($base)))->first(), array_keys(SegurosDemo::ASEGURADORAS));
 
         if ($primera && ($liquidacion = $this->armar($primera))) {
             $this->como($this->correo('facturacion'), fn () => FlujoLiquidacion::enviar($this->usuario('facturacion'), $liquidacion));

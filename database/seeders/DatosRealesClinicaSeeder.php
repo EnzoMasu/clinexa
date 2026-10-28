@@ -148,10 +148,15 @@ class DatosRealesClinicaSeeder extends Seeder
 
         $luigi = Persona::firstOrCreate(['tipo_documento_id' => $ruc->id, 'nro_documento' => '4441089-1'], [
             'tipo_persona' => 'FISICA',
+            'ruc' => '4441089-1',
             'apellidos' => 'Masuzzo Zorrilla',
             'nombres' => 'Luigi Armando',
             ...$contacto,
         ]);
+
+        // Su RUC está también como documento (dato real ya cargado): en una base cargada antes del campo RUC, se completa.
+        $luigi->ruc ??= '4441089-1';
+        $luigi->isDirty('ruc') && $luigi->save();
 
         $profesional = Profesional::firstOrCreate(['persona_id' => $luigi->id], ['matricula' => '15523']);
         // fecha_desde aproximada (no se conoce la real); sin número de matrícula de especialidad.
@@ -171,10 +176,14 @@ class DatosRealesClinicaSeeder extends Seeder
 
         $clara = Persona::firstOrCreate(['tipo_documento_id' => $ruc->id, 'nro_documento' => '421964-3'], [
             'tipo_persona' => 'FISICA',
+            'ruc' => '421964-3',
             'apellidos' => 'Zorrilla de Masuzzo',
             'nombres' => 'Clara Daniela',
             ...$contacto,
         ]);
+
+        $clara->ruc ??= '421964-3';
+        $clara->isDirty('ruc') && $clara->save();
 
         // Sin límite de crédito definido.
         ResponsablePago::firstOrCreate(['persona_id' => $clara->id], ['limite_credito' => null]);

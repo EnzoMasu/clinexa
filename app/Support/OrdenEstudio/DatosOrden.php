@@ -42,7 +42,7 @@ final class DatosOrden
             'fecha' => $hoy->format('Y-m-d'),
             'paciente' => [
                 'nombre' => HojaReceta::nombreNatural($persona),
-                'documento' => trim($persona->tipoDocumento->codigo.' '.$persona->nro_documento),
+                'documento' => $persona->documentoPrincipal(),
                 'fecha_nacimiento' => $persona->fecha_nacimiento?->format('Y-m-d'),
                 // Edad cumplida el día de la emisión.
                 'edad' => $persona->fecha_nacimiento ? (int) $persona->fecha_nacimiento->diffInYears($hoy) : null,

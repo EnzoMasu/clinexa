@@ -12,13 +12,14 @@ use App\Models\Paciente;
 use App\Models\Persona;
 use App\Models\Procedimiento;
 use App\Models\Turno;
+use App\Models\TipoDocumento;
 use App\Models\User;
 use Carbon\Carbon;
 use Database\Seeders\DatosRealesClinicaSeeder;
 use Database\Seeders\Demo\BaseClinica;
 use Database\Seeders\Demo\DiasDemo;
 use Database\Seeders\Demo\EconomiaDemo;
-use Database\Seeders\Demo\Ruc;
+use App\Support\Ruc;
 use Database\Seeders\GeografiaSeeder;
 use Database\Seeders\ModuloSistemaSeeder;
 use Database\Seeders\PerfilAdministradorSeeder;
@@ -104,6 +105,31 @@ test('es idempotente: correrlo dos veces no duplica nada', function () use ($cor
 
     expect($conteos())->toBe($antes)
         ->and(User::where('email', 'gerencia@prueba.test')->value('password'))->toBe($hash);
+});
+
+test('el RUC de lo demo va en su campo: aseguradoras sin documento, la Dra. Benítez con su dígito; sobre una base ya cargada se completa sin duplicar', function () use ($correr) {
+    $correr()->assertSuccessful();
+    $aseguradoras = fn () => Persona::where('tipo_persona', 'JURIDICA')->orderBy('ruc')->get();
+    expect($aseguradoras()->pluck('ruc')->all())->toBe([Ruc::conDigito('80900001'), Ruc::conDigito('80900002')])
+        ->and($aseguradoras()->every(fn ($p) => $p->tipo_documento_id === null && $p->nro_documento === null))->toBeTrue()
+        ->and(Ruc::conDigito('9000007'))->toBe('9000007-2')
+        ->and(Persona::where('nro_documento', '9000007')->sole()->ruc)->toBe('9000007-2')
+        ->and(Persona::whereNotNull('ruc')->get()->every(fn ($p) => Ruc::esValido($p->ruc)))->toBeTrue();
+
+    // Una base cargada antes del campo RUC: el RUC como documento (la migración ya lo había copiado), la Dra. Benítez sin RUC.
+    $ruc = TipoDocumento::where('codigo', 'RUC')->value('id');
+    $personas = Persona::count();
+    foreach ($aseguradoras() as $aseguradora) {
+        DB::table('personas')->where('id', $aseguradora->id)->update(['tipo_documento_id' => $ruc, 'nro_documento' => $aseguradora->ruc, 'ruc' => null]);
+    }
+    DB::table('personas')->where('nro_documento', '9000007')->update(['ruc' => null]);
+
+    $correr()->assertSuccessful();
+
+    expect(Persona::count())->toBe($personas)
+        ->and($aseguradoras()->pluck('ruc')->all())->toBe([Ruc::conDigito('80900001'), Ruc::conDigito('80900002')])
+        ->and(Persona::where('tipo_documento_id', $ruc)->where('tipo_persona', 'JURIDICA')->count())->toBe(2) // el documento viejo no se toca
+        ->and(Persona::where('nro_documento', '9000007')->sole()->ruc)->toBe('9000007-2');
 });
 
 test('no toca lo que no es demo', function () use ($correr) {
@@ -200,14 +226,14 @@ test('las liquidaciones: la primera aseguradora aprobada con un pago parcial, la
     $correr()->assertSuccessful();
     $liquidaciones = fn () => DB::table('liquidaciones')->join('estados', 'estados.id', '=', 'liquidaciones.estado_id')
         ->join('responsables_pago', 'responsables_pago.id', '=', 'liquidaciones.responsable_pago_id')->join('personas', 'personas.id', '=', 'responsables_pago.persona_id')
-        ->orderBy('personas.nro_documento')->get(['liquidaciones.*', 'estados.codigo', 'personas.nro_documento']);
+        ->orderBy('personas.ruc')->get(['liquidaciones.*', 'estados.codigo', 'personas.ruc']);
     $verificar = function () use ($liquidaciones) {
         [$primera, $segunda] = $liquidaciones()->all();
         $lineas = DB::table('lineas_liquidacion')->whereNull('liberada_en');
         $pagos = DB::table('pagos_aseguradora')->where('liquidacion_id', $primera->id)->get();
-        expect($primera->nro_documento)->toBe(Ruc::conDigito('80900001'))->and($primera->codigo)->toBe('PARCIAL')->and(substr($primera->fecha_corte, 0, 10))->toBe('2026-10-27')
+        expect($primera->ruc)->toBe(Ruc::conDigito('80900001'))->and($primera->codigo)->toBe('PARCIAL')->and(substr($primera->fecha_corte, 0, 10))->toBe('2026-10-27')
             ->and($primera->facturacion)->toBe('PENDIENTE')
-            ->and($segunda->nro_documento)->toBe(Ruc::conDigito('80900002'))->and($segunda->codigo)->toBe('EN_PREPARACION')
+            ->and($segunda->ruc)->toBe(Ruc::conDigito('80900002'))->and($segunda->codigo)->toBe('EN_PREPARACION')
             ->and((int) $primera->total)->toBe((int) (clone $lineas)->where('liquidacion_id', $primera->id)->sum('monto'))
             ->and((clone $lineas)->where('liquidacion_id', $segunda->id)->count())->toBeGreaterThan(0)
             // Entraron todas las de aseguradora pendientes de liquidar (en el demo, todas firmadas).

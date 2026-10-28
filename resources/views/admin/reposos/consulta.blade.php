@@ -15,7 +15,7 @@
     <div class="space-y-6 p-6 text-sm">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <p class="text-gray-600 dark:text-gray-400">
-                Consulta de {{ $persona->nombre_completo }} ({{ $persona->tipoDocumento->codigo }} {{ $persona->nro_documento }}) con
+                Consulta de {{ $persona->nombre_completo }} ({{ $persona->documentoPrincipal() }}) con
                 {{ $consulta->profesional->persona->nombre_completo }} · {{ $consulta->fechaHoraTexto() }}
             </p>
             @if ($consulta->finalizada())

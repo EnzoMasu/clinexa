@@ -23,6 +23,7 @@ class PersonaController extends Controller
             ->with(['tipoDocumento', 'usuario']) // usuario: para no ofrecer acciones sobre la persona del administrador principal
             ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('nro_documento', "{$busqueda}%")
+                ->orWhereLike('ruc', "{$busqueda}%")
                 ->orWhereLike('apellidos', "%{$busqueda}%")
                 ->orWhereLike('nombres', "%{$busqueda}%")
                 ->orWhereLike('razon_social', "%{$busqueda}%")
@@ -85,18 +86,18 @@ class PersonaController extends Controller
     }
 
     /**
-     * Tipos de documento activos, más el que ya tenga asignado la persona aunque esté inactivo.
-     */
-    /**
-     * Tipos de documento habilitados para Personas (tipo_documento_modulo) y activos, el
-     * predeterminado primero. Si la persona ya tiene otro (inactivo o no habilitado), se agrega.
+     * Tipos de documento de una persona física: CI y pasaporte, habilitados para Personas (tipo_documento_modulo) y activos,
+     * el predeterminado primero. El RUC no se ofrece (es un campo aparte). Si la persona ya tiene otro CI o pasaporte
+     * inactivo o no habilitado, se agrega.
      */
     private function tiposDocumento(?Persona $persona = null)
     {
-        $tipos = TipoDocumento::query()->habilitadosPara('PERSONAS')->activos()->get();
+        $tipos = TipoDocumento::query()->habilitadosPara('PERSONAS')->activos()->get()
+            ->filter(fn ($tipo) => in_array($tipo->codigo, Persona::DOCUMENTOS_FISICA, true))->values();
 
-        if ($persona && ! $tipos->contains('id', $persona->tipo_documento_id)) {
-            $tipos->push($persona->tipoDocumento);
+        $actual = $persona?->tipoDocumento;
+        if ($actual && in_array($actual->codigo, Persona::DOCUMENTOS_FISICA, true) && ! $tipos->contains('id', $actual->id)) {
+            $tipos->push($actual);
         }
 
         return $tipos;

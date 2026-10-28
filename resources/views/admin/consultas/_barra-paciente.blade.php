@@ -15,7 +15,7 @@
     <span class="text-gray-600 dark:text-gray-400">
         @if ($edad !== null){{ $edad }} {{ $edad === 1 ? 'año' : 'años' }} · @endif
         @if (isset(Persona::SEXOS[$persona->sexo])){{ Persona::SEXOS[$persona->sexo] }} · @endif
-        {{ $persona->tipoDocumento->codigo }} {{ $persona->nro_documento }} · Ficha {{ $consulta->historiaClinica->paciente->nro_ficha }}
+        {{ $persona->documentoPrincipal() }} · Ficha {{ $consulta->historiaClinica->paciente->nro_ficha }}
     </span>
     <span class="text-gray-600 dark:text-gray-400">
         @if ($consulta->turno)

@@ -41,6 +41,7 @@ class BuscadorPersonas
             ->with('tipoDocumento')
             ->where(fn ($query) => $query
                 ->whereLike('personas.nro_documento', "{$busqueda}%")
+                ->orWhereLike('personas.ruc', "{$busqueda}%")
                 ->orWhereLike('personas.apellidos', "%{$busqueda}%")
                 ->orWhereLike('personas.nombres', "%{$busqueda}%")
                 ->orWhereLike('personas.razon_social', "%{$busqueda}%"))
@@ -82,6 +83,7 @@ class BuscadorPersonas
             ->with('persona.tipoDocumento')
             ->where(function ($query) use ($busqueda, $tabla, $columnasRol) {
                 $query->whereLike('personas.nro_documento', "{$busqueda}%")
+                    ->orWhereLike('personas.ruc', "{$busqueda}%")
                     ->orWhereLike('personas.apellidos', "%{$busqueda}%")
                     ->orWhereLike('personas.nombres', "%{$busqueda}%")
                     ->orWhereLike('personas.razon_social', "%{$busqueda}%");
@@ -112,7 +114,7 @@ class BuscadorPersonas
      */
     public static function texto(Persona $persona, bool $conEmail = false): string
     {
-        $texto = "{$persona->nombre_completo} — {$persona->tipoDocumento->codigo} {$persona->nro_documento}";
+        $texto = "{$persona->nombre_completo} — {$persona->documentoPrincipal()}";
 
         return $conEmail && filled($persona->email) ? "{$texto} ({$persona->email})" : $texto;
     }

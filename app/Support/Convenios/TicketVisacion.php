@@ -47,7 +47,7 @@ final class TicketVisacion
             'profesional' => $consulta->profesional->persona->nombre_completo,
             'fechaHora' => $consulta->fechaHoraTexto(),
             'paciente' => $persona->nombre_completo,
-            'documento' => trim(($persona->tipoDocumento?->codigo ?? '').' '.$persona->nro_documento),
+            'documento' => $persona->documentoPrincipal(),
             'aseguradora' => $primera->responsablePago->persona->nombre_completo,
             'plan' => $primera->plan->nombre,
             'asegurado' => $primera->visacion->cobertura->numero_asegurado,

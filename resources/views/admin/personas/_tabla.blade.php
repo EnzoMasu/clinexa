@@ -4,8 +4,13 @@
     @forelse ($personas as $persona)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ $persona->tipoDocumento->codigo }}</span>
-                <span class="dato font-medium">{{ $persona->nro_documento }}</span>
+                <span class="dato font-medium">{{ $persona->documentoPrincipal() ?: '—' }}</span>
+                {{-- Lo ya guardado no se rechaza: se marca y se corrige a mano. --}}
+                @if ($persona->faltaRuc())
+                    <span class="ml-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">falta RUC</span>
+                @elseif ($persona->faltaCi())
+                    <span class="ml-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">falta CI</span>
+                @endif
             </td>
             <td class="px-6 py-4">
                 <div class="font-medium">{{ $persona->nombre_completo }}</div>

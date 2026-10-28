@@ -1,8 +1,12 @@
 @php
     use App\Models\Persona;
+    use App\Models\TipoDocumento;
 
     $tipoInicial = old('tipo_persona', $persona->tipo_persona);
-    $tipoDocumentoActual = (string) old('tipo_documento_id', $persona->tipo_documento_id);
+    // Un documento viejo que ya no se ofrece (p. ej. un RUC cargado como documento) no se precarga: se pide CI o pasaporte.
+    $documentoOfrecido = $tiposDocumento->contains('id', $persona->tipo_documento_id);
+    $tipoDocumentoActual = (string) old('tipo_documento_id', $documentoOfrecido ? $persona->tipo_documento_id : TipoDocumento::predeterminadoPara('PERSONAS'));
+    $numeroDocumento = $documentoOfrecido ? $persona->nro_documento : null;
 @endphp
 
 <x-admin.page :title="$persona->exists ? 'Editar persona' : 'Nueva persona'">
@@ -17,14 +21,25 @@
             <x-admin.select name="tipo_persona" label="Tipo de persona" :options="['FISICA' => 'Física', 'JURIDICA' => 'Jurídica']"
                 :value="$tipoInicial" x-model="tipo" required />
 
-            {{-- Solo los tipos habilitados para Personas (tipo_documento_modulo); el predeterminado viene elegido. --}}
-            <x-admin.select name="tipo_documento_id" label="Tipo de documento" :value="$tipoDocumentoActual" required
-                :options="$tiposDocumento->mapWithKeys(fn ($tipo) => [$tipo->id => $tipo->codigo.' — '.$tipo->nombre])->all()" />
-
-            <x-admin.input name="nro_documento" label="Número de documento" :value="$persona->nro_documento" unico="persona.documento" :unico-ignorar="$persona->id" :unico-con="['tipo_documento_id']" maxlength="20" required />
+            {{-- RUC: obligatorio para la persona jurídica y opcional para la física (que se identifica con CI o pasaporte). --}}
+            <div>
+                <x-admin.input name="ruc" label="RUC" :value="$persona->ruc" unico="persona.ruc" :unico-ignorar="$persona->id" maxlength="20" placeholder="80012345-1" />
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400" x-text="tipo === 'JURIDICA' ? 'Obligatorio. Con guion y dígito verificador.' : 'Opcional. Con guion y dígito verificador.'"></p>
+            </div>
         </div>
 
-        {{-- fieldset deshabilitado = sus campos no se validan en el navegador ni se envían --}}
+        {{-- fieldset deshabilitado = sus campos no se envían. La jurídica no tiene CI ni pasaporte: el servidor no los acepta. --}}
+        <fieldset x-show="tipo === 'FISICA'" x-bind:disabled="tipo !== 'FISICA'"
+            @disabled($tipoInicial !== 'FISICA') @style(['display: none' => $tipoInicial !== 'FISICA']) class="space-y-4">
+            <h3 class="font-medium text-gray-900 dark:text-gray-100">Documento</h3>
+            <div class="grid gap-6 sm:grid-cols-2">
+                {{-- Solo CI y pasaporte (habilitados para Personas); el predeterminado viene elegido. --}}
+                <x-admin.select name="tipo_documento_id" label="Tipo de documento" :value="$tipoDocumentoActual" required
+                    :options="$tiposDocumento->mapWithKeys(fn ($tipo) => [$tipo->id => $tipo->codigo.' — '.$tipo->nombre])->all()" />
+                <x-admin.input name="nro_documento" label="Número de documento" :value="$numeroDocumento" unico="persona.documento" :unico-ignorar="$persona->id" :unico-con="['tipo_documento_id']" maxlength="20" required />
+            </div>
+        </fieldset>
+
         <fieldset x-show="tipo === 'FISICA'" x-bind:disabled="tipo !== 'FISICA'"
             @disabled($tipoInicial !== 'FISICA') @style(['display: none' => $tipoInicial !== 'FISICA']) class="space-y-4">
             <h3 class="font-medium text-gray-900 dark:text-gray-100">Datos personales</h3>

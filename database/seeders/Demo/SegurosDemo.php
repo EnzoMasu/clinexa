@@ -10,9 +10,9 @@ use App\Models\PlanConvenio;
 use App\Models\Procedimiento;
 use App\Models\ResponsablePago;
 use App\Models\TarifaConvenio;
-use App\Models\TipoDocumento;
 use App\Support\Convenios\GestionCoberturas;
 use App\Support\Convenios\GestionConvenios;
+use App\Support\Ruc;
 use RuntimeException;
 
 /**
@@ -46,14 +46,21 @@ class SegurosDemo extends EtapaDemo
     public function run(): void
     {
         $desde = self::inicioVigencias();
-        $ruc = TipoDocumento::where('codigo', 'RUC')->first() ?? throw new RuntimeException('Falta el tipo de documento RUC.');
         $ciudad = Ciudad::whereHas('departamento', fn ($query) => $query->where('nombre', 'Asunción (Distrito Capital)'))->where('nombre', 'Asunción')->value('id');
         $procedimientos = Procedimiento::whereIn('codigo', ['CONS-001', 'ECO-TV'])->pluck('id', 'codigo');
 
         foreach (self::ASEGURADORAS as $base => [$razonSocial, $fantasia, $correo, $telefono, $nombreConvenio, $planes, $tarifas]) {
-            $responsable = $this->como($this->correo('recepcion'), function () use ($ruc, $base, $razonSocial, $fantasia, $correo, $telefono, $ciudad) {
-                $persona = Persona::firstOrCreate(['tipo_documento_id' => $ruc->id, 'nro_documento' => Ruc::conDigito($base)], [
-                    'tipo_persona' => 'JURIDICA', 'razon_social' => $razonSocial, 'nombre_fantasia' => $fantasia,
+            $responsable = $this->como($this->correo('recepcion'), function () use ($base, $razonSocial, $fantasia, $correo, $telefono, $ciudad) {
+                // Se identifica por su RUC (campo propio, sin documento). Una base cargada antes del campo RUC la tiene con el RUC
+                // como documento (la migración ya lo copió al campo nuevo): se la encuentra igual y se completa si hace falta.
+                $rucCompleto = Ruc::conDigito($base);
+                $persona = Persona::where('ruc', $rucCompleto)->first()
+                    ?? Persona::where('tipo_persona', 'JURIDICA')->where('nro_documento', $rucCompleto)->first();
+                if ($persona && $persona->ruc === null) {
+                    $persona->update(['ruc' => $rucCompleto]);
+                }
+                $persona ??= Persona::create([
+                    'ruc' => $rucCompleto, 'tipo_persona' => 'JURIDICA', 'razon_social' => $razonSocial, 'nombre_fantasia' => $fantasia,
                     'representante_legal' => 'Representante de prueba (demo)', 'email' => $this->correo($correo), 'telefono' => $telefono,
                     'direccion' => 'Avenida Ejemplo 1000, oficina demo', 'ciudad_id' => $ciudad,
                 ]);

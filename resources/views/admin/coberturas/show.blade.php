@@ -18,7 +18,7 @@
 <x-admin.page :title="'Cobertura y visaciones: '.$paciente->persona->nombre_completo">
     <div class="flex flex-col gap-10 p-6 text-sm">
         <p class="order-first text-gray-600 dark:text-gray-400">
-            Ficha {{ $paciente->nro_ficha }} · {{ $paciente->persona->tipoDocumento?->codigo }} {{ $paciente->persona->nro_documento }}
+            Ficha {{ $paciente->nro_ficha }} · {{ $paciente->persona->documentoPrincipal() }}
             · <a href="{{ route('admin.turnos.index', ['q' => $paciente->persona->nro_documento]) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">Ver sus turnos</a>
         </p>
 

@@ -10,8 +10,7 @@
             <td class="px-6 py-4 dato font-medium">{{ $registro->nro_ficha }}</td>
             <td class="px-6 py-4 font-medium">{{ $registro->persona->nombre_completo }}</td>
             <td class="px-6 py-4 whitespace-nowrap">
-                <span class="text-xs text-gray-500 dark:text-gray-400">{{ $registro->persona->tipoDocumento->codigo }}</span>
-                <span class="dato">{{ $registro->persona->nro_documento }}</span>
+                <span class="dato">{{ $registro->persona->documentoPrincipal() }}</span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($registro->fecha_alta) }}</td>
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$registro->estado" /></td>

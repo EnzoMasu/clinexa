@@ -43,8 +43,7 @@ function datosJuridica(array $cambios = []): array
 {
     return [
         'tipo_persona' => 'JURIDICA',
-        'tipo_documento_id' => test()->ruc->id,
-        'nro_documento' => '80012345-6',
+        'ruc' => '80080099-0',
         'razon_social' => 'Laboratorio Central S.A.',
         'nombre_fantasia' => 'LabCentral',
         'representante_legal' => 'Juan Pérez',
@@ -78,7 +77,7 @@ test('crea una persona física', function () {
 test('crea una persona jurídica', function () {
     $this->post(route('admin.personas.store'), enFormulario(datosJuridica()))->assertSessionHasNoErrors();
 
-    expect(Persona::where('nro_documento', '80012345-6')->sole())->razon_social->toBe('Laboratorio Central S.A.')
+    expect(Persona::where('ruc', '80080099-0')->sole())->razon_social->toBe('Laboratorio Central S.A.')
         ->apellidos->toBeNull();
 });
 
@@ -101,7 +100,7 @@ test('los campos del otro tipo quedan en null aunque vengan cargados', function 
 });
 
 test('al cambiar de física a jurídica se limpian los datos personales', function () {
-    $persona = Persona::create(datosFisica(['tipo_documento_id' => $this->ruc->id]));
+    $persona = Persona::create(datosFisica());
 
     $this->put(route('admin.personas.update', $persona), enFormulario(datosJuridica(['estado_id' => estadoId('ACTIVO')])))
         ->assertSessionHasNoErrors();
@@ -135,22 +134,30 @@ test('editar sin cambiar el documento no choca con el unique', function () {
 });
 
 test('el tipo de documento tiene que estar habilitado para personas', function () {
-    $otro = TipoDocumento::create(['codigo' => 'OTRO', 'nombre' => 'Otro documento']); // existe, pero no está en tipo_documento_modulo
+    $otro = TipoDocumento::create(['codigo' => 'PASAPORTE', 'nombre' => 'Pasaporte nuevo']); // existe, pero no está en tipo_documento_modulo
 
     $this->post(route('admin.personas.store'), enFormulario(datosFisica(['tipo_documento_id' => $otro->id])))
         ->assertSessionHasErrors(['tipo_documento_id' => 'El tipo de documento no está habilitado para personas o está inactivo.']);
 });
 
-test('ya no depende del tipo de persona: una jurídica puede usar cualquier tipo habilitado', function () {
-    $this->post(route('admin.personas.store'), enFormulario(datosJuridica(['tipo_documento_id' => $this->ci->id])))
-        ->assertSessionHasNoErrors();
+test('una jurídica no tiene CI ni pasaporte: el servidor no los acepta', function () {
+    $this->post(route('admin.personas.store'), enFormulario(datosJuridica(['tipo_documento_id' => $this->ci->id, 'nro_documento' => '1234567'])))
+        ->assertSessionHasErrors(['tipo_documento_id', 'nro_documento']);
+
+    expect(Persona::where('tipo_persona', 'JURIDICA')->count())->toBe(0);
+});
+
+test('una física no se identifica con el RUC como documento', function () {
+    $this->post(route('admin.personas.store'), enFormulario(datosFisica(['tipo_documento_id' => $this->ruc->id])))
+        ->assertSessionHasErrors('tipo_documento_id');
 });
 
 test('el formulario ofrece solo los tipos habilitados para personas, con el predeterminado elegido', function () {
     TipoDocumento::create(['codigo' => 'OTRO', 'nombre' => 'Otro documento']);
 
+    // El RUC deja de ofrecerse como documento: es un campo aparte.
     $html = $this->get(route('admin.personas.create'))->assertOk()
-        ->assertSee('CI — Cédula')->assertSee('RUC — RUC')->assertSee('PAS — Pasaporte')
+        ->assertSee('CI — Cédula')->assertSee('PAS — Pasaporte')->assertDontSee('RUC — RUC')
         ->assertDontSee('Otro documento')
         ->getContent();
 
@@ -158,10 +165,10 @@ test('el formulario ofrece solo los tipos habilitados para personas, con el pred
 });
 
 test('al editar se sigue mostrando el tipo que la persona ya tiene aunque no esté habilitado', function () {
-    $otro = TipoDocumento::create(['codigo' => 'OTRO', 'nombre' => 'Otro documento']);
+    $otro = TipoDocumento::create(['codigo' => 'PASAPORTE', 'nombre' => 'Pasaporte nuevo']);
     $persona = Persona::create(datosFisica(['tipo_documento_id' => $otro->id]));
 
-    $this->get(route('admin.personas.edit', $persona))->assertOk()->assertSee('OTRO — Otro documento');
+    $this->get(route('admin.personas.edit', $persona))->assertOk()->assertSee('PASAPORTE — Pasaporte nuevo');
     $this->put(route('admin.personas.update', $persona), enFormulario(datosFisica(['tipo_documento_id' => $otro->id, 'estado_id' => estadoId('ACTIVO')])))
         ->assertSessionHasNoErrors();
 });

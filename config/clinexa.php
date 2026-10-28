@@ -40,4 +40,10 @@ return [
         'pg_bin' => env('CLINEXA_PG_BIN', ''),
     ],
 
+    /*
+    | RUC de las personas (docs/ruc.md): si se controla el dígito verificador (módulo 11 de la DNIT). Apagarlo solo
+    | acepta cualquier dígito; el formato (6 a 8 dígitos, guion y un dígito) se exige siempre.
+    */
+    'validar_digito_ruc' => (bool) env('CLINEXA_VALIDAR_DIGITO_RUC', true),
+
 ];

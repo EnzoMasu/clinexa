@@ -40,7 +40,7 @@
         <h3 class="text-base font-semibold">{{ $paciente->persona->nombre_completo }}</h3>
         <p class="text-xs text-gray-600 dark:text-gray-400">
             Ficha {{ $paciente->nro_ficha }}
-            · {{ $paciente->persona->tipoDocumento->codigo }} {{ $paciente->persona->nro_documento }}
+            · {{ $paciente->persona->documentoPrincipal() }}
             · <span class="dato">{{ $consulta->fechaHoraTexto() }}</span>
             · {{ $consulta->profesional->persona->nombre_completo }}
             · @if ($consulta->turno)

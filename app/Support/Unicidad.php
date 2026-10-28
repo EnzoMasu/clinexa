@@ -25,6 +25,8 @@ final class Unicidad
     public const CAMPOS = [
         'persona.documento' => ['tabla' => 'personas', 'columna' => 'nro_documento', 'con' => ['tipo_documento_id'], 'modulo' => 'PERSONAS',
             'mensaje' => 'Ya hay una persona registrada con ese tipo y número de documento.'],
+        'persona.ruc' => ['tabla' => 'personas', 'columna' => 'ruc', 'modulo' => 'PERSONAS',
+            'mensaje' => 'Ya hay una persona registrada con ese RUC.'],
         // Especial: solo cuenta si la persona tiene usuario (su email se copia a users.email, que es único).
         'persona.email' => ['modulo' => 'PERSONAS', 'mensaje' => 'Ese email ya lo usa otro usuario del sistema.'],
         'profesional.matricula' => ['tabla' => 'profesionales', 'columna' => 'matricula', 'modulo' => 'PROFESIONALES',

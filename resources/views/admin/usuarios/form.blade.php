@@ -40,7 +40,7 @@
                 </div>
                 <div>
                     <dt class="text-gray-500 dark:text-gray-400">Documento</dt>
-                    <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $usuario->persona->tipoDocumento->codigo }} {{ $usuario->persona->nro_documento }}</dd>
+                    <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $usuario->persona->documentoPrincipal() }}</dd>
                 </div>
                 <div>
                     <dt class="text-gray-500 dark:text-gray-400">Perfiles de acceso</dt>
@@ -69,7 +69,7 @@
                         </div>
                         <div>
                             <dt class="text-gray-500 dark:text-gray-400">Documento</dt>
-                            <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $usuario->persona->tipoDocumento->codigo }} {{ $usuario->persona->nro_documento }}</dd>
+                            <dd class="font-medium text-gray-900 dark:text-gray-100">{{ $usuario->persona->documentoPrincipal() }}</dd>
                         </div>
                         <div class="sm:col-span-2">
                             <dt class="text-gray-500 dark:text-gray-400">Correo electrónico</dt>

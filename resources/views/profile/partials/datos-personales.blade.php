@@ -20,7 +20,7 @@
         <div>
             <dt class="text-gray-500 dark:text-gray-400">Documento</dt>
             <dd class="mt-1 font-medium text-gray-900 dark:text-gray-100">
-                {{ $persona ? "{$persona->tipoDocumento->codigo} {$persona->nro_documento}" : '—' }}
+                {{ $persona ? $persona->documentoPrincipal() : '—' }}
             </dd>
         </div>
         <div class="sm:col-span-2">

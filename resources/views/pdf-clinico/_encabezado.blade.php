@@ -4,7 +4,7 @@
 <h1>{{ $titulo }}</h1>
 <table class="datos">
     <tr><td class="rotulo">Paciente</td><td>{{ $persona->nombre_completo }}</td></tr>
-    <tr><td class="rotulo">Documento</td><td>{{ $persona->tipoDocumento->codigo }} {{ $persona->nro_documento }} · Ficha {{ $paciente->nro_ficha }}</td></tr>
+    <tr><td class="rotulo">Documento</td><td>{{ $persona->documentoPrincipal() }} · Ficha {{ $paciente->nro_ficha }}</td></tr>
     <tr><td class="rotulo">Consulta</td><td>{{ $consulta->fechaHoraTexto() }} · {{ $estadoTexto }}</td></tr>
     <tr><td class="rotulo">Profesional</td><td>{{ $profesional }}</td></tr>
     @if ($consulta->turno)

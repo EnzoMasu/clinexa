@@ -59,7 +59,7 @@ final class HojaReceta
             'reemplaza_a' => $receta->reemplazaA?->numero,
             'paciente' => [
                 'nombre' => self::nombreNatural($persona),
-                'documento' => trim($persona->tipoDocumento->codigo.' '.$persona->nro_documento),
+                'documento' => $persona->documentoPrincipal(),
                 'ficha' => $consulta->historiaClinica->paciente->nro_ficha,
                 // Edad cumplida el día de la receta.
                 'edad' => $persona->fecha_nacimiento ? (int) $persona->fecha_nacimiento->diffInYears($fecha) : null,

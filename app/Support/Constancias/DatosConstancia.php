@@ -51,7 +51,7 @@ final class DatosConstancia
         $sucursal = $turno->consultorio?->sucursal ?? Sucursal::activos()->orderBy('id')->first();
         $textos = config("constancias.{$tipo}");
 
-        $paciente = ['nombre' => HojaReceta::nombreNatural($persona), 'documento' => trim($persona->tipoDocumento->codigo.' '.$persona->nro_documento)];
+        $paciente = ['nombre' => HojaReceta::nombreNatural($persona), 'documento' => $persona->documentoPrincipal()];
         $profesional = ['nombre' => HojaReceta::nombreNatural($turno->profesional->persona), 'matricula' => $turno->profesional->matricula];
         $horaTurno = $turno->tieneHorario() ? substr((string) $turno->hora_inicio, 0, 5) : null;
 

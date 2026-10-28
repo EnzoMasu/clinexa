@@ -32,8 +32,7 @@
             <div>
                 <dt class="text-gray-500 dark:text-gray-400">Documento</dt>
                 <dd class="font-medium text-gray-900 dark:text-gray-100">
-                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ $persona->tipoDocumento->codigo }}</span>
-                    <span class="dato">{{ $persona->nro_documento }}</span>
+                    <span class="dato">{{ $persona->documentoPrincipal() }}</span>
                 </dd>
             </div>
             <div>

@@ -37,7 +37,7 @@ final class PlanillaLiquidacion
             'numero' => $liquidacion->id,
             'estado' => $liquidacion->etiquetaEstado(),
             'aseguradora' => $liquidacion->aseguradoraTexto(),
-            'documentoAseguradora' => trim(($liquidacion->responsablePago->persona->tipoDocumento?->codigo ?? '').' '.$liquidacion->responsablePago->persona->nro_documento),
+            'documentoAseguradora' => $liquidacion->responsablePago->persona->documentoPrincipal(),
             'convenio' => $convenios,
             'corte' => Fecha::mostrar($liquidacion->fecha_corte),
             'periodo' => $lineas->isEmpty() ? '—' : Fecha::mostrar($lineas->min('fecha_servicio')).' al '.Fecha::mostrar($liquidacion->fecha_corte),

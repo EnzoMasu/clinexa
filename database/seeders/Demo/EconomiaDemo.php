@@ -10,6 +10,7 @@ use App\Models\Estudio;
 use App\Models\Procedimiento;
 use App\Models\Proveedor;
 use App\Models\Tarifa;
+use App\Support\Ruc;
 use App\Models\TipoEquipo;
 use App\Support\Repartos\AltaAcuerdo;
 use App\Support\Tarifas\AltaTarifa;
@@ -68,6 +69,12 @@ class EconomiaDemo extends EtapaDemo
         });
 
         $proveedor = $this->como($this->correo('compras'), function () use ($benitez) {
+            // Proveedora de equipos: física (CI 9000007), con su RUC en el campo propio (base = su CI) y el dígito calculado.
+            $persona = $benitez->persona;
+            if ($persona->ruc === null) {
+                $persona->update(['ruc' => Ruc::conDigito($persona->nro_documento)]);
+                $this->contar('RUC completados');
+            }
             $proveedor = Proveedor::firstOrCreate(['persona_id' => $benitez->persona_id]);
             if ($proveedor->wasRecentlyCreated) {
                 $this->contar('proveedores');

@@ -40,7 +40,7 @@ final class PdfIndicaciones
             'clinica' => (string) config('clinexa.clinica.nombre'),
             'logo' => public_path(config('clinexa.clinica.logo')),
             'paciente' => $persona->nombre_completo,
-            'documento' => trim(($persona->tipoDocumento?->codigo ?? '').' '.$persona->nro_documento),
+            'documento' => $persona->documentoPrincipal(),
             'profesional' => $consulta->profesional->persona->nombre_completo,
             // Día en que se inició la consulta, en hora local (como la fecha de atención del reposo).
             'fecha' => Fecha::mostrar(Carbon::parse($consulta->fechaAtencion())->setTimezone(config('app.zona_horaria_local'))->format('Y-m-d')),
