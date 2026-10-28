@@ -44,13 +44,14 @@
 ## Mapa del proyecto
 Laravel + Blade + Tailwind + Vite (JS plano, sin framework). PDF nuevos con dompdf (`barryvdh/laravel-dompdf`), también la receta nueva; recetas anteriores y
 constancias ya hechas siguen imprimiéndose desde el navegador. Docs por tema en `docs/` (pdf-clinico, ruc, historia-clinica,
-agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-generales, ordenes-estudio, informes-estudio, tarifas-prestaciones, reparto-economico, cobros-caja, convenios-seguros, liquidaciones-aseguradoras, perfiles, respaldo, datos-demo, pruebas).
+agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-generales, ordenes-estudio, informes-estudio, tarifas-prestaciones, reparto-economico, cobros-caja, convenios-seguros, liquidaciones-aseguradoras, facturacion, perfiles, respaldo, datos-demo, pruebas).
 - `app/Models/`: Eloquent. Clave: `Persona`, `Paciente`, `Profesional`, `Turno`, `Consulta`,
   `HistoriaClinica`, `Receta`, `PerfilAcceso`, `Permiso`, `ModuloSistema`, `LogAuditoria`,
   `CupoEntrePacientes`, `Disponibilidad`, `ReposoMedico`, `OrdenEstudio`, `Estudio`, `InformeEstudio`, `Moneda`, `Tarifa`,
   `Prestacion`, `AcuerdoReparto`, `Equipo`, `RepartoPrestacion`, `LineaReparto`, `MedioPago`, `Caja`, `CierreCaja`,
   `Cobro`, `CobroPrestacion`, `LineaCobro`, `MovimientoCaja`, `SolicitudReversionCobro`, `Convenio`, `PlanConvenio`,
-  `TarifaConvenio`, `CoberturaPaciente`, `Visacion`, `LineaVisacion`, `Liquidacion`, `LineaLiquidacion`, `PagoAseguradora`.
+  `TarifaConvenio`, `CoberturaPaciente`, `Visacion`, `LineaVisacion`, `Liquidacion`, `LineaLiquidacion`, `PagoAseguradora`, `Clinica`,
+  `Timbrado`, `Factura`, `DetalleFactura`, `SolicitudAnulacionFactura`, `MotivoAnulacionFactura`.
 - `app/Enums/`: `TipoTurno`, `AccionAuditoria`, `TipoDiagnostico`.
 - `app/Http/Controllers/Admin/`: un controlador por pantalla (`TurnoController`, `UrgenciaController`,
   `AtencionController`, `ConsultaController`, `HistoriaClinicaController`, `RecetaController`,
@@ -60,7 +61,7 @@ agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-gene
   `Finalizar`, `DeshacerAtencion`, `CerrarJornada`, `GuardarSecciones`, `Autoguardado`, `EvaluadorSignos`).
 - `app/Support/Turnos/`: `AgendarEntrePacientes`, `RegistrarUrgencia`. `app/Support/Agenda.php`.
 - `app/Support/`: `Permisos`, `PermisosDePerfil`, `PerfilesPredefinidos`, `Auditoria`,
-  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `PdfClinico/PdfInformeEstudio` (informe de estudio), `Reposo/` (certificado de reposo: emitir, anular, PDF), `OrdenEstudio/` (orden de estudio: emitir, anular, PDF), `Tarifas/` (buscar, alta, cambiar), `Prestaciones/` (generar al finalizar, tarifar, anular), `Repartos/` (acuerdos: buscar, alta, cambiar; calcular y repartir la prestación), `Cobros/` (abrir, cobrar, cerrar y revisar la caja; revertir cobros), `Convenios/` (convenios, coberturas, visaciones, calcular quién paga, aplicar visación, firma, ticket), `Liquidaciones/` (armar, flujo y aprobación, bloqueo de la prestación, pagos de la aseguradora, planilla), `BuscadorPersonas`, `Unicidad`.
+  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `PdfClinico/PdfInformeEstudio` (informe de estudio), `Reposo/` (certificado de reposo: emitir, anular, PDF), `OrdenEstudio/` (orden de estudio: emitir, anular, PDF), `Tarifas/` (buscar, alta, cambiar), `Prestaciones/` (generar al finalizar, tarifar, anular), `Repartos/` (acuerdos: buscar, alta, cambiar; calcular y repartir la prestación), `Cobros/` (abrir, cobrar, cerrar y revisar la caja; revertir cobros), `Convenios/` (convenios, coberturas, visaciones, calcular quién paga, aplicar visación, firma, ticket), `Liquidaciones/` (armar, flujo y aprobación, bloqueo de la prestación, pagos de la aseguradora, planilla), `Facturacion/` (emisor simulado `EmisorDocumentos`, emitir con el timbrado, IVA, anular o solicitar, bloqueo, PDF, timbrados), `BuscadorPersonas`, `Unicidad`.
 - `app/Console/Commands/`: `Respaldo` (`clinexa:respaldo`), `DatosDemo` (`clinexa:datos-demo`, solo desarrollo; etapas en `database/seeders/Demo/`), `CrearAdmin`, `TraspasarPrincipal`,
   `MigrarUsuariosAPersona`.
 - `app/Policies/`, `app/Http/Middleware/`, `app/Http/Requests/`, `app/Rules/`: autorización y validación.

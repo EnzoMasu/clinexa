@@ -101,8 +101,13 @@ class PerfilesPredefinidos
     /** Liquidaciones: VER, CREAR (armar), EDITAR (quitar líneas, enviar), DESACTIVAR (anular) y EXPORTAR (la planilla). */
     private const LIQUIDACIONES_TODO = ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR', 'EXPORTAR'];
 
+    /** Facturas: VER, CREAR (emitir al cobrar), DESACTIVAR (anular la propia en el plazo o solicitar la anulación) y EXPORTAR (el PDF). */
+    private const FACTURAS_CAJA = ['VER', 'CREAR', 'DESACTIVAR', 'EXPORTAR'];
+
+    private const VER_EXPORTAR = ['VER', 'EXPORTAR'];
+
     /**
-     * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO, en VISACIONES, el ticket, y en LIQUIDACIONES, la planilla; TURNOS no tiene
+     * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO, en VISACIONES, el ticket, en LIQUIDACIONES, la planilla, y en FACTURAS, el PDF; TURNOS no tiene
      * DESACTIVAR: un turno se cancela, con EDITAR). Ningún perfil, salvo ADMINISTRADOR, escribe en USUARIOS
      * ni en PERFILES_ACCESO (lo verifica PerfilesPredefinidosTest).
      */
@@ -131,6 +136,10 @@ class PerfilesPredefinidos
             // Liquidaciones (docs/liquidaciones-aseguradoras.md): las ve todas, saca la planilla, aprueba o devuelve y anula; ve los
             // pagos. No arma ni registra pagos.
             'LIQUIDACIONES' => ['VER', 'DESACTIVAR', 'EXPORTAR'], 'APROBACION_LIQUIDACIONES' => ['VER', 'EDITAR'], 'PAGOS_ASEGURADORAS' => self::VER,
+            // Facturación (docs/facturacion.md): ve todas las facturas y su PDF, aprueba o rechaza las anulaciones, administra los
+            // timbrados, los datos de la clínica, las tasas de IVA y los motivos de anulación. No emite (no tiene caja).
+            'FACTURAS' => self::VER_EXPORTAR, 'ANULACIONES_FACTURA' => ['VER', 'EDITAR'], 'TIMBRADOS' => self::VER_CREAR_EDITAR,
+            'DATOS_FISCALES' => ['VER', 'EDITAR'], 'MOTIVOS_ANULACION' => self::TODO,
         ],
         // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
         // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones
@@ -169,6 +178,8 @@ class PerfilesPredefinidos
             'PACIENTES' => self::VER, 'MEDIOS_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER,
             'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
             'CAJAS' => self::VER_CREAR_EDITAR, 'COBROS' => ['VER', 'CREAR', 'DESACTIVAR'],
+            // Facturación (docs/facturacion.md): emite al cobrar, saca el PDF, anula las suyas en el plazo y solicita las demás.
+            'FACTURAS' => self::FACTURAS_CAJA,
         ],
         self::FACTURACION => [
             'RESPONSABLES_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER, 'MEDIOS_PAGO' => self::VER,
@@ -179,6 +190,8 @@ class PerfilesPredefinidos
             // Liquidaciones (docs/liquidaciones-aseguradoras.md): arma, quita líneas, envía a aprobación, anula la que no está aprobada,
             // saca la planilla y registra y anula los pagos de la aseguradora. No aprueba.
             'LIQUIDACIONES' => self::LIQUIDACIONES_TODO, 'PAGOS_ASEGURADORAS' => ['VER', 'CREAR', 'DESACTIVAR'],
+            // Facturas (docs/facturacion.md): las ve y saca el PDF.
+            'FACTURAS' => self::VER_EXPORTAR,
         ],
         self::COMPRAS_TESORERIA => [
             'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::VER,
@@ -239,6 +252,18 @@ class PerfilesPredefinidos
         'LIQUIDACIONES' => [self::GERENCIA => ['VER', 'DESACTIVAR', 'EXPORTAR'], self::FACTURACION => self::LIQUIDACIONES_TODO],
         'APROBACION_LIQUIDACIONES' => [self::GERENCIA => ['VER', 'EDITAR']],
         'PAGOS_ASEGURADORAS' => [self::GERENCIA => self::VER, self::FACTURACION => ['VER', 'CREAR', 'DESACTIVAR']],
+    ];
+
+    /**
+     * Lo que la migración de facturación (2026_11_02_100001) suma a los perfiles existentes. Lo mismo que la matriz para esos cinco
+     * módulos. Recepción, Médico, Enfermería, Compras y los demás, nada.
+     */
+    public const PERMISOS_FACTURACION = [
+        'FACTURAS' => [self::CAJA => self::FACTURAS_CAJA, self::GERENCIA => self::VER_EXPORTAR, self::FACTURACION => self::VER_EXPORTAR],
+        'ANULACIONES_FACTURA' => [self::GERENCIA => ['VER', 'EDITAR']],
+        'TIMBRADOS' => [self::GERENCIA => self::VER_CREAR_EDITAR],
+        'DATOS_FISCALES' => [self::GERENCIA => ['VER', 'EDITAR']],
+        'MOTIVOS_ANULACION' => [self::GERENCIA => self::TODO],
     ];
 
     /**

@@ -51,8 +51,13 @@ class RegistroEconomicoInmutable extends LogicException
         return new self('Una liquidación solo avanza por su flujo (enviar, aprobar o devolver, pagar, anular); sus líneas y pagos solo se quitan o se anulan.');
     }
 
+    public static function factura(): self
+    {
+        return new self('Una factura no se edita: solo se cobra (al emitirse) o se anula, y su número se conserva; un timbrado solo pasa a histórico o avanza su numeración.');
+    }
+
     public static function borrado(): self
     {
-        return new self('Las tarifas, las prestaciones, los acuerdos, los repartos, las cajas, los cobros, los convenios, las visaciones y las liquidaciones no se borran.');
+        return new self('Las tarifas, las prestaciones, los acuerdos, los repartos, las cajas, los cobros, los convenios, las visaciones, las liquidaciones, las facturas y los timbrados no se borran.');
     }
 }

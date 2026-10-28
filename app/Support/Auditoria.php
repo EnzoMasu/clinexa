@@ -7,6 +7,12 @@ use App\Models\AcuerdoReparto;
 use App\Models\AdendaConsulta;
 use App\Models\BloqueAnamnesis;
 use App\Models\Caja;
+use App\Models\Clinica;
+use App\Models\DetalleFactura;
+use App\Models\Factura;
+use App\Models\MotivoAnulacionFactura;
+use App\Models\SolicitudAnulacionFactura;
+use App\Models\Timbrado;
 use App\Models\CargoSalud;
 use App\Models\CatalogoCIE10;
 use App\Models\CierreCaja;
@@ -143,6 +149,9 @@ final class Auditoria
         // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): la liquidación antes que sus líneas (es la tabla del módulo).
         // Los pagos de la aseguradora, su propio módulo. Montos solo para quien tiene VER sobre su módulo.
         Liquidacion::class, LineaLiquidacion::class, PagoAseguradora::class,
+        // Facturación (docs/facturacion.md): la factura antes que sus líneas (es la tabla del módulo); las solicitudes de anulación, los
+        // timbrados, los datos de la clínica y el catálogo de motivos, cada uno su módulo. Montos solo para quien ve las facturas.
+        Factura::class, DetalleFactura::class, SolicitudAnulacionFactura::class, Timbrado::class, Clinica::class, MotivoAnulacionFactura::class,
     ];
 
     /**
@@ -168,7 +177,9 @@ final class Auditoria
         'convenios' => 'CONVENIOS', 'planes_convenio' => 'CONVENIOS', 'tarifas_convenio' => 'CONVENIOS',
         'coberturas_paciente' => 'COBERTURAS', 'visaciones' => 'VISACIONES', 'lineas_visacion' => 'VISACIONES',
         // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): lo que paga cada aseguradora y sus pagos.
-        'liquidaciones' => 'LIQUIDACIONES', 'lineas_liquidacion' => 'LIQUIDACIONES', 'pagos_aseguradora' => 'PAGOS_ASEGURADORAS'];
+        'liquidaciones' => 'LIQUIDACIONES', 'lineas_liquidacion' => 'LIQUIDACIONES', 'pagos_aseguradora' => 'PAGOS_ASEGURADORAS',
+        // Facturación (docs/facturacion.md): las facturas, sus líneas y las solicitudes de anulación, para quien ve las facturas.
+        'facturas' => 'FACTURAS', 'detalles_factura' => 'FACTURAS', 'solicitudes_anulacion_factura' => 'FACTURAS'];
 
     /**
      * Módulo cuyo VER hace falta para ver los valores de los eventos de esa tabla en la pantalla de

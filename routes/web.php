@@ -13,7 +13,12 @@ use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
 use App\Http\Controllers\Admin\CiudadController;
 use App\Http\Controllers\Admin\CoberturaController;
+use App\Http\Controllers\Admin\ClinicaController;
 use App\Http\Controllers\Admin\CobroController;
+use App\Http\Controllers\Admin\FacturaController;
+use App\Http\Controllers\Admin\MotivoAnulacionController;
+use App\Http\Controllers\Admin\TasaIvaController;
+use App\Http\Controllers\Admin\TimbradoController;
 use App\Http\Controllers\Admin\ConsultaController;
 use App\Http\Controllers\Admin\ConsultorioController;
 use App\Http\Controllers\Admin\ConvenioController;
@@ -391,8 +396,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::post('cajas/{caja}/aprobar', [CajaController::class, 'aprobar'])->name('cajas.aprobar')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     Route::post('cajas/{caja}/devolver', [CajaController::class, 'devolver'])->name('cajas.devolver')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     Route::get('cobros', [CobroController::class, 'index'])->name('cobros.index')->middleware('permiso:COBROS,VER');
-    Route::get('cobros/create', [CobroController::class, 'create'])->name('cobros.create')->middleware('permiso:COBROS,CREAR');
-    Route::post('cobros', [CobroController::class, 'store'])->name('cobros.store')->middleware('permiso:COBROS,CREAR');
+    // Cobrar emite la factura (docs/facturacion.md): hacen falta los dos permisos.
+    Route::get('cobros/create', [CobroController::class, 'create'])->name('cobros.create')->middleware(['permiso:COBROS,CREAR', 'permiso:FACTURAS,CREAR']);
+    Route::post('cobros', [CobroController::class, 'store'])->name('cobros.store')->middleware(['permiso:COBROS,CREAR', 'permiso:FACTURAS,CREAR']);
     Route::get('cobros/{cobro}', [CobroController::class, 'show'])->name('cobros.show')->whereNumber('cobro')->middleware('permiso:COBROS,VER');
     // Reversión de un cobro: Caja revierte (un cobro de su caja abierta) o solicita la reversión (DESACTIVAR); Gerencia ve las
     // solicitudes pendientes (una pestaña de Cobros) y las aprueba o rechaza.
@@ -463,6 +469,35 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     // Los pagos de la aseguradora: una cuenta por cobrar aparte, no pasan por Caja.
     Route::post('liquidaciones/{liquidacion}/pagos', [LiquidacionController::class, 'registrarPago'])->name('liquidaciones.pagos.store')->whereNumber('liquidacion')->middleware('permiso:PAGOS_ASEGURADORAS,CREAR');
     Route::post('liquidaciones/pagos/{pago}/anular', [LiquidacionController::class, 'anularPago'])->name('liquidaciones.pagos.anular')->whereNumber('pago')->middleware('permiso:PAGOS_ASEGURADORAS,DESACTIVAR');
+
+    // Facturación (docs/facturacion.md): un solo módulo con pestañas (facturas, solicitudes de anulación, timbrados, tasas de IVA y
+    // motivos). La factura se emite al cobrar (cobros.store). Nada se borra: la factura se anula (directa en el plazo o con solicitud que
+    // aprueba Gerencia), el timbrado pasa a histórico y el motivo se desactiva. Los datos de la clínica, sin entrada en el menú.
+    Route::get('facturas', [FacturaController::class, 'index'])->name('facturas.index')->middleware('permiso:FACTURAS,VER');
+    Route::get('facturas/{factura}', [FacturaController::class, 'show'])->name('facturas.show')->whereNumber('factura')->middleware('permiso:FACTURAS,VER');
+    // El PDF: al vuelo, sin nada clínico; no se guarda en la caché.
+    Route::get('facturas/{factura}/pdf', [FacturaController::class, 'pdf'])->name('facturas.pdf')->whereNumber('factura')
+        ->middleware(['permiso:FACTURAS,EXPORTAR', SinAlmacenar::class]);
+    Route::post('facturas/{factura}/anular', [FacturaController::class, 'anular'])->name('facturas.anular')->whereNumber('factura')->middleware('permiso:FACTURAS,DESACTIVAR');
+    Route::post('facturas/{factura}/solicitar-anulacion', [FacturaController::class, 'solicitarAnulacion'])->name('facturas.solicitar-anulacion')->whereNumber('factura')->middleware('permiso:FACTURAS,DESACTIVAR');
+    Route::get('facturas/solicitudes', [FacturaController::class, 'solicitudes'])->name('facturas.solicitudes')->middleware('permiso:ANULACIONES_FACTURA,VER');
+    Route::post('facturas/solicitudes/{solicitud}/aprobar', [FacturaController::class, 'aprobarAnulacion'])->name('facturas.solicitudes.aprobar')->whereNumber('solicitud')->middleware('permiso:ANULACIONES_FACTURA,EDITAR');
+    Route::post('facturas/solicitudes/{solicitud}/rechazar', [FacturaController::class, 'rechazarAnulacion'])->name('facturas.solicitudes.rechazar')->whereNumber('solicitud')->middleware('permiso:ANULACIONES_FACTURA,EDITAR');
+    Route::get('facturas/timbrados', [TimbradoController::class, 'index'])->name('facturas.timbrados')->middleware('permiso:TIMBRADOS,VER');
+    Route::get('facturas/timbrados/create', [TimbradoController::class, 'create'])->name('facturas.timbrados.create')->middleware('permiso:TIMBRADOS,CREAR');
+    Route::post('facturas/timbrados', [TimbradoController::class, 'store'])->name('facturas.timbrados.store')->middleware('permiso:TIMBRADOS,CREAR');
+    Route::post('facturas/timbrados/{timbrado}/historico', [TimbradoController::class, 'historico'])->name('facturas.timbrados.historico')->whereNumber('timbrado')->middleware('permiso:TIMBRADOS,EDITAR');
+    Route::get('facturas/tasas-iva', [TasaIvaController::class, 'index'])->name('facturas.tasas-iva')->middleware('permiso:DATOS_FISCALES,VER');
+    Route::patch('facturas/tasas-iva/{procedimiento}', [TasaIvaController::class, 'update'])->name('facturas.tasas-iva.update')->whereNumber('procedimiento')->middleware('permiso:DATOS_FISCALES,EDITAR');
+    // Motivos de anulación: catálogo editable (pestaña de Facturas, sin entrada en el menú); nada se borra, se desactiva.
+    Route::get('facturas/motivos', [MotivoAnulacionController::class, 'index'])->name('facturas.motivos')->middleware('permiso:MOTIVOS_ANULACION,VER');
+    Route::get('facturas/motivos/create', [MotivoAnulacionController::class, 'create'])->name('facturas.motivos.create')->middleware('permiso:MOTIVOS_ANULACION,CREAR');
+    Route::post('facturas/motivos', [MotivoAnulacionController::class, 'store'])->name('facturas.motivos.store')->middleware('permiso:MOTIVOS_ANULACION,CREAR');
+    Route::get('facturas/motivos/{motivoAnulacion}/edit', [MotivoAnulacionController::class, 'edit'])->name('facturas.motivos.edit')->whereNumber('motivoAnulacion')->middleware('permiso:MOTIVOS_ANULACION,EDITAR');
+    Route::put('facturas/motivos/{motivoAnulacion}', [MotivoAnulacionController::class, 'update'])->name('facturas.motivos.update')->whereNumber('motivoAnulacion')->middleware('permiso:MOTIVOS_ANULACION,EDITAR');
+    Route::patch('facturas/motivos/{motivoAnulacion}/desactivar', [MotivoAnulacionController::class, 'desactivar'])->name('facturas.motivos.desactivar')->whereNumber('motivoAnulacion')->middleware('permiso:MOTIVOS_ANULACION,DESACTIVAR');
+    Route::get('clinica', [ClinicaController::class, 'edit'])->name('clinica.edit')->middleware('permiso:DATOS_FISCALES,VER');
+    Route::put('clinica', [ClinicaController::class, 'update'])->name('clinica.update')->middleware('permiso:DATOS_FISCALES,EDITAR');
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
     foreach ([

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ciudad;
+use App\Models\Clinica;
 use App\Models\Sucursal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,7 +32,8 @@ class SucursalController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        Sucursal::create($this->validar($request));
+        // Una sucursal nueva es de la clínica de la instalación (docs/facturacion.md).
+        Sucursal::create([...$this->validar($request), 'clinica_id' => Clinica::actual()?->id]);
 
         return redirect()->route('admin.sucursales.index')->with('status', 'Sucursal creada.');
     }

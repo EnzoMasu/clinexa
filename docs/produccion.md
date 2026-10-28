@@ -20,3 +20,7 @@ Lista de control previa a cargar pacientes reales. Sin datos personales: marcar 
   `CONS-001` (Consulta) activo. Sin tarifa, las prestaciones quedan pendientes de tarifar.
 - [ ] **Acuerdos de reparto cargados** (`docs/reparto-economico.md`): el general de cada profesional y el de cada equipo activo,
   aprobados por Gerencia. Sin acuerdo, las prestaciones quedan pendientes de reparto.
+- [ ] **Facturación** (`docs/facturacion.md`): los datos fiscales reales de la clínica (RUC, razón social, actividad, dirección
+  fiscal) y las tasas de IVA de cada procedimiento revisados por el contador. La emisión es una **simulación sin validez fiscal**:
+  antes de facturar de verdad hace falta un emisor real (proveedor o SIFEN) que implemente `EmisorDocumentos`, el timbrado real y
+  apagar `CLINEXA_FACTURACION_SIMULADA`. Pasar a histórico los timbrados de prueba.

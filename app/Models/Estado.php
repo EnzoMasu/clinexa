@@ -94,6 +94,12 @@ class Estado extends Model
 
     public const PAGADO = 'PAGADO';
 
+    /**
+     * Factura (docs/facturacion.md): EMITIDO ("Emitida", pendiente de cobro, inicial; ya existía), COBRADO ("Cobrada": la contado
+     * pasa en la misma operación) o ANULADO ("Anulada", se conserva con su número).
+     */
+    public const COBRADO = 'COBRADO';
+
     protected $table = 'estados';
 
     protected $fillable = [

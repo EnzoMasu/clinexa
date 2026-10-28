@@ -8,6 +8,7 @@ use App\Models\Prestacion;
 use App\Models\User;
 use App\Models\Visacion;
 use App\Support\Auditoria;
+use App\Support\Facturacion\BloqueoFactura;
 use App\Support\Liquidaciones\BloqueoLiquidacion;
 use App\Support\Repartos\RepartirPrestacion;
 use Illuminate\Support\Facades\DB;
@@ -92,6 +93,7 @@ final class AplicarVisacion
             ! CalcularCobertura::corresponde($prestacion) => 'Esta prestación es anterior a los convenios: no se recalcula.',
             $prestacion->anulada() => 'Esta prestación está anulada.',
             $prestacion->procedimiento_id === null => 'La prestación no tiene procedimiento.',
+            ($facturada = BloqueoFactura::impedimento($prestacion)) !== null => $facturada,
             $prestacion->cobroVigente()->exists() => self::COBRADA,
             default => BloqueoLiquidacion::impedimento($prestacion),
         };

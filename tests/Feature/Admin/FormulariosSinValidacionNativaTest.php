@@ -30,6 +30,8 @@ test('todos los formularios de alta de /admin llevan novalidate', function () {
         ->reject(fn (string $nombre) => $nombre === 'admin.cobros.create')
         // La liquidación muestra "Confirmar" recién con la vista previa (aseguradora y corte): su novalidate se prueba en LiquidacionesTest.
         ->reject(fn (string $nombre) => $nombre === 'admin.liquidaciones.create')
+        // El timbrado muestra su formulario recién con los datos de la clínica cargados: su novalidate se prueba en FacturacionTest.
+        ->reject(fn (string $nombre) => $nombre === 'admin.facturas.timbrados.create')
         ->values();
 
     expect($altas)->not->toBeEmpty();

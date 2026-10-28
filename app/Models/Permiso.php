@@ -54,6 +54,15 @@ class Permiso extends Model
         // aseguradora: ver, registrar (CREAR) y anular (DESACTIVAR); un pago no se edita.
         'APROBACION_LIQUIDACIONES' => ['VER', 'EDITAR'],
         'PAGOS_ASEGURADORAS' => ['VER', 'CREAR', 'DESACTIVAR'],
+        // Facturación (docs/facturacion.md): facturas (ver, emitir al cobrar = CREAR, anular o solicitar la anulación = DESACTIVAR, el
+        // PDF = EXPORTAR; una factura no se edita), la aprobación de anulaciones (ver y aprobar o rechazar = EDITAR), los timbrados
+        // (ver, cargar = CREAR, pasar a histórico = EDITAR), los datos fiscales (la clínica y las tasas de IVA: ver y EDITAR) y el
+        // catálogo de motivos.
+        'FACTURAS' => ['VER', 'CREAR', 'DESACTIVAR', 'EXPORTAR'],
+        'ANULACIONES_FACTURA' => ['VER', 'EDITAR'],
+        'TIMBRADOS' => ['VER', 'CREAR', 'EDITAR'],
+        'DATOS_FISCALES' => ['VER', 'EDITAR'],
+        'MOTIVOS_ANULACION' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

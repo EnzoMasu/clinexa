@@ -213,6 +213,12 @@ class Prestacion extends Model
         return $this->hasOne(LineaLiquidacion::class)->whereNull('lineas_liquidacion.liberada_en');
     }
 
+    /** Su línea en una factura no anulada (docs/facturacion.md), si tiene: a lo sumo una. */
+    public function detalleFactura(): HasOne
+    {
+        return $this->hasOne(DetalleFactura::class)->whereNull('detalles_factura.liberada_en');
+    }
+
     /** Su cobro vigente (docs/cobros-caja.md), si tiene: a lo sumo uno. */
     public function cobroVigente(): HasOne
     {

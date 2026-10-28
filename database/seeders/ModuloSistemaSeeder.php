@@ -102,6 +102,14 @@ class ModuloSistemaSeeder extends Seeder
             'LIQUIDACIONES' => ['Liquidaciones a aseguradoras', [Estado::EN_PREPARACION, Estado::PENDIENTE_APROBACION, Estado::APROBADO, Estado::PARCIAL, Estado::PAGADO, Estado::ANULADO]],
             'APROBACION_LIQUIDACIONES' => ['Aprobación de liquidaciones', [Estado::PENDIENTE_APROBACION, Estado::APROBADO, Estado::EN_PREPARACION]],
             'PAGOS_ASEGURADORAS' => ['Pagos de aseguradoras', [Estado::VIGENTE, Estado::ANULADO]],
+            // Facturación (docs/facturacion.md): la factura (emitida, cobrada o anulada), la aprobación de sus anulaciones (pendiente,
+            // aprobada o rechazada), los timbrados (el vigente y los históricos), los datos fiscales (la clínica y las tasas de IVA) y el
+            // catálogo de motivos de anulación.
+            'FACTURAS' => ['Facturas', [Estado::EMITIDO, Estado::COBRADO, Estado::ANULADO]],
+            'ANULACIONES_FACTURA' => ['Aprobación de anulaciones de factura', [Estado::PENDIENTE, Estado::APROBADO, Estado::RECHAZADO]],
+            'TIMBRADOS' => ['Timbrados', [Estado::VIGENTE, Estado::HISTORICO]],
+            'DATOS_FISCALES' => ['Datos fiscales (clínica y tasas de IVA)', self::ACTIVO_INACTIVO],
+            'MOTIVOS_ANULACION' => ['Motivos de anulación de factura', self::ACTIVO_INACTIVO],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

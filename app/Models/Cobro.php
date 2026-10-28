@@ -15,7 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * Un cobro (docs/cobros-caja.md): en una caja abierta, a una paciente, siempre completo. El total es la suma exacta de las
  * prestaciones que cubre (CobroPrestacion) y la de sus líneas de pago (LineaCobro); cada línea es un movimiento de la caja. Sin
  * vuelto, saldos ni pagos parciales. VIGENTE -> REVERTIDO (una sola vez, completo, con motivo, quién y la caja del egreso:
- * Cobros\RevertirCobro); fuera de eso no se edita ni se borra.
+ * Cobros\RevertirCobro); fuera de eso no se edita ni se borra. Desde la facturación (docs/facturacion.md) se registra contra una
+ * factura ya emitida y solo se revierte al anularla.
  */
 class Cobro extends Model
 {
@@ -27,7 +28,7 @@ class Cobro extends Model
 
     private const CAMPOS_DE_REVERSION = ['estado_id', 'revertido_en', 'revertido_por', 'motivo_reversion', 'caja_reversion_id', 'updated_at'];
 
-    protected $fillable = ['caja_id', 'paciente_id', 'cobrado_en', 'total', 'moneda_id', 'usuario_id'];
+    protected $fillable = ['caja_id', 'paciente_id', 'cobrado_en', 'total', 'moneda_id', 'usuario_id', 'factura_id'];
 
     public static function moduloEstado(): string
     {
@@ -52,6 +53,12 @@ class Cobro extends Model
             }
         });
         static::deleting(fn () => throw RegistroEconomicoInmutable::borrado());
+    }
+
+    /** La factura contra la que se registró (docs/facturacion.md); vacía en los cobros anteriores a la facturación. */
+    public function factura(): BelongsTo
+    {
+        return $this->belongsTo(Factura::class);
     }
 
     public function caja(): BelongsTo

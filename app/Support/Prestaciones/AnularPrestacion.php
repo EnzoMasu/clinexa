@@ -6,6 +6,7 @@ use App\Exceptions\AccionRechazada;
 use App\Models\Estado;
 use App\Models\Prestacion;
 use App\Models\User;
+use App\Support\Facturacion\BloqueoFactura;
 use App\Support\Liquidaciones\BloqueoLiquidacion;
 use App\Support\Repartos\RepartirPrestacion;
 use Illuminate\Support\Facades\DB;
@@ -35,6 +36,10 @@ final class AnularPrestacion
             $actual = Prestacion::query()->whereKey($prestacion->getKey())->lockForUpdate()->firstOrFail();
             if ($actual->anulada()) {
                 throw new AccionRechazada('Esta prestación ya está anulada.');
+            }
+            // Una facturada no se anula: primero se anula su factura (docs/facturacion.md).
+            if (($facturada = BloqueoFactura::impedimento($actual)) !== null) {
+                throw new AccionRechazada($facturada);
             }
             // Una cobrada no se anula: primero se revierte su cobro (docs/cobros-caja.md).
             if ($actual->cobroVigente()->exists()) {

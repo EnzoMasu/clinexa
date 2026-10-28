@@ -8,6 +8,7 @@ use Database\Seeders\Demo\BaseClinica;
 use Database\Seeders\Demo\DiasDemo;
 use Database\Seeders\Demo\EconomiaDemo;
 use Database\Seeders\Demo\EtapaDemo;
+use Database\Seeders\Demo\FacturacionDemo;
 use Database\Seeders\Demo\LiquidacionesDemo;
 use Database\Seeders\Demo\PacientesDemo;
 use Database\Seeders\Demo\SegurosDemo;
@@ -29,7 +30,7 @@ class DatosDemo extends Command
         {--confirmo-desarrollo : Confirma que esta es una base de DESARROLLO (obligatorio)}
         {--password= : Contraseña de los usuarios demo (si no se pasa, se pide por consola)}';
 
-    protected $description = 'Carga datos de prueba de desarrollo (usuarios, pacientes, agenda, economía, seguros, días simulados y liquidaciones). Idempotente. Nunca en producción';
+    protected $description = 'Carga datos de prueba de desarrollo (usuarios, pacientes, agenda, economía, seguros, facturación, días simulados y liquidaciones). Idempotente. Nunca en producción';
 
     /** Tablas cuyos conteos se muestran antes y después. */
     private const TABLAS = [
@@ -40,11 +41,12 @@ class DatosDemo extends Command
         'consultas', 'informes_estudio', 'recetas', 'reposos_medicos', 'ordenes_estudio', 'adendas_consulta', 'desbloqueos_consulta',
         'consulta_versiones', 'salidas_sin_atencion', 'prestaciones', 'repartos_prestacion', 'lineas_reparto',
         'cajas', 'cierres_caja', 'cobros', 'lineas_cobro', 'movimientos_caja', 'solicitudes_reversion_cobro',
-        'liquidaciones', 'lineas_liquidacion', 'pagos_aseguradora', 'logs_auditoria',
+        'liquidaciones', 'lineas_liquidacion', 'pagos_aseguradora', 'clinicas', 'timbrados', 'facturas', 'detalles_factura',
+        'solicitudes_anulacion_factura', 'logs_auditoria',
     ];
 
     /** Etapas que se cargan "la víspera" del primer día simulado, para que su fecha en Auditoría quede antes de usarlas. */
-    private const EN_LA_VISPERA = [EconomiaDemo::class, SegurosDemo::class];
+    private const EN_LA_VISPERA = [EconomiaDemo::class, SegurosDemo::class, FacturacionDemo::class];
 
     public function handle(): int
     {
@@ -74,6 +76,7 @@ class DatosDemo extends Command
             'Agenda' => app(AgendaDemo::class),
             'Catálogos y economía' => app(EconomiaDemo::class),
             'Seguros' => app(SegurosDemo::class),
+            'Facturación' => app(FacturacionDemo::class),
             'Días simulados' => app(DiasDemo::class),
             'Liquidaciones' => app(LiquidacionesDemo::class),
         ];

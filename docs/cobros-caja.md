@@ -1,8 +1,9 @@
 # Cobros y caja (fases 3a y 3b económicas)
 
 Los **medios de pago**, la **caja** de cada cajero (apertura, cierre diario y aprobación), el **cobro** de las prestaciones y su
-**reversión** (fase 3b). Sin recibo imprimible, factura, notas de crédito, pagos parciales, saldos, convenios, compras ni gastos: son
-fases futuras. Nada se borra. Ver también `docs/tarifas-prestaciones.md` y `docs/reparto-economico.md`.
+**reversión** (fase 3b). Desde la fase 5a (`docs/facturacion.md`) cada cobro nuevo se registra **contra una factura** emitida en la
+misma transacción, y un cobro con factura solo se revierte anulando la factura; los anteriores siguen con estas reglas. Sin recibo
+imprimible, notas de crédito, pagos parciales, saldos, compras ni gastos: son fases futuras. Nada se borra. Ver también `docs/tarifas-prestaciones.md` y `docs/reparto-economico.md`.
 
 ## Reglas
 
