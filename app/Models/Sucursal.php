@@ -19,11 +19,24 @@ class Sucursal extends Model
         'telefono',
         'estado_id',
         'ciudad_id',
+        'clinica_id',
     ];
 
     public static function moduloEstado(): string
     {
         return 'SUCURSALES';
+    }
+
+    /** La clínica como contribuyente emisor (docs/facturacion.md). Su dirección y teléfono son los del establecimiento. */
+    public function clinica(): BelongsTo
+    {
+        return $this->belongsTo(Clinica::class);
+    }
+
+    /** La sucursal principal: la activa más antigua (la de las recetas, los PDF y la facturación con un solo punto). */
+    public static function principal(): ?self
+    {
+        return self::activos()->orderBy('id')->first();
     }
 
     /**

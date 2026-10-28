@@ -10,7 +10,9 @@ use App\Models\CupoEntrePacientes;
 use App\Models\Dieta;
 use App\Models\Estado;
 use App\Models\Estudio;
+use App\Models\Factura;
 use App\Models\MedioPago;
+use App\Models\MotivoAnulacionFactura;
 use App\Models\OrigenTurno;
 use App\Models\Paciente;
 use App\Models\Prestacion;
@@ -33,7 +35,6 @@ use App\Support\Atencion\RegistrarSalida;
 use App\Support\Cobros\AbrirCaja;
 use App\Support\Cobros\CerrarCaja;
 use App\Support\Cobros\Cobrar;
-use App\Support\Cobros\RevertirCobro;
 use App\Support\Cobros\RevisarCierre;
 use App\Support\Convenios\FirmaRecibida;
 use App\Support\Convenios\GestionCoberturas;
@@ -41,6 +42,8 @@ use App\Support\Convenios\TicketVisacion;
 use App\Support\Correcciones\AgregarAdenda;
 use App\Support\Correcciones\CorregirConsulta;
 use App\Support\Correcciones\Desbloquear;
+use App\Support\Facturacion\AnularFactura;
+use App\Support\Facturacion\EmitirFactura;
 use App\Support\Fecha;
 use App\Support\HojaReceta;
 use App\Support\OrdenEstudio\EmitirOrden;
@@ -64,13 +67,15 @@ use RuntimeException;
  * (solo la parte de la paciente), los médicos cierran la jornada (los que no vinieron, AUSENTE), Caja 1 cierra y Gerencia
  * revisa. Casos a propósito: cubre todo, copago porcentaje y monto fijo, NO_CUBIERTO, un estudio sin visar, una cobertura
  * vencida, PAP-COLPO pendiente de tarifar, el Dr. Duarte pendiente de reparto, un cierre con diferencia, uno devuelto, una
- * reversión aprobada y una rechazada; hoy, una reversión directa y una solicitud pendiente.
+ * anulación de factura aprobada (con la factura que la reemplaza) y una rechazada; hoy, una factura anulada en el plazo por la Caja 2
+ * y una solicitud de anulación pendiente. Cada cobro sale con su factura (docs/facturacion.md): la factura primero.
  *
  * Sin servicio (con los modelos y su auditoría, como el panel): cancelar un turno (Turno::pasarA), el cupo entre pacientes,
  * los turnos con horario (como AgendaDemo) y las recetas (crear, emitir y anular: la lógica está en RecetaController).
  *
- * Los hitos (PRESTACIONES, PRESTACIONES_INFORMES, REPARTOS, CONVENIOS) se adelantan a la víspera del primer día, solo si no hay
- * consultas finalizadas ni prestaciones anteriores (si no, nada de lo simulado tendría prestación, seguro ni reparto).
+ * Los hitos (PRESTACIONES, PRESTACIONES_INFORMES, REPARTOS, CONVENIOS, FACTURACION) se adelantan a la víspera del primer día, solo si
+ * no hay consultas finalizadas, prestaciones ni cobros anteriores (si no, nada de lo simulado tendría prestación, seguro, reparto ni
+ * factura).
  *
  * Se carga UNA sola vez: si ya hay cajas de Caja 1 o turnos demo de días pasados, no hace nada.
  */
@@ -78,7 +83,7 @@ class DiasDemo extends EtapaDemo
 {
     public const DIAS = 10;
 
-    public const HITOS = [GenerarPrestacion::HITO, GenerarPrestacion::HITO_INFORMES, 'REPARTOS', 'CONVENIOS'];
+    public const HITOS = [GenerarPrestacion::HITO, GenerarPrestacion::HITO_INFORMES, 'REPARTOS', 'CONVENIOS', EmitirFactura::HITO];
 
     public const MONTO_INICIAL_CAJA = 500000;
 
@@ -236,7 +241,7 @@ class DiasDemo extends EtapaDemo
                 continue;
             }
             $previas = Consulta::where('estado_id', Estado::idDe(Estado::FINALIZADO))->where('finalizada_en', '<', $actual)->exists()
-                || Prestacion::where('created_at', '<', $actual)->exists();
+                || Prestacion::where('created_at', '<', $actual)->exists() || Cobro::where('created_at', '<', $actual)->exists();
             if ($previas) {
                 throw new RuntimeException("No se puede adelantar el hito {$codigo}: ya hay consultas finalizadas o prestaciones anteriores. Use una base nueva.");
             }
@@ -554,8 +559,8 @@ class DiasDemo extends EtapaDemo
         });
     }
 
-    /** Un cobro con todo lo pendiente de la paciente: efectivo, transferencia, tarjeta o mixto, por turno. */
-    private function cobrar(string $cajero, Paciente $paciente, ?string $medio = null): ?Cobro
+    /** Un cobro (con su factura) de todo lo pendiente de la paciente: efectivo, transferencia, tarjeta o mixto, por turno. */
+    private function cobrar(string $cajero, Paciente $paciente, ?string $medio = null, ?Factura $reemplazaA = null): ?Cobro
     {
         $prestaciones = Cobrar::pendientes()->where('paciente_id', $paciente->id)->get();
         if ($prestaciones->isEmpty()) {
@@ -572,13 +577,17 @@ class DiasDemo extends EtapaDemo
             'EFECTIVO' => [['medio_pago_id' => $this->medios['EFECTIVO'], 'monto' => $total, 'referencia' => null]],
             default => [['medio_pago_id' => $this->medios[$medio], 'monto' => $total, 'referencia' => $referencia()]],
         };
-        $cobro = Cobrar::ejecutar($this->usuario($cajero), $paciente->id, $prestaciones->modelKeys(), $lineas);
+        $cobro = Cobrar::ejecutar($this->usuario($cajero), $paciente->id, $prestaciones->modelKeys(), $lineas, $reemplazaA);
         $this->contar('cobros');
+        $cobro->factura_id && $this->contar('facturas');
 
         return $cobro;
     }
 
-    /** Día 4: una reversión pedida y aprobada (y se cobra de nuevo). Día 6: una pedida y rechazada. */
+    /**
+     * Día 4: la anulación de una factura del día 2 (caja cerrada: con solicitud) aprobada por Gerencia, y se cobra de nuevo con la
+     * factura que la reemplaza. Día 6: una solicitud de anulación rechazada.
+     */
     private function reversiones(int $indice, Carbon $dia): void
     {
         $caja1 = $this->usuario('caja1');
@@ -586,21 +595,26 @@ class DiasDemo extends EtapaDemo
         if ($indice === 3) {
             $cobro = $this->cobros[1][0];
             $this->momento($dia, '17:45');
-            $solicitud = $this->como($caja1->email, fn () => RevertirCobro::solicitar($caja1, $cobro, 'Cobro duplicado por error (demo).'));
+            $solicitud = $this->como($caja1->email, fn () => AnularFactura::solicitar($caja1, $cobro->factura, $this->motivo('DATOS_CLIENTE'), 'La factura salió con el documento equivocado (demo).'));
             $this->momento($dia, '17:50');
-            $this->como($gerencia->email, fn () => RevertirCobro::aprobar($gerencia, $solicitud, 'Verificado con el comprobante (demo).'));
+            $this->como($gerencia->email, fn () => AnularFactura::aprobar($gerencia, $solicitud, 'Verificado con la paciente (demo).'));
             $this->momento($dia, '17:55');
-            $this->como($caja1->email, fn () => $this->cobrar('caja1', Paciente::findOrFail($cobro->paciente_id), 'TRANSFERENCIA'));
-            $this->contar('reversiones aprobadas');
+            $this->como($caja1->email, fn () => $this->cobrar('caja1', Paciente::findOrFail($cobro->paciente_id), 'TRANSFERENCIA', $cobro->factura));
+            $this->contar('anulaciones de factura aprobadas');
         }
         if ($indice === 5) {
             $cobro = $this->cobros[4][0];
             $this->momento($dia, '17:45');
-            $solicitud = $this->como($caja1->email, fn () => RevertirCobro::solicitar($caja1, $cobro, 'La paciente pide la devolución (demo).'));
+            $solicitud = $this->como($caja1->email, fn () => AnularFactura::solicitar($caja1, $cobro->factura, $this->motivo('PROCEDIMIENTO_MONTO'), 'La paciente reclama el monto (demo).'));
             $this->momento($dia, '17:50');
-            $this->como($gerencia->email, fn () => RevertirCobro::rechazar($gerencia, $solicitud, 'El cobro es correcto: no corresponde devolverlo (demo).'));
-            $this->contar('reversiones rechazadas');
+            $this->como($gerencia->email, fn () => AnularFactura::rechazar($gerencia, $solicitud, 'El monto es el de la tarifa: no corresponde anularla (demo).'));
+            $this->contar('solicitudes de anulación rechazadas');
         }
+    }
+
+    private function motivo(string $codigo): int
+    {
+        return MotivoAnulacionFactura::where('codigo', $codigo)->value('id') ?? throw new RuntimeException("Falta el motivo de anulación {$codigo}: correr las migraciones.");
     }
 
     /** Caja 1 cierra con lo esperado (día 3: con un faltante y su motivo) y Gerencia aprueba (día 5: primero la devuelve). */
@@ -632,7 +646,10 @@ class DiasDemo extends EtapaDemo
         $this->contar('cierres aprobados');
     }
 
-    /** Hoy: la Caja 2 abre y cobra lo que quedó de ayer, revierte uno directo y pide la reversión de un cobro de la Caja 1. */
+    /**
+     * Hoy: la Caja 2 abre y cobra lo que quedó de ayer, anula en el plazo una factura suya (se revierte su cobro) y cobra de nuevo con
+     * la que la reemplaza, y pide la anulación de una factura de la Caja 1 (queda pendiente).
+     */
     private function hoy(): void
     {
         $caja2 = $this->usuario('caja2');
@@ -642,11 +659,11 @@ class DiasDemo extends EtapaDemo
             [$primera, $segunda] = array_map(fn (int $orden) => $this->pacientes[$orden], self::PARA_HOY);
             $this->cobrar('caja2', $primera, 'MIXTO');
             $cobro = $this->cobrar('caja2', $segunda, 'TARJETA');
-            RevertirCobro::ejecutar($caja2, $cobro, 'Se pasó la tarjeta equivocada (demo).');
-            $this->contar('reversiones directas');
-            $this->cobrar('caja2', $segunda, 'EFECTIVO');
-            RevertirCobro::solicitar($caja2, $this->cobros[self::DIAS - 2][0], 'La paciente reclama un cobro de más (demo).');
-            $this->contar('solicitudes de reversión pendientes');
+            AnularFactura::anular($caja2, $cobro->factura, $this->motivo('OTRO'), 'Se pasó la tarjeta equivocada (demo).');
+            $this->contar('facturas anuladas en el plazo');
+            $this->cobrar('caja2', $segunda, 'EFECTIVO', $cobro->factura);
+            AnularFactura::solicitar($caja2, $this->cobros[self::DIAS - 2][0]->factura, $this->motivo('DATOS_CLIENTE'), 'La paciente pide la factura a nombre de su empresa (demo).');
+            $this->contar('solicitudes de anulación pendientes');
         });
     }
 }

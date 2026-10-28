@@ -4,9 +4,21 @@
 @use('App\Models\Prestacion')
 
 {{-- Pantalla de cobro (CobroController::create, docs/cobros-caja.md), en un solo flujo: buscar la paciente, tildar sus prestaciones
-     sin cobrar, cargar los medios y montos y confirmar. El total es la suma de las tildadas; los pagos deben sumar exactamente eso. --}}
+     sin cobrar, cargar los medios y montos y confirmar. El total es la suma de las tildadas; los pagos deben sumar exactamente eso.
+     Desde la facturación (docs/facturacion.md), confirmar emite la factura contado y registra el cobro contra ella, en una sola acción. --}}
 <x-admin.page title="Cobrar">
+    @if ($facturaActiva)
+        @include('admin.facturas._simulacion')
+    @endif
     <div class="space-y-6 p-6 text-sm">
+        @if ($sinFactura)
+            <p role="alert" class="max-w-3xl rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">{{ $sinFactura }}</p>
+        @endif
+        @if ($reemplazaA)
+            <p role="status" class="max-w-3xl rounded-md bg-indigo-50 p-3 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-200">
+                La factura nueva reemplaza a la {{ $reemplazaA->numero_completo }} (anulada).
+            </p>
+        @endif
         @if ($sinCaja)
             <p role="status" class="max-w-3xl rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
                 {{ $sinCaja }}
@@ -73,6 +85,9 @@
                 <form method="POST" action="{{ route('admin.cobros.store') }}" novalidate x-data="pantallaCobro" class="max-w-4xl space-y-6">
                     @csrf
                     <input type="hidden" name="paciente_id" value="{{ $paciente->id }}">
+                    @if ($reemplazaA)
+                        <input type="hidden" name="reemplaza_a_id" value="{{ $reemplazaA->id }}">
+                    @endif
 
                     <fieldset class="space-y-3">
                         <legend class="font-semibold text-gray-900 dark:text-gray-100">Prestaciones sin cobrar</legend>
@@ -139,7 +154,10 @@
                     </fieldset>
 
                     <x-input-error :messages="$errors->get('prestaciones')" />
-                    <x-primary-button :disabled="(bool) $sinCaja">Confirmar el cobro</x-primary-button>
+                    @if ($facturaActiva)
+                        <p class="text-gray-600 dark:text-gray-400">Al confirmar se emite la factura contado a nombre de la paciente ({{ $paciente->persona->documentoPrincipal() ?: 'sin documento' }}) y se registra el cobro contra ella.</p>
+                    @endif
+                    <x-primary-button :disabled="(bool) $sinCaja || (bool) $sinFactura">{{ $facturaActiva ? 'Facturar y cobrar' : 'Confirmar el cobro' }}</x-primary-button>
                 </form>
             @endif
         @endif

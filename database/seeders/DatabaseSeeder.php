@@ -17,6 +17,8 @@ class DatabaseSeeder extends Seeder
             ModuloSistemaSeeder::class,
             // Los medios de pago de referencia (Efectivo, Transferencia, Tarjeta): los usa la caja.
             MediosPagoSeeder::class,
+            // Los motivos de anulación de factura de referencia (docs/facturacion.md).
+            MotivosAnulacionFacturaSeeder::class,
             ModulosSensiblesSeeder::class,
             PerfilAdministradorSeeder::class,
             PerfilesPredefinidosSeeder::class,

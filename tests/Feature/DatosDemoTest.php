@@ -218,8 +218,44 @@ test('la etapa 2 simula los días pasados con todos los casos económicos y clí
         ->and(DB::table('cierre_caja_medios')->where('diferencia', '!=', 0)->count())->toBe(1)
         ->and(DB::table('lineas_cobro')->join('medios_pago', 'medios_pago.id', '=', 'lineas_cobro.medio_pago_id')->distinct()->pluck('medios_pago.codigo')->sort()->values()->all())
         ->toBe(['EFECTIVO', 'TARJETA', 'TRANSFERENCIA'])
-        ->and($estado('solicitudes_reversion_cobro')->sort()->values()->all())->toBe(['APROBADO', 'PENDIENTE', 'RECHAZADO'])
         ->and($estado('cobros')->countBy()->all())->toMatchArray(['REVERTIDO' => 2]);
+
+    // Facturación (docs/facturacion.md): cada cobro con su factura; las reversiones son por la anulación de su factura (una aprobada con
+    // solicitud y una en el plazo, cada una con la que la reemplaza), una solicitud rechazada y una pendiente; ninguna de la fase 3b.
+    expect(DB::table('cobros')->whereNull('factura_id')->count())->toBe(0)
+        ->and(DB::table('facturas')->count())->toBe(DB::table('cobros')->count())
+        ->and($estado('facturas')->countBy()->all())->toMatchArray(['ANULADO' => 2])
+        ->and(DB::table('facturas')->whereNotNull('reemplaza_a_id')->count())->toBe(2)
+        ->and(DB::table('facturas')->orderBy('numero')->pluck('numero')->all())->toBe(range(1, DB::table('facturas')->count()))
+        ->and(DB::table('facturas')->where('simulada', false)->count())->toBe(0)
+        ->and($estado('solicitudes_anulacion_factura')->sort()->values()->all())->toBe(['APROBADO', 'PENDIENTE', 'RECHAZADO'])
+        ->and(DB::table('solicitudes_reversion_cobro')->count())->toBe(0)
+        ->and(DB::table('timbrados')->sole()->vigente_desde)->toStartWith('2026-08-01')
+        ->and(DB::table('clinicas')->sole()->ruc)->toBe(Ruc::conDigito('80900010'))
+        ->and(DB::table('personas')->where('ruc', Ruc::conDigito('80900010'))->exists())->toBeFalse();
+})->group('lento'); // corre el comando completo (docs/pruebas.md)
+
+test('en una base cargada antes de la facturación, carga la clínica y el timbrado de prueba y no factura los cobros existentes', function () use ($correr) {
+    $correr()->assertSuccessful();
+    // Como una base cargada antes de esta fase: los mismos cobros, sin factura, clínica ni timbrado.
+    DB::table('cobros')->update(['factura_id' => null]);
+    foreach (['solicitudes_anulacion_factura', 'detalles_factura'] as $tabla) {
+        DB::table($tabla)->delete();
+    }
+    DB::table('facturas')->update(['reemplaza_a_id' => null]);
+    DB::table('facturas')->delete();
+    DB::table('timbrados')->delete();
+    DB::table('sucursales')->update(['clinica_id' => null]);
+    DB::table('clinicas')->delete();
+    $cobros = DB::table('cobros')->orderBy('id')->get()->map(fn ($fila) => (array) $fila)->all();
+
+    $correr()->assertSuccessful();
+    $correr()->assertSuccessful();
+
+    expect(DB::table('cobros')->orderBy('id')->get()->map(fn ($fila) => (array) $fila)->all())->toBe($cobros)
+        ->and(DB::table('facturas')->count())->toBe(0)
+        ->and(DB::table('clinicas')->count())->toBe(1)->and(DB::table('timbrados')->count())->toBe(1)
+        ->and(DB::table('sucursales')->whereNull('clinica_id')->count())->toBe(0);
 })->group('lento'); // corre el comando completo (docs/pruebas.md)
 
 test('las liquidaciones: la primera aseguradora aprobada con un pago parcial, la segunda en preparación, con corte hoy; también sobre una base ya cargada', function () use ($correr) {

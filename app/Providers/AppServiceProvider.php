@@ -5,6 +5,9 @@ namespace App\Providers;
 use App\Rules\SinCaracteresRepetidos;
 use App\Support\AuditoriaAutenticacion;
 use App\Support\ContextoAuditoria;
+use App\Support\Facturacion\EmisorDocumentos;
+use App\Support\Facturacion\EmisorNoConfigurado;
+use App\Support\Facturacion\EmisorSimulado;
 use Illuminate\Database\Console\Migrations\FreshCommand;
 use Illuminate\Database\Console\Migrations\RefreshCommand;
 use Illuminate\Database\Console\Migrations\ResetCommand;
@@ -35,6 +38,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Estado de la auditoría, uno por pedido (lo enciende el middleware ContextoAuditoriaWeb).
         $this->app->scoped(ContextoAuditoria::class);
+
+        // Quién emite las facturas (docs/facturacion.md): la simulación, mientras no haya un emisor real.
+        $this->app->bind(EmisorDocumentos::class, fn () => config('clinexa.facturacion.simulada') ? new EmisorSimulado : new EmisorNoConfigurado);
     }
 
     /**

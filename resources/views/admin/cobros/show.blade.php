@@ -22,6 +22,19 @@
             <div><dt class="text-gray-500 dark:text-gray-400">Paciente</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $cobro->paciente->persona->nombre_completo }} ({{ $cobro->paciente->nro_ficha }})</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Total</dt><dd class="font-medium text-gray-900 dark:text-gray-100 tabular-nums">{{ $cobro->totalTexto() }}</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Estado</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $cobro->etiquetaEstado() }}</dd></div>
+            {{-- La factura contra la que se registró (docs/facturacion.md); los cobros anteriores a la facturación no tienen. --}}
+            <div>
+                <dt class="text-gray-500 dark:text-gray-400">Factura</dt>
+                <dd class="font-medium text-gray-900 dark:text-gray-100">
+                    @if ($cobro->factura === null)
+                        Sin factura (anterior a la facturación)
+                    @elseif ($veFactura)
+                        <a href="{{ route('admin.facturas.show', $cobro->factura) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">{{ $cobro->factura->numero_completo }}</a> ({{ $cobro->factura->etiquetaEstado() }})
+                    @else
+                        {{ $cobro->factura->numero_completo }} ({{ $cobro->factura->etiquetaEstado() }})
+                    @endif
+                </dd>
+            </div>
             <div>
                 <dt class="text-gray-500 dark:text-gray-400">Cajero</dt>
                 <dd class="font-medium text-gray-900 dark:text-gray-100">
@@ -63,6 +76,10 @@
                 @endforeach
             </x-admin.table>
         </section>
+
+        @if ($cobro->factura && ! $cobro->revertido())
+            <p class="max-w-3xl text-gray-600 dark:text-gray-400">Este cobro tiene factura: se revierte anulando la factura, desde su detalle.</p>
+        @endif
 
         @php($devolucion = $cobro->lineas->map(fn ($linea) => $linea->medioPago->nombre.' '.$cobro->moneda->formatear($linea->monto))->join(' · '))
 

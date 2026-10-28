@@ -10,11 +10,13 @@ use App\Models\MedioPago;
 use App\Models\Moneda;
 use App\Models\Paciente;
 use App\Models\Estado;
+use App\Models\Factura;
 use App\Models\Prestacion;
 use App\Models\SolicitudReversionCobro;
 use App\Support\Cobros\Cobrar;
 use App\Support\Cobros\Guaranies;
 use App\Support\Cobros\RevertirCobro;
+use App\Support\Facturacion\EmitirFactura;
 use App\Support\Fecha;
 use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
@@ -76,13 +78,14 @@ class CobroController extends Controller
 
     public function show(Cobro $cobro): View
     {
-        $cobro->load(['paciente.persona', 'cajero.persona', 'caja.estado', 'moneda', 'lineas.medioPago', 'estado', 'revertidoPor.persona', 'cajaReversion',
+        $cobro->load(['factura.estado', 'paciente.persona', 'cajero.persona', 'caja.estado', 'moneda', 'lineas.medioPago', 'estado', 'revertidoPor.persona', 'cajaReversion',
             'prestaciones.prestacion.procedimiento', 'prestaciones.prestacion.profesional.persona',
             'solicitudesReversion' => fn ($query) => $query->orderByDesc('id'), 'solicitudesReversion.estado',
             'solicitudesReversion.solicitante.persona', 'solicitudesReversion.revisadoPor.persona']);
         $usuario = auth()->user();
         $pendiente = $cobro->solicitudesReversion->first(fn (SolicitudReversionCobro $solicitud) => $solicitud->pendiente());
-        $libre = ! $cobro->revertido() && $pendiente === null;
+        // Un cobro con factura se revierte solo anulando la factura (docs/facturacion.md).
+        $libre = ! $cobro->revertido() && $pendiente === null && $cobro->factura_id === null;
         $directa = RevertirCobro::esDirecta($usuario, $cobro);
         $veCaja = fn (?Caja $caja) => $caja !== null && Permisos::puedeRuta('admin.cajas.show')
             && ($caja->usuario_id === $usuario->id || $usuario->tienePermiso('CIERRES_CAJA', 'VER'));
@@ -94,6 +97,7 @@ class CobroController extends Controller
             'puedeRevertir' => $libre && $directa && Permisos::puedeRuta('admin.cobros.revertir'),
             'puedeSolicitar' => $libre && ! $directa && Permisos::puedeRuta('admin.cobros.solicitar-reversion'),
             'pendiente' => $pendiente,
+            'veFactura' => $cobro->factura !== null && Permisos::puedeRuta('admin.facturas.show'),
             'puedeRevisar' => $pendiente !== null && $pendiente->usuario_id !== $usuario->id && Permisos::puedeRuta('admin.cobros.reversiones.aprobar'),
             'sinCajaSolicitante' => $pendiente !== null
                 && ! Caja::query()->abiertaDe($pendiente->solicitante)->whereDate('fecha', Fecha::hoy()->format('Y-m-d'))->exists(),
@@ -188,10 +192,22 @@ class CobroController extends Controller
         };
         $busqueda = trim((string) $request->query('q'));
         $paciente = filter_var($request->query('paciente'), FILTER_VALIDATE_INT)
-            ? Paciente::with('persona')->find((int) $request->query('paciente')) : null;
+            ? Paciente::with('persona.tipoDocumento')->find((int) $request->query('paciente')) : null;
+        // La factura (docs/facturacion.md): si no se puede emitir (sin timbrado vigente, sin datos de la clínica), se avisa antes.
+        $facturaActiva = EmitirFactura::activa();
+        $sinFactura = $facturaActiva ? EmitirFactura::timbradoParaEmitir()[1] : null;
+        if ($facturaActiva && $sinFactura === null && $paciente !== null && $paciente->persona->documentoPrincipal() === '') {
+            $sinFactura = EmitirFactura::SIN_DOCUMENTO;
+        }
+        // "Cobrar de nuevo" desde una factura anulada: la nueva la reemplaza.
+        $reemplazaA = $paciente !== null && filter_var($request->query('reemplaza'), FILTER_VALIDATE_INT)
+            ? Factura::query()->whereKey((int) $request->query('reemplaza'))->where('paciente_id', $paciente->id)->first() : null;
 
         return view('admin.cobros.create', [
             'sinCaja' => $sinCaja,
+            'facturaActiva' => $facturaActiva,
+            'sinFactura' => $sinFactura,
+            'reemplazaA' => $reemplazaA?->anulada() ? $reemplazaA : null,
             'busqueda' => $busqueda,
             'paciente' => $paciente,
             'pacientes' => $paciente ? collect() : $this->pacientesConPendientes($busqueda),
@@ -220,6 +236,7 @@ class CobroController extends Controller
             'lineas.*.medio_pago_id' => ['nullable', 'integer'],
             'lineas.*.monto' => Guaranies::regla(requerido: false),
             'lineas.*.referencia' => ['nullable', 'string', 'max:'.Cobrar::REFERENCIA_MAXIMA],
+            'reemplaza_a_id' => ['nullable', 'integer'],
         ], [
             'prestaciones.required' => 'Elija al menos una prestación para cobrar.',
             'lineas.*.monto.regex' => Guaranies::MENSAJE,
@@ -240,12 +257,16 @@ class CobroController extends Controller
         }
 
         try {
-            $cobro = Cobrar::ejecutar($request->user(), (int) $datos['paciente_id'], $datos['prestaciones'], $lineas);
+            $reemplazaA = isset($datos['reemplaza_a_id']) ? Factura::find((int) $datos['reemplaza_a_id']) : null;
+            $cobro = Cobrar::ejecutar($request->user(), (int) $datos['paciente_id'], $datos['prestaciones'], $lineas, $reemplazaA);
         } catch (AccionRechazada $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('admin.cobros.show', $cobro)->with('status', "Cobro registrado: {$cobro->totalTexto()}.");
+        $factura = $cobro->factura;
+
+        return redirect()->route('admin.cobros.show', $cobro)
+            ->with('status', $factura ? "Factura {$factura->numero_completo} emitida y cobrada: {$cobro->totalTexto()}." : "Cobro registrado: {$cobro->totalTexto()}.");
     }
 
     /** Las pacientes con prestaciones sin cobrar (hasta 30, las de prestación más antigua primero), con la cantidad y el total. */

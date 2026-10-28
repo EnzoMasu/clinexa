@@ -88,6 +88,20 @@
                     </dd>
                 </div>
             @endif
+            {{-- Su factura (docs/facturacion.md): con el enlace para quien ve las facturas. --}}
+            @if ($prestacion->detalleFactura)
+                <div>
+                    <dt class="text-gray-500 dark:text-gray-400">Factura</dt>
+                    <dd class="font-medium text-gray-900 dark:text-gray-100">
+                        @if ($veFacturas)
+                            <a href="{{ route('admin.facturas.show', $prestacion->detalleFactura->factura_id) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">{{ $prestacion->detalleFactura->factura->numero_completo }}</a>
+                        @else
+                            {{ $prestacion->detalleFactura->factura->numero_completo }}
+                        @endif
+                        <span class="font-normal text-gray-600 dark:text-gray-400">({{ $prestacion->detalleFactura->tasaTexto() }})</span>
+                    </dd>
+                </div>
+            @endif
             @if ($prestacion->tarifa || $prestacion->tarifaConvenio)
                 <div><dt class="text-gray-500 dark:text-gray-400">Tarifa usada</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->tarifa ? $prestacion->tarifa->profesionalTexto().' · '.$prestacion->tarifa->vigenciaTexto() : 'Del convenio · '.$prestacion->tarifaConvenio->vigenciaTexto() }}</dd></div>
                 <div><dt class="text-gray-500 dark:text-gray-400">Tarifada</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ Fecha::mostrar($prestacion->tarifada_en, conHora: true) }}{{ $prestacion->tarifadaPor ? ' por '.$prestacion->tarifadaPor->persona?->nombre_completo : ' al finalizar la consulta' }}</dd></div>
@@ -189,7 +203,7 @@
         </div>
 
         @if ($cobro && ! $prestacion->anulada() && Permisos::puedeRuta('admin.prestaciones.anular'))
-            <p class="max-w-xl text-gray-600 dark:text-gray-400">Está cobrada: para anularla, primero hay que revertir su cobro.</p>
+            <p class="max-w-xl text-gray-600 dark:text-gray-400">{{ $prestacion->detallesFactura->isNotEmpty() ? 'Está facturada: para anularla, primero hay que anular su factura (eso revierte el cobro).' : 'Está cobrada: para anularla, primero hay que revertir su cobro.' }}</p>
         @endif
 
         @if ($puedeAnular)

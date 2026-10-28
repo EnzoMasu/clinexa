@@ -7,6 +7,7 @@ use App\Models\Caja;
 use App\Models\Cobro;
 use App\Models\CobroPrestacion;
 use App\Models\Estado;
+use App\Models\Factura;
 use App\Models\LineaCobro;
 use App\Models\MedioPago;
 use App\Models\Moneda;
@@ -14,6 +15,7 @@ use App\Models\MovimientoCaja;
 use App\Models\Prestacion;
 use App\Models\User;
 use App\Support\Auditoria;
+use App\Support\Facturacion\EmitirFactura;
 use App\Support\Fecha;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
@@ -28,6 +30,10 @@ use Illuminate\Support\Facades\DB;
  *   no se ofrece ("A cargo de aseguradora").
  * - Total = la suma exacta de lo que paga la paciente en cada una; la suma de las líneas de pago (medio activo, monto, referencia opcional) = el total. Sin
  *   pagos parciales, saldos ni vuelto. Cada línea es un movimiento de la caja.
+ *
+ * Desde la facturación (docs/facturacion.md, hito FACTURACION) la factura va PRIMERO: en la misma transacción se emite la factura
+ * individual CONTADO de esas prestaciones (Facturacion\EmitirFactura, con su número) y después se registra el cobro contra ella, que
+ * la deja COBRADA. Si algo falla, no queda nada (ni el número usado). Los cobros anteriores al hito no tienen factura.
  *
  * Las prestaciones se bloquean mientras se cobra (también frente a su anulación) y `cobro_prestaciones_un_cobro_vigente` frena un
  * segundo cobro aunque algo se saltee la verificación. Queda en Auditoría como CREAR del cobro, de cada prestación cubierta y de
@@ -62,7 +68,7 @@ final class Cobrar
      * @param  list<int>  $prestacionIds
      * @param  list<array{medio_pago_id: int, monto: int, referencia: ?string}>  $lineas
      */
-    public static function ejecutar(User $cajero, int $pacienteId, array $prestacionIds, array $lineas): Cobro
+    public static function ejecutar(User $cajero, int $pacienteId, array $prestacionIds, array $lineas, ?Factura $reemplazaA = null): Cobro
     {
         $prestacionIds = array_values(array_unique(array_map('intval', $prestacionIds)));
         if ($prestacionIds === []) {
@@ -73,7 +79,7 @@ final class Cobrar
         }
 
         try {
-            return DB::transaction(function () use ($cajero, $pacienteId, $prestacionIds, $lineas) {
+            return DB::transaction(function () use ($cajero, $pacienteId, $prestacionIds, $lineas, $reemplazaA) {
                 $caja = self::cajaParaCobrar($cajero);
 
                 // Bloqueadas (en orden, para no cruzarse con otro cobro ni con una anulación).
@@ -106,12 +112,24 @@ final class Cobrar
                     throw new AccionRechazada(strtr(self::SUMA_NO_CIERRA, [':pagos' => $moneda->formatear($pagos), ':total' => $moneda->formatear($total)]));
                 }
 
-                return self::registrar($cajero, $caja, $pacienteId, $prestaciones->all(), $lineas, $total, $moneda);
+                // La factura primero (desde el hito); el cobro, contra ella.
+                $factura = EmitirFactura::activa() ? EmitirFactura::contado($cajero, $caja, $pacienteId, $prestaciones->all(), $reemplazaA) : null;
+                $cobro = self::registrar($cajero, $caja, $pacienteId, $prestaciones->all(), $lineas, $total, $moneda, $factura);
+                if ($factura !== null) {
+                    Auditoria::conDetalle("Factura {$factura->numero_completo} cobrada", fn () => $factura->forceFill(['estado_id' => Estado::idDe(Estado::COBRADO)])->save());
+                    $factura->unsetRelation('estado');
+                }
+
+                return $cobro;
             });
         } catch (QueryException $e) {
             // Otro cobro de la misma prestación ganó por el índice único parcial.
             if (str_contains($e->getMessage(), 'cobro_prestaciones_un_cobro_vigente') || str_contains($e->getMessage(), 'cobro_prestaciones.prestacion_id')) {
                 throw new AccionRechazada(self::YA_COBRADA);
+            }
+            // Otra factura de la misma prestación ganó por el suyo.
+            if (str_contains($e->getMessage(), 'detalles_factura_una_por_parte') || str_contains($e->getMessage(), 'detalles_factura.prestacion_id')) {
+                throw new AccionRechazada(EmitirFactura::YA_FACTURADA);
             }
             throw $e;
         }
@@ -156,13 +174,16 @@ final class Cobrar
     }
 
     /** @param  list<Prestacion>  $prestaciones */
-    private static function registrar(User $cajero, Caja $caja, int $pacienteId, array $prestaciones, array $lineas, int $total, Moneda $moneda): Cobro
+    private static function registrar(User $cajero, Caja $caja, int $pacienteId, array $prestaciones, array $lineas, int $total, Moneda $moneda, ?Factura $factura): Cobro
     {
         $ahora = now();
         $cobro = new Cobro([
             'caja_id' => $caja->id, 'paciente_id' => $pacienteId, 'cobrado_en' => $ahora,
             'total' => $total, 'moneda_id' => $moneda->id, 'usuario_id' => $cajero->id,
         ]);
+        if ($factura !== null) {
+            $cobro->factura_id = $factura->id;
+        }
         $cobro->estado_id = Estado::idDe(Estado::VIGENTE);
 
         return Auditoria::conDetalle('Cobro de '.count($prestaciones).(count($prestaciones) === 1 ? ' prestación' : ' prestaciones'), function () use ($cobro, $cajero, $caja, $prestaciones, $lineas, $ahora) {

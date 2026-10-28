@@ -120,7 +120,8 @@ test('los CHECK de montos', function () {
 test('la migración con prestaciones ya existentes: no las cobra; en simulación no cambia nada', function () {
     $migracion = require base_path('database/migrations/2026_10_28_100001_create_cobros_y_caja.php');
     hcConsulta(); // una prestación tarifada existente
-    // La de reversiones (fase 3b) depende de sus tablas: se baja antes.
+    // La de facturación (fase 5a) y la de reversiones (fase 3b) dependen de sus tablas: se bajan antes.
+    (require base_path('database/migrations/2026_11_02_100001_create_facturacion_individual.php'))->down();
     (require base_path('database/migrations/2026_10_29_100001_reversiones_de_cobro.php'))->down();
     $migracion->down();
     $antes = DB::table('prestaciones')->orderBy('id')->get()->map(fn ($fila) => (array) $fila)->all();
