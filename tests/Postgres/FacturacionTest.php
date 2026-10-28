@@ -2,6 +2,7 @@
 
 use App\Models\Clinica;
 use App\Models\Consulta;
+use App\Models\DetalleFactura;
 use App\Models\Estado;
 use App\Models\Factura;
 use App\Models\MedioPago;
@@ -14,6 +15,7 @@ use App\Models\Timbrado;
 use App\Models\User;
 use App\Support\Cobros\AbrirCaja;
 use App\Support\Cobros\Cobrar;
+use App\Support\Facturacion\BloqueoFactura;
 use App\Support\Facturacion\EmitirFactura;
 use App\Support\Facturacion\GestionTimbrados;
 use App\Support\PerfilesPredefinidos;
@@ -28,7 +30,7 @@ use Illuminate\Support\Facades\DB;
 
 /*
  * Las restricciones de la facturación en PostgreSQL (docs/facturacion.md): los tres índices únicos parciales (un timbrado vigente por
- * sucursal, establecimiento y punto; una factura vigente por prestación; una solicitud de anulación pendiente por factura), los CHECK de
+ * sucursal, establecimiento y punto; una factura vigente por prestación y parte; una solicitud de anulación pendiente por factura), los CHECK de
  * la numeración y de los totales, y la migración con cobros, cajas y prestaciones ya existentes. Lo demás está en tests/Feature/Economico.
  * Datos inventados. Prefijo "pgFacturacion".
  */
@@ -58,9 +60,9 @@ function pgFacturacionRechazo(Closure $sentencia): ?array
     try {
         DB::transaction($sentencia);
     } catch (QueryException $e) {
-        $restricciones = ['timbrados_uno_vigente', 'detalles_factura_una_por_prestacion', 'solicitudes_anulacion_una_pendiente', 'timbrados_numeracion_valida',
+        $restricciones = ['timbrados_uno_vigente', 'detalles_factura_una_por_parte', 'solicitudes_anulacion_una_pendiente', 'timbrados_numeracion_valida',
             'timbrados_vigencia_valida', 'facturas_numeracion_valida', 'facturas_numero_unico', 'facturas_totales_validos', 'facturas_anulacion_completa',
-            'detalles_factura_montos_validos', 'procedimientos_tasa_iva_valida', 'solicitudes_anulacion_revision_completa', 'clinicas_una_sola', 'clinicas_ruc_formato'];
+            'detalles_factura_montos_validos', 'detalles_factura_parte_valida', 'procedimientos_tasa_iva_valida', 'solicitudes_anulacion_revision_completa', 'clinicas_una_sola', 'clinicas_ruc_formato'];
 
         return [$e->getCode(), collect($restricciones)->first(fn (string $nombre) => str_contains($e->getMessage(), $nombre))];
     }
@@ -93,11 +95,11 @@ test('corre de verdad contra PostgreSQL, con las restricciones y los índices cr
     expect(DB::getDriverName())->toBe('pgsql')->and(DB::connection()->getDatabaseName())->toBe('clinexa_test')
         ->and($restricciones('timbrados'))->toBe(['timbrados_historico_completo', 'timbrados_numeracion_valida', 'timbrados_vigencia_valida'])
         ->and($restricciones('facturas'))->toBe(['facturas_anulacion_completa', 'facturas_condicion_valida', 'facturas_no_se_reemplaza_a_si_misma', 'facturas_numeracion_valida', 'facturas_totales_validos'])
-        ->and($restricciones('detalles_factura'))->toBe(['detalles_factura_montos_validos'])
+        ->and($restricciones('detalles_factura'))->toBe(['detalles_factura_montos_validos', 'detalles_factura_parte_valida'])
         ->and($restricciones('solicitudes_anulacion_factura'))->toBe(['solicitudes_anulacion_revision_completa'])
         ->and($restricciones('clinicas'))->toBe(['clinicas_instalacion_unica', 'clinicas_ruc_formato', 'clinicas_tipo_valido'])
         ->and($indices('timbrados'))->toContain('timbrados_uno_vigente')
-        ->and($indices('detalles_factura'))->toContain('detalles_factura_una_por_prestacion')
+        ->and($indices('detalles_factura'))->toContain('detalles_factura_una_por_parte')
         ->and($indices('solicitudes_anulacion_factura'))->toContain('solicitudes_anulacion_una_pendiente')
         ->and($indices('facturas'))->toContain('facturas_numero_unico');
 });
@@ -116,17 +118,35 @@ test('timbrados_uno_vigente: un timbrado vigente por sucursal, establecimiento y
         'historico_por' => null, 'estado_id' => Estado::idDe(Estado::VIGENTE)]))))->toBeNull();
 });
 
-test('detalles_factura_una_por_prestacion: una prestación en una sola factura no anulada (la línea liberada, queda libre)', function () {
+test('detalles_factura_una_por_parte: cada parte de una prestación en una sola factura no anulada (la línea liberada, queda libre)', function () {
     $factura = pgFacturacionFactura();
     $linea = $factura->detalles()->sole();
     $otra = DB::table('facturas')->insertGetId(pgFacturacionCopia('facturas', $factura->id, ['numero' => 2, 'numero_completo' => '001-001-0000002']));
+    $tercera = DB::table('facturas')->insertGetId(pgFacturacionCopia('facturas', $factura->id, ['numero' => 3, 'numero_completo' => '001-001-0000003']));
 
-    expect(pgFacturacionRechazo(fn () => DB::table('detalles_factura')->insert(pgFacturacionCopia('detalles_factura', $linea->id, ['factura_id' => $otra]))))
-        ->toBe(['23505', 'detalles_factura_una_por_prestacion']);
+    expect($linea->parte)->toBe(DetalleFactura::PACIENTE)
+        ->and(pgFacturacionRechazo(fn () => DB::table('detalles_factura')->insert(pgFacturacionCopia('detalles_factura', $linea->id, ['factura_id' => $otra]))))
+        ->toBe(['23505', 'detalles_factura_una_por_parte'])
+        ->and(pgFacturacionRechazo(fn () => DB::table('detalles_factura')->insert(pgFacturacionCopia('detalles_factura', $linea->id, ['factura_id' => $otra, 'parte' => 'OTRA']))))
+        ->toBe(['23514', 'detalles_factura_parte_valida']);
 
+    // La parte de la aseguradora de la misma prestación va en otra factura, pero tampoco dos veces.
+    expect(pgFacturacionRechazo(fn () => DB::table('detalles_factura')->insert(pgFacturacionCopia('detalles_factura', $linea->id, ['factura_id' => $otra, 'parte' => DetalleFactura::ASEGURADORA]))))
+        ->toBeNull()
+        ->and(pgFacturacionRechazo(fn () => DB::table('detalles_factura')->insert(pgFacturacionCopia('detalles_factura', $linea->id, ['factura_id' => $tercera, 'parte' => DetalleFactura::ASEGURADORA]))))
+        ->toBe(['23505', 'detalles_factura_una_por_parte']);
+
+    // Facturada en cualquiera de sus partes, la prestación queda bloqueada; la de la paciente sigue siendo la suya.
+    $prestacion = Prestacion::findOrFail($linea->prestacion_id);
+    expect($prestacion->detallesFactura()->count())->toBe(2)->and($prestacion->detalleFactura->id)->toBe($linea->id)
+        ->and(BloqueoFactura::impedimento($prestacion))->toContain($factura->numero_completo);
     DB::table('detalles_factura')->where('id', $linea->id)->update(['liberada_en' => now()]);
+    expect(BloqueoFactura::impedimento($prestacion))->toContain('001-001-0000002')->and($prestacion->fresh()->detalleFactura)->toBeNull();
+    DB::table('detalles_factura')->where('prestacion_id', $prestacion->id)->update(['liberada_en' => now()]);
+    expect(BloqueoFactura::impedimento($prestacion))->toBeNull();
+
     expect(pgFacturacionRechazo(fn () => DB::table('detalles_factura')->insert(pgFacturacionCopia('detalles_factura', $linea->id, ['factura_id' => $otra]))))->toBeNull()
-        ->and(DB::table('detalles_factura')->where('prestacion_id', $linea->prestacion_id)->count())->toBe(2);
+        ->and(DB::table('detalles_factura')->where('prestacion_id', $linea->prestacion_id)->count())->toBe(3);
 });
 
 test('solicitudes_anulacion_una_pendiente: una sola pendiente por factura; revisada, se puede pedir otra (y nadie revisa la propia)', function () {

@@ -29,8 +29,8 @@ use Illuminate\Support\Facades\DB;
  *   saltos ni repetidos (`facturas_numero_unico`). Un número anulado no se reutiliza.
  * - Cliente: la paciente (nombre en orden natural y documento principal, copiados). Sin factura "sin nombre": sin documento, no se emite.
  * - Una línea por prestación: el procedimiento, cantidad 1 y lo que paga la paciente (particular o copago; lo de la aseguradora nunca
- *   entra), con la tasa del procedimiento copiada. Totales por tasa (Iva). Una prestación se factura una sola vez
- *   (`detalles_factura_una_por_prestacion`).
+ *   entra: parte PACIENTE), con la tasa del procedimiento copiada. Totales por tasa (Iva). La parte de la paciente se factura una
+ *   sola vez (`detalles_factura_una_por_parte`).
  *
  * Queda en Auditoría: CREAR de la factura y de cada línea ("Factura 001-001-0000001"). El permiso (CREAR sobre FACTURAS) lo controla la
  * ruta del cobro.
@@ -153,7 +153,7 @@ final class EmitirFactura
             $factura->save();
             foreach ($lineas as $linea) {
                 DetalleFactura::create([
-                    'factura_id' => $factura->id, 'prestacion_id' => $linea['prestacion']->id,
+                    'factura_id' => $factura->id, 'prestacion_id' => $linea['prestacion']->id, 'parte' => DetalleFactura::PACIENTE,
                     'descripcion' => mb_substr($linea['prestacion']->procedimiento?->nombre ?? 'Prestación', 0, 150),
                     'cantidad' => 1, 'precio_unitario' => $linea['monto'], 'monto' => $linea['monto'], 'tasa_iva' => $linea['tasa'],
                     'gravado' => $linea['gravado'], 'iva' => $linea['iva'],

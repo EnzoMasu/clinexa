@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Schema;
  * - `timbrados`: número, vigencia, establecimiento, punto de expedición y la numeración. Uno vigente por sucursal, establecimiento y
  *   punto (`timbrados_uno_vigente`).
  * - `facturas` y `detalles_factura`: la factura con el snapshot del emisor y del cliente, sus totales por tasa y una línea por
- *   prestación. Una prestación se factura una sola vez (`detalles_factura_una_por_prestacion`, entre los no liberados).
+ *   prestación y parte (PACIENTE; ASEGURADORA, en la fase 5b). Cada parte de una prestación se factura una sola vez
+ *   (`detalles_factura_una_por_parte`, entre los no liberados).
  * - `motivos_anulacion_factura` (catálogo, con los tres de referencia) y `solicitudes_anulacion_factura` (una pendiente por factura:
  *   `solicitudes_anulacion_una_pendiente`).
  * - `procedimientos.tasa_iva` (10 por defecto, 5 o 0 = exenta) y `cobros.factura_id` (vacío en los cobros existentes).
@@ -161,6 +162,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('factura_id')->constrained('facturas');
             $table->foreignId('prestacion_id')->constrained('prestaciones');
+            // Qué parte de la prestación factura: PACIENTE (factura individual) o ASEGURADORA (factura agrupada, fase 5b).
+            $table->string('parte', 15);
             $table->string('descripcion', 150);
             $table->unsignedSmallInteger('cantidad');
             // Precio con IVA incluido; monto = cantidad × precio = gravado + IVA.
@@ -177,8 +180,9 @@ return new class extends Migration
             $table->index('factura_id');
             $table->index('prestacion_id');
         });
-        // Una prestación se factura una sola vez (entre las facturas no anuladas). Vale en SQLite y PostgreSQL.
-        DB::statement('CREATE UNIQUE INDEX detalles_factura_una_por_prestacion ON detalles_factura (prestacion_id) WHERE liberada_en IS NULL');
+        // Cada parte de una prestación se factura una sola vez (entre las facturas no anuladas): la de la paciente y la de la aseguradora
+        // pueden estar en dos facturas distintas. Vale en SQLite y PostgreSQL.
+        DB::statement('CREATE UNIQUE INDEX detalles_factura_una_por_parte ON detalles_factura (prestacion_id, parte) WHERE liberada_en IS NULL');
 
         Schema::create('solicitudes_anulacion_factura', function (Blueprint $table) {
             $table->id();
@@ -235,6 +239,7 @@ return new class extends Migration
                 cantidad >= 1 AND precio_unitario > 0 AND monto = cantidad * precio_unitario AND monto = trunc(monto)
                 AND tasa_iva IN (0, 5, 10) AND gravado >= 0 AND iva >= 0 AND monto = gravado + iva
                 AND iva = CASE tasa_iva WHEN 10 THEN round(monto / 11) WHEN 5 THEN round(monto / 21) ELSE 0 END)');
+            DB::statement("ALTER TABLE detalles_factura ADD CONSTRAINT detalles_factura_parte_valida CHECK (parte IN ('PACIENTE', 'ASEGURADORA'))");
             DB::statement('ALTER TABLE procedimientos ADD CONSTRAINT procedimientos_tasa_iva_valida CHECK (tasa_iva IN (0, 5, 10))');
             DB::statement('ALTER TABLE solicitudes_anulacion_factura ADD CONSTRAINT solicitudes_anulacion_revision_completa CHECK (
                 (revisado_en IS NULL AND revisado_por IS NULL) OR (revisado_en IS NOT NULL AND revisado_por IS NOT NULL AND revisado_por <> usuario_id))');

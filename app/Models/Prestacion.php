@@ -8,6 +8,7 @@ use App\Models\Concerns\Auditable;
 use App\Models\Concerns\TieneEstado;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
@@ -213,10 +214,16 @@ class Prestacion extends Model
         return $this->hasOne(LineaLiquidacion::class)->whereNull('lineas_liquidacion.liberada_en');
     }
 
-    /** Su línea en una factura no anulada (docs/facturacion.md), si tiene: a lo sumo una. */
+    /** La línea de la parte de la paciente en una factura no anulada (docs/facturacion.md), si tiene: a lo sumo una. */
     public function detalleFactura(): HasOne
     {
-        return $this->hasOne(DetalleFactura::class)->whereNull('detalles_factura.liberada_en');
+        return $this->hasOne(DetalleFactura::class)->where('detalles_factura.parte', DetalleFactura::PACIENTE)->whereNull('detalles_factura.liberada_en');
+    }
+
+    /** Sus líneas en facturas no anuladas, de cualquier parte (a lo sumo una por parte). Con alguna, la prestación queda bloqueada. */
+    public function detallesFactura(): HasMany
+    {
+        return $this->hasMany(DetalleFactura::class)->whereNull('detalles_factura.liberada_en');
     }
 
     /** Su cobro vigente (docs/cobros-caja.md), si tiene: a lo sumo uno. */

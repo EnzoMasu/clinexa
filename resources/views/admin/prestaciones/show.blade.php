@@ -203,7 +203,7 @@
         </div>
 
         @if ($cobro && ! $prestacion->anulada() && Permisos::puedeRuta('admin.prestaciones.anular'))
-            <p class="max-w-xl text-gray-600 dark:text-gray-400">{{ $prestacion->detalleFactura ? 'Está facturada: para anularla, primero hay que anular su factura (eso revierte el cobro).' : 'Está cobrada: para anularla, primero hay que revertir su cobro.' }}</p>
+            <p class="max-w-xl text-gray-600 dark:text-gray-400">{{ $prestacion->detallesFactura->isNotEmpty() ? 'Está facturada: para anularla, primero hay que anular su factura (eso revierte el cobro).' : 'Está cobrada: para anularla, primero hay que revertir su cobro.' }}</p>
         @endif
 
         @if ($puedeAnular)

@@ -130,7 +130,7 @@ class PrestacionController extends Controller
     public function show(Request $request, Prestacion $prestacion): View
     {
         $prestacion->load(['paciente.persona', 'profesional.persona', 'procedimiento', 'moneda', 'tarifa', 'turno', 'tarifadaPor.persona', 'anuladaPor.persona',
-            'cobroVigente.cobro', 'detalleFactura.factura', 'lineaLiquidacion.liquidacion', 'tarifaConvenio', 'responsablePago.persona', 'convenio', 'plan', 'visacion', 'firmaRecibidaPor.persona', 'visacionAplicadaPor.persona']);
+            'cobroVigente.cobro', 'detalleFactura.factura', 'detallesFactura', 'lineaLiquidacion.liquidacion', 'tarifaConvenio', 'responsablePago.persona', 'convenio', 'plan', 'visacion', 'firmaRecibidaPor.persona', 'visacionAplicadaPor.persona']);
         // El detalle del reparto, solo con VER sobre REPARTOS (Administrador y Gerencia).
         $veRepartos = $request->user()->tienePermiso('REPARTOS', 'VER');
         if ($veRepartos) {
@@ -159,7 +159,7 @@ class PrestacionController extends Controller
             'puedeTarifar' => $prestacion->pendiente() && Permisos::puedeRuta('admin.prestaciones.tarifar'),
             // Una cobrada no se anula: primero se revierte su cobro (docs/cobros-caja.md).
             // Ni una liquidada: primero se quita de la liquidación (docs/liquidaciones-aseguradoras.md).
-            'puedeAnular' => ! $prestacion->anulada() && $prestacion->cobroVigente === null && $prestacion->detalleFactura === null && $prestacion->lineaLiquidacion === null && Permisos::puedeRuta('admin.prestaciones.anular'),
+            'puedeAnular' => ! $prestacion->anulada() && $prestacion->cobroVigente === null && $prestacion->detallesFactura->isEmpty() && $prestacion->lineaLiquidacion === null && Permisos::puedeRuta('admin.prestaciones.anular'),
         ]);
     }
 

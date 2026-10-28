@@ -128,7 +128,7 @@ final class Cobrar
                 throw new AccionRechazada(self::YA_COBRADA);
             }
             // Otra factura de la misma prestación ganó por el suyo.
-            if (str_contains($e->getMessage(), 'detalles_factura_una_por_prestacion') || str_contains($e->getMessage(), 'detalles_factura.prestacion_id')) {
+            if (str_contains($e->getMessage(), 'detalles_factura_una_por_parte') || str_contains($e->getMessage(), 'detalles_factura.prestacion_id')) {
                 throw new AccionRechazada(EmitirFactura::YA_FACTURADA);
             }
             throw $e;

@@ -49,13 +49,15 @@ vigente por sucursal, establecimiento y punto (`timbrados_uno_vigente`, único p
   `Persona::documentoPrincipal()`), moneda, totales por tasa, estado, quién la emitió, en qué caja, `simulada` y el emisor
   (`emisor_documentos`). Un cambio posterior de la clínica, la sucursal o la paciente no altera las emitidas. **Sin factura "sin nombre"**:
   sin documento, no se emite.
-- Una **línea por prestación**: la descripción del procedimiento, cantidad 1, precio con IVA incluido (lo que paga la paciente:
+- Una **línea por prestación y parte** (`parte`: **PACIENTE** o **ASEGURADORA**; en esta fase solo PACIENTE): la descripción del procedimiento, cantidad 1, precio con IVA incluido (lo que paga la paciente:
   particular o copago), la tasa **copiada** del procedimiento, el gravado y el IVA. Lo de la **aseguradora nunca entra** (se liquida
   aparte, `docs/liquidaciones-aseguradoras.md`).
 - Estados: **EMITIDO** ("Emitida", pendiente de cobro; ya existía), **COBRADO** ("Cobrada", nuevo) y **ANULADO** ("Anulada"). La contado
   pasa de EMITIDA a COBRADA en la misma operación. El estado de cobro sale del cobro registrado contra ella.
-- **Una prestación se factura una sola vez**: `detalles_factura_una_por_prestacion`, único parcial `(prestacion_id) WHERE liberada_en IS
-  NULL` (SQLite y PostgreSQL); al anular la factura sus líneas se **liberan**.
+- **Cada parte de una prestación se factura una sola vez**: `detalles_factura_una_por_parte`, único parcial `(prestacion_id, parte) WHERE
+  liberada_en IS NULL` (SQLite y PostgreSQL; en PostgreSQL, `detalles_factura_parte_valida`). La misma prestación puede estar en dos
+  facturas de partes distintas (la de la paciente, individual; la de la aseguradora, agrupada en la fase 5b), nunca dos veces en la misma
+  parte. Al anular la factura sus líneas se **liberan**.
 - Una anulada puede tener otra que la **reemplaza** (`reemplaza_a_id`, a lo sumo una): "Cobrar de nuevo con una factura que reemplace a
   esta", desde su detalle.
 - Los modelos admiten solo EMITIDO → COBRADO y → ANULADO (con sus datos) y la liberación de las líneas; rechazan el resto y el borrado.
@@ -76,7 +78,7 @@ hay emisor real (`EmisorNoConfigurado`): no se emite ni se anula, con el aviso. 
 
 ## Bloqueo de la prestación facturada (`Facturacion\BloqueoFactura`)
 
-Una prestación en una factura no anulada no cambia de **visación** ni de **monto**, ni se **anula**: "Aplicar visación" y la anulación de
+Una prestación en una factura no anulada, **en cualquiera de sus partes**, no cambia de **visación** ni de **monto**, ni se **anula**: "Aplicar visación" y la anulación de
 la prestación se rechazan con "Esta prestación está facturada (factura 001-001-…): … Primero se anula la factura.". La **firma recibida**
 sigue permitida: no cambia el monto y la necesita la liquidación de la parte de la aseguradora (en una prestación con copago).
 
@@ -149,7 +151,7 @@ agrega ningún evento; al cobrar, los de la factura (solo desde el hito).
 los existentes), `cobros.factura_id` (vacío en los existentes), los tres únicos parciales, los CHECK de PostgreSQL (`clinicas_instalacion_unica`,
 `_tipo_valido`, `_ruc_formato`; `timbrados_numeracion_valida`, `_vigencia_valida`, `_historico_completo`; `facturas_numeracion_valida`,
 `_condicion_valida`, `_totales_validos`, `_anulacion_completa`, `_no_se_reemplaza_a_si_misma`; `detalles_factura_montos_validos` (el IVA de
-la línea al guaraní); `procedimientos_tasa_iva_valida`; `solicitudes_anulacion_revision_completa`), el hito FACTURACION, el estado
+la línea al guaraní) y `_parte_valida`; `procedimientos_tasa_iva_valida`; `solicitudes_anulacion_revision_completa`), el hito FACTURACION, el estado
 **COBRADO** (EMITIDO, ANULADO y los demás ya existían), los cinco módulos y los permisos (`PerfilesPredefinidos::PERMISOS_FACTURACION`, lo
 mismo que la matriz). Crea los estados que falten, no lee filas durante `--pretend`, **no factura** ni cambia cobros, cajas ni prestaciones,
 carga los tres motivos si faltan y en una instalación nueva deja los módulos al seeder. El `down` solo vale sin facturas.
