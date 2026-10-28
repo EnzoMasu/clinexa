@@ -2,7 +2,7 @@
 
 Los **convenios** con las aseguradoras, la **cobertura** de cada paciente y las **visaciones** (la autorización que la aseguradora da
 caso por caso), y cómo cambian la prestación y el cobro. El sistema **no** define qué cubre cada plan ni cuánto: lo decide la
-aseguradora en cada visación, que Recepción carga. Sin liquidación mensual (fase 4b), facturas ni timbrado, notas de crédito,
+aseguradora en cada visación, que Recepción carga. La liquidación mensual está en `docs/liquidaciones-aseguradoras.md` (fase 4b). Sin facturas ni timbrado, notas de crédito,
 contador de usos ni tope anual, planes de pago, saldos o crédito, ni reglas de cobertura por plan. Nada se borra. Ver también
 `docs/tarifas-prestaciones.md`, `docs/reparto-economico.md` y `docs/cobros-caja.md`.
 
@@ -33,7 +33,7 @@ Al fijar el monto (al finalizar la consulta, también las de informe de estudio;
 - **APROBADO**: la tarifa del convenio para ese día (o la general como respaldo). La paciente paga según la línea, nunca más que la
   tarifa; el resto, la aseguradora. Porcentaje redondeado al guaraní (la mitad, hacia arriba); el resto, a la aseguradora: la suma es
   exacta. Pagador **ASEGURADORA**; lo de la aseguradora, si es mayor que cero, queda **pendiente de liquidar** (`liquidacion` =
-  PENDIENTE; la usa la fase 4b).
+  PENDIENTE; no cambia al liquidarla: ver `docs/liquidaciones-aseguradoras.md`).
 - **NO_CUBIERTO**: la tarifa **general** completa, a cargo de la paciente (pagador PACIENTE); queda la referencia a la visación.
 - **Sin visación** para ese procedimiento, o con la cobertura o el convenio fuera de vigencia ese día: **particular** (tarifa general).
   Si la paciente tenía cobertura, la prestación guarda un **aviso** ("La visación N.º X no incluye este procedimiento", "La paciente
@@ -56,7 +56,7 @@ vacío) y son particulares: la paciente paga el monto.
 Para una visación que llegó después de finalizar (o una particular que se visa tarde): "Aplicar visación", en la página de la
 paciente, con la visación (de esa consulta o de su turno, vigente, con línea para el procedimiento) o "Particular (sin visación)" y
 un **motivo**. Solo si la prestación **no tiene cobro vigente** (si ya se cobró como particular, primero se revierte el cobro, fase
-3b) y no está liquidada. Es el **único** caso en que se recalcula el snapshot; el estado anterior queda en Auditoría (EDITAR con el
+3b) y no está en una liquidación no anulada (`docs/liquidaciones-aseguradoras.md`). Es el **único** caso en que se recalcula el snapshot; el estado anterior queda en Auditoría (EDITAR con el
 antes y el después, detalle "Aplicar visación N.º X. Motivo: …"). La firma recibida vuelve a pedirse. Si el total cambia, el reparto
 anterior queda **ANULADO** (con sus líneas, "Reemplazado al aplicar la visación…") y se calcula otro sobre el total nuevo
 (`Repartos\RepartirPrestacion::reemplazar`; el único por prestación es entre los no anulados: `repartos_prestacion_uno_vigente`).
@@ -75,7 +75,7 @@ Una **visación anulada** deja a la prestación ya aplicada como está, con un a
 ## Firma recibida y ticket
 
 - **Firma recibida** (`Convenios\FirmaRecibida`): marca por prestación de aseguradora, con fecha y usuario. Se desmarca con motivo
-  mientras no esté liquidada.
+  mientras no esté en una liquidación no anulada (ni se marca ni se desmarca en una liquidada).
 - **Ticket** (`Convenios\TicketVisacion`): la planilla que firma la paciente, PDF con dompdf, al vuelo (sin guardarse, `no-store`),
   cada generación en Auditoría (EXPORTAR sobre `visaciones`). Con todas las prestaciones de aseguradora de la consulta: clínica y
   logotipo, profesional, fecha y hora, nombre y cédula de la paciente, aseguradora, plan, número de asegurado, número de visación,

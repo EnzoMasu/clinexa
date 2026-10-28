@@ -31,8 +31,15 @@
                     <dt class="text-gray-500 dark:text-gray-400">A cargo de la paciente / de la aseguradora</dt>
                     <dd class="font-medium text-gray-900 dark:text-gray-100 tabular-nums">
                         {{ $prestacion->montoPacienteTexto() }} / {{ $prestacion->montoAseguradoraTexto() }}
-                        @if ($prestacion->liquidacion === \App\Models\Prestacion::PENDIENTE_DE_LIQUIDAR)
+                        @if ($prestacion->liquidacion === \App\Models\Prestacion::PENDIENTE_DE_LIQUIDAR && $prestacion->lineaLiquidacion === null)
                             <div class="font-normal text-gray-600 dark:text-gray-400">Lo de la aseguradora, pendiente de liquidar.</div>
+                        @elseif ($prestacion->lineaLiquidacion && $veLiquidaciones)
+                            <div class="font-normal text-gray-600 dark:text-gray-400">
+                                En la <a href="{{ route('admin.liquidaciones.show', $prestacion->lineaLiquidacion->liquidacion_id) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">liquidación N.º {{ $prestacion->lineaLiquidacion->liquidacion_id }}</a>
+                                ({{ $prestacion->lineaLiquidacion->liquidacion->etiquetaEstado() }}).
+                            </div>
+                        @elseif ($prestacion->lineaLiquidacion)
+                            <div class="font-normal text-gray-600 dark:text-gray-400">Lo de la aseguradora ya está en una liquidación.</div>
                         @endif
                     </dd>
                 </div>

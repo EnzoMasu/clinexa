@@ -6,11 +6,13 @@ use App\Exceptions\AccionRechazada;
 use App\Models\Prestacion;
 use App\Models\User;
 use App\Support\Auditoria;
+use App\Support\Liquidaciones\BloqueoLiquidacion;
 use Illuminate\Support\Facades\DB;
 
 /**
  * "Firma recibida" (docs/convenios-seguros.md): la paciente firmó el ticket de una prestación de aseguradora. Se marca con fecha y
- * usuario; se desmarca con motivo mientras no esté liquidada. En Auditoría, EDITAR con el detalle. El permiso (EDITAR sobre
+ * usuario; se desmarca con motivo. Ni una ni otra en una prestación que
+ * está en una liquidación no anulada (BloqueoLiquidacion, docs/liquidaciones-aseguradoras.md). En Auditoría, EDITAR con el detalle. El permiso (EDITAR sobre
  * VISACIONES: Recepción y Facturación y convenios) lo controla la ruta.
  */
 final class FirmaRecibida
@@ -51,15 +53,15 @@ final class FirmaRecibida
         });
     }
 
-    /** La prestación bloqueada, si es de aseguradora, no está anulada ni liquidada. */
+    /** La prestación bloqueada, si es de aseguradora, no está anulada ni en una liquidación. */
     private static function bloqueada(Prestacion $prestacion): Prestacion
     {
         $actual = Prestacion::query()->whereKey($prestacion->getKey())->lockForUpdate()->firstOrFail();
         if (! $actual->deAseguradora() || $actual->anulada()) {
             throw new AccionRechazada('La firma solo se marca en prestaciones de aseguradora no anuladas.');
         }
-        if ($actual->liquidacion !== null && $actual->liquidacion !== Prestacion::PENDIENTE_DE_LIQUIDAR) {
-            throw new AccionRechazada('Esta prestación ya está liquidada.');
+        if (($impedimento = BloqueoLiquidacion::impedimento($actual)) !== null) {
+            throw new AccionRechazada($impedimento);
         }
 
         return $actual;

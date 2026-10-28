@@ -1,7 +1,7 @@
 # Pruebas
 
 Hay dos comandos. Los dos usan datos inventados: la suite corre en SQLite en memoria y los tests de
-`tests/Postgres` usan la base de prueba `clinexa_test`. Ninguno toca la base real `clinexa` (lo frena
+`tests/Postgres` usan la base de prueba `clinexa_test`. Ninguno toca la base de trabajo `clinexa_dev` (lo frena
 `Tests\TestCase` si la configuración apuntara a otra base).
 
 ## Comando rápido: para el trabajo diario

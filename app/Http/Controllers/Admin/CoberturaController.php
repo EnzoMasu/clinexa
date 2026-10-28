@@ -322,7 +322,7 @@ class CoberturaController extends Controller
         }
         $prestaciones = Prestacion::query()->where('paciente_id', $paciente->id)->where('created_at', '>=', $inicio)
             ->where('estado_id', '!=', Estado::idDe(Estado::ANULADO))
-            ->with(['procedimiento', 'moneda', 'visacion', 'responsablePago.persona', 'plan', 'firmaRecibidaPor.persona', 'profesional.persona'])
+            ->with(['procedimiento', 'moneda', 'visacion', 'responsablePago.persona', 'plan', 'firmaRecibidaPor.persona', 'profesional.persona', 'lineaLiquidacion'])
             ->withExists('cobroVigente')
             ->orderByDesc('fecha_servicio')->orderByDesc('id')->limit(50)->get();
         $visaciones = Visacion::query()->vigentes()->whereHas('cobertura', fn ($query) => $query->where('paciente_id', $paciente->id))

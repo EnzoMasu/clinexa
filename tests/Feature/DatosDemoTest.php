@@ -94,7 +94,8 @@ test('la agenda tiene disponibilidades de lunes a viernes y turnos de todos los 
 test('es idempotente: correrlo dos veces no duplica nada', function () use ($correr) {
     $correr()->assertSuccessful();
     $conteos = fn () => collect(['personas', 'users', 'pacientes', 'profesionales', 'disponibilidades', 'cupos_entre_pacientes', 'turnos', 'procedimientos', 'consultorios', 'medios_pago',
-        'tarifas', 'acuerdos_reparto', 'convenios', 'coberturas_paciente', 'visaciones', 'consultas', 'prestaciones', 'cajas', 'cobros', 'logs_auditoria'])
+        'tarifas', 'acuerdos_reparto', 'convenios', 'coberturas_paciente', 'visaciones', 'consultas', 'prestaciones', 'cajas', 'cobros',
+        'liquidaciones', 'lineas_liquidacion', 'pagos_aseguradora', 'logs_auditoria'])
         ->mapWithKeys(fn ($tabla) => [$tabla => DB::table($tabla)->count()])->all();
     $antes = $conteos();
     $hash = User::where('email', 'gerencia@prueba.test')->value('password');
@@ -193,4 +194,32 @@ test('la etapa 2 simula los días pasados con todos los casos económicos y clí
         ->toBe(['EFECTIVO', 'TARJETA', 'TRANSFERENCIA'])
         ->and($estado('solicitudes_reversion_cobro')->sort()->values()->all())->toBe(['APROBADO', 'PENDIENTE', 'RECHAZADO'])
         ->and($estado('cobros')->countBy()->all())->toMatchArray(['REVERTIDO' => 2]);
+})->group('lento'); // corre el comando completo (docs/pruebas.md)
+
+test('las liquidaciones: la primera aseguradora aprobada con un pago parcial, la segunda en preparación, con corte hoy; también sobre una base ya cargada', function () use ($correr) {
+    $correr()->assertSuccessful();
+    $liquidaciones = fn () => DB::table('liquidaciones')->join('estados', 'estados.id', '=', 'liquidaciones.estado_id')
+        ->join('responsables_pago', 'responsables_pago.id', '=', 'liquidaciones.responsable_pago_id')->join('personas', 'personas.id', '=', 'responsables_pago.persona_id')
+        ->orderBy('personas.nro_documento')->get(['liquidaciones.*', 'estados.codigo', 'personas.nro_documento']);
+    $verificar = function () use ($liquidaciones) {
+        [$primera, $segunda] = $liquidaciones()->all();
+        $lineas = DB::table('lineas_liquidacion')->whereNull('liberada_en');
+        $pagos = DB::table('pagos_aseguradora')->where('liquidacion_id', $primera->id)->get();
+        expect($primera->nro_documento)->toBe(Ruc::conDigito('80900001'))->and($primera->codigo)->toBe('PARCIAL')->and(substr($primera->fecha_corte, 0, 10))->toBe('2026-10-27')
+            ->and($primera->facturacion)->toBe('PENDIENTE')
+            ->and($segunda->nro_documento)->toBe(Ruc::conDigito('80900002'))->and($segunda->codigo)->toBe('EN_PREPARACION')
+            ->and((int) $primera->total)->toBe((int) (clone $lineas)->where('liquidacion_id', $primera->id)->sum('monto'))
+            ->and((clone $lineas)->where('liquidacion_id', $segunda->id)->count())->toBeGreaterThan(0)
+            // Entraron todas las de aseguradora pendientes de liquidar (en el demo, todas firmadas).
+            ->and((clone $lineas)->count())->toBe(DB::table('prestaciones')->where('liquidacion', 'PENDIENTE')->count())
+            ->and($pagos)->toHaveCount(1)->and((int) $pagos->sole()->monto)->toBeLessThan((int) $primera->total)->toBeGreaterThan(0);
+    };
+    $verificar();
+
+    // Sobre una base ya cargada (los días simulados no se repiten), la etapa las vuelve a armar.
+    DB::table('pagos_aseguradora')->delete();
+    DB::table('lineas_liquidacion')->delete();
+    DB::table('liquidaciones')->delete();
+    $correr()->assertSuccessful();
+    $verificar();
 })->group('lento'); // corre el comando completo (docs/pruebas.md)

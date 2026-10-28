@@ -51,7 +51,10 @@ class Prestacion extends Model
 
     public const PAGADORES = [self::PACIENTE => 'Particular (paciente)', self::ASEGURADORA => 'Aseguradora'];
 
-    /** Lo de la aseguradora, pendiente de liquidar (la liquidación mensual es de la fase 4b). */
+    /**
+     * Lo de la aseguradora, a liquidar. La marca no cambia al liquidarla: está liquidada si tiene una línea en una liquidación no
+     * anulada (`lineaLiquidacion`, docs/liquidaciones-aseguradoras.md).
+     */
     public const PENDIENTE_DE_LIQUIDAR = 'PENDIENTE';
 
     /** El snapshot del pagador (docs/convenios-seguros.md): se fija con el monto y solo cambia al aplicar una visación. */
@@ -199,6 +202,15 @@ class Prestacion extends Model
     public function visacionAplicadaPor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'visacion_aplicada_por');
+    }
+
+    /**
+     * Su línea en una liquidación no anulada (docs/liquidaciones-aseguradoras.md), si tiene: a lo sumo una. Sin ella, lo de la
+     * aseguradora sigue pendiente de liquidar.
+     */
+    public function lineaLiquidacion(): HasOne
+    {
+        return $this->hasOne(LineaLiquidacion::class)->whereNull('lineas_liquidacion.liberada_en');
     }
 
     /** Su cobro vigente (docs/cobros-caja.md), si tiene: a lo sumo uno. */

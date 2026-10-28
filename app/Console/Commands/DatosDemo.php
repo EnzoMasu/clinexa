@@ -8,6 +8,7 @@ use Database\Seeders\Demo\BaseClinica;
 use Database\Seeders\Demo\DiasDemo;
 use Database\Seeders\Demo\EconomiaDemo;
 use Database\Seeders\Demo\EtapaDemo;
+use Database\Seeders\Demo\LiquidacionesDemo;
 use Database\Seeders\Demo\PacientesDemo;
 use Database\Seeders\Demo\SegurosDemo;
 use Database\Seeders\Demo\UsuariosDemo;
@@ -28,7 +29,7 @@ class DatosDemo extends Command
         {--confirmo-desarrollo : Confirma que esta es una base de DESARROLLO (obligatorio)}
         {--password= : Contraseña de los usuarios demo (si no se pasa, se pide por consola)}';
 
-    protected $description = 'Carga datos de prueba de desarrollo (usuarios, pacientes, agenda, economía, seguros y días simulados). Idempotente. Nunca en producción';
+    protected $description = 'Carga datos de prueba de desarrollo (usuarios, pacientes, agenda, economía, seguros, días simulados y liquidaciones). Idempotente. Nunca en producción';
 
     /** Tablas cuyos conteos se muestran antes y después. */
     private const TABLAS = [
@@ -38,7 +39,8 @@ class DatosDemo extends Command
         'responsables_pago', 'convenios', 'planes_convenio', 'tarifas_convenio', 'coberturas_paciente', 'visaciones', 'lineas_visacion',
         'consultas', 'informes_estudio', 'recetas', 'reposos_medicos', 'ordenes_estudio', 'adendas_consulta', 'desbloqueos_consulta',
         'consulta_versiones', 'salidas_sin_atencion', 'prestaciones', 'repartos_prestacion', 'lineas_reparto',
-        'cajas', 'cierres_caja', 'cobros', 'lineas_cobro', 'movimientos_caja', 'solicitudes_reversion_cobro', 'logs_auditoria',
+        'cajas', 'cierres_caja', 'cobros', 'lineas_cobro', 'movimientos_caja', 'solicitudes_reversion_cobro',
+        'liquidaciones', 'lineas_liquidacion', 'pagos_aseguradora', 'logs_auditoria',
     ];
 
     /** Etapas que se cargan "la víspera" del primer día simulado, para que su fecha en Auditoría quede antes de usarlas. */
@@ -73,6 +75,7 @@ class DatosDemo extends Command
             'Catálogos y economía' => app(EconomiaDemo::class),
             'Seguros' => app(SegurosDemo::class),
             'Días simulados' => app(DiasDemo::class),
+            'Liquidaciones' => app(LiquidacionesDemo::class),
         ];
         $vispera = DiasDemo::vispera();
         $original = Carbon::getTestNow();

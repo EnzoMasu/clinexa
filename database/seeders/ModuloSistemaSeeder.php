@@ -97,6 +97,11 @@ class ModuloSistemaSeeder extends Seeder
             'CONVENIOS' => ['Convenios', [Estado::VIGENTE, Estado::HISTORICO]],
             'COBERTURAS' => ['Coberturas de pacientes', [Estado::VIGENTE, Estado::HISTORICO]],
             'VISACIONES' => ['Visaciones', [Estado::VIGENTE, Estado::ANULADO]],
+            // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): la liquidación (en preparación, pendiente de aprobación,
+            // aprobada, pagada en parte o del todo, o anulada), su aprobación y los pagos de la aseguradora (vigentes o anulados).
+            'LIQUIDACIONES' => ['Liquidaciones a aseguradoras', [Estado::EN_PREPARACION, Estado::PENDIENTE_APROBACION, Estado::APROBADO, Estado::PARCIAL, Estado::PAGADO, Estado::ANULADO]],
+            'APROBACION_LIQUIDACIONES' => ['Aprobación de liquidaciones', [Estado::PENDIENTE_APROBACION, Estado::APROBADO, Estado::EN_PREPARACION]],
+            'PAGOS_ASEGURADORAS' => ['Pagos de aseguradoras', [Estado::VIGENTE, Estado::ANULADO]],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

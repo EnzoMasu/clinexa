@@ -244,7 +244,9 @@
                                     @if ($prestacion->firma_recibida_en)
                                         Recibida el {{ Fecha::mostrar($prestacion->firma_recibida_en, conHora: true) }}
                                         <div class="text-xs text-gray-500 dark:text-gray-400">{{ $prestacion->firmaRecibidaPor?->persona?->nombre_completo }}</div>
-                                        @if ($puedeAplicar)
+                                        @if ($prestacion->lineaLiquidacion)
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">Liquidada: no se desmarca.</div>
+                                        @elseif ($puedeAplicar)
                                             <details>
                                                 <summary class="cursor-pointer text-xs text-red-600 dark:text-red-400">Desmarcar</summary>
                                                 <form method="POST" action="{{ route('admin.visaciones.firma.desmarcar', $prestacion) }}" novalidate class="mt-2 w-56 space-y-2">
@@ -271,7 +273,9 @@
                                     @if ($puedeTicket && $prestacion->deAseguradora())
                                         <a href="{{ route('admin.visaciones.ticket', $prestacion->consulta_id) }}" target="_blank" rel="noopener" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Ticket (consulta N.º {{ $prestacion->consulta_id }})</a>
                                     @endif
-                                    @if ($puedeAplicar && ! $prestacion->cobro_vigente_exists)
+                                    @if ($puedeAplicar && $prestacion->lineaLiquidacion)
+                                        <span class="text-xs text-gray-500 dark:text-gray-400">En una liquidación: su visación, su firma y su monto no cambian.</span>
+                                    @elseif ($puedeAplicar && ! $prestacion->cobro_vigente_exists)
                                         <details class="text-left">
                                             <summary class="cursor-pointer font-medium text-indigo-600 dark:text-indigo-400">Aplicar visación</summary>
                                             <form method="POST" action="{{ route('admin.visaciones.aplicar', $prestacion) }}" novalidate class="mt-2 w-64 space-y-2">

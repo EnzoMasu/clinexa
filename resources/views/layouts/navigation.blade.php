@@ -44,6 +44,9 @@
             // Convenios (docs/convenios-seguros.md): Administrador, Gerencia y Facturación y convenios. La cobertura y las visaciones se
             // cargan desde la ficha de la paciente, el turno o la prestación (sin entrada propia).
             'admin.convenios' => 'Convenios',
+            // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): Administrador, Gerencia y Facturación y convenios. Un
+            // solo módulo con pestañas (liquidaciones, por cobrar y prestaciones sin firma).
+            'admin.liquidaciones' => 'Liquidaciones',
         ],
         'Catálogos' => [
             'admin.especialidades' => 'Especialidades',

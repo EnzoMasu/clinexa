@@ -163,10 +163,14 @@ test('la migración, con prestaciones ya existentes: no las recalcula (quedan si
     hcConsulta();
     $prestacion = Prestacion::where('consulta_id', Consulta::latest('id')->value('id'))->sole();
     $migracion = require base_path('database/migrations/2026_10_30_100001_create_convenios_y_visaciones.php');
+    // Las liquidaciones (la migración siguiente) dependen de los convenios: se bajan antes y se suben después, en orden.
+    $liquidaciones = require base_path('database/migrations/2026_10_31_100001_create_liquidaciones_aseguradoras.php');
+    $liquidaciones->down();
     $migracion->down();
     $antes = (array) DB::table('prestaciones')->where('id', $prestacion->id)->first(['id', 'monto', 'tarifa_id', 'estado_id', 'moneda_id']);
 
     $migracion->up();
+    $liquidaciones->up();
 
     expect((array) DB::table('prestaciones')->where('id', $prestacion->id)->first(['id', 'monto', 'tarifa_id', 'estado_id', 'moneda_id']))->toBe($antes)
         ->and(DB::table('prestaciones')->where('id', $prestacion->id)->value('pagador'))->toBeNull()

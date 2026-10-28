@@ -130,7 +130,7 @@ class PrestacionController extends Controller
     public function show(Request $request, Prestacion $prestacion): View
     {
         $prestacion->load(['paciente.persona', 'profesional.persona', 'procedimiento', 'moneda', 'tarifa', 'turno', 'tarifadaPor.persona', 'anuladaPor.persona',
-            'cobroVigente.cobro', 'tarifaConvenio', 'responsablePago.persona', 'convenio', 'plan', 'visacion', 'firmaRecibidaPor.persona', 'visacionAplicadaPor.persona']);
+            'cobroVigente.cobro', 'lineaLiquidacion.liquidacion', 'tarifaConvenio', 'responsablePago.persona', 'convenio', 'plan', 'visacion', 'firmaRecibidaPor.persona', 'visacionAplicadaPor.persona']);
         // El detalle del reparto, solo con VER sobre REPARTOS (Administrador y Gerencia).
         $veRepartos = $request->user()->tienePermiso('REPARTOS', 'VER');
         if ($veRepartos) {
@@ -146,6 +146,8 @@ class PrestacionController extends Controller
             // El cobro, con su enlace solo para quien ve los cobros (Recepción ve el estado, no el cobro).
             'cobro' => $prestacion->cobroVigente?->cobro,
             'veCobros' => Permisos::puedeRuta('admin.cobros.show'),
+            // La liquidación a la que pertenece (docs/liquidaciones-aseguradoras.md), solo para quien ve las liquidaciones.
+            'veLiquidaciones' => Permisos::puedeRuta('admin.liquidaciones.show'),
             'veRepartos' => $veRepartos,
             // Cobertura y visaciones (docs/convenios-seguros.md): la página de la paciente y el ticket de la aseguradora.
             'veCobertura' => CoberturaController::puedeVer(),
@@ -154,7 +156,8 @@ class PrestacionController extends Controller
             'puedeRepartir' => Permisos::puedeRuta('admin.prestaciones.repartir'),
             'puedeTarifar' => $prestacion->pendiente() && Permisos::puedeRuta('admin.prestaciones.tarifar'),
             // Una cobrada no se anula: primero se revierte su cobro (docs/cobros-caja.md).
-            'puedeAnular' => ! $prestacion->anulada() && $prestacion->cobroVigente === null && Permisos::puedeRuta('admin.prestaciones.anular'),
+            // Ni una liquidada: primero se quita de la liquidación (docs/liquidaciones-aseguradoras.md).
+            'puedeAnular' => ! $prestacion->anulada() && $prestacion->cobroVigente === null && $prestacion->lineaLiquidacion === null && Permisos::puedeRuta('admin.prestaciones.anular'),
         ]);
     }
 

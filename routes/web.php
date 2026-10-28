@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\EquipoController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\EstudioController;
 use App\Http\Controllers\Admin\HistoriaClinicaController;
+use App\Http\Controllers\Admin\LiquidacionController;
 use App\Http\Controllers\Admin\OrdenEstudioController;
 use App\Http\Controllers\Admin\MatrizPermisosController;
 use App\Http\Controllers\Admin\MedioPagoController;
@@ -441,6 +442,27 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     // El ticket de la aseguradora: PDF al vuelo, sin montos ni nada clínico; no se guarda en la caché.
     Route::get('consultas/{consulta}/ticket-aseguradora', [CoberturaController::class, 'ticket'])->name('visaciones.ticket')->whereNumber('consulta')
         ->middleware(['permiso:VISACIONES,EXPORTAR', SinAlmacenar::class]);
+
+    // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): un solo módulo con tres pestañas (liquidaciones, por cobrar por
+    // aseguradora y prestaciones sin firma). Facturación arma, quita líneas, envía y registra pagos; Gerencia aprueba o devuelve. Nada se
+    // borra: se quita (con motivo) o se anula.
+    Route::get('liquidaciones', [LiquidacionController::class, 'index'])->name('liquidaciones.index')->middleware('permiso:LIQUIDACIONES,VER');
+    Route::get('liquidaciones/por-cobrar', [LiquidacionController::class, 'porCobrar'])->name('liquidaciones.por-cobrar')->middleware('permiso:LIQUIDACIONES,VER');
+    Route::get('liquidaciones/sin-firma', [LiquidacionController::class, 'sinFirma'])->name('liquidaciones.sin-firma')->middleware('permiso:LIQUIDACIONES,VER');
+    Route::get('liquidaciones/create', [LiquidacionController::class, 'create'])->name('liquidaciones.create')->middleware('permiso:LIQUIDACIONES,CREAR');
+    Route::post('liquidaciones', [LiquidacionController::class, 'store'])->name('liquidaciones.store')->middleware('permiso:LIQUIDACIONES,CREAR');
+    Route::get('liquidaciones/{liquidacion}', [LiquidacionController::class, 'show'])->name('liquidaciones.show')->whereNumber('liquidacion')->middleware('permiso:LIQUIDACIONES,VER');
+    Route::post('liquidaciones/lineas/{linea}/quitar', [LiquidacionController::class, 'quitarLinea'])->name('liquidaciones.lineas.quitar')->whereNumber('linea')->middleware('permiso:LIQUIDACIONES,EDITAR');
+    Route::post('liquidaciones/{liquidacion}/enviar', [LiquidacionController::class, 'enviar'])->name('liquidaciones.enviar')->whereNumber('liquidacion')->middleware('permiso:LIQUIDACIONES,EDITAR');
+    Route::post('liquidaciones/{liquidacion}/aprobar', [LiquidacionController::class, 'aprobar'])->name('liquidaciones.aprobar')->whereNumber('liquidacion')->middleware('permiso:APROBACION_LIQUIDACIONES,EDITAR');
+    Route::post('liquidaciones/{liquidacion}/devolver', [LiquidacionController::class, 'devolver'])->name('liquidaciones.devolver')->whereNumber('liquidacion')->middleware('permiso:APROBACION_LIQUIDACIONES,EDITAR');
+    Route::post('liquidaciones/{liquidacion}/anular', [LiquidacionController::class, 'anular'])->name('liquidaciones.anular')->whereNumber('liquidacion')->middleware('permiso:LIQUIDACIONES,DESACTIVAR');
+    // La planilla: PDF al vuelo, sin nada clínico; no se guarda en la caché.
+    Route::get('liquidaciones/{liquidacion}/planilla', [LiquidacionController::class, 'planilla'])->name('liquidaciones.planilla')->whereNumber('liquidacion')
+        ->middleware(['permiso:LIQUIDACIONES,EXPORTAR', SinAlmacenar::class]);
+    // Los pagos de la aseguradora: una cuenta por cobrar aparte, no pasan por Caja.
+    Route::post('liquidaciones/{liquidacion}/pagos', [LiquidacionController::class, 'registrarPago'])->name('liquidaciones.pagos.store')->whereNumber('liquidacion')->middleware('permiso:PAGOS_ASEGURADORAS,CREAR');
+    Route::post('liquidaciones/pagos/{pago}/anular', [LiquidacionController::class, 'anularPago'])->name('liquidaciones.pagos.anular')->whereNumber('pago')->middleware('permiso:PAGOS_ASEGURADORAS,DESACTIVAR');
 
     // Roles de negocio sobre Persona: además del CRUD, el buscador de personas del formulario de alta.
     foreach ([

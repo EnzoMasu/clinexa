@@ -6,12 +6,14 @@ use App\Exceptions\AccionRechazada;
 use App\Models\Estado;
 use App\Models\Prestacion;
 use App\Models\User;
+use App\Support\Liquidaciones\BloqueoLiquidacion;
 use App\Support\Repartos\RepartirPrestacion;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Anula una prestación (pendiente o tarifada) con su motivo. Nada se borra: cambian el estado, la fecha, el motivo y quién.
- * Su reparto, si tiene, también queda anulado. Una prestación con un cobro vigente no se anula (docs/cobros-caja.md). Queda en
+ * Su reparto, si tiene, también queda anulado. Una prestación con un cobro vigente no se anula (docs/cobros-caja.md), ni
+ * una que está en una liquidación no anulada (docs/liquidaciones-aseguradoras.md). Queda en
  * Auditoría como ANULAR con el motivo. El permiso (DESACTIVAR sobre PRESTACIONES: Administrador y Gerencia) lo controla la ruta.
  */
 final class AnularPrestacion
@@ -37,6 +39,10 @@ final class AnularPrestacion
             // Una cobrada no se anula: primero se revierte su cobro (docs/cobros-caja.md).
             if ($actual->cobroVigente()->exists()) {
                 throw new AccionRechazada(self::COBRADA);
+            }
+            // Una liquidada tampoco: primero se quita de la liquidación (docs/liquidaciones-aseguradoras.md).
+            if (($impedimento = BloqueoLiquidacion::impedimento($actual)) !== null) {
+                throw new AccionRechazada($impedimento);
             }
 
             $actual->forceFill([

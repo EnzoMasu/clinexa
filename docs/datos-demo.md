@@ -17,9 +17,9 @@ php artisan clinexa:datos-demo --confirmo-desarrollo --password=...
   turnos con la observación "Turno de prueba (demo)", aseguradoras con RUC 80900001 y 80900002, textos "(demo)" en todo lo
   clínico y lo económico, visaciones `V-aammdd-NNN`.
 - Los cambios quedan en Auditoría a nombre de los usuarios demo, cada uno con lo suyo (Gerencia: usuarios, disponibilidades,
-  equipo, tarifas, acuerdos y revisión de cierres y reversiones; Recepción: pacientes, turnos, aseguradoras, coberturas,
+  equipo, tarifas, acuerdos, revisión de cierres y reversiones y la aprobación de la liquidación; Recepción: pacientes, turnos, aseguradoras, coberturas,
   visaciones, retiros, firma y ticket; Supervisión médica: estudios, dietas y el desbloqueo; Compras: la proveedora;
-  Facturación: convenios; Enfermería: triaje; los médicos: la atención; Caja 1 y Caja 2: cajas y cobros). Las personas de
+  Facturación: convenios, liquidaciones y el pago de la aseguradora; Enfermería: triaje; los médicos: la atención; Caja 1 y Caja 2: cajas y cobros). Las personas de
   Gerencia misma se cargan sin autor.
 - Al final imprime la cantidad por tabla (antes y después) y la lista de usuarios demo con su perfil.
 
@@ -34,6 +34,7 @@ php artisan clinexa:datos-demo --confirmo-desarrollo --password=...
 | `EconomiaDemo` | Los 6 estudios del catálogo de órdenes, 3 dietas de prueba, el tipo "Ecógrafo" y el "Ecógrafo Mindray MX7" (dueña: la Dra. Benítez como proveedora, "Equipos médicos", sobre su misma persona), usado por las 6 ecografías. Tarifas generales (Consulta ₲ 250.000, ecografías de ₲ 350.000 a ₲ 700.000; **PAP-COLPO sin tarifa**). Acuerdos: Dra. Benítez 60 % general y 40 % en ECO-CROMO, ecógrafo 30 %; **el Dr. Duarte sin acuerdo**. Todo vigente desde hace dos meses. |
 | `SegurosDemo` | Dos aseguradoras (personas jurídicas con RUC válido) como responsables de pago, cada una con su convenio, dos planes y tarifas del convenio para Consulta y ECO-TV. Coberturas de las pacientes 1 a 4 (la 4, vencida). |
 | `DiasDemo` | Los **10 días hábiles anteriores a hoy**, uno por uno, y hoy (ver abajo). |
+| `LiquidacionesDemo` | Con corte **hoy**, sobre las prestaciones de seguro ya firmadas: la de la primera aseguradora armada y enviada por Facturación, aprobada por Gerencia y con un pago parcial por transferencia (la mitad, al millar); la de la segunda, en preparación. Con los servicios. Una aseguradora que ya tiene alguna liquidación no recibe otra: corre también sobre una base ya cargada. |
 
 Las etapas `EconomiaDemo` y `SegurosDemo` se cargan con la hora movida a la víspera del primer día simulado, así en Auditoría
 quedan antes de usarse.
@@ -78,4 +79,4 @@ AUSENTE), Caja 1 cierra (18:30) y Gerencia revisa (19:00). El plan de cada día 
 ## Pendiente
 
 Los rangos de signos vitales (`parametros_clinicos`) siguen sin aprobación médica; ninguna etapa los siembra y los triajes demo
-no cargan signos vitales. Sin facturación, compras ni liquidaciones (no existen todavía).
+no cargan signos vitales. Sin facturación ni compras (no existen todavía).

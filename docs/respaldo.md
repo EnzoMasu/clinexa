@@ -73,8 +73,8 @@ las bases de la clínica (`clinexa`, que tiene permiso para crear bases).
    `psql -h 127.0.0.1 -U clinexa -W -d postgres`:
 
    ```sql
-   ALTER DATABASE clinexa RENAME TO clinexa_anterior;
-   ALTER DATABASE clinexa_restaurada RENAME TO clinexa;
+   ALTER DATABASE clinexa_dev RENAME TO clinexa_anterior;
+   ALTER DATABASE clinexa_restaurada RENAME TO clinexa_dev;
    ```
 
    `clinexa_anterior` se conserva hasta estar seguro; después se elimina a mano.

@@ -49,6 +49,11 @@ class Permiso extends Model
         // aplicar una visación y la firma recibida; DESACTIVAR = anular; EXPORTAR = el ticket).
         'CONVENIOS' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
         'COBERTURAS' => ['VER', 'CREAR', 'EDITAR'],
+        // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): ver, armar (CREAR), quitar líneas y enviar a aprobación
+        // (EDITAR), anular (DESACTIVAR) y la planilla (EXPORTAR). La aprobación: ver y aprobar o devolver (EDITAR). Los pagos de la
+        // aseguradora: ver, registrar (CREAR) y anular (DESACTIVAR); un pago no se edita.
+        'APROBACION_LIQUIDACIONES' => ['VER', 'EDITAR'],
+        'PAGOS_ASEGURADORAS' => ['VER', 'CREAR', 'DESACTIVAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

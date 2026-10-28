@@ -98,8 +98,11 @@ class PerfilesPredefinidos
     /** Visaciones: VER, CREAR (cargar), EDITAR (aplicar y firma recibida), DESACTIVAR (anular) y EXPORTAR (el ticket). */
     private const VISACIONES_TODO = ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR', 'EXPORTAR'];
 
+    /** Liquidaciones: VER, CREAR (armar), EDITAR (quitar líneas, enviar), DESACTIVAR (anular) y EXPORTAR (la planilla). */
+    private const LIQUIDACIONES_TODO = ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR', 'EXPORTAR'];
+
     /**
-     * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO y en VISACIONES, el ticket; TURNOS no tiene
+     * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO, en VISACIONES, el ticket, y en LIQUIDACIONES, la planilla; TURNOS no tiene
      * DESACTIVAR: un turno se cancela, con EDITAR). Ningún perfil, salvo ADMINISTRADOR, escribe en USUARIOS
      * ni en PERFILES_ACCESO (lo verifica PerfilesPredefinidosTest).
      */
@@ -125,6 +128,9 @@ class PerfilesPredefinidos
             'REVERSIONES_COBRO' => ['VER', 'EDITAR'],
             // Convenios (docs/convenios-seguros.md): administra convenios, planes y sus tarifas; ve coberturas y visaciones y genera el ticket.
             'CONVENIOS' => self::TODO, 'COBERTURAS' => self::VER, 'VISACIONES' => ['VER', 'EXPORTAR'],
+            // Liquidaciones (docs/liquidaciones-aseguradoras.md): las ve todas, saca la planilla, aprueba o devuelve y anula; ve los
+            // pagos. No arma ni registra pagos.
+            'LIQUIDACIONES' => ['VER', 'DESACTIVAR', 'EXPORTAR'], 'APROBACION_LIQUIDACIONES' => ['VER', 'EDITAR'], 'PAGOS_ASEGURADORAS' => self::VER,
         ],
         // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
         // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones
@@ -170,6 +176,9 @@ class PerfilesPredefinidos
             'COBROS' => self::VER,
             // Convenios (docs/convenios-seguros.md): los administra, y también carga coberturas y visaciones, la firma y el ticket.
             'CONVENIOS' => self::TODO, 'COBERTURAS' => self::VER_CREAR_EDITAR, 'VISACIONES' => self::VISACIONES_TODO,
+            // Liquidaciones (docs/liquidaciones-aseguradoras.md): arma, quita líneas, envía a aprobación, anula la que no está aprobada,
+            // saca la planilla y registra y anula los pagos de la aseguradora. No aprueba.
+            'LIQUIDACIONES' => self::LIQUIDACIONES_TODO, 'PAGOS_ASEGURADORAS' => ['VER', 'CREAR', 'DESACTIVAR'],
         ],
         self::COMPRAS_TESORERIA => [
             'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::VER,
@@ -220,6 +229,16 @@ class PerfilesPredefinidos
         'CONVENIOS' => [self::GERENCIA => self::TODO, self::FACTURACION => self::TODO],
         'COBERTURAS' => [self::GERENCIA => self::VER, self::RECEPCION => self::VER_CREAR_EDITAR, self::FACTURACION => self::VER_CREAR_EDITAR],
         'VISACIONES' => [self::GERENCIA => ['VER', 'EXPORTAR'], self::RECEPCION => self::VISACIONES_TODO, self::FACTURACION => self::VISACIONES_TODO],
+    ];
+
+    /**
+     * Lo que la migración de liquidaciones (2026_10_31_100001) suma a los perfiles existentes. Lo mismo que la matriz para esos tres
+     * módulos. Recepción, Caja, Médico, Enfermería, Compras y los demás, nada.
+     */
+    public const PERMISOS_LIQUIDACIONES = [
+        'LIQUIDACIONES' => [self::GERENCIA => ['VER', 'DESACTIVAR', 'EXPORTAR'], self::FACTURACION => self::LIQUIDACIONES_TODO],
+        'APROBACION_LIQUIDACIONES' => [self::GERENCIA => ['VER', 'EDITAR']],
+        'PAGOS_ASEGURADORAS' => [self::GERENCIA => self::VER, self::FACTURACION => ['VER', 'CREAR', 'DESACTIVAR']],
     ];
 
     /**

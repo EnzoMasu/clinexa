@@ -84,6 +84,16 @@ class Estado extends Model
     /** Solicitud de reversión de un cobro rechazada por Gerencia (la aprobada usa APROBADO; la pendiente, PENDIENTE). */
     public const RECHAZADO = 'RECHAZADO';
 
+    /**
+     * Liquidación a una aseguradora (docs/liquidaciones-aseguradoras.md): EN_PREPARACION (inicial), pendiente de aprobación, APROBADO,
+     * pagada en parte (PARCIAL) o del todo (PAGADO), o ANULADO. PARCIAL y PAGADO ya existían en el catálogo inicial.
+     */
+    public const PENDIENTE_APROBACION = 'PENDIENTE_APROBACION';
+
+    public const PARCIAL = 'PARCIAL';
+
+    public const PAGADO = 'PAGADO';
+
     protected $table = 'estados';
 
     protected $fillable = [

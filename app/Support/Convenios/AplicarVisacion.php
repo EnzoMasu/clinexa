@@ -8,6 +8,7 @@ use App\Models\Prestacion;
 use App\Models\User;
 use App\Models\Visacion;
 use App\Support\Auditoria;
+use App\Support\Liquidaciones\BloqueoLiquidacion;
 use App\Support\Repartos\RepartirPrestacion;
 use Illuminate\Support\Facades\DB;
 
@@ -16,7 +17,8 @@ use Illuminate\Support\Facades\DB;
  * particular. Es el ÚNICO caso en que se recalcula su snapshot (monto, tarifa usada, pagador y partes), con motivo; el estado anterior
  * queda en Auditoría (EDITAR con el antes y el después). La firma recibida, si había, vuelve a pedirse.
  *
- * - Solo sin cobro vigente (si ya se cobró como particular, primero se revierte el cobro, fase 3b) y sin liquidar.
+ * - Solo sin cobro vigente (si ya se cobró como particular, primero se revierte el cobro, fase 3b) y fuera de toda liquidación no
+ *   anulada (BloqueoLiquidacion, docs/liquidaciones-aseguradoras.md).
  * - La visación: VIGENTE, de la misma paciente, de la consulta o del turno de la prestación y con una línea para su procedimiento.
  *   Sin visación (null): queda particular.
  * - Si el total cambia, el reparto anterior se anula y se calcula otro sobre el total nuevo (RepartirPrestacion::reemplazar). Una
@@ -91,8 +93,7 @@ final class AplicarVisacion
             $prestacion->anulada() => 'Esta prestación está anulada.',
             $prestacion->procedimiento_id === null => 'La prestación no tiene procedimiento.',
             $prestacion->cobroVigente()->exists() => self::COBRADA,
-            $prestacion->liquidacion !== null && $prestacion->liquidacion !== Prestacion::PENDIENTE_DE_LIQUIDAR => 'Esta prestación ya está liquidada.',
-            default => null,
+            default => BloqueoLiquidacion::impedimento($prestacion),
         };
     }
 
