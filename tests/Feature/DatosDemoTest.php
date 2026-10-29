@@ -285,3 +285,27 @@ test('las liquidaciones: la primera aseguradora aprobada con un pago parcial, la
     $correr()->assertSuccessful();
     $verificar();
 })->group('lento'); // corre el comando completo (docs/pruebas.md)
+
+test('--recorrido carga solo el estado inicial de un día de trabajo, sin movimientos, con la fecha de hoy y de forma idempotente', function () use ($correr) {
+    $recorrido = fn () => test()->artisan('clinexa:datos-demo', ['--confirmo-desarrollo' => true, '--recorrido' => true, '--password' => DATOS_DEMO_CLAVE]);
+    $recorrido()->assertSuccessful();
+    $foto = fn () => collect(['users', 'pacientes', 'disponibilidades', 'estudios', 'dietas', 'equipos', 'tarifas', 'acuerdos_reparto', 'convenios', 'planes_convenio',
+        'tarifas_convenio', 'coberturas_paciente', 'clinicas', 'timbrados'])->mapWithKeys(fn ($t) => [$t => DB::table($t)->count()])->all();
+
+    expect(User::where('email', 'like', '%@prueba.test')->count())->toBe(11)
+        ->and(Paciente::count())->toBe(12)
+        ->and(DB::table('disponibilidades')->count())->toBe(2 * 5 * 2)
+        ->and(DB::table('estudios')->count())->toBe(6)->and(DB::table('dietas')->count())->toBe(3)
+        ->and(DB::table('coberturas_paciente')->count())->toBe(4)->and(DB::table('timbrados')->count())->toBe(1)
+        ->and(DB::table('tarifas')->count())->toBe(7)->and(DB::table('acuerdos_reparto')->count())->toBe(3)
+        ->and(Procedimiento::pluck('tasa_iva', 'codigo')->all())->toMatchArray(['CONS-001' => 10, 'ECO-ABD' => 10, 'ECO-TV' => 5, 'ECO-OBST-DOP' => 5, 'PAP-COLPO' => 0]);
+    foreach (['turnos', 'consultas', 'prestaciones', 'cobros', 'facturas', 'cajas', 'liquidaciones', 'visaciones', 'recetas', 'ordenes_estudio', 'informes_estudio', 'reposos_medicos', 'cierres_caja'] as $tabla) {
+        expect(DB::table($tabla)->count())->toBe(0, $tabla);
+    }
+    // Sin simular el pasado: nada se adelanta a la víspera, todo con la fecha real de hoy.
+    expect(DB::table('tarifas')->whereDate('created_at', '<>', '2026-10-27')->count())->toBe(0);
+
+    $antes = $foto();
+    $recorrido()->assertSuccessful();
+    expect($foto())->toBe($antes);
+});

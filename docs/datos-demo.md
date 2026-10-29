@@ -78,6 +78,18 @@ AUSENTE), Caja 1 cierra (18:30) y Gerencia revisa (19:00). El plan de cada día 
   La urgencia solo se registra para hoy. Los días simulados no se repiten.
 - **Desde cero**: hace falta una base nueva (`migrate` + seeders base + `clinexa:crear-admin`). El comando nunca borra.
 
+## Modo `--recorrido`
+
+```bash
+DB_DATABASE=clinexa_recorrido php artisan clinexa:datos-demo --confirmo-desarrollo --recorrido
+```
+
+Solo el **estado inicial** de un día de trabajo para recorrer a mano (`docs/recorrido-manual.md`), con la fecha real de hoy y sin simular
+días: `BaseClinica`, `UsuariosDemo`, `PacientesDemo`, `DisponibilidadesRecorrido` (solo las disponibilidades de `AgendaDemo`, sin turnos
+ni urgencia), `EconomiaDemo`, `SegurosDemo` (sin visaciones), `FacturacionDemo` e `IvaRecorrido` (ECO-TV y ECO-OBST-DOP al 5 %,
+PAP-COLPO exenta). Nada se adelanta a la víspera. No carga turnos, consultas, prestaciones, cobros, facturas, cajas, liquidaciones ni
+documentos clínicos. Mismas protecciones que el modo normal, y además **se niega en `clinexa_dev` y en `clinexa_test`**.
+
 ## Pendiente
 
 Los rangos de signos vitales (`parametros_clinicos`) siguen sin aprobación médica; ninguna etapa los siembra y los triajes demo

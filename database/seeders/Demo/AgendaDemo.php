@@ -37,7 +37,7 @@ class AgendaDemo extends EtapaDemo
     /** Franjas de cada médico: consultorio y [desde, hasta]. Duración de bloque: 20 minutos. */
     private const FRANJAS = [['08:00', '12:00'], ['14:00', '18:00']];
 
-    private const CONSULTORIO_DE = ['medica1' => '101', 'medico2' => '102'];
+    protected const CONSULTORIO_DE = ['medica1' => '101', 'medico2' => '102'];
 
     /** Los procedimientos que se reparten entre los turnos, en este orden y de a uno. */
     private const CICLO = [
@@ -63,7 +63,7 @@ class AgendaDemo extends EtapaDemo
         });
     }
 
-    private function disponibilidades($medicos): void
+    protected function disponibilidades($medicos): void
     {
         // Desde hace dos meses, para que después se puedan simular días pasados dentro de la vigencia.
         $desde = self::inicioVigencias()->format('Y-m-d');

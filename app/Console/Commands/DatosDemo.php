@@ -6,9 +6,11 @@ use App\Models\User;
 use Database\Seeders\Demo\AgendaDemo;
 use Database\Seeders\Demo\BaseClinica;
 use Database\Seeders\Demo\DiasDemo;
+use Database\Seeders\Demo\DisponibilidadesRecorrido;
 use Database\Seeders\Demo\EconomiaDemo;
 use Database\Seeders\Demo\EtapaDemo;
 use Database\Seeders\Demo\FacturacionDemo;
+use Database\Seeders\Demo\IvaRecorrido;
 use Database\Seeders\Demo\LiquidacionesDemo;
 use Database\Seeders\Demo\PacientesDemo;
 use Database\Seeders\Demo\SegurosDemo;
@@ -28,7 +30,8 @@ class DatosDemo extends Command
 {
     protected $signature = 'clinexa:datos-demo
         {--confirmo-desarrollo : Confirma que esta es una base de DESARROLLO (obligatorio)}
-        {--password= : Contraseña de los usuarios demo (si no se pasa, se pide por consola)}';
+        {--password= : Contraseña de los usuarios demo (si no se pasa, se pide por consola)}
+        {--recorrido : Solo el estado inicial de un día de trabajo a mano (docs/recorrido-manual.md): sin días simulados, turnos ni movimientos}';
 
     protected $description = 'Carga datos de prueba de desarrollo (usuarios, pacientes, agenda, economía, seguros, facturación, días simulados y liquidaciones). Idempotente. Nunca en producción';
 
@@ -47,6 +50,9 @@ class DatosDemo extends Command
 
     /** Etapas que se cargan "la víspera" del primer día simulado, para que su fecha en Auditoría quede antes de usarlas. */
     private const EN_LA_VISPERA = [EconomiaDemo::class, SegurosDemo::class, FacturacionDemo::class];
+
+    /** Bases de trabajo y de tests: el modo --recorrido no corre en ellas. */
+    private const BASES_DE_TRABAJO = ['clinexa_dev', 'clinexa_test'];
 
     public function handle(): int
     {
@@ -69,7 +75,14 @@ class DatosDemo extends Command
         $this->line('Base: '.DB::connection()->getDatabaseName().' (APP_ENV='.app()->environment().')');
         $antes = $this->conteos();
 
-        $etapas = [
+        $recorrido = (bool) $this->option('recorrido');
+        if ($recorrido && in_array(DB::connection()->getDatabaseName(), self::BASES_DE_TRABAJO, true)) {
+            $this->error('--recorrido no se corre en '.DB::connection()->getDatabaseName().': use la base del recorrido (docs/recorrido-manual.md).');
+
+            return self::FAILURE;
+        }
+
+        $etapas = $recorrido ? $this->etapasDelRecorrido($clave) : [
             'Base de la clínica' => app(BaseClinica::class),
             'Usuarios' => app(UsuariosDemo::class)->conClave($clave),
             'Pacientes' => app(PacientesDemo::class),
@@ -80,7 +93,8 @@ class DatosDemo extends Command
             'Días simulados' => app(DiasDemo::class),
             'Liquidaciones' => app(LiquidacionesDemo::class),
         ];
-        $vispera = DiasDemo::vispera();
+        // El recorrido vive en la fecha real de hoy: nada se adelanta a la víspera ni se simula.
+        $vispera = $recorrido ? null : DiasDemo::vispera();
         $original = Carbon::getTestNow();
 
         try {
@@ -88,7 +102,7 @@ class DatosDemo extends Command
             DB::transaction(function () use ($etapas, $vispera, $original) {
                 foreach ($etapas as $nombre => $etapa) {
                     $etapa->setContainer($this->laravel)->setCommand($this);
-                    in_array($etapa::class, self::EN_LA_VISPERA, true) && Carbon::setTestNow($vispera);
+                    $vispera && in_array($etapa::class, self::EN_LA_VISPERA, true) && Carbon::setTestNow($vispera);
                     try {
                         $etapa->run();
                     } finally {
@@ -112,6 +126,21 @@ class DatosDemo extends Command
         $this->info('Listo. Correrlo de nuevo no duplica nada.');
 
         return self::SUCCESS;
+    }
+
+    /** Solo el estado inicial: usuarios, pacientes, catálogos, economía, seguros (sin visaciones), facturación y disponibilidades. */
+    private function etapasDelRecorrido(string $clave): array
+    {
+        return [
+            'Base de la clínica' => app(BaseClinica::class),
+            'Usuarios' => app(UsuariosDemo::class)->conClave($clave),
+            'Pacientes' => app(PacientesDemo::class),
+            'Disponibilidades' => app(DisponibilidadesRecorrido::class),
+            'Catálogos y economía' => app(EconomiaDemo::class),
+            'Seguros' => app(SegurosDemo::class),
+            'Facturación' => app(FacturacionDemo::class),
+            'Tasas de IVA' => app(IvaRecorrido::class),
+        ];
     }
 
     private function clave(): ?string
