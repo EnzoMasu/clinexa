@@ -44,7 +44,7 @@
 ## Mapa del proyecto
 Laravel + Blade + Tailwind + Vite (JS plano, sin framework). PDF nuevos con dompdf (`barryvdh/laravel-dompdf`), también la receta nueva; recetas anteriores y
 constancias ya hechas siguen imprimiéndose desde el navegador. Docs por tema en `docs/` (pdf-clinico, ruc, historia-clinica,
-agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-generales, ordenes-estudio, informes-estudio, tarifas-prestaciones, reparto-economico, cobros-caja, convenios-seguros, liquidaciones-aseguradoras, facturacion, perfiles, respaldo, datos-demo, pruebas).
+agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-generales, ordenes-estudio, informes-estudio, tarifas-prestaciones, reparto-economico, cobros-caja, convenios-seguros, liquidaciones-aseguradoras, facturacion, perfiles, respaldo, datos-demo, recorrido-manual, verificacion, pruebas).
 - `app/Models/`: Eloquent. Clave: `Persona`, `Paciente`, `Profesional`, `Turno`, `Consulta`,
   `HistoriaClinica`, `Receta`, `PerfilAcceso`, `Permiso`, `ModuloSistema`, `LogAuditoria`,
   `CupoEntrePacientes`, `Disponibilidad`, `ReposoMedico`, `OrdenEstudio`, `Estudio`, `InformeEstudio`, `Moneda`, `Tarifa`,

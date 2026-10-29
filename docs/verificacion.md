@@ -24,6 +24,9 @@ solo lectura ese día.
   `clinexa_dev`, recorra la guía en una instalación limpia con datos demo (ver "Instalación limpia") o haga antes
   `php artisan clinexa:respaldo --probar` (CLAUDE.md: la base de trabajo solo se toca con confirmación expresa).
 
+**Recorrido de un día de trabajo.** Para recorrer el sistema como lo usaría la clínica, con un guion hora por hora, datos para tipear y
+una base propia (`clinexa_recorrido`), ver `docs/recorrido-manual.md`. Esta guía sigue siendo la de consulta por módulo.
+
 ### Usuarios del juego de datos demo
 
 | Usuario | Perfil | Notas |
