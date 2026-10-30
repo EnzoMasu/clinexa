@@ -32,7 +32,7 @@ final class PdfFactura
         return view('pdf-factura.factura', [
             'factura' => $factura,
             'logo' => Clinica::rutaLogotipo($clinica),
-            'marcaSimulacion' => $factura->simulada ? EmisorSimulado::MARCA : null,
+            'marcaSimulacion' => $factura->simulada && config('clinexa.facturacion.mostrar_marca') ? EmisorSimulado::MARCA : null,
             'anulada' => $factura->anulada(),
             'copia' => $copia,
             'fecha' => Fecha::mostrar($factura->emitida_en, conHora: true),

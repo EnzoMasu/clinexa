@@ -76,6 +76,12 @@ el SIFEN, sin tocar la numeración, el IVA, el cobro ni la anulación. `config('
 activo) la elige; con la simulación, la factura, su PDF y las pantallas muestran **"SIMULACIÓN, SIN VALIDEZ FISCAL"**. Apagada, todavía no
 hay emisor real (`EmisorNoConfigurado`): no se emite ni se anula, con el aviso. Sin CDC ni QR.
 
+**Marca aparte del modo:** `config('clinexa.facturacion.mostrar_marca')` (`CLINEXA_FACTURACION_MOSTRAR_MARCA`, por defecto activo) controla
+SOLO si se muestran el cartel de las pantallas (Facturas, cobro, detalle) y la marca del PDF; no cambia el modo de emisión. Con
+`mostrar_marca=false` y `simulada=true` se emite y se anula con normalidad, sin ninguna marca.
+
+> **Advertencia:** sin la marca, una factura simulada puede confundirse con una válida. No apagarla en un uso real.
+
 ## Bloqueo de la prestación facturada (`Facturacion\BloqueoFactura`)
 
 Una prestación en una factura no anulada, **en cualquiera de sus partes**, no cambia de **visación** ni de **monto**, ni se **anula**: "Aplicar visación" y la anulación de

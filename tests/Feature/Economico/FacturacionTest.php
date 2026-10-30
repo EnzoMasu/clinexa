@@ -608,3 +608,23 @@ test('los datos de la clínica: Gerencia los carga con el RUC validado y las suc
     expect(fn () => DB::table('clinicas')->insert([...collect(DB::table('clinicas')->first())->except('id')->merge(['ruc' => '80999002-4'])->all()]))
         ->toThrow(QueryException::class);
 });
+
+test('mostrar_marca controla solo la marca: apagada no aparece en pantalla ni en el PDF y se emite y anula; encendida aparece', function () {
+    facturacionTimbrado();
+    facturacionAbrir($this->cajero);
+    config(['clinexa.facturacion.mostrar_marca' => false]);
+    facturacionCobrar($this->cajero, [facturacionPrestacion()])->assertSessionHasNoErrors();
+    $factura = Factura::sole();
+    expect($factura->simulada)->toBeTrue()->and(PdfFactura::html($factura))->not->toContain('SIN VALIDEZ FISCAL');
+    $this->actingAs($this->cajero)->get(route('admin.facturas.index'))->assertOk()->assertDontSee('SIN VALIDEZ FISCAL');
+    $this->get(route('admin.facturas.show', $factura))->assertOk()->assertDontSee('SIN VALIDEZ FISCAL');
+    $this->get(route('admin.cobros.create'))->assertDontSee('SIN VALIDEZ FISCAL');
+    $this->get(route('admin.facturas.pdf', $factura))->assertOk();
+
+    facturacionAnular($this->cajero, $factura)->assertSessionHasNoErrors();
+    expect($factura->fresh()->anulada())->toBeTrue();
+
+    config(['clinexa.facturacion.mostrar_marca' => true]);
+    expect(PdfFactura::html($factura))->toContain('SIMULACIÓN, SIN VALIDEZ FISCAL');
+    $this->get(route('admin.facturas.show', $factura))->assertSee('SIN VALIDEZ FISCAL');
+});
