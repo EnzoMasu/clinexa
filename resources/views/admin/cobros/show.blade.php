@@ -77,6 +77,10 @@
             </x-admin.table>
         </section>
 
+        @if ($cobro->factura && $puedeImprimir)
+            <a href="{{ route('admin.facturas.imprimir', $cobro->factura) }}" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 font-medium text-white hover:bg-indigo-500">Imprimir factura</a>
+        @endif
+
         @if ($cobro->factura && ! $cobro->revertido())
             <p class="max-w-3xl text-gray-600 dark:text-gray-400">Este cobro tiene factura: se revierte anulando la factura, desde su detalle.</p>
         @endif

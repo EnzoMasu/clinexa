@@ -97,6 +97,7 @@ class CobroController extends Controller
             'puedeRevertir' => $libre && $directa && Permisos::puedeRuta('admin.cobros.revertir'),
             'puedeSolicitar' => $libre && ! $directa && Permisos::puedeRuta('admin.cobros.solicitar-reversion'),
             'pendiente' => $pendiente,
+            'puedeImprimir' => $cobro->factura !== null && Permisos::puedeRuta('admin.facturas.imprimir'),
             'veFactura' => $cobro->factura !== null && Permisos::puedeRuta('admin.facturas.show'),
             'puedeRevisar' => $pendiente !== null && $pendiente->usuario_id !== $usuario->id && Permisos::puedeRuta('admin.cobros.reversiones.aprobar'),
             'sinCajaSolicitante' => $pendiente !== null
@@ -265,7 +266,10 @@ class CobroController extends Controller
 
         $factura = $cobro->factura;
 
-        return redirect()->route('admin.cobros.show', $cobro)
+        // Con permiso para el PDF, la factura aparece lista para imprimir; sin él, el detalle del cobro como siempre.
+        $destino = $factura && Permisos::puedeRuta('admin.facturas.imprimir') ? route('admin.facturas.imprimir', $factura) : route('admin.cobros.show', $cobro);
+
+        return redirect($destino)
             ->with('status', $factura ? "Factura {$factura->numero_completo} emitida y cobrada: {$cobro->totalTexto()}." : "Cobro registrado: {$cobro->totalTexto()}.");
     }
 

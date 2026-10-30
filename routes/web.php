@@ -476,6 +476,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::get('facturas', [FacturaController::class, 'index'])->name('facturas.index')->middleware('permiso:FACTURAS,VER');
     Route::get('facturas/{factura}', [FacturaController::class, 'show'])->name('facturas.show')->whereNumber('factura')->middleware('permiso:FACTURAS,VER');
     // El PDF: al vuelo, sin nada clínico; no se guarda en la caché.
+    // Pantalla de lectura con el PDF embebido, lista para imprimir (el PDF se pide aparte, a facturas.pdf, que es el que audita).
+    Route::get('facturas/{factura}/imprimir', [FacturaController::class, 'imprimir'])->name('facturas.imprimir')->whereNumber('factura')
+        ->middleware(['permiso:FACTURAS,EXPORTAR', SinAlmacenar::class]);
     Route::get('facturas/{factura}/pdf', [FacturaController::class, 'pdf'])->name('facturas.pdf')->whereNumber('factura')
         ->middleware(['permiso:FACTURAS,EXPORTAR', SinAlmacenar::class]);
     Route::post('facturas/{factura}/anular', [FacturaController::class, 'anular'])->name('facturas.anular')->whereNumber('factura')->middleware('permiso:FACTURAS,DESACTIVAR');

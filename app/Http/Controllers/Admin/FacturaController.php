@@ -80,6 +80,17 @@ class FacturaController extends Controller
         ]);
     }
 
+    /** La factura con su PDF embebido y los botones para imprimir (solo lectura: recargar no emite ni cobra nada). */
+    public function imprimir(Factura $factura): View
+    {
+        $factura->loadMissing('cobro');
+
+        return view('admin.facturas.imprimir', [
+            'factura' => $factura,
+            'veCobros' => Permisos::puedeRuta('admin.cobros.create'),
+        ]);
+    }
+
     /** El PDF (al vuelo, también de una anulada, marcada). */
     public function pdf(Factura $factura): RespuestaHttp
     {

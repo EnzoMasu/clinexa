@@ -24,6 +24,7 @@ use App\Models\MedioPago;
 use App\Models\MotivoAnulacionFactura;
 use App\Models\MovimientoCaja;
 use App\Models\PerfilAcceso;
+use App\Models\Permiso;
 use App\Models\Prestacion;
 use App\Models\Procedimiento;
 use App\Models\SolicitudAnulacionFactura;
@@ -471,6 +472,55 @@ test('el PDF de la factura: con permiso sale al vuelo con la marca de simulació
     config(['clinexa.facturacion.simulada' => false]);
     facturacionCobrar($this->cajero, [facturacionPrestacion()])->assertSessionHas('error');
     expect(Factura::count())->toBe(1)->and(PdfFactura::html($factura))->toContain('SIMULACIÓN, SIN VALIDEZ FISCAL');
+});
+
+test('al cobrar se redirige a la factura con el PDF embebido; recargarla no cobra ni emite nada y la numeración no cambia', function () {
+    facturacionTimbrado();
+    facturacionAbrir($this->cajero);
+    $respuesta = facturacionCobrar($this->cajero, [facturacionPrestacion()])->assertSessionHasNoErrors();
+    $factura = Factura::sole();
+    $respuesta->assertRedirect(route('admin.facturas.imprimir', $factura))->assertSessionHas('status', 'Factura 001-001-0000001 emitida y cobrada: ₲ 100.000.');
+
+    $pagina = $this->actingAs($this->cajero)->get(route('admin.facturas.imprimir', $factura))->assertOk()
+        ->assertSee(route('admin.facturas.pdf', $factura), false)->assertSee('<iframe', false)->assertSeeText('Imprimir')
+        ->assertSeeText('Nuevo cobro')->assertSeeText('Ver detalle de la factura');
+    expect($pagina->headers->get('Cache-Control'))->toContain('no-store');
+    $this->get(route('admin.facturas.imprimir', $factura))->assertOk();
+    expect(Factura::count())->toBe(1)->and(Cobro::count())->toBe(1)->and(Factura::sole()->numero_completo)->toBe('001-001-0000001');
+
+    // La pantalla no genera el PDF: el EXPORTAR queda solo cuando el navegador lo pide.
+    expect(LogAuditoria::where('tabla_afectada', 'facturas')->where('accion', AccionAuditoria::EXPORTAR->value)->count())->toBe(0);
+    $this->get(route('admin.facturas.pdf', $factura))->assertOk();
+    expect(LogAuditoria::where('tabla_afectada', 'facturas')->where('accion', AccionAuditoria::EXPORTAR->value)->count())->toBe(1);
+
+    // El siguiente cobro sigue la numeración.
+    facturacionCobrar($this->cajero, [facturacionPrestacion()])->assertRedirect(route('admin.facturas.imprimir', Factura::latest('id')->first()));
+    expect(Factura::latest('id')->first()->numero_completo)->toBe('001-001-0000002');
+});
+
+test('sin EXPORTAR sobre FACTURAS no se embebe el PDF; el botón "Imprimir factura" aparece en los detalles de la factura y del cobro', function () {
+    facturacionTimbrado();
+    facturacionAbrir($this->cajero);
+    facturacionCobrar($this->cajero, [facturacionPrestacion()])->assertSessionHasNoErrors();
+    $factura = Factura::sole();
+
+    $this->actingAs($this->cajero)->get(route('admin.facturas.show', $factura))->assertSeeText('Imprimir factura')->assertSee(route('admin.facturas.imprimir', $factura), false);
+    $this->get(route('admin.cobros.show', $factura->cobro))->assertSeeText('Imprimir factura')->assertSee(route('admin.facturas.imprimir', $factura), false);
+    $this->get(route('admin.facturas.index'))->assertDontSeeText('Cada cobro en Caja emite su factura');
+
+    // Sin EXPORTAR (Recepción no tiene FACTURAS): ni la pantalla ni el botón.
+    $this->actingAs(facturacionUsuario(PerfilesPredefinidos::RECEPCION))->get(route('admin.facturas.imprimir', $factura))->assertForbidden();
+
+    // Un cajero sin EXPORTAR cobra y cae en el detalle del cobro, sin PDF embebido ni botón.
+    $sinPdf = facturacionUsuario(PerfilesPredefinidos::CAJA);
+    DB::table('perfil_permiso')->whereIn('perfil_acceso_id', $sinPdf->perfilesActivos()->modelKeys())
+        ->whereIn('permiso_id', Permiso::where('accion', 'EXPORTAR')->whereHas('moduloSistema', fn ($q) => $q->where('codigo', 'FACTURAS'))->pluck('id'))->delete();
+    $sinPdf = $sinPdf->fresh();
+    $this->actingAs($sinPdf)->get(route('admin.facturas.imprimir', $factura))->assertForbidden();
+    $this->get(route('admin.facturas.show', $factura))->assertOk()->assertDontSeeText('Imprimir factura');
+    $this->get(route('admin.cobros.show', $factura->cobro))->assertOk()->assertDontSeeText('Imprimir factura');
+    facturacionAbrir($this->otroCajero);
+    facturacionCobrar($this->otroCajero, [facturacionPrestacion()])->assertRedirect(route('admin.cobros.show', Cobro::latest('id')->first()));
 });
 
 test('permisos: Caja emite, anula y solicita; Gerencia aprueba y administra timbrados, clínica y tasas; Facturación ve y saca el PDF; los demás, nada', function () {
