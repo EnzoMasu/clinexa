@@ -473,7 +473,7 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 #### H10. Lugo: rechazo (09:00) y turno al que no viene (16:00) (E11)
 
 - [ ] **H10.1** (`recepcion`) En T09, botón **Rechazo**. → RETIRADO de tipo rechazo. Constancia de retiro: dice rechazo, no retiro. **Retiro/Rechazo sobre un turno ATENDIDO** (por ejemplo Escobar) → NIEGA (`CT-11`).
-- [ ] **H10.2** (16:00) T15 queda sin triaje ni visita; se resuelve en el cierre de jornada.
+- [ ] **H10.2** (16:00, nadie actúa) T15 queda sin triaje ni visita; se resuelve en el cierre de jornada.
 
 #### H11. Maidana: no se presentó (09:20) y urgencia (11:00) (E11)
 
@@ -538,8 +538,8 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 
 **18:30. Revisión de Gerencia** (`gerencia`)
 
-- [ ] **C7** Cajas → aviso de pendientes. Abrir la de Caja 1: esperado, contado y diferencia −5.000 con su motivo. **Aprobar** (nota opcional). → APROBADO; no se modifica nunca (`R4-9`).
-- [ ] **C8** Abrir la de Caja 2. **Devolver** sin nota → NIEGA; con la nota de 2.5 → DEVUELTO.
+- [ ] **C7** (`gerencia`) Cajas → aviso de pendientes. Abrir la de Caja 1: esperado, contado y diferencia −5.000 con su motivo. **Aprobar** (nota opcional). → APROBADO; no se modifica nunca (`R4-9`).
+- [ ] **C8** (`gerencia`) Abrir la de Caja 2. **Devolver** sin nota → NIEGA; con la nota de 2.5 → DEVUELTO.
 - [ ] **C9** (`caja2`) Cajas → vuelve a cerrar la devuelta con el **segundo cierre** (Transferencia 250.000). → Segundo cierre; el anterior queda en el historial (`R4-8`).
 - [ ] **C10** (`gerencia`) **Aprobar** la de Caja 2. → APROBADO.
 - [ ] **C11** (`caja1`) Con la caja cerrada, Cobrar. → NIEGA ("Abra su caja antes de cobrar.").
