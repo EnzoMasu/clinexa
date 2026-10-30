@@ -11,6 +11,38 @@ Los defectos se anotan con el formato de "Registro de defectos" de esa guía.
 Convenciones: `[ ]` casilla para marcar; **NIEGA** = el sistema tiene que rechazarlo (si lo deja pasar, es un defecto de gravedad A);
 `(usuario)` = con quién entrar; fechas dd/mm/aaaa; montos en guaraníes enteros (₲).
 
+## Quién hace qué
+
+Usuarios `@prueba.test` (uno por perfil; la contraseña es la de 1.2). **Principal** = quien lo hace en el guion; **alternativo** = otro perfil que
+también tiene el permiso en la matriz real (`PerfilesPredefinidos::MATRIZ`, `docs/perfiles.md`). `admin` tiene todos los permisos, pero el guion
+solo lo usa para Auditoría (3.5) y para las pruebas negativas. Donde dice "nunca", la regla es del sistema aunque el perfil tenga el módulo.
+
+| Acción | Principal | Alternativo | Dónde |
+|---|---|---|---|
+| Turnos: nuevo, confirmar, cancelar, ausente, retiro y rechazo, urgencias, constancia de retiro | `recepcion` | — (`gerencia` solo ve) | Turnos |
+| Cupo entre pacientes y disponibilidades | `recepcion` | — (`gerencia` solo ve) | Turnos → "Cupo entre pacientes"; Disponibilidades |
+| Personas y pacientes (alta, búsqueda, desactivar) | `recepcion` | — | Personas; Pacientes |
+| Cobertura y visaciones (cargar) | `recepcion` | `facturacion` | Cobertura y visaciones; botón "Visación" del turno |
+| Aplicar visación, marcar la firma | `recepcion` | `facturacion` | Prestación → "Aplicar visación", "Firma recibida" |
+| Ticket de la visación (PDF) | `recepcion` | `facturacion`, `gerencia` | Prestación → "Ticket" |
+| Triaje | `enfermeria` | un médico (`medica1`, `medico2`) | Triaje |
+| Atender, recetas, indicaciones, reposo, órdenes, constancia de estado, finalizar | `medica1` o `medico2`, el del turno | nadie más (ni `admin` escribe en la consulta de otro) | Consulta |
+| "No se presentó", "Pasar a ausente", "Cerrar jornada", nota de retiro | el médico, solo de sus turnos | — | Consulta |
+| Adenda a una consulta cerrada | el médico que la atendió | `supervision` | Consulta cerrada → "Adenda" |
+| Desbloqueo y corrección de una consulta cerrada | `supervision` | — (nunca quien la atendió) | Consulta cerrada → "Desbloquear" |
+| Tarifas, acuerdos de reparto y tasas de IVA | `gerencia` | — | Económico → Tarifas; Acuerdos de reparto; Facturas → Tasas de IVA |
+| Tarifar, repartir y anular una prestación | `gerencia` | — | Prestaciones → "Tarifar", "Repartir" |
+| Datos de la clínica y timbrados | `gerencia` | — | Facturas → "Datos de la clínica"; Timbrados |
+| Abrir y cerrar caja | `caja1`, `caja2` | — (`gerencia` solo ve) | Cajas → "Mi caja" |
+| Facturar y cobrar | `caja1`, `caja2` | — | Cobros → Cobrar → "Facturar y cobrar" |
+| Anular una factura dentro de los 10 minutos | quien la emitió (`caja1`, `caja2`) | — | Facturas → la factura → "Anular la factura" |
+| Pedir anular pasados los 10 minutos | `caja1`, `caja2` | — | Facturas → "Solicitar la anulación" |
+| Aprobar o rechazar la solicitud de anulación | `gerencia` | — | Facturas → "Solicitudes de anulación" |
+| Aprobar o devolver el cierre de una caja | `gerencia` | — (nunca el cajero, el suyo) | Cajas → el cierre |
+| Armar, quitar líneas, enviar y anular una liquidación; pagos y planilla | `facturacion` | — (`gerencia` también anula y saca la planilla) | Liquidaciones |
+| Aprobar o devolver una liquidación | `gerencia` | — (nunca quien la armó) | Liquidaciones → "Aprobar", "Devolver" |
+| Auditoría | `auditor` | `gerencia`, `supervision` (cada uno con su contenido), `admin` | Auditoría |
+
 ## 1. Preparar y reiniciar el recorrido
 
 La base es **`clinexa_recorrido`**, aparte de `clinexa_dev` y de `clinexa_test`. El comando se niega a correr el modo `--recorrido` en
@@ -95,6 +127,10 @@ Todo lo de esta sección es inventado. Donde dice "(prueba)" el texto es literal
 signos vitales siguen pendientes (`MED-1` de la guía) y el triaje solo valida lo imposible; los valores de abajo son de relleno.
 
 ### 2.1 Las pacientes y su historia del día
+
+**Ya viene cargado** por el estado inicial (1.2): las 12 pacientes, sus coberturas (pacientes 1 a 4) y los catálogos (procedimientos, estudios,
+dietas, aseguradoras, convenios, tarifas, acuerdos, disponibilidades). **Lo que se carga a mano** son los **turnos** (2.2) y las
+**visaciones** (2.3), los dos por **Recepción** (`recepcion`); lo demás se genera atendiendo.
 
 Apellidos y nombres como en el sistema (orden de la ficha). El nombre corto se usa en el guion.
 
@@ -303,22 +339,22 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 
 ### 3.1 Antes de abrir (07:30)
 
-**Gerencia** (`gerencia`) revisa lo que usará todo el día:
+**Gerencia** (`gerencia`) revisa lo que usará todo el día (solo mirar y cargar la configuración; no atiende ni cobra):
 
-- [ ] **A1** Facturas → "Datos de la clínica". → "Clínica de Prueba (demo) S.A.", RUC `80900010-5`. Cambiar el RUC por `80900010-0` → NIEGA (dígito); no guarde.
-- [ ] **A2** Facturas → Timbrados. → Uno VIGENTE: `19990001`, 001-001, rango 1 a 9.999.999, vigente hoy. Solo mirar: los casos de timbrado vencido o agotado (`FT-3`, `FT-4`) dejarían la base sin timbrado para el resto del día; pruébelos al final o en otra pasada.
-- [ ] **A3** Facturas → Tasas de IVA. → ECO-TV 5 %, ECO-OBST-DOP 5 %, PAP-COLPO Exenta, el resto 10 %.
-- [ ] **A4** Económico → Tarifas. → Las de 2.4; **PAP-COLPO no está**. Auditoría ya muestra las altas de hoy.
-- [ ] **A5** Acuerdos de reparto. → Benítez 60 % general y 40 % ECO-CROMO; equipo Mindray 30 %; **Duarte, ninguno**.
+- [ ] **A1** (`gerencia`) Facturas → "Datos de la clínica" (módulo Facturas). → "Clínica de Prueba (demo) S.A.", RUC `80900010-5`. Cambiar el RUC por `80900010-0` → NIEGA (dígito); no guarde.
+- [ ] **A2** (`gerencia`) Facturas → Timbrados. → Uno VIGENTE: `19990001`, 001-001, rango 1 a 9.999.999, vigente hoy. Solo mirar: los casos de timbrado vencido o agotado (`FT-3`, `FT-4`) dejarían la base sin timbrado para el resto del día; pruébelos al final o en otra pasada.
+- [ ] **A3** (`gerencia`) Facturas → Tasas de IVA. → ECO-TV 5 %, ECO-OBST-DOP 5 %, PAP-COLPO Exenta, el resto 10 %.
+- [ ] **A4** (`gerencia`) Económico → Tarifas. → Las de 2.4; **PAP-COLPO no está**. Auditoría ya muestra las altas de hoy.
+- [ ] **A5** (`gerencia`) Acuerdos de reparto. → Benítez 60 % general y 40 % ECO-CROMO; equipo Mindray 30 %; **Duarte, ninguno**.
 
 **Recepción** (`recepcion`) prepara el día:
 
-- [ ] **A6** Turnos → "Nuevo turno" para **hoy** con una fecha pasada → NIEGA ("No se agendan turnos en una fecha pasada"). Para hoy con un horario que ya pasó → NIEGA ("Ese horario ya pasó").
-- [ ] **A7** Cupo entre pacientes de hoy: Dr. Duarte = **1** (E11). Cupo 31 → NIEGA (0 a 30).
-- [ ] **A8** Cargar T01 a T17 (2.2). T01 (Benítez, consultorio 101) y T07 (Duarte, 102) a las 08:20 **conviven** (profesionales y consultorios distintos). Dar a otra paciente un turno con Benítez a las 08:20 (ya ocupado) → no se ofrece ese horario o NIEGA ("Ese horario se acaba de ocupar"). Dar a Escobar otro turno que se superponga con T01 → NIEGA (`AG-4`).
-- [ ] **A9** Visaciones `V-R01` a `V-R04` desde el turno (botón **Visación**, 2.3). Antes de cargar: el turno dice "Seguro: …" y "Falta visación"; después, "Visación cargada". `V-R05` **no**: queda para la tarde.
-- [ ] **A10** Visación con el número repetido `V-R01` para Ejemplo Uno (otra paciente de Uno, por ejemplo Barrios en otra línea) → NIEGA (`CV-8`). Una sexta línea en una visación, o un porcentaje de 101 → NIEGA (`CV-9`).
-- [ ] **A11** Agenda general de hoy. → Los 16 turnos con hora en sus filas y el entre pacientes de Duarte en "Sin horario" ("Cupo: 1 de 1"); "Seguro: …" y "Visación cargada" en T02, T04, T05 y T14, y "Falta visación" en T17; sin nada clínico (`AG-18`, `AG-19`).
+- [ ] **A6** (`recepcion`) Turnos → "Nuevo turno" para **hoy** con una fecha pasada → NIEGA ("No se agendan turnos en una fecha pasada"). Para hoy con un horario que ya pasó → NIEGA ("Ese horario ya pasó").
+- [ ] **A7** (`recepcion`) Turnos → "Cupo entre pacientes" (se fija con Disponibilidades; Gerencia solo lo ve). Cupo de hoy: Dr. Duarte = **1** (E11). Cupo 31 → NIEGA (0 a 30).
+- [ ] **A8** (`recepcion`) Cargar T01 a T17 (2.2). T01 (Benítez, consultorio 101) y T07 (Duarte, 102) a las 08:20 **conviven** (profesionales y consultorios distintos). Dar a otra paciente un turno con Benítez a las 08:20 (ya ocupado) → no se ofrece ese horario o NIEGA ("Ese horario se acaba de ocupar"). Dar a Escobar otro turno que se superponga con T01 → NIEGA (`AG-4`).
+- [ ] **A9** (`recepcion`; alternativo `facturacion`) Visaciones `V-R01` a `V-R04` desde el turno (botón **Visación**, 2.3). Antes de cargar: el turno dice "Seguro: …" y "Falta visación"; después, "Visación cargada". `V-R05` **no**: queda para la tarde.
+- [ ] **A10** (`recepcion`) Visación con el número repetido `V-R01` para Ejemplo Uno (otra paciente de Uno, por ejemplo Barrios en otra línea) → NIEGA (`CV-8`). Una sexta línea en una visación, o un porcentaje de 101 → NIEGA (`CV-9`).
+- [ ] **A11** (`recepcion`; también la ve `gerencia`) Agenda general de hoy. → Los 16 turnos con hora en sus filas y el entre pacientes de Duarte en "Sin horario" ("Cupo: 1 de 1"); "Seguro: …" y "Visación cargada" en T02, T04, T05 y T14, y "Falta visación" en T17; sin nada clínico (`AG-18`, `AG-19`).
 
 ### H0. Las cajas (07:55)
 
@@ -330,11 +366,11 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 
 ### 3.2 Las historias
 
-**Antes de empezar cada una**: la paciente llega (Recepción puede **Confirmar** el turno), Enfermería hace el triaje, el médico atiende. Pasos de rutina:
+**Antes de empezar cada una**: la paciente llega (Recepción (`recepcion`) puede **Confirmar** el turno en Turnos), Enfermería hace el triaje, el médico atiende. Pasos de rutina:
 
-- **Triaje** (`enfermeria`): Triaje → paciente → "Iniciar triaje" → anamnesis y signos de 2.6 → "Terminar triaje".
-- **Atender** (médico): Consulta → paciente → "Atender" → motivo, anamnesis, hallazgos, diagnóstico de 2.6; esperar el autoguardado → "Finalizar".
-- **Cobrar** (cajero): Cobros → Cobrar → buscar a la paciente → tildar sus prestaciones → medios y montos de 2.5 → "Facturar y cobrar".
+- **Triaje** (`enfermeria`; alternativo, un médico, que también tiene Preparación): Triaje → paciente → "Iniciar triaje" → anamnesis y signos de 2.6 → "Terminar triaje".
+- **Atender** (el médico del turno: `medica1` o `medico2`, nadie más): Consulta → paciente → "Atender" → motivo, anamnesis, hallazgos, diagnóstico de 2.6; esperar el autoguardado → "Finalizar".
+- **Cobrar** (`caja1` o `caja2`; solo Caja cobra): Cobros → Cobrar → buscar a la paciente → tildar sus prestaciones → medios y montos de 2.5 → "Facturar y cobrar".
 
 #### H5. Escobar, 08:20: consulta particular hasta el cobro en efectivo (E1), cobro equivocado (E14) y desbloqueo (E13)
 
@@ -346,7 +382,7 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 - [ ] **H5.6** (`caja1`) Desde la factura anulada: "Cobrar de nuevo con una factura que reemplace a esta" con **C1b** (Efectivo 250.000). → Factura `…0002`, COBRADA; la anulada la muestra como reemplazada (`R2-4`).
 - [ ] **H5.7** (`caja1`) Facturas → PDF de la nueva. → "FACTURA", con la marca de simulación. Abrirlo otra vez → "FACTURA (COPIA)" (`R2-2`).
 - [ ] **H5.8** (`medica1`) En la consulta cerrada de Escobar: cualquier modificación → NIEGA ("La consulta está cerrada…").
-- [ ] **H5.9** (`supervision`) Desbloquear esa consulta (motivo de 2.6, 20 a 500 caracteres). → Ventana VIGENTE por 24 horas. Corregir la anamnesis. → "Corregida 1 vez"; versión guardada; la consulta sigue cerrada (`CO-6`, `CO-9`). Un segundo desbloqueo con la ventana vigente → NIEGA (`CO-8`).
+- [ ] **H5.9** (`supervision`, el único perfil que desbloquea; nunca quien atendió) Desbloquear esa consulta (motivo de 2.6, 20 a 500 caracteres). → Ventana VIGENTE por 24 horas. Corregir la anamnesis. → "Corregida 1 vez"; versión guardada; la consulta sigue cerrada (`CO-6`, `CO-9`). Un segundo desbloqueo con la ventana vigente → NIEGA (`CO-8`).
 - [ ] **H5.10** (`medica1`) Intentar desbloquear su propia consulta → NIEGA (no tiene el módulo).
 
 #### H7. Godoy, 08:20: Dr. Duarte sin acuerdo (E10), y factura anulada por solicitud (E14)
@@ -367,7 +403,7 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 - [ ] **H1.1** (`enfermeria`, `medica1`) Triaje, atender y finalizar la consulta (T02).
 - [ ] **H1.2** (`gerencia`) Prestaciones → la de Alvarenga. → TARIFADO; pagador **ASEGURADORA**; total 200.000; paciente **0**; aseguradora 200.000; con `V-R01`; reparto sobre 200.000: 120.000 / 80.000.
 - [ ] **H1.3** (`caja1`) Cobrar a Alvarenga. → La consulta **no se ofrece**: se muestra "A cargo de aseguradora" (`R1-12`). No hay cobro ni factura.
-- [ ] **H1.4** (`recepcion`) Cobertura y visaciones de Alvarenga → la prestación de aseguradora → **Firma recibida**; luego el **Ticket**. → La firma con fecha y usuario; el ticket (PDF) con clínica, profesional, paciente, aseguradora, plan, `UNO-000101`, `V-R01` y la línea de firma, **sin montos ni nada clínico**. (La firma y el ticket valen para toda prestación de aseguradora, también con la parte de la paciente en cero: la liquidación exige la firma.)
+- [ ] **H1.4** (`recepcion`; alternativo `facturacion`) Cobertura y visaciones de Alvarenga → la prestación de aseguradora → **Firma recibida**; luego el **Ticket**. → La firma con fecha y usuario; el ticket (PDF) con clínica, profesional, paciente, aseguradora, plan, `UNO-000101`, `V-R01` y la línea de firma, **sin montos ni nada clínico**. (La firma y el ticket valen para toda prestación de aseguradora, también con la parte de la paciente en cero: la liquidación exige la firma.)
 - [ ] **H1.5** (14:20, `enfermeria`, `medico2`) Triaje, atender y finalizar la ecografía (T14, con `V-R04`). → Prestación de **ECO-TV, 350.000, pagador PACIENTE** (tarifa **general**, con referencia a la visación), no 300.000 (`CV-10`).
 - [ ] **H1.6** (`caja2`) Cobrar con **C10** (Tarjeta 350.000). → Factura con IVA **5 %**: IVA 16.667.
 - [ ] **H1.7** (`gerencia`) La prestación de la ecografía: reparto con acuerdo del Dr. Duarte (ya cargado): 175.000 / equipo 105.000 / 70.000, repartido solo al finalizar.
@@ -382,27 +418,27 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 - [ ] **H6.6** (`medica1`) Con la consulta cerrada: **Reposo médico** (otra pestaña): 3 días desde hoy, reposo absoluto → `RM-…`; "hasta" = hoy + 2. "Desde" ayer → NIEGA. Días 0 → NIEGA. **Prórroga**: 2 días desde hoy + 3 indicando el número anterior → se emite; con "desde" = hoy + 2 → NIEGA (`RM-4`). PDF: marca **BORRADOR SUJETO A REVISIÓN**. Anular el primero con motivo `abc` → NIEGA; con el de 2.6 → ANULADO.
 - [ ] **H6.7** (`medica1`) **Orden de estudio** ("Pedir estudio"): catálogo + a mano (2.6). → `OE-…`, el escrito a mano no entra al catálogo; PDF con la marca de borrador.
 - [ ] **H6.8** (`medica1`) **Constancia de estado**: una `CE-…` del turno atendido. → Con profesional y matrícula, sin diagnóstico.
-- [ ] **H6.9** (`medica1`) **Adenda** a la consulta cerrada: motivo de 5 caracteres → NIEGA; con el de 2.6 → se ve debajo de lo original (`CO-2`).
+- [ ] **H6.9** (`medica1`, que atendió; alternativo `supervision`) **Adenda** a la consulta cerrada: motivo de 5 caracteres → NIEGA; con el de 2.6 → se ve debajo de lo original (`CO-2`).
 - [ ] **H6.10** (`medico2`, `enfermeria`, `recepcion`) Abrir por URL la receta, el reposo y la orden de Fernández. → NIEGA (403/404).
 - [ ] **H6.11** (`gerencia`) Prestaciones → las dos de Fernández. → Consulta: profesional 150.000, clínica 100.000. **ECO-TV: profesional 210.000, equipo 105.000 (línea aparte, dueña Benítez), clínica 35.000** (`R5-4`).
 - [ ] **H6.12** (`caja1`) Cobrar a Fernández las dos prestaciones con **C2** (mixto: Efectivo 300.000 + Tarjeta 200.000 + Transferencia 100.000, `TR-R-0001`). Antes: con los pagos sumando 599.000 → NIEGA (`CC-4`). → **Una** factura con dos líneas: Consulta 10 % (IVA 22.727) y ECO-TV 5 % (IVA 16.667); total 600.000; IVA total 39.394; totales por tasa que suman.
 
 #### H2. Barrios, 09:20: copago de monto fijo (E4); su factura se pide anular y Gerencia rechaza (E14)
 
-- [ ] **H2.1** Triaje, atender y finalizar (`enfermeria`, `medica1`).
+- [ ] **H2.1** (`enfermeria`, `medica1`) Triaje, atender y finalizar.
 - [ ] **H2.2** (`gerencia`) Prestación. → Total 200.000: **paciente 100.000**, aseguradora 100.000, `V-R02`; reparto 120.000 / 80.000.
 - [ ] **H2.3** (`caja1`) Cobrar: se ofrece **solo 100.000**. Cobrar con **C3** (Efectivo 100.000). → Factura con **solo la parte de la paciente** (IVA 9.091); la de la aseguradora no entra (`FT-10`).
-- [ ] **H2.4** (`recepcion`) **No** marcar la firma de Barrios (para E7/liquidación L1). Sí generar el ticket (`CV-16`).
+- [ ] **H2.4** (`recepcion`; alternativo `facturacion`) **No** marcar la firma de Barrios (para E7/liquidación L1). Sí generar el ticket (`CV-16`).
 - [ ] **H2.5** (`caja1`) Pasados los 10 minutos: "Solicitar la anulación" con "Otro (detallar)" sin detalle → NIEGA; con el detalle de 2.7 → PENDIENTE.
 - [ ] **H2.6** (`gerencia`) **Rechazar** con la nota de 2.7. → La factura sigue vigente y el cobro también. La nota de 3 letras → NIEGA (5 a 300).
 - [ ] **H2.7** (`caja1`) Volver a solicitar la misma. → Se puede (rechazada se puede pedir de nuevo); dejar pendiente o rechazar otra vez (`R2-9`, `R2-10`).
 
 #### H3. Cabrera, 09:40: copago de porcentaje (E5); 16:20, ecografía sin visar y visación tarde (E7)
 
-- [ ] **H3.1** Triaje, atender y finalizar la consulta (T05, `V-R03`).
+- [ ] **H3.1** (`enfermeria`, `medica1`) Triaje, atender y finalizar la consulta (T05, `V-R03`).
 - [ ] **H3.2** (`gerencia`) Prestación. → Total 220.000: **paciente 44.000** (20 %), aseguradora 176.000; reparto 132.000 / 88.000.
 - [ ] **H3.3** (`caja1`) Cobrar **C4** (Transferencia 44.000, `TR-R-0002`). → Factura con IVA 4.000 (44.000/11).
-- [ ] **H3.4** (`recepcion`) Marcar **firma recibida** y generar el ticket. → Firma con fecha y usuario.
+- [ ] **H3.4** (`recepcion`; alternativo `facturacion`) Marcar **firma recibida** y generar el ticket. → Firma con fecha y usuario.
 - [ ] **H3.5** (16:20, `enfermeria`, `medica1`) Triaje, atender y finalizar la ecografía (T17). **Sin visación**.
 - [ ] **H3.6** (`recepcion`) Cobertura y visaciones de Cabrera → la prestación de ECO-TV. → **Particular, 350.000, con aviso** "no hay visación"; no frenó la atención (`CV-11`).
 - [ ] **H3.7** (`recepcion`) Cargar `V-R05` (2.3) y **"Aplicar visación"** a esa prestación, con el motivo de 2.7. → Se recalcula: total 320.000, **paciente 64.000**, aseguradora 256.000; la firma vuelve a pedirse; el reparto anterior queda ANULADO y se calcula otro sobre 320.000: 192.000 / 96.000 / 32.000 (`CV-12`, `RP-10`).
@@ -412,14 +448,14 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 
 #### H4. Dávalos, 09:40: cobertura vencida (E8)
 
-- [ ] **H4.1** Triaje (`enfermeria`), atender y finalizar (`medico2`).
+- [ ] **H4.1** (`enfermeria`, `medico2`) Triaje, atender y finalizar.
 - [ ] **H4.2** (`gerencia`) Prestación. → **Particular**, 250.000, con el aviso "La cobertura de la paciente venció el …". La atención no se frenó (`CV-11`). Pendiente de reparto o ya repartido según la hora en que se cargó el acuerdo del Dr. Duarte (H7.4): si lo cargó antes de finalizar, sale repartido; si no, "Repartir".
 - [ ] **H4.3** (`caja2`) Cobrar **C6** (Tarjeta 250.000). → Factura 10 %.
 - [ ] **H4.4** (`recepcion`) Cobertura y visaciones de Dávalos. → La cobertura figura vencida; la prestación es particular: sin firma ni ticket.
 
 #### H8. Insaurralde, 10:00: Pap + Colposcopía sin tarifa (E9)
 
-- [ ] **H8.1** Triaje, atender (`medica1`) y finalizar. → Finaliza sin problema.
+- [ ] **H8.1** (`enfermeria`, `medica1`) Triaje, atender y finalizar. → Finaliza sin problema.
 - [ ] **H8.2** (`gerencia`) Prestaciones. → **Pendiente de tarifar**: sin monto ni reparto, con el aviso. Filtro de pendientes.
 - [ ] **H8.3** (`caja1`) Cobrar a Insaurralde. → NIEGA: no se ofrece (sin monto, `CC-7`). Recepción y Caja ven la prestación sin tarifa.
 - [ ] **H8.4** (`gerencia`) Tarifas → Nueva (2.4: PAP-COLPO, 300.000, hoy). Segunda tarifa para el mismo procedimiento → NIEGA ("Use Cambiar tarifa"). En la prestación: **Tarifar**. → TARIFADO 300.000 con la tarifa de su fecha de servicio; reparto 180.000 / 120.000 (sin equipo).
@@ -427,9 +463,9 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 
 #### H9. Jara: retiro con triaje terminado (08:40) y cierre de jornada (16:20) (E11)
 
-- [ ] **H9.1** (08:40, `enfermeria`) Iniciar y **terminar** el triaje.
+- [ ] **H9.1** (08:40, `enfermeria`; alternativo un médico) Iniciar y **terminar** el triaje.
 - [ ] **H9.2** (`recepcion`) En Turnos intentar **Cancelar** y **Ausente** ese turno. → NIEGA (el triaje terminado solo admite retiro o rechazo).
-- [ ] **H9.3** (`recepcion`) Botón **Retiro**. → RETIRADO; "cargo pendiente" (una marca, sin monto). La consulta en triaje pasa a ANULADA con sus datos (`TA-20`).
+- [ ] **H9.3** (`recepcion`) Turnos → botón **Retiro**. → RETIRADO; "cargo pendiente" (una marca, sin monto). La consulta en triaje pasa a ANULADA con sus datos (`TA-20`).
 - [ ] **H9.4** (`recepcion`) **Constancia de retiro**. → `CR-…` sin nada clínico; emitir de nuevo → abre la existente; anular con motivo y emitir otra (`CT-1` a `CT-3`).
 - [ ] **H9.5** (`medico2`) Consulta → "Retiros y rechazos": la nota de 2.6. → Se guarda **una sola vez**. `recepcion` no ve la nota (`TA-21`).
 - [ ] **H9.6** (16:20, `enfermeria`) Iniciar el triaje del turno T16 (**sin terminarlo**). Queda "En triaje". La paciente se va. El resto se resuelve en el cierre de jornada (3.4).
@@ -437,7 +473,7 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 #### H10. Lugo: rechazo (09:00) y turno al que no viene (16:00) (E11)
 
 - [ ] **H10.1** (`recepcion`) En T09, botón **Rechazo**. → RETIRADO de tipo rechazo. Constancia de retiro: dice rechazo, no retiro. **Retiro/Rechazo sobre un turno ATENDIDO** (por ejemplo Escobar) → NIEGA (`CT-11`).
-- [ ] **H10.2** (16:00) T15 queda sin triaje ni visita; se resuelve en el cierre de jornada.
+- [ ] **H10.2** (16:00, nadie actúa) T15 queda sin triaje ni visita; se resuelve en el cierre de jornada.
 
 #### H11. Maidana: no se presentó (09:20) y urgencia (11:00) (E11)
 
@@ -502,8 +538,8 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 
 **18:30. Revisión de Gerencia** (`gerencia`)
 
-- [ ] **C7** Cajas → aviso de pendientes. Abrir la de Caja 1: esperado, contado y diferencia −5.000 con su motivo. **Aprobar** (nota opcional). → APROBADO; no se modifica nunca (`R4-9`).
-- [ ] **C8** Abrir la de Caja 2. **Devolver** sin nota → NIEGA; con la nota de 2.5 → DEVUELTO.
+- [ ] **C7** (`gerencia`) Cajas → aviso de pendientes. Abrir la de Caja 1: esperado, contado y diferencia −5.000 con su motivo. **Aprobar** (nota opcional). → APROBADO; no se modifica nunca (`R4-9`).
+- [ ] **C8** (`gerencia`) Abrir la de Caja 2. **Devolver** sin nota → NIEGA; con la nota de 2.5 → DEVUELTO.
 - [ ] **C9** (`caja2`) Cajas → vuelve a cerrar la devuelta con el **segundo cierre** (Transferencia 250.000). → Segundo cierre; el anterior queda en el historial (`R4-8`).
 - [ ] **C10** (`gerencia`) **Aprobar** la de Caja 2. → APROBADO.
 - [ ] **C11** (`caja1`) Con la caja cerrada, Cobrar. → NIEGA ("Abra su caja antes de cobrar.").
