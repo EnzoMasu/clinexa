@@ -1,50 +1,47 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# Constitución de Clinexa
 
-## Core Principles
+Las reglas operativas (git, base de datos, pruebas, texto y fechas, producción) están
+en `CLAUDE.md` y `docs/`. Esta constitución solo fija los principios transversales.
+Ante un conflicto, manda `CLAUDE.md`.
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+## Principios
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### I. Laravel + PostgreSQL
+El sistema es Laravel sobre PostgreSQL. No se incorpora otra pila ni otro motor de
+datos sin decisión expresa de Enzo. Las pruebas siguen lo definido en `CLAUDE.md`
+(sección Pruebas) y `docs/pruebas.md`.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. Nunca borrado físico
+Ningún registro de las tablas de negocio se elimina de la base: se desactiva. Quedan
+fuera las tablas técnicas de Laravel (sesiones, caché, colas, tokens). Los borrados
+masivos y destructivos siguen prohibidos según `CLAUDE.md` (sección Base de datos).
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### III. Auditoría de todo cambio
+Toda tabla audita crear, editar, desactivar, anular y revertir, más los eventos de
+autenticación, en `LogAuditoria`. Las lecturas (VER) se auditan en los módulos
+marcados como sensibles (datos privados del paciente: historia clínica, recetas,
+indicaciones, etc.); esa lista vive en el campo `es_sensible` de `ModuloSistema`.
+La visibilidad del contenido clínico y de recetas en Auditoría sigue lo definido en
+`CLAUDE.md` (sección Historia clínica).
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### IV. Estados y catálogos desde tablas
+Los estados salen de la tabla `Estado`. Los catálogos que edita el usuario viven en
+tablas. Los enums de PHP se usan solo para listas cerradas y estables: `TipoPersona`,
+`Sexo`, `EstadoCivil`, `DiaSemana`, `TipoDiagnostico`, `TipoProcedimiento`,
+`TipoFactura`, `TipoMovimientoCaja`, `AccionPermiso`, `AccionAuditoria`, `TipoTurno`
+(lista cerrada atada a la lógica de agenda). Los enums existentes no se migran.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### V. Historia clínica cerrada, inmutable
+Una consulta cerrada (FINALIZADA o ANULADA) y todo lo que cuelga de ella es de solo
+lectura. Detalle en `CLAUDE.md` y `docs/historia-clinica.md`.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### VI. Enzo decide las reglas de negocio
+Ningún agente ni spec asume reglas de negocio, valores clínicos ni textos legales.
+Si falta una definición, se pregunta a Enzo y se anota como pendiente antes de
+implementar.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Gobierno
+Esta constitución se modifica solo con aprobación de Enzo. Cada spec y plan debe
+verificar que cumple estos principios antes de avanzar.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
-
-## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
-
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
-
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Versión**: 1.0.0 | **Ratificada**: 2026-10-31 | **Última enmienda**: 2026-10-31
