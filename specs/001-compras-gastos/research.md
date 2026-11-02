@@ -17,11 +17,12 @@
 
 ## R3. Tipo de comprobante y condición
 
-- **Decision provisional**: columna `string` con valores fijos validados en la aplicación (`FACTURA`, `TICKET`, `RECIBO`, `SIN_COMPROBANTE`;
-  `CONTADO`, `CREDITO`), porque cada valor cambia validaciones (timbrado, número, vencimiento, anticipo, Cuentas por Pagar).
-- **Rationale**: son listas cerradas atadas a la lógica, como `TipoFactura`.
-- **Pendiente P8**: la constitución lista los enums permitidos y no incluye estos; agregar un enum requiere enmienda aprobada por Enzo.
-  Alternativa sin enmienda: tablas `tipos_comprobante_compra` y `condiciones_compra` con `codigo` fijo, sembradas por migración.
+- **Decision (Enzo)**: el **tipo de comprobante** es un catálogo en tabla `tipos_comprobante_compra`, editable desde pantalla (activar/desactivar), con
+  casillas propias (`requiere_numero`, `numero_formato_legal`, `requiere_timbrado`, `requiere_fecha_comprobante`). Las reglas miran las casillas, nunca el nombre.
+  Siembra: factura legal, ticket, recibo, sin comprobante. La **condición** es el enum `CondicionCompra` (CONTADO, CREDITO), porque cambia validaciones
+  (vencimiento, anticipo, Cuentas por Pagar); requiere enmendar el principio IV (constitución 1.0.1).
+- **Rationale**: el tipo lo edita el usuario (principio IV); la condición es una lista cerrada atada a la lógica, como `TipoFactura`.
+- **Pendiente P9**: qué módulo y permisos gobiernan la pantalla del catálogo de tipos (no se asume).
 
 ## R4. IVA
 
@@ -31,11 +32,10 @@
 
 ## R5. Comprobante y duplicados
 
-- **Decision**: factura: `numero` con regex `^\d{3}-\d{3}-\d{7}$` y `timbrado` (obligatorio; formato exacto a confirmar con `docs/ruc.md`/facturación);
-  ticket y recibo: `numero` libre obligatorio; sin comprobante: sin número. Índice único parcial
-  `(proveedor_id, tipo_comprobante, numero) WHERE numero IS NOT NULL` en SQLite y PostgreSQL. Las anuladas **cuentan** para el duplicado
-  (la spec dice "impedir cargar dos veces"); si al anular y recargar debe poder reusarse el número, hay que excluir ANULADO: **preguntar**
-  (se suma a P5/P6 al implementar la fase 2).
+- **Decision**: la validación del número sale de las casillas del tipo: `requiere_numero` (obligatorio), `numero_formato_legal` (regex `^\d{3}-\d{3}-\d{7}$`,
+  formato exacto a confirmar con `docs/ruc.md`/facturación), `requiere_timbrado`. Sin `requiere_numero`: sin número. Índice único parcial
+  `(proveedor_id, tipo_comprobante_id, numero) WHERE numero IS NOT NULL AND anulada_en IS NULL` en SQLite y PostgreSQL. Las anuladas **no cuentan**
+  para el duplicado (decisión de Enzo): al anular, el comprobante puede cargarse de nuevo.
 - **Rationale**: FR-005 y respuesta de Enzo. El aviso indica el registro existente (escenario US1-2); ayuda al vuelo con `Unicidad`.
 
 ## R6. Moneda

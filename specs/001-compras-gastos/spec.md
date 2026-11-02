@@ -23,6 +23,8 @@
 - Q: Contado y anticipo, ¿tocan la caja? → A: Por ahora no. No generan movimiento de caja; queda **pendiente** para una fase posterior.
 - Q: ¿Cómo se discrimina el IVA? → A: Se cargan los montos con IVA incluido por tasa (10 %, 5 % y exento); el sistema calcula el IVA igual que Facturación (÷11 y ÷21, al guaraní entero). El total es la suma de los tres montos.
 - Q: ¿Quién carga y quién confirma? → A: Como en Liquidaciones: Compras y tesorería carga; Gerencia o el Administrador confirman y anulan, nunca un registro que cargaron ellos mismos.
+- Q: Tipo de comprobante y condición, ¿enum o tabla? → A: El tipo de comprobante es un **catálogo en tabla**, editable desde pantalla (activar/desactivar), con casillas propias (p. ej. "requiere número"); las reglas miran las casillas, nunca el nombre. Siembra inicial: factura legal, ticket, recibo y sin comprobante. La condición (contado/crédito) es el enum `CondicionCompra` (enmienda de la constitución, v1.0.1).
+- Q: ¿Las anuladas cuentan para el control de comprobante duplicado? → A: No. El control (proveedor + tipo + número) ignora las compras ANULADAS, de modo que se puede volver a cargar un comprobante cuya compra se anuló.
 - Q: ¿Qué número lleva el comprobante? → A: Factura legal: número con formato 001-001-0000001 y número de timbrado, obligatorios. Ticket y recibo: número libre, obligatorio. "Sin comprobante": sin número y fuera del control de duplicados (FR-005).
 
 ## User Scenarios & Testing *(mandatory)*
@@ -90,7 +92,8 @@ Cada registro a crédito conserva lo necesario (proveedor, importe, condición, 
 
 ### Edge Cases
 
-- Comprobante repetido del mismo proveedor (ver FR-005).
+- Comprobante repetido del mismo proveedor (ver FR-005); si la compra original está anulada, se puede cargar de nuevo.
+- Tipo de comprobante desactivado con compras existentes: las compras lo conservan; no se elige en las nuevas.
 - Compra con fecha futura o de un período ya informado.
 - Proveedor desactivado después de cargada la compra.
 - Categoría de gasto renombrada o desactivada con registros existentes.
@@ -104,9 +107,9 @@ Cada registro a crédito conserva lo necesario (proveedor, importe, condición, 
 
 - **FR-001**: El sistema DEBE permitir registrar una compra o gasto indicando proveedor, categoría de gasto, fecha, importe, condición y comprobante.
 - **FR-002**: Solo se DEBEN poder elegir proveedores y categorías de gasto activos; los registros existentes conservan los datos aunque luego se desactiven.
-- **FR-003**: El sistema DEBE guardar de cada comprobante su tipo, su número y su fecha. Los tipos aceptados son factura legal, ticket, recibo y "sin comprobante" (gastos menores). Se PUEDE adjuntar imagen del comprobante, pero no es obligatorio.
+- **FR-003**: El sistema DEBE guardar de cada comprobante su tipo, su número y su fecha. El tipo sale de un catálogo editable (activar/desactivar) cuyos tipos activos se pueden elegir; la siembra inicial es factura legal, ticket, recibo y "sin comprobante" (gastos menores). Cada tipo define con casillas qué exige (número, timbrado, fecha del comprobante); las reglas miran esas casillas y nunca el nombre del tipo. Se PUEDE adjuntar imagen del comprobante, pero no es obligatorio.
 - **FR-004**: El sistema DEBE registrar la condición de la compra: contado o crédito con una sola fecha de vencimiento. Una compra al contado se considera pagada al registrarla y no pasa a Cuentas por Pagar. Una compra a crédito PUEDE registrar un anticipo (importe entregado al momento de la compra); lo que queda adeudado es el importe menos el anticipo.
-- **FR-005**: El sistema DEBE impedir cargar dos veces el mismo comprobante del mismo proveedor.
+- **FR-005**: El sistema DEBE impedir cargar dos veces el mismo comprobante (proveedor + tipo + número) entre las compras no anuladas. Las compras ANULADAS no cuentan para este control. Los tipos que no llevan número quedan fuera del control.
 - **FR-006**: Cada registro DEBE tener uno de tres estados: borrador, confirmada o anulada. Compras carga y edita el borrador; la confirmación la hace Gerencia (persona distinta de quien cargó). Solo las confirmadas las toma Cuentas por Pagar y los informes. Una compra confirmada no se corrige: se anula y se vuelve a cargar. Solo Gerencia puede anular.
 - **FR-007**: Un registro anulado DEBE conservar motivo, fecha y responsable, y quedar de solo lectura. Nada se borra.
 - **FR-008**: Todo alta, edición y anulación DEBE quedar auditada.
@@ -121,10 +124,11 @@ Cada registro a crédito conserva lo necesario (proveedor, importe, condición, 
 ### Key Entities *(include if feature involves data)*
 
 - **Compra/Gasto**: hecho económico de la clínica con un proveedor. Atributos: proveedor, categoría de gasto, fecha, importe, condición, vencimiento (si es a crédito), estado, observaciones.
-- **Comprobante**: respaldo del hecho (tipo: factura legal, ticket, recibo o sin comprobante; número, fecha, imagen adjunta opcional). Vinculado a una compra o gasto.
+- **Tipo de comprobante** (catálogo nuevo, editable, activable/desactivable): nombre y casillas de reglas (requiere número, requiere timbrado, requiere fecha del comprobante, exige formato legal de número).
+- **Comprobante**: respaldo del hecho (tipo del catálogo; número, fecha, imagen adjunta opcional). Vinculado a una compra o gasto.
 - **Proveedor** (existente): a quién se compra.
 - **Categoría de gasto** (existente, sin uso): clasificación del gasto para los informes.
-- **Condición** y **Estado**: ver aclaraciones pendientes.
+- **Condición** (enum `CondicionCompra`: contado, crédito) y **Estado**: ver Clarifications.
 
 ## Success Criteria *(mandatory)*
 
@@ -132,7 +136,7 @@ Cada registro a crédito conserva lo necesario (proveedor, importe, condición, 
 
 - **SC-001**: Compras registra una compra completa con comprobante en menos de 2 minutos.
 - **SC-002**: El 100 % de los registros tiene proveedor, categoría, comprobante y estado; ninguno queda sin auditar.
-- **SC-003**: Es imposible duplicar un mismo comprobante de un mismo proveedor.
+- **SC-003**: Es imposible duplicar un mismo comprobante de un mismo proveedor entre compras no anuladas.
 - **SC-004**: Gerencia obtiene el total de gastos de un mes por categoría en menos de 30 segundos y la suma coincide con los registros.
 - **SC-005**: Cuentas por Pagar puede tomar todas las compras a crédito vigentes sin cargar ningún dato adicional.
 

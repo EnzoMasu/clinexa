@@ -40,11 +40,11 @@ que cargaron ellos mismos (mismo esquema que `FlujoLiquidacion`). Reutiliza `Pro
 | I. Laravel + PostgreSQL | Sí | Sin pila nueva. Restricciones críticas también como índice único parcial y CHECK en PostgreSQL. |
 | II. Nunca borrado físico | Sí | Sin DELETE: el registro se anula con motivo; el modelo lanza excepción en `deleting` (como `RegistroEconomicoInmutable`). |
 | III. Auditoría de todo cambio | Sí | `Auditable` en `Compra`; confirmar y anular se auditan con su detalle. Módulo **no** sensible (no hay datos del paciente). |
-| IV. Estados y catálogos desde tablas | Sí | Estados de la tabla `Estado` vía `estado_modulo` (PENDIENTE, CONFIRMADO, ANULADO, ya existen). Tipo de comprobante y condición: ver research R3 (lista cerrada atada a la lógica). |
+| IV. Estados y catálogos desde tablas | Sí | Estados de la tabla `Estado` vía `estado_modulo` (PENDIENTE, CONFIRMADO, ANULADO, ya existen). Tipo de comprobante: catálogo en tabla editable (R3). Condición: enum `CondicionCompra`, permitido por la enmienda 1.0.1 del principio IV. |
 | V. Historia clínica inmutable | N/A | No toca la historia clínica. |
 | VI. Enzo decide las reglas | Sí | Las cuatro dudas se preguntaron (spec, Clarifications); las que siguen abiertas están en **Pendientes**, sin asumir. |
 
-**Resultado**: pasa, con una consulta abierta sobre el principio IV (R3).
+**Resultado**: pasa, sujeto a que se guarde la enmienda 1.0.1 de la constitución (suma `CondicionCompra` a los enums permitidos).
 
 ## Project Structure
 
@@ -64,6 +64,8 @@ specs/001-compras-gastos/
 
 ```text
 app/Models/Compra.php                          # nuevo
+app/Models/TipoComprobanteCompra.php           # nuevo: catálogo editable (casillas de reglas)
+app/Enums/CondicionCompra.php                  # nuevo: CONTADO, CREDITO
 app/Support/Compras/                           # nuevo: RegistrarCompra, FlujoCompra (confirmar/anular), IvaCompra (usa Facturacion\Iva)
 app/Http/Controllers/Admin/CompraController.php
 app/Http/Requests/CompraRequest.php
@@ -97,7 +99,7 @@ tests/Feature/Compras/, tests/Unit/Compras/, tests/Postgres/ComprasPostgresTest.
 
 ## Orden de implementación (fases chicas, un commit WIP cada una)
 
-1. **Esquema**: migración de `compras` + índices + CHECK en PostgreSQL, módulos, `estado_modulo`, permisos de perfiles. Tests de esquema (Postgres).
+1. **Esquema**: migración de `tipos_comprobante_compra` (con siembra) y de `compras` + índices (único parcial sin ANULADAS) + CHECK en PostgreSQL, módulos, `estado_modulo`, permisos de perfiles. Tests de esquema (Postgres).
 2. **Modelo y reglas**: `Compra` (inmutable fuera de PENDIENTE, sin borrado), `IvaCompra`, validaciones del comprobante y duplicado. Tests Unit.
 3. **Alta y edición del borrador** (US1): request, controlador, vistas create/edit, proveedores y categorías activos. Tests Feature.
 4. **Confirmar y anular** (US2): `FlujoCompra`, policy, botones, motivo. Tests de "quien carga no confirma".
@@ -117,7 +119,9 @@ Luego `/aplicar` (respaldo `--probar`, migración) solo con confirmación de Enz
 - **P5 (fase 4)**: un borrador que no va más, ¿quién lo descarta? La spec dice que solo Gerencia anula; ¿Compras puede anular su propio borrador?
 - **P6 (fase 4)**: ¿Gerencia puede anular una compra que cargó ella (p. ej. el Administrador)? Hoy se aplica "como Liquidaciones": no.
 - **P7 (fase 6)**: formatos y tamaño de la imagen (propuesta técnica: PNG, JPG o PDF, hasta 5 MB).
-- **P8 (fase 2, principio IV)**: tipo de comprobante y condición, ¿enum (lista cerrada atada a validaciones) o tabla? Ver research R3.
+- ~~P8~~ **Resuelto**: tipo de comprobante en tabla, condición como enum `CondicionCompra` (research R3). El duplicado excluye ANULADAS (R5).
+- **P9 (fase 1)**: módulo y permisos de la pantalla del catálogo de tipos de comprobante (no se asume).
+- **Pendiente de Enzo**: notas de crédito/débito y su efecto en los totales (hoy fuera de la spec).
 - Fuera de esta fase: "período ya informado" (no existe cierre de período) y "anulada ya tomada por Cuentas por Pagar" (se define con CxP).
 
 ## Complexity Tracking
