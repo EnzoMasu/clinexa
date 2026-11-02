@@ -29,7 +29,8 @@ Los estados salen de la tabla `Estado`. Los catálogos que edita el usuario vive
 tablas. Los enums de PHP se usan solo para listas cerradas y estables: `TipoPersona`,
 `Sexo`, `EstadoCivil`, `DiaSemana`, `TipoDiagnostico`, `TipoProcedimiento`,
 `TipoFactura`, `TipoMovimientoCaja`, `AccionPermiso`, `AccionAuditoria`, `TipoTurno`
-(lista cerrada atada a la lógica de agenda). Los enums existentes no se migran.
+(lista cerrada atada a la lógica de agenda), `CondicionCompra` (contado o crédito, atada a
+la lógica de Compras). Los enums existentes no se migran.
 
 ### V. Historia clínica cerrada, inmutable
 Una consulta cerrada (FINALIZADA o ANULADA) y todo lo que cuelga de ella es de solo
@@ -44,4 +45,4 @@ implementar.
 Esta constitución se modifica solo con aprobación de Enzo. Cada spec y plan debe
 verificar que cumple estos principios antes de avanzar.
 
-**Versión**: 1.0.0 | **Ratificada**: 2026-10-31 | **Última enmienda**: 2026-10-31
+**Versión**: 1.0.1 | **Ratificada**: 2026-10-31 | **Última enmienda**: 2026-11-02
