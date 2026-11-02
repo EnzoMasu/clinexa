@@ -110,6 +110,11 @@ class ModuloSistemaSeeder extends Seeder
             'TIMBRADOS' => ['Timbrados', [Estado::VIGENTE, Estado::HISTORICO]],
             'DATOS_FISCALES' => ['Datos fiscales (clínica y tasas de IVA)', self::ACTIVO_INACTIVO],
             'MOTIVOS_ANULACION' => ['Motivos de anulación de factura', self::ACTIVO_INACTIVO],
+            // Compras y gastos (docs/compras-gastos.md): la compra (borrador, confirmada o anulada), su confirmación (nadie confirma lo
+            // que cargó) y el catálogo de tipos de comprobante de compra.
+            'COMPRAS' => ['Compras y gastos', [Estado::PENDIENTE, Estado::CONFIRMADO, Estado::ANULADO]],
+            'CONFIRMACION_COMPRAS' => ['Confirmación de compras', [Estado::PENDIENTE, Estado::CONFIRMADO]],
+            'TIPOS_COMPROBANTE_COMPRA' => ['Tipos de comprobante de compra', self::ACTIVO_INACTIVO],
             // Correcciones de una consulta cerrada: adendas, desbloqueos y versiones. Sensible; los estados son los del desbloqueo.
             'CORRECCIONES_HC' => ['Correcciones de la historia clínica', [Estado::VIGENTE, Estado::REALIZADO, Estado::VENCIDO, Estado::CANCELADO]],
             // Consulta del log de auditoría (solo VER; EXPORTAR cuando haya exportación).

@@ -28,7 +28,7 @@
 - Q: Fecha de compra y vencimiento (P2) → A: La fecha de compra **no puede ser futura** y el vencimiento **no puede ser anterior** a la fecha de compra.
 - Q: Importes límite (P3) → A: El anticipo debe ser **menor al total** (no igual) y **no se permiten compras de total cero**.
 - Q: ¿Qué comprobantes discriminan IVA? (P4, confirmada por Enzo) → A: **Solo la factura legal** discrimina IVA. Ticket, recibo y sin comprobante cargan el total sin desglose y no generan IVA. Esta decisión reemplaza a la anterior sobre el IVA: el desglose por tasa, calculado como Facturación (÷11 y ÷21, al guaraní entero), vale solo para los tipos con la casilla "discrimina IVA".
-- Q: Fecha del comprobante → A: No puede ser futura; puede ser igual o anterior a la fecha de compra. **Provisional, pendiente de confirmación de Enzo.**
+- Q: Fecha del comprobante (confirmada por Enzo) → A: Ni la fecha de compra ni la del comprobante pueden ser futuras; se pueden cargar compras de días anteriores; no hay otra restricción entre ambas fechas. El vencimiento sigue sin poder ser anterior a la fecha de compra (P2).
 - Q: ¿Quién descarta un borrador? (P5) → A: Quien lo cargó o Gerencia. Descartar es **anular con motivo**: el registro no se borra y queda auditado.
 - Q: ¿Gerencia puede anular lo que cargó ella misma? (P6) → A: Sí, siempre con motivo y auditoría. Sigue prohibido **confirmar** lo propio.
 - Q: Imagen del comprobante (P7) → A: JPG, PNG o PDF, máximo 5 MB.
@@ -128,7 +128,7 @@ Cada registro a crédito conserva lo necesario (proveedor, importe, condición, 
 - **FR-011**: Las fechas DEBEN mostrarse dd/mm/aaaa y todo texto visible dirigirse en "usted".
 - **FR-012**: Los datos de cada registro DEBEN quedar disponibles, sin recarga, para Cuentas por Pagar y para los informes de compras, gastos y obligaciones.
 - **FR-013**: Todo importe se registra en guaraníes. Solo los tipos de comprobante con la casilla "discrimina IVA" (hoy, la factura legal) DEBEN discriminar el IVA (10 %, 5 % y exento), y su total debe coincidir con la suma de las partes. Ticket, recibo y sin comprobante cargan el total sin desglose y no generan IVA. No se admiten compras en moneda extranjera.
-- **FR-014**: La fecha de compra y la del comprobante NO DEBEN ser futuras (la del comprobante puede ser igual o anterior a la de compra; **provisional, pendiente de confirmación de Enzo**); el vencimiento NO DEBE ser anterior a la fecha de compra; el total DEBE ser mayor que cero y el anticipo menor al total.
+- **FR-014**: La fecha de compra y la del comprobante NO DEBEN ser futuras (se pueden cargar compras de días anteriores; no hay otra restricción entre ambas fechas); el vencimiento NO DEBE ser anterior a la fecha de compra; el total DEBE ser mayor que cero y el anticipo menor al total.
 
 *Fuera de alcance*: pagos a proveedores, saldos, reversiones y cualquier pantalla de Cuentas por Pagar; control de stock o inventario; emisión de facturas propias; **notas de crédito y débito (fuera de alcance de esta prueba, a definir después)**.
 

@@ -65,7 +65,7 @@ class PerfilesPredefinidos
         self::RECEPCION => 'Agenda, turnos, disponibilidades y alta de personas y pacientes',
         self::CAJA => 'Lectura de pacientes, medios de pago y procedimientos',
         self::FACTURACION => 'Convenios con aseguradoras, visaciones y lectura de responsables de pago, procedimientos y medios de pago',
-        self::COMPRAS_TESORERIA => 'Proveedores y sus categorías, categorías de gasto',
+        self::COMPRAS_TESORERIA => 'Proveedores y sus categorías, categorías de gasto, carga de compras y gastos',
         self::SUPERVISION_MEDICA => 'Lectura de historias clínicas, recetas, pacientes, profesionales y auditoría',
         self::AUDITOR => 'Lectura de la auditoría',
     ];
@@ -140,6 +140,9 @@ class PerfilesPredefinidos
             // timbrados, los datos de la clínica, las tasas de IVA y los motivos de anulación. No emite (no tiene caja).
             'FACTURAS' => self::VER_EXPORTAR, 'ANULACIONES_FACTURA' => ['VER', 'EDITAR'], 'TIMBRADOS' => self::VER_CREAR_EDITAR,
             'DATOS_FISCALES' => ['VER', 'EDITAR'], 'MOTIVOS_ANULACION' => self::TODO,
+            // Compras y gastos (docs/compras-gastos.md): ve las compras, confirma las que cargó otra persona y anula o descarta
+            // (DESACTIVAR). No carga. Ve los tipos de comprobante.
+            'COMPRAS' => ['VER', 'DESACTIVAR'], 'CONFIRMACION_COMPRAS' => ['VER', 'EDITAR'], 'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
         // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
         // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones
@@ -154,9 +157,13 @@ class PerfilesPredefinidos
             'DIETAS' => self::VER,
             // Órdenes de estudio: las emite y anula; el catálogo de estudios solo lo usa.
             'ORDENES_ESTUDIO' => self::VER_CREAR_EDITAR, 'ESTUDIOS' => self::VER,
+            // Catálogo de tipos de comprobante de compra (docs/compras-gastos.md): solo verlo.
+            'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
         self::ENFERMERIA => [
             'PREPARACION' => self::VER_CREAR_EDITAR, 'PDF_CLINICO' => self::EXPORTAR,
+            // Catálogo de tipos de comprobante de compra (docs/compras-gastos.md): solo verlo.
+            'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
         // Agenda y alta de personas y pacientes. Sus formularios (tipo de documento, país, departamento,
         // ciudad, sucursal) no piden permiso de esos catálogos: no se los da.
@@ -171,6 +178,8 @@ class PerfilesPredefinidos
             'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
             // Convenios (docs/convenios-seguros.md): carga la cobertura y las visaciones, aplica visaciones, marca la firma y genera el ticket.
             'COBERTURAS' => self::VER_CREAR_EDITAR, 'VISACIONES' => self::VISACIONES_TODO,
+            // Catálogo de tipos de comprobante de compra (docs/compras-gastos.md): solo verlo.
+            'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
         // Caja: abre y cierra su caja, cobra y revierte (o solicita revertir) un cobro (docs/cobros-caja.md). Facturación ve los cobros. Compras: sus módulos todavía no
         // existen. Nada clínico.
@@ -180,6 +189,8 @@ class PerfilesPredefinidos
             'CAJAS' => self::VER_CREAR_EDITAR, 'COBROS' => ['VER', 'CREAR', 'DESACTIVAR'],
             // Facturación (docs/facturacion.md): emite al cobrar, saca el PDF, anula las suyas en el plazo y solicita las demás.
             'FACTURAS' => self::FACTURAS_CAJA,
+            // Catálogo de tipos de comprobante de compra (docs/compras-gastos.md): solo verlo.
+            'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
         self::FACTURACION => [
             'RESPONSABLES_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER, 'MEDIOS_PAGO' => self::VER,
@@ -192,9 +203,13 @@ class PerfilesPredefinidos
             'LIQUIDACIONES' => self::LIQUIDACIONES_TODO, 'PAGOS_ASEGURADORAS' => ['VER', 'CREAR', 'DESACTIVAR'],
             // Facturas (docs/facturacion.md): las ve y saca el PDF.
             'FACTURAS' => self::VER_EXPORTAR,
+            // Catálogo de tipos de comprobante de compra (docs/compras-gastos.md): solo verlo.
+            'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
         self::COMPRAS_TESORERIA => [
             'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::VER,
+            // Compras y gastos (docs/compras-gastos.md): carga y edita borradores y descarta los propios; no confirma ni anula.
+            'COMPRAS' => self::VER_CREAR_EDITAR, 'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
         // Además, CORRECCIONES_HC (adendas y desbloqueo de consultas cerradas): se suma por la migración de las correcciones.
         self::SUPERVISION_MEDICA => [
@@ -209,9 +224,13 @@ class PerfilesPredefinidos
             'DIETAS' => self::TODO,
             // Órdenes de estudio: solo ver y sacar el PDF (no emite ni anula). Catálogo de estudios: lo administra.
             'ORDENES_ESTUDIO' => self::VER, 'ESTUDIOS' => self::TODO,
+            // Catálogo de tipos de comprobante de compra (docs/compras-gastos.md): solo verlo.
+            'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
         self::AUDITOR => [
             'AUDITORIA' => self::VER,
+            // Catálogo de tipos de comprobante de compra (docs/compras-gastos.md): solo verlo.
+            'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
     ];
 
@@ -264,6 +283,21 @@ class PerfilesPredefinidos
         'TIMBRADOS' => [self::GERENCIA => self::VER_CREAR_EDITAR],
         'DATOS_FISCALES' => [self::GERENCIA => ['VER', 'EDITAR']],
         'MOTIVOS_ANULACION' => [self::GERENCIA => self::TODO],
+    ];
+
+    /**
+     * Lo que la migración de compras (2026_11_02_100003) suma a los perfiles existentes. Lo mismo que la matriz para esos tres módulos:
+     * Compras y tesorería carga, Gerencia confirma y anula, y el catálogo de tipos de comprobante lo ven todos (lo administra el
+     * Administrador, que tiene todo).
+     */
+    public const PERMISOS_COMPRAS = [
+        'COMPRAS' => [self::COMPRAS_TESORERIA => self::VER_CREAR_EDITAR, self::GERENCIA => ['VER', 'DESACTIVAR']],
+        'CONFIRMACION_COMPRAS' => [self::GERENCIA => ['VER', 'EDITAR']],
+        'TIPOS_COMPROBANTE_COMPRA' => [
+            self::GERENCIA => self::VER, self::MEDICO => self::VER, self::ENFERMERIA => self::VER, self::RECEPCION => self::VER,
+            self::CAJA => self::VER, self::FACTURACION => self::VER, self::COMPRAS_TESORERIA => self::VER,
+            self::SUPERVISION_MEDICA => self::VER, self::AUDITOR => self::VER,
+        ],
     ];
 
     /**

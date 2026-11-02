@@ -11,7 +11,7 @@
 | requiere_timbrado | boolean | |
 | requiere_fecha_comprobante | boolean | |
 | discrimina_iva | boolean | solo la factura legal; si es falso, la compra carga solo el total, sin desglose, y no genera IVA |
-| activo | boolean | solo los activos se eligen en compras nuevas; las compras existentes conservan el tipo |
+| estado_id | FK estados | ACTIVO/INACTIVO (módulo `TIPOS_COMPROBANTE_COMPRA`, como `categorias_gasto`, principio IV); solo los activos se eligen en compras nuevas; las compras existentes conservan el tipo |
 | created_at, updated_at | timestamps | |
 
 Siembra inicial (por migración): factura legal (número, formato legal, timbrado, fecha y discrimina IVA: sí), ticket (número y fecha: sí), recibo (número y fecha: sí),
@@ -30,7 +30,7 @@ Comprobante y compra van en la misma fila: la spec fija un comprobante por compr
 | tipo_comprobante_id | FK tipos_comprobante_compra | obligatorio; tipo activo al crear o editar (R3) |
 | numero_comprobante | string null | obligatorio si el tipo `requiere_numero` (con formato legal `000-000-0000000` si `numero_formato_legal`); null si no lo requiere |
 | timbrado | string null | obligatorio si el tipo `requiere_timbrado` |
-| fecha_comprobante | date null | obligatoria si el tipo `requiere_fecha_comprobante` (FR-003); no futura; igual o anterior a `fecha` |
+| fecha_comprobante | date null | obligatoria si el tipo `requiere_fecha_comprobante` (FR-003); no futura; sin otra restricción respecto de `fecha` |
 | imagen_comprobante | string null | ruta en disco `local` (opcional) |
 | moneda_id | FK monedas | PYG fija |
 | monto_10, monto_5, monto_exento | bigint null | ≥ 0, IVA incluido; solo con tipo que discrimina IVA; null los tres juntos si no discrimina (P4) |

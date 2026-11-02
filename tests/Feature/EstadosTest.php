@@ -62,6 +62,9 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             'FACTURAS' => [['ANULADO', 'COBRADO', 'EMITIDO'], 'EMITIDO'],
             'ANULACIONES_FACTURA' => [['APROBADO', 'PENDIENTE', 'RECHAZADO'], 'PENDIENTE'],
             'TIMBRADOS' => [['HISTORICO', 'VIGENTE'], 'VIGENTE'],
+            // Compras: borrador (PENDIENTE, inicial), confirmada o anulada; su confirmación: pendiente (inicial) o confirmada.
+            'COMPRAS' => [['ANULADO', 'CONFIRMADO', 'PENDIENTE'], 'PENDIENTE'],
+            'CONFIRMACION_COMPRAS' => [['CONFIRMADO', 'PENDIENTE'], 'PENDIENTE'],
             default => [['ACTIVO', 'INACTIVO'], 'ACTIVO'],
         };
 

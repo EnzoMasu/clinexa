@@ -115,7 +115,7 @@ Luego `/aplicar` (respaldo `--probar`, migración) solo con confirmación de Enz
 ## Pendientes y decisiones
 
 - **P1 (diferido por decisión)**: contado y anticipo **no tocan la caja**. Una fase posterior definirá el egreso (medio de pago, qué caja, cuándo).
-- **P2 (resuelto, Enzo)**: la fecha de compra no puede ser futura; el vencimiento no puede ser anterior a la fecha de compra. La fecha del comprobante tampoco puede ser futura y puede ser igual o anterior a la de compra.
+- **P2 (resuelto, Enzo)**: la fecha de compra no puede ser futura; el vencimiento no puede ser anterior a la fecha de compra. La fecha del comprobante tampoco puede ser futura; se pueden cargar compras de días anteriores y no hay otra restricción entre ambas fechas.
 - **P3 (resuelto, Enzo)**: anticipo menor al total; total cero no permitido.
 - **P4 (resuelto, Enzo)**: solo la factura legal discrimina IVA; ticket, recibo y sin comprobante cargan total sin desglose y no generan IVA (casilla `discrimina_iva` del tipo).
 - **P5 (resuelto, Enzo)**: descarta un borrador quien lo cargó o Gerencia; descartar = anular con motivo.

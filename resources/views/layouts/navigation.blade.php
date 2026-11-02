@@ -58,6 +58,7 @@
             'admin.procedimientos' => 'Procedimientos',
             'admin.medios-pago' => 'Medios de pago',
             'admin.categorias-gasto' => 'Categorías de gasto',
+            'admin.tipos-comprobante-compra' => 'Tipos de comprobante de compra',
             'admin.cie10' => 'Catálogo CIE-10',
             'admin.tipos-bloque-anamnesis' => 'Tipos de bloque de anamnesis',
             'admin.tipos-indicacion' => 'Tipos de indicación',

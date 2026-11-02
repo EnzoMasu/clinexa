@@ -109,7 +109,7 @@ test('el Administrador ve los grupos del menú, en orden y con sus secciones, en
         'Agenda' => ['turnos', 'agenda-general', 'disponibilidades', 'consultorios', 'origenes-turno'],
         'Clínica' => ['atencion', 'preparacion', 'historias-clinicas'],
         'Económico' => ['tarifas', 'prestaciones', 'cobros', 'cajas', 'acuerdos-reparto', 'equipos', 'convenios', 'liquidaciones', 'facturas'],
-        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'dietas', 'estudios', 'cargos-salud', 'parametros-clinicos', 'tipos-equipo', 'paises', 'departamentos', 'ciudades'],
+        'Catálogos' => ['especialidades', 'sucursales', 'tipos-documento', 'procedimientos', 'medios-pago', 'categorias-gasto', 'tipos-comprobante-compra', 'cie10', 'tipos-bloque-anamnesis', 'tipos-indicacion', 'dietas', 'estudios', 'cargos-salud', 'parametros-clinicos', 'tipos-equipo', 'paises', 'departamentos', 'ciudades'],
     ];
 
     // Cada encabezado seguido de sus links, en el desplegable de escritorio y en el menú de mobile.

@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\ClinicaController;
 use App\Http\Controllers\Admin\CobroController;
 use App\Http\Controllers\Admin\FacturaController;
 use App\Http\Controllers\Admin\MotivoAnulacionController;
+use App\Http\Controllers\Admin\TipoComprobanteCompraController;
 use App\Http\Controllers\Admin\TasaIvaController;
 use App\Http\Controllers\Admin\TimbradoController;
 use App\Http\Controllers\Admin\ConsultaController;
@@ -138,6 +139,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('cie10', CatalogoCIE10Controller::class, 'CIE10', 'cie10', conBaja: true);
     $seccion('medios-pago', MedioPagoController::class, 'MEDIOS_PAGO', 'medioPago', conBaja: true);
     $seccion('categorias-gasto', CategoriaGastoController::class, 'CATEGORIAS_GASTO', 'categoriaGasto', conBaja: true);
+    // Tipos de comprobante de compra (docs/compras-gastos.md): catálogo con sus casillas de reglas.
+    $seccion('tipos-comprobante-compra', TipoComprobanteCompraController::class, 'TIPOS_COMPROBANTE_COMPRA', 'tipoComprobanteCompra', conBaja: true);
     $seccion('categorias-proveedor', CategoriaProveedorController::class, 'CATEGORIAS_PROVEEDOR', 'categoriaProveedor', conBaja: true);
     $seccion('tipos-red-social', TipoRedSocialController::class, 'TIPOS_RED_SOCIAL', 'tipoRedSocial', conBaja: true);
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
