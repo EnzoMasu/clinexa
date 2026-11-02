@@ -17,4 +17,7 @@ Con datos inventados. Nunca contra `clinexa_dev` fuera de `/aplicar`.
 5. **Solo lectura (US2-2)**: confirmada, no se puede editar. Gerencia la anula con motivo: queda "Anulada" con motivo, fecha y responsable.
 6. **Crédito (US4)**: crédito con vencimiento y anticipo 50.000 sobre 131.000; confirmada, aparece en `aCreditoVigentes()` con adeudado 81.000.
 7. **Filtros (US3)**: compras en dos meses; filtrar uno; el total coincide con la suma. Un perfil sin COMPRAS no ve el menú ni entra (403).
-8. Fechas dd/mm/aaaa y textos en "usted" en todas las pantallas.
+8. **Sin desglose (P4)**: ticket con total 25.000: sin IVA ni montos por tasa. Total cero, fecha futura, vencimiento anterior a la compra o anticipo igual al total: rechazados.
+9. **Descartar (P5)**: Compras descarta su propio borrador con motivo (queda anulada); no descarta el de otra persona. Gerencia anula una confirmada que cargó ella misma (P6) pero no la confirma.
+10. **Imagen (P7)**: JPG, PNG o PDF de hasta 5 MB; otro formato o más de 5 MB, rechazado.
+11. Fechas dd/mm/aaaa y textos en "usted" en todas las pantallas.

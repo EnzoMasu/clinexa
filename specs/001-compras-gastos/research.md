@@ -18,15 +18,16 @@
 ## R3. Tipo de comprobante y condición
 
 - **Decision (Enzo)**: el **tipo de comprobante** es un catálogo en tabla `tipos_comprobante_compra`, editable desde pantalla (activar/desactivar), con
-  casillas propias (`requiere_numero`, `numero_formato_legal`, `requiere_timbrado`, `requiere_fecha_comprobante`). Las reglas miran las casillas, nunca el nombre.
+  casillas propias (`requiere_numero`, `numero_formato_legal`, `requiere_timbrado`, `requiere_fecha_comprobante`, `discrimina_iva`). Las reglas miran las casillas, nunca el nombre.
   Siembra: factura legal, ticket, recibo, sin comprobante. La **condición** es el enum `CondicionCompra` (CONTADO, CREDITO), porque cambia validaciones
   (vencimiento, anticipo, Cuentas por Pagar); requiere enmendar el principio IV (constitución 1.0.1).
 - **Rationale**: el tipo lo edita el usuario (principio IV); la condición es una lista cerrada atada a la lógica, como `TipoFactura`.
-- **Pendiente P9**: qué módulo y permisos gobiernan la pantalla del catálogo de tipos (no se asume).
+- P9 resuelto: módulo `TIPOS_COMPROBANTE_COMPRA` (ver plan).
 
 ## R4. IVA
 
-- **Decision**: se cargan `monto_10`, `monto_5` y `monto_exento` (IVA incluido); `iva_10` e `iva_5` se calculan con `Facturacion\Iva`
+- **Decision (P4, Enzo)**: solo los tipos con la casilla `discrimina_iva` (hoy, factura legal) discriminan. Ticket, recibo y sin comprobante cargan solo el `total` (montos e IVA null) y no generan IVA.
+- **Decision**: con desglose, se cargan `monto_10`, `monto_5` y `monto_exento` (IVA incluido); `iva_10` e `iva_5` se calculan con `Facturacion\Iva`
   (÷11, ÷21, redondeo al guaraní, la mitad hacia arriba) y se guardan; `total = monto_10 + monto_5 + monto_exento` (CHECK).
 - **Rationale**: respuesta de Enzo; mismo cálculo que la factura emitida.
 
@@ -50,4 +51,4 @@
 ## R8. Imagen del comprobante
 
 - **Decision**: disco `local` (privado), carpeta `compras/`, descarga por ruta con `permiso:COMPRAS,VER`. Nunca se borra el archivo
-  anterior. Formatos y tamaño: P7. No son datos clínicos, la regla del navegador no aplica, pero no se guarda nada en el navegador.
+  anterior. Formatos y tamaño (P7, Enzo): JPG, PNG o PDF, máximo 5 MB. No son datos clínicos, la regla del navegador no aplica, pero no se guarda nada en el navegador.

@@ -11,7 +11,8 @@ Todas bajo el grupo del panel (`routes/web.php`), con el middleware `permiso:MOD
 | GET | compras/{compra}/edit | compras.edit | COMPRAS,EDITAR | solo PENDIENTE (policy) |
 | PUT | compras/{compra} | compras.update | COMPRAS,EDITAR | solo PENDIENTE |
 | POST | compras/{compra}/confirmar | compras.confirmar | CONFIRMACION_COMPRAS,EDITAR | nunca lo propio: "No puede confirmar una compra que cargó usted." |
-| POST | compras/{compra}/anular | compras.anular | COMPRAS,DESACTIVAR | motivo 5 a 300; solo CONFIRMADO (borrador: P5) |
+| POST | compras/{compra}/anular | compras.anular | COMPRAS,DESACTIVAR | motivo 5 a 300; solo CONFIRMADO; también lo propio (P6) |
+| POST | compras/{compra}/descartar | compras.descartar | COMPRAS,VER + policy | solo PENDIENTE; quien lo cargó o quien tenga COMPRAS,DESACTIVAR; motivo 5 a 300 (P5) |
 | GET | compras/{compra}/comprobante | compras.comprobante | COMPRAS,VER | descarga de la imagen (disco local) |
 
 `{compra}` con `whereNumber`.
