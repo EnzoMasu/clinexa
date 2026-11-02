@@ -61,6 +61,7 @@ test('en una base existente crea los módulos y da los permisos de la matriz; do
     }
     expect(migracionComprasAcciones(PerfilesPredefinidos::COMPRAS_TESORERIA, 'CONFIRMACION_COMPRAS'))->toBe([])
         ->and(migracionComprasAcciones(PerfilesPredefinidos::MEDICO, 'COMPRAS'))->toBe([])
+        ->and(migracionComprasAcciones(PerfilesPredefinidos::CAJA, 'TIPOS_COMPROBANTE_COMPRA'))->toBe([])
         ->and(migracionComprasAcciones(PerfilAcceso::ADMINISTRADOR, 'COMPRAS'))->toBe(collect(Permiso::ACCIONES)->sort()->values()->all());
 });
 

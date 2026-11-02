@@ -89,7 +89,7 @@ tests/Feature/Compras/, tests/Unit/Compras/, tests/Postgres/ComprasPostgresTest.
 - **Quien carga no confirma** (decisión P6: sí puede anular lo propio, siempre con motivo): en `FlujoCompra` (`registrada_por !== usuario`, mensaje
   "No puede confirmar una compra que cargó usted.") y en la policy para ocultar el botón; test de que tampoco el Administrador confirma lo suyo.
 - **Descartar un borrador** (P5): ruta `compras.descartar` (COMPRAS,VER) y la policy permite a quien lo cargó o a quien tenga COMPRAS,DESACTIVAR (Gerencia, Administrador). Es PENDIENTE → ANULADO con motivo en `FlujoCompra`.
-- Módulo **TIPOS_COMPROBANTE_COMPRA** (`VER, CREAR, EDITAR, DESACTIVAR`, estados ACTIVO_INACTIVO): Administrador todo; COMPRAS_TESORERIA y el resto de perfiles solo `VER`.
+- Módulo **TIPOS_COMPROBANTE_COMPRA** (`VER, CREAR, EDITAR, DESACTIVAR`, estados ACTIVO_INACTIVO): Administrador todo; GERENCIA y COMPRAS_TESORERIA solo `VER`; el resto de perfiles, nada (decisión de Enzo).
 - `CATEGORIAS_GASTO` para COMPRAS_TESORERIA sigue en `VER` (no se pidió cambiarlo).
 
 ## Auditoría

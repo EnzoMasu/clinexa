@@ -94,7 +94,8 @@ return new class extends Migration
                 AND (confirmada_por IS NULL OR confirmada_por <> registrada_por))');
             DB::statement('ALTER TABLE compras ADD CONSTRAINT compras_anulacion_completa CHECK (
                 (anulada_en IS NULL AND anulada_por IS NULL AND motivo_anulacion IS NULL)
-                OR (anulada_en IS NOT NULL AND anulada_por IS NOT NULL AND char_length(motivo_anulacion) BETWEEN 5 AND 300))');
+                OR (anulada_en IS NOT NULL AND anulada_por IS NOT NULL AND motivo_anulacion IS NOT NULL
+                    AND char_length(motivo_anulacion) BETWEEN 5 AND 300))');
         }
 
         // Solo en una instalación existente (con módulos): en una nueva los crea ModuloSistemaSeeder.

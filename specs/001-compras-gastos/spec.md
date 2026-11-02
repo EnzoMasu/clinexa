@@ -32,6 +32,7 @@
 - Q: ¿Quién descarta un borrador? (P5) → A: Quien lo cargó o Gerencia. Descartar es **anular con motivo**: el registro no se borra y queda auditado.
 - Q: ¿Gerencia puede anular lo que cargó ella misma? (P6) → A: Sí, siempre con motivo y auditoría. Sigue prohibido **confirmar** lo propio.
 - Q: Imagen del comprobante (P7) → A: JPG, PNG o PDF, máximo 5 MB.
+- Q: ¿Quién ve el catálogo de tipos de comprobante? (confirmada por Enzo) → A: Lo administra el Administrador; Gerencia y Compras y tesorería solo lo ven; los demás perfiles no lo ven.
 - Q: Notas de crédito y débito → A: **Fuera de alcance de esta prueba, a definir después.**
 - Q: ¿Qué número lleva el comprobante? → A: Factura legal: número con formato 001-001-0000001 y número de timbrado, obligatorios. Ticket y recibo: número libre, obligatorio. "Sin comprobante": sin número y fuera del control de duplicados (FR-005).
 
@@ -153,7 +154,7 @@ Cada registro a crédito conserva lo necesario (proveedor, importe, condición, 
 
 ## Assumptions
 
-- Compras y tesorería carga los borradores y puede descartar los propios; Gerencia confirma, anula y descarta; los demás perfiles no ven el módulo.
+- Compras y tesorería carga los borradores y puede descartar los propios; Gerencia confirma, anula y descarta; los demás perfiles no ven el módulo ni el catálogo de tipos de comprobante.
 - Sin número fijo de módulos, permisos ni rutas en pruebas, y con datos inventados.
 - Los proveedores se siguen administrando como hoy; este módulo no los modifica.
 - Una compra pertenece a un único proveedor y a una única categoría de gasto.

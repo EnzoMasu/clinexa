@@ -29,7 +29,7 @@ Mismo patrón que `categorias-gasto` (`$seccion('tipos-comprobante-compra', Tipo
 | ADMINISTRADOR | todo | todo (sin confirmar lo propio) | todo |
 | GERENCIA | VER, DESACTIVAR | VER, EDITAR | VER |
 | COMPRAS_TESORERIA | VER, CREAR, EDITAR | — | VER |
-| resto | — | — | VER |
+| resto | — | — | — |
 
 `Permiso::ACCIONES_POR_MODULO`: COMPRAS `VER, CREAR, EDITAR, DESACTIVAR`; CONFIRMACION_COMPRAS `VER, EDITAR`; TIPOS_COMPROBANTE_COMPRA `VER, CREAR, EDITAR, DESACTIVAR`.
 Los perfiles existentes en la base real reciben estos permisos por la migración (como la de Liquidaciones). Los tests no cuentan módulos,

@@ -18,7 +18,7 @@ pendientes).
 |---|---|---|
 | `COMPRAS` | VER, CREAR, EDITAR, DESACTIVAR | Compras y tesorería: VER, CREAR, EDITAR. Gerencia: VER, DESACTIVAR (anular y descartar). |
 | `CONFIRMACION_COMPRAS` | VER, EDITAR | Gerencia. Nadie confirma lo que cargó, tampoco el Administrador. |
-| `TIPOS_COMPROBANTE_COMPRA` | VER, CREAR, EDITAR, DESACTIVAR | Administrador todo; los demás perfiles, VER. |
+| `TIPOS_COMPROBANTE_COMPRA` | VER, CREAR, EDITAR, DESACTIVAR | Administrador todo; Gerencia y Compras y tesorería, VER. Los demás, nada. |
 
 Los perfiles existentes los reciben por la migración `2026_11_02_100003_create_compras` (`PerfilesPredefinidos::PERMISOS_COMPRAS`).
 

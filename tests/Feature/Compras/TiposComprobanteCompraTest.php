@@ -2,7 +2,7 @@
 
 /*
  * El catálogo de tipos de comprobante de compra (docs/compras-gastos.md): la siembra inicial con sus casillas, el alta, la edición y la
- * desactivación (solo el Administrador), la lectura para los demás perfiles, el formato legal solo con número y la auditoría. Nada se
+ * desactivación (solo el Administrador), la lectura solo para Gerencia y Compras y tesorería, el formato legal solo con número y la auditoría. Nada se
  * borra. Datos inventados. Prefijo "tiposComprobanteCompra".
  */
 
@@ -66,10 +66,10 @@ test('el formato legal solo se exige con número, y el nombre no se repite', fun
     expect(TipoComprobanteCompra::where('nombre', 'Sin número inventado')->exists())->toBeFalse();
 });
 
-test('los demás perfiles ven el catálogo pero no lo cambian', function () {
+test('Gerencia y Compras y tesorería ven el catálogo pero no lo cambian', function () {
     $tipo = TipoComprobanteCompra::where('nombre', 'Ticket')->sole();
 
-    foreach ([PerfilesPredefinidos::COMPRAS_TESORERIA, PerfilesPredefinidos::GERENCIA, PerfilesPredefinidos::CAJA] as $perfil) {
+    foreach ([PerfilesPredefinidos::COMPRAS_TESORERIA, PerfilesPredefinidos::GERENCIA] as $perfil) {
         $this->actingAs(tiposComprobanteCompraUsuario($perfil));
         $this->get(route('admin.tipos-comprobante-compra.index'))->assertOk()->assertSee('Factura legal');
         $this->get(route('admin.tipos-comprobante-compra.create'))->assertForbidden();
@@ -79,6 +79,16 @@ test('los demás perfiles ven el catálogo pero no lo cambian', function () {
     }
 
     expect($tipo->fresh()->estaActivo())->toBeTrue()->and(TipoComprobanteCompra::where('nombre', 'No debe quedar')->exists())->toBeFalse();
+});
+
+test('los demás perfiles no ven el catálogo ni lo tienen en el menú', function () {
+    $conVer = [PerfilAcceso::ADMINISTRADOR, PerfilesPredefinidos::GERENCIA, PerfilesPredefinidos::COMPRAS_TESORERIA];
+
+    foreach (array_diff(array_keys(PerfilesPredefinidos::NOMBRES), $conVer) as $perfil) {
+        $this->actingAs(tiposComprobanteCompraUsuario($perfil));
+        $this->get(route('admin.tipos-comprobante-compra.index'))->assertForbidden();
+        $this->get('/dashboard')->assertOk()->assertDontSee(route('admin.tipos-comprobante-compra.index'));
+    }
 });
 
 test('el Administrador ve el formulario con las casillas', function () {
