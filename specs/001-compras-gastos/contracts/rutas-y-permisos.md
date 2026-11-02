@@ -16,15 +16,20 @@ Todas bajo el grupo del panel (`routes/web.php`), con el middleware `permiso:MOD
 
 `{compra}` con `whereNumber`.
 
+## Catálogo de tipos de comprobante
+
+Mismo patrón que `categorias-gasto` (`$seccion('tipos-comprobante-compra', TipoComprobanteCompraController::class, 'TIPOS_COMPROBANTE_COMPRA', 'tipoComprobanteCompra', conBaja: true)`):
+`index` VER; `create`/`store` CREAR; `edit`/`update` EDITAR (casillas de reglas); baja lógica DESACTIVAR (activar/desactivar). Nunca `destroy`.
+
 ## Matriz (`PerfilesPredefinidos::MATRIZ`)
 
-| Perfil | COMPRAS | CONFIRMACION_COMPRAS |
-|---|---|---|
-| ADMINISTRADOR | todo | todo (sin confirmar lo propio) |
-| GERENCIA | VER, DESACTIVAR | VER, EDITAR |
-| COMPRAS_TESORERIA | VER, CREAR, EDITAR | — |
-| resto | — | — |
+| Perfil | COMPRAS | CONFIRMACION_COMPRAS | TIPOS_COMPROBANTE_COMPRA |
+|---|---|---|---|
+| ADMINISTRADOR | todo | todo (sin confirmar lo propio) | todo |
+| GERENCIA | VER, DESACTIVAR | VER, EDITAR | VER |
+| COMPRAS_TESORERIA | VER, CREAR, EDITAR | — | VER |
+| resto | — | — | VER |
 
-`Permiso::ACCIONES_POR_MODULO`: COMPRAS `VER, CREAR, EDITAR, DESACTIVAR`; CONFIRMACION_COMPRAS `VER, EDITAR`.
+`Permiso::ACCIONES_POR_MODULO`: COMPRAS `VER, CREAR, EDITAR, DESACTIVAR`; CONFIRMACION_COMPRAS `VER, EDITAR`; TIPOS_COMPROBANTE_COMPRA `VER, CREAR, EDITAR, DESACTIVAR`.
 Los perfiles existentes en la base real reciben estos permisos por la migración (como la de Liquidaciones). Los tests no cuentan módulos,
 permisos ni rutas.

@@ -1,6 +1,6 @@
 # Data Model: Compras y Gastos
 
-## Tabla nueva `tipos_comprobante_compra` (modelo `TipoComprobanteCompra`, `Auditable`, activo/inactivo, sin borrado)
+## Tabla nueva `tipos_comprobante_compra` (modelo `TipoComprobanteCompra`, `Auditable`, módulo `TIPOS_COMPROBANTE_COMPRA`, estados ACTIVO_INACTIVO, sin borrado)
 
 | Campo | Tipo | Reglas |
 |---|---|---|

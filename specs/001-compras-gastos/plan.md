@@ -71,9 +71,10 @@ app/Http/Controllers/Admin/CompraController.php
 app/Http/Requests/CompraRequest.php
 app/Policies/CompraPolicy.php                  # solo PENDIENTE se edita; nadie confirma lo propio
 database/migrations/2026_11_xx_create_compras.php      # tabla, índices, CHECK (PG), módulos, estado_modulo, permisos de perfiles
-database/seeders/ModuloSistemaSeeder.php       # COMPRAS y CONFIRMACION_COMPRAS
+database/seeders/ModuloSistemaSeeder.php       # COMPRAS, CONFIRMACION_COMPRAS y TIPOS_COMPROBANTE_COMPRA
 app/Support/PerfilesPredefinidos.php           # COMPRAS_TESORERIA, GERENCIA
-app/Models/Permiso.php                         # ACCIONES_POR_MODULO de los dos módulos
+app/Models/Permiso.php                         # ACCIONES_POR_MODULO de los tres módulos
+app/Http/Controllers/Admin/TipoComprobanteCompraController.php  # catálogo con baja, vía $seccion
 resources/views/admin/compras/                 # index (filtros + total), create/edit, show
 routes/web.php
 docs/compras-gastos.md                         # doc del tema (y mención en CLAUDE.md)
@@ -88,6 +89,7 @@ tests/Feature/Compras/, tests/Unit/Compras/, tests/Postgres/ComprasPostgresTest.
 - Módulo **CONFIRMACION_COMPRAS** (`VER`, `EDITAR`): GERENCIA `VER, EDITAR`. El Administrador tiene todo, como siempre.
 - **Quien carga no confirma** (ni anula lo propio, según "como Liquidaciones"): en `FlujoCompra` (`registrada_por !== usuario`, mensaje
   "No puede confirmar una compra que cargó usted.") y en la policy para ocultar el botón; test de que tampoco el Administrador confirma lo suyo.
+- Módulo **TIPOS_COMPROBANTE_COMPRA** (`VER, CREAR, EDITAR, DESACTIVAR`, estados ACTIVO_INACTIVO): Administrador todo; COMPRAS_TESORERIA y el resto de perfiles solo `VER`.
 - `CATEGORIAS_GASTO` para COMPRAS_TESORERIA sigue en `VER` (no se pidió cambiarlo).
 
 ## Auditoría
@@ -120,7 +122,7 @@ Luego `/aplicar` (respaldo `--probar`, migración) solo con confirmación de Enz
 - **P6 (fase 4)**: ¿Gerencia puede anular una compra que cargó ella (p. ej. el Administrador)? Hoy se aplica "como Liquidaciones": no.
 - **P7 (fase 6)**: formatos y tamaño de la imagen (propuesta técnica: PNG, JPG o PDF, hasta 5 MB).
 - ~~P8~~ **Resuelto**: tipo de comprobante en tabla, condición como enum `CondicionCompra` (research R3). El duplicado excluye ANULADAS (R5).
-- **P9 (fase 1)**: módulo y permisos de la pantalla del catálogo de tipos de comprobante (no se asume).
+- ~~P9~~ **Resuelto**: módulo `TIPOS_COMPROBANTE_COMPRA` (`VER, CREAR, EDITAR, DESACTIVAR`), estados ACTIVO_INACTIVO, mismo patrón que `CATEGORIAS_GASTO`.
 - **Pendiente de Enzo**: notas de crédito/débito y su efecto en los totales (hoy fuera de la spec).
 - Fuera de esta fase: "período ya informado" (no existe cierre de período) y "anulada ya tomada por Cuentas por Pagar" (se define con CxP).
 
