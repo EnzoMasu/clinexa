@@ -16,6 +16,15 @@
 - **No existe**: ninguna compra, gasto, comprobante recibido de proveedor ni cuentas por pagar. Las facturas existentes (`Factura`, `Timbrado`) son las que la clínica **emite**, no las que recibe. Los docs de cobros y liquidaciones ya declaran compras y gastos como fase futura.
 - **Reglas transversales** que este módulo hereda: nada se borra (se anula o desactiva), todo cambio se audita, fechas dd/mm/aaaa y textos en "usted".
 
+## Clarifications
+
+### Session 2026-11-02
+
+- Q: Contado y anticipo, ¿tocan la caja? → A: Por ahora no. No generan movimiento de caja; queda **pendiente** para una fase posterior.
+- Q: ¿Cómo se discrimina el IVA? → A: Se cargan los montos con IVA incluido por tasa (10 %, 5 % y exento); el sistema calcula el IVA igual que Facturación (÷11 y ÷21, al guaraní entero). El total es la suma de los tres montos.
+- Q: ¿Quién carga y quién confirma? → A: Como en Liquidaciones: Compras y tesorería carga; Gerencia o el Administrador confirman y anulan, nunca un registro que cargaron ellos mismos.
+- Q: ¿Qué número lleva el comprobante? → A: Factura legal: número con formato 001-001-0000001 y número de timbrado, obligatorios. Ticket y recibo: número libre, obligatorio. "Sin comprobante": sin número y fuera del control de duplicados (FR-005).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Registrar una compra o gasto con su comprobante (Priority: P1)
@@ -103,9 +112,9 @@ Cada registro a crédito conserva lo necesario (proveedor, importe, condición, 
 - **FR-008**: Todo alta, edición y anulación DEBE quedar auditada.
 - **FR-009**: El sistema DEBE permitir listar y filtrar por proveedor, categoría, período, estado y condición, con total del filtro.
 - **FR-010**: El acceso DEBE regirse por la matriz de permisos; Compras y tesorería carga borradores; Gerencia confirma y anula.
-- **FR-013**: Todo importe se registra en guaraníes. Cada registro DEBE discriminar el IVA (10 %, 5 % y exento) y el total debe coincidir con la suma de las partes. No se admiten compras en moneda extranjera.
 - **FR-011**: Las fechas DEBEN mostrarse dd/mm/aaaa y todo texto visible dirigirse en "usted".
 - **FR-012**: Los datos de cada registro DEBEN quedar disponibles, sin recarga, para Cuentas por Pagar y para los informes de compras, gastos y obligaciones.
+- **FR-013**: Todo importe se registra en guaraníes. Cada registro DEBE discriminar el IVA (10 %, 5 % y exento) y el total debe coincidir con la suma de las partes. No se admiten compras en moneda extranjera.
 
 *Fuera de alcance*: pagos a proveedores, saldos, reversiones y cualquier pantalla de Cuentas por Pagar; control de stock o inventario; emisión de facturas propias.
 
