@@ -7,6 +7,11 @@
     También sirve para elegir un registro de un rol (paciente, profesional): "url" devuelve sus ids,
     "inicial" (['id' => ..., 'texto' => ...]) es lo elegido de antes y "ofrecerAlta" en false
     oculta el enlace para cargar una persona nueva.
+
+    "restaurar" en false: no recupera la persona de old() (quien llama la pasa ya verificada en "inicial").
+    "placeholder" y "pista" cambian los textos de la búsqueda (p. ej. búsqueda por número exacto). El slot
+    "altaRapida" se muestra cuando no hay resultados, con "q" (lo buscado) a mano; una persona creada desde
+    afuera se elige con el evento de ventana "persona-creada" ({ campo, persona: { id, texto } }).
 --}}
 @props([
     'url',
@@ -17,6 +22,9 @@
     'inicial' => null,
     'ofrecerAlta' => true,
     'sinResultados' => 'No hay personas disponibles con esa búsqueda.',
+    'restaurar' => true,
+    'placeholder' => 'Buscar por nombre o documento…',
+    'pista' => null,
 ])
 
 @php
@@ -25,14 +33,16 @@
     use App\Support\Permisos;
 
     // Tras un error de validación se conserva la persona que se había elegido (o lo que indique "inicial").
-    if ($inicial === null && old($name) && ($anterior = Persona::with('tipoDocumento')->find(old($name)))) {
+    if ($restaurar && $inicial === null && old($name) && ($anterior = Persona::with('tipoDocumento')->find(old($name)))) {
         $inicial = ['id' => $anterior->id, 'texto' => BuscadorPersonas::texto($anterior, $conEmail)];
     }
     $urlNuevaPersona = $ofrecerAlta ? Permisos::url('admin.personas.create') : null;
     $minimo = BuscadorPersonas::MINIMO;
+    $pista ??= "Escriba al menos {$minimo} caracteres del nombre o del documento para buscar.";
 @endphp
 
-<div x-data="selectorPersona({ url: @js($url), inicial: @js($inicial), minimo: {{ $minimo }}, campo: @js($name) })" class="space-y-2">
+<div x-data="selectorPersona({ url: @js($url), inicial: @js($inicial), minimo: {{ $minimo }}, campo: @js($name) })" class="space-y-2"
+    x-on:persona-creada.window="if ($event.detail.campo === campo) elegir($event.detail.persona)">
     <x-input-label :for="$name.'_buscar'" :value="$label" />
     <input type="hidden" name="{{ $name }}" x-bind:value="elegida ? elegida.id : ''" value="{{ $inicial['id'] ?? '' }}">
 
@@ -46,7 +56,7 @@
     {{-- Búsqueda --}}
     <div x-show="! elegida" style="{{ $inicial ? 'display: none' : '' }}">
         <x-text-input :id="$name.'_buscar'" type="search" x-ref="busqueda" x-model="q" x-on:input.debounce.350ms="buscar()"
-            placeholder="Buscar por nombre o documento…" autocomplete="off" class="block w-full"
+            placeholder="{{ $placeholder }}" autocomplete="off" class="block w-full"
             aria-describedby="{{ $name }}_ayuda" />
         <p id="{{ $name }}_ayuda" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {{ $ayuda }} Se muestran hasta {{ BuscadorPersonas::LIMITE }} resultados: si no aparece, afine la búsqueda.
@@ -62,13 +72,14 @@
             </template>
             {{-- Visible de entrada: el formulario no busca hasta que se escriba. --}}
             <li x-show="faltanCaracteres" class="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">
-                Escriba al menos {{ $minimo }} caracteres del nombre o del documento para buscar.
+                {{ $pista }}
             </li>
             <li x-show="buscado && ! cargando && ! faltanCaracteres && resultados.length === 0" style="display: none" class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">
                 {{ $sinResultados }}
                 @if ($urlNuevaPersona)
                     <a href="{{ $urlNuevaPersona }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Cargar una persona nueva</a>
                 @endif
+                {{ $altaRapida ?? '' }}
             </li>
             <li x-show="cargando" style="display: none" class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400" role="status">Buscando…</li>
         </ul>

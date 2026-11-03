@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Estado;
 use App\Models\Persona;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 
 /**
@@ -53,6 +54,44 @@ class BuscadorPersonas
         return response()->json($personas->map(fn (Persona $persona) => [
             'id' => $persona->id,
             'texto' => self::texto($persona, $conEmail),
+        ]), options: self::JSON_SEGURO);
+    }
+
+    /**
+     * Búsqueda por número EXACTO de documento (CI o pasaporte) o de RUC, sin búsqueda por nombre: para
+     * quien puede dar de alta un rol pero no ver Personas (p. ej. Compras, en el alta de Proveedor). Así
+     * solo encuentra a quien ya conoce por su documento y no puede recorrer la tabla de personas (que
+     * incluye pacientes). Un número solo de dígitos también encuentra el RUC con su dígito verificador.
+     * Con menos de MINIMO caracteres no consulta la base.
+     *
+     * @return Collection<int, Persona>
+     */
+    public static function exactos(Builder $disponibles, string $numero): Collection
+    {
+        $numero = trim($numero);
+        if (mb_strlen($numero) < self::MINIMO) {
+            return new Collection;
+        }
+
+        $rucs = array_values(array_unique([$numero, ...(ctype_digit($numero) ? [Ruc::conDigito($numero)] : [])]));
+
+        return $disponibles
+            ->with('tipoDocumento')
+            ->where(fn ($query) => $query
+                ->where('personas.nro_documento', $numero)
+                ->orWhereIn('personas.ruc', $rucs))
+            ->orderByRaw('COALESCE(personas.apellidos, personas.razon_social)')
+            ->orderBy('personas.nombres')
+            ->limit(self::LIMITE)
+            ->get();
+    }
+
+    /** Respuesta JSON del selector ({ id, texto }) para personas ya buscadas. */
+    public static function json(Collection $personas): JsonResponse
+    {
+        return response()->json($personas->map(fn (Persona $persona) => [
+            'id' => $persona->id,
+            'texto' => self::texto($persona),
         ]), options: self::JSON_SEGURO);
     }
 

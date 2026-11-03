@@ -523,9 +523,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     ] as [$uri, $controlador, $modulo, $parametro]) {
         Route::get("{$uri}/personas-disponibles", [$controlador, 'personasDisponibles'])
             ->name("{$uri}.personas-disponibles")
-            ->middleware("permiso:{$modulo},CREAR");
+            ->middleware(["permiso:{$modulo},CREAR", ...($uri === 'proveedores' ? ['throttle:buscador-personas'] : [])]);
         $seccion($uri, $controlador, $modulo, $parametro, conBaja: true);
     }
+    // Alta rápida de persona desde el formulario de Proveedor (popup), sin permiso sobre Personas.
+    Route::post('proveedores/personas-rapida', [ProveedorController::class, 'altaRapidaPersona'])
+        ->name('proveedores.personas-rapida')
+        ->middleware(['permiso:PROVEEDORES,CREAR', 'throttle:buscador-personas']);
 });
 
 // "Preparación" pasó a llamarse "Triaje": las URLs viejas de lectura redirigen para siempre (301) a las nuevas.

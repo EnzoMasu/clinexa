@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ProveedorController;
 use App\Models\Especialidad;
 use App\Models\ModuloSistema;
 use App\Models\Paciente;
@@ -146,8 +147,11 @@ test('el formulario de alta no busca al abrirse: pide escribir al menos 2 caract
 test('no se puede crear el rol para una persona inactiva', function (string $ruta, string $modelo, array $campos) {
     $persona = Persona::factory()->inactiva()->create();
 
+    // Proveedor responde un mensaje genérico (no revela si la persona existe, está inactiva o ya es proveedor).
+    $mensaje = $ruta === 'proveedores' ? ProveedorController::PERSONA_NO_DISPONIBLE : 'La persona elegida está inactiva.';
+
     $this->post(route("admin.{$ruta}.store"), ['persona_id' => $persona->id, ...$campos])
-        ->assertSessionHasErrors(['persona_id' => 'La persona elegida está inactiva.']);
+        ->assertSessionHasErrors(['persona_id' => $mensaje]);
 })->with('roles');
 
 test('pacientes y profesionales solo pueden ser personas físicas; el resto acepta jurídicas', function (string $ruta, string $modelo, array $campos, bool $aceptaJuridicas) {

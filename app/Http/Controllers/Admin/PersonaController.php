@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\PersonaRequest;
 use App\Models\Pais;
 use App\Models\Persona;
 use App\Models\TipoDocumento;
+use App\Support\Personas\AltaPersona;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -45,14 +46,14 @@ class PersonaController extends Controller
                 'tipo_documento_id' => TipoDocumento::predeterminadoPara('PERSONAS'),
                 'pais_nacionalidad_id' => Pais::idParaguay(),
             ]),
-            'tiposDocumento' => $this->tiposDocumento(),
+            'tiposDocumento' => self::tiposDocumento(),
             'paises' => Pais::opciones(),
         ]);
     }
 
     public function store(PersonaRequest $request): RedirectResponse
     {
-        Persona::create($request->validated());
+        AltaPersona::crear($request->validated());
 
         return redirect()->route('admin.personas.index')->with('status', 'Persona creada.');
     }
@@ -66,7 +67,7 @@ class PersonaController extends Controller
 
         return view('admin.personas.form', [
             'persona' => $persona,
-            'tiposDocumento' => $this->tiposDocumento($persona),
+            'tiposDocumento' => self::tiposDocumento($persona),
             'paises' => Pais::opciones($persona->pais_nacionalidad_id),
         ]);
     }
@@ -90,7 +91,7 @@ class PersonaController extends Controller
      * el predeterminado primero. El RUC no se ofrece (es un campo aparte). Si la persona ya tiene otro CI o pasaporte
      * inactivo o no habilitado, se agrega.
      */
-    private function tiposDocumento(?Persona $persona = null)
+    public static function tiposDocumento(?Persona $persona = null)
     {
         $tipos = TipoDocumento::query()->habilitadosPara('PERSONAS')->activos()->get()
             ->filter(fn ($tipo) => in_array($tipo->codigo, Persona::DOCUMENTOS_FISICA, true))->values();

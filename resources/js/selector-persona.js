@@ -11,6 +11,7 @@
  * lo contiene pueda reaccionar (p. ej. el alta de turno carga los horarios del profesional).
  */
 export default ({ url, inicial, minimo, campo = 'persona_id' }) => ({
+    campo,
     q: '',
     resultados: [],
     elegida: inicial, // { id, texto } o null

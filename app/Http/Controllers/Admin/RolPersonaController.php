@@ -138,7 +138,7 @@ abstract class RolPersonaController extends Controller
 
         $datos = $request->validate([
             'persona_id' => ['required', 'integer', function (string $atributo, mixed $valor, \Closure $fail) use ($modelo) {
-                if (! $modelo::personasDisponibles()->whereKey($valor)->exists()) {
+                if (! $this->personaElegible((int) $valor) || ! $modelo::personasDisponibles()->whereKey($valor)->exists()) {
                     $fail($this->motivoPersonaNoDisponible((int) $valor));
                 }
             }],
@@ -211,7 +211,16 @@ abstract class RolPersonaController extends Controller
         return $modelo::with('persona.tipoDocumento')->findOrFail($id);
     }
 
-    private function motivoPersonaNoDisponible(int $personaId): string
+    /**
+     * Si quien carga el rol puede elegir esta persona (además de que esté disponible). Por defecto, sí:
+     * Proveedor lo restringe para quien no ve Personas.
+     */
+    protected function personaElegible(int $personaId): bool
+    {
+        return true;
+    }
+
+    protected function motivoPersonaNoDisponible(int $personaId): string
     {
         $modelo = $this->modelo();
         $persona = Persona::find($personaId);

@@ -59,6 +59,11 @@ class AppServiceProvider extends ServiceProvider
         // Autoguardado de consultas: hasta 30 pedidos por minuto por usuario (el navegador manda uno cada 10 s como mucho).
         RateLimiter::for('autoguardado', fn (Request $request) => Limit::perMinute(30)->by((string) ($request->user()?->id ?? $request->ip())));
 
+        // Buscador por número exacto y alta rápida de persona del formulario de Proveedor: hasta 30 pedidos
+        // por minuto por usuario (el selector busca con 350 ms de pausa al escribir), para que no se pueda
+        // probar documentos en masa.
+        RateLimiter::for('buscador-personas', fn (Request $request) => Limit::perMinute(30)->by((string) ($request->user()?->id ?? $request->ip())));
+
         // Auditoría de inicio y cierre de sesión, intentos fallidos, bloqueos y cambios de contraseña.
         Event::subscribe(AuditoriaAutenticacion::class);
 
