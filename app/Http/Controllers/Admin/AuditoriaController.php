@@ -10,9 +10,11 @@ use App\Models\ModuloSistema;
 use App\Models\User;
 use App\Support\Auditoria;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -31,6 +33,8 @@ class AuditoriaController extends Controller
         // VER sobre HISTORIA_CLINICA, recetas sin VER sobre RECETAS): filtrando se podría deducir su contenido.
         $tablasOcultas = $this->tablasOcultas($request->user());
 
+        $grilla = $this->grilla($request);
+
         $logs = LogAuditoria::query()
             ->with('usuario.persona')
             ->when($filtros['usuario'] === self::SIN_USUARIO, fn ($query) => $query->whereNull('usuario_id'))
@@ -43,14 +47,14 @@ class AuditoriaController extends Controller
                 ->where('registro_afectado_id', $filtros['q'])
                 ->orWhere(fn ($query) => $query
                     ->whereLike('detalle', "%{$filtros['q']}%")
-                    ->when($tablasOcultas !== [], fn ($query) => $query->whereNotIn('tabla_afectada', $tablasOcultas)))))
-            ->orderByDesc('fecha_hora')
-            ->orderByDesc('id')
+                    ->when($tablasOcultas !== [], fn ($query) => $query->whereNotIn('tabla_afectada', $tablasOcultas)))));
+        $logs = $grilla->aplicar($logs, fn ($query) => $query->orderByDesc('fecha_hora')->orderByDesc('id'))
             ->paginate(20)
             ->withQueryString();
 
         return $this->listado($request, 'admin.auditoria', [
             'logs' => $logs,
+            'grilla' => $grilla,
             'busqueda' => $filtros['q'],
             'filtros' => $filtros,
             'modulos' => $this->nombresDeModulos(),
@@ -163,6 +167,32 @@ class AuditoriaController extends Controller
     }
 
     /** Opciones de los filtros de usuario y acción. */
+    /**
+     * Grilla del log (docs/grillas.md). Ninguna columna muestra contenido: filtrar por ellas no revela lo clínico, de
+     * recetas ni lo económico (el texto libre "q" sigue sin buscar en los eventos ocultos).
+     */
+    private function grilla(Request $request): Grilla
+    {
+        $pdo = DB::connection()->getPdo();
+        $modulos = $this->nombresDeModulos();
+        $opciones = $this->opcionesDeFiltro();
+        $casos = collect(Auditoria::modulosPorTabla())
+            ->map(fn (string $modulo, string $tabla) => 'WHEN '.$pdo->quote($tabla).' THEN '.$pdo->quote($modulos[$modulo] ?? $tabla))->join(' ');
+
+        return Grilla::de($request)
+            ->fecha('fecha', 'Fecha y hora', 'logs_auditoria.fecha_hora', utc: true)
+            ->opciones('usuario', 'Usuario', 'logs_auditoria.usuario_id', $opciones['usuarios'],
+                orden: fn ($query) => $query->selectRaw('COALESCE(personas.apellidos, personas.razon_social, users.email)')->from('users')
+                    ->leftJoin('personas', 'personas.id', '=', 'users.persona_id')->whereColumn('users.id', 'logs_auditoria.usuario_id'),
+                filtro: fn ($query, $valor) => $valor === self::SIN_USUARIO ? $query->whereNull('logs_auditoria.usuario_id') : $query->where('logs_auditoria.usuario_id', (int) $valor))
+            ->opciones('accion', 'Acción', 'logs_auditoria.accion', $opciones['acciones'])
+            ->opciones('modulo', 'Módulo', 'logs_auditoria.tabla_afectada', $modulos,
+                orden: DB::raw("CASE logs_auditoria.tabla_afectada {$casos} ELSE logs_auditoria.tabla_afectada END"),
+                filtro: fn ($query, $modulo) => $query->whereIn('logs_auditoria.tabla_afectada', array_keys(Auditoria::modulosPorTabla(), $modulo, true)))
+            ->numero('registro', 'Registro', 'logs_auditoria.registro_afectado_id')
+            ->texto('ip', 'IP', 'logs_auditoria.ip_origen');
+    }
+
     private function opcionesDeFiltro(): array
     {
         return [

@@ -10,9 +10,12 @@ use App\Models\Timbrado;
 use App\Support\Facturacion\EmitirFactura;
 use App\Support\Facturacion\GestionTimbrados;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -21,12 +24,22 @@ use Illuminate\View\View;
  */
 class TimbradoController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): Response
     {
-        [, $aviso] = EmitirFactura::timbradoParaEmitir();
+        [, $aviso] = $request->ajax() ? [null, null] : EmitirFactura::timbradoParaEmitir();
+        $grilla = Grilla::de($request)
+            ->texto('numero', 'Timbrado', 'timbrados.numero')
+            ->textoDe('sucursal', 'Sucursal', 'timbrados.sucursal_id', 'sucursales')
+            ->texto('punto', 'Punto', DB::raw("timbrados.establecimiento || '-' || timbrados.punto_expedicion"))
+            ->fecha('vigencia', 'Vigencia', 'timbrados.vigente_desde')
+            ->numero('numeracion', 'Numeración', 'timbrados.numero_inicial', filtro: fn ($query, $n) => $query->where('timbrados.numero_inicial', '<=', $n)->where('timbrados.numero_final', '>=', $n))
+            ->numero('ultimo', 'Último usado', 'timbrados.numero_actual')
+            ->estado('estado', 'Estado', 'timbrados.estado_id', Timbrado::ETIQUETAS);
 
-        return view('admin.facturas.timbrados', [
-            'timbrados' => Timbrado::query()->with(['sucursal', 'cargadoPor.persona'])->orderByRaw('historico_en IS NOT NULL')->orderByDesc('id')->paginate(20),
+        return $this->listadoEn($request, 'admin.facturas.timbrados', 'admin.facturas._tabla-timbrados', [
+            'timbrados' => $grilla->aplicar(Timbrado::query()->with(['sucursal', 'cargadoPor.persona']),
+                fn ($query) => $query->orderByRaw('historico_en IS NOT NULL')->orderByDesc('id'))->paginate(20)->withQueryString(),
+            'grilla' => $grilla,
             'aviso' => $aviso,
             'puedeCargar' => Permisos::puedeRuta('admin.facturas.timbrados.create'),
             'puedeHistorico' => Permisos::puedeRuta('admin.facturas.timbrados.historico'),

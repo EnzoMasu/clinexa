@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Procedimiento;
 use App\Support\Auditoria;
+use App\Support\Grilla\Grilla;
 use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -18,12 +20,18 @@ use Illuminate\View\View;
  */
 class TasaIvaController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
+        $grilla = Grilla::de($request)
+            ->texto('codigo', 'Código', 'codigo')
+            ->texto('nombre', 'Procedimiento', 'nombre')
+            ->opciones('tasa', 'Tasa de IVA', 'tasa_iva', Procedimiento::TASAS_IVA);
 
-        return view('admin.facturas.tasas-iva', [
-            'procedimientos' => $this->buscarEn(Procedimiento::query(), $busqueda, ['codigo', 'nombre'])->orderBy('nombre')->paginate(30)->withQueryString(),
+        return $this->listadoEn($request, 'admin.facturas.tasas-iva', 'admin.facturas._tabla-tasas-iva', [
+            'procedimientos' => $grilla->aplicar($this->buscarEn(Procedimiento::query(), $busqueda, ['codigo', 'nombre']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(30)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
             'puedeEditar' => Permisos::puedeRuta('admin.facturas.tasas-iva.update'),
         ]);

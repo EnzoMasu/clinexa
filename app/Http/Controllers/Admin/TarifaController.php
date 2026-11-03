@@ -9,6 +9,7 @@ use App\Models\Procedimiento;
 use App\Models\Profesional;
 use App\Models\Tarifa;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use App\Support\Tarifas\AltaTarifa;
 use App\Support\Tarifas\CambiarTarifa;
 use Illuminate\Http\RedirectResponse;
@@ -29,6 +30,16 @@ class TarifaController extends Controller
         $busqueda = trim((string) $request->query('q'));
         $conHistoricas = $request->query('estado') === 'TODAS';
 
+        // El estado se elige con "Mostrar" (vigentes o también históricas), arriba: en la grilla solo ordena.
+        $grilla = Grilla::de($request)
+            ->texto('procedimiento', 'Procedimiento', 'procedimientos.nombre', filtro: fn ($query, $valor) => $query->where(fn ($query) => $query
+                ->whereLike('procedimientos.nombre', "%{$valor}%")->orWhereLike('procedimientos.codigo', "%{$valor}%")))
+            ->nombrePersona('profesional', 'Profesional')
+            ->numero('monto', 'Monto', 'tarifas.monto')
+            ->fecha('vigencia', 'Vigencia', 'tarifas.vigente_desde')
+            ->opciones('estado', 'Estado', 'tarifas.estado_id', [],
+                orden: fn ($query) => $query->select('nombre')->from('estados')->whereColumn('estados.id', 'tarifas.estado_id'), filtro: false);
+
         $tarifas = Tarifa::query()
             ->join('procedimientos', 'procedimientos.id', '=', 'tarifas.procedimiento_id')
             ->leftJoin('profesionales', 'profesionales.id', '=', 'tarifas.profesional_id')
@@ -39,17 +50,19 @@ class TarifaController extends Controller
                 ->orWhereLike('procedimientos.codigo', "%{$busqueda}%")
                 ->orWhereLike('personas.apellidos', "%{$busqueda}%")
                 ->orWhereLike('personas.nombres', "%{$busqueda}%")))
+            ->select('tarifas.*')
+            ->with(['procedimiento', 'profesional.persona', 'moneda']);
+        $tarifas = $grilla->aplicar($tarifas, fn ($query) => $query
             ->orderBy('procedimientos.nombre')
             ->orderByRaw('tarifas.profesional_id IS NOT NULL')
             ->orderBy('personas.apellidos')
             ->orderByDesc('tarifas.vigente_desde')
-            ->orderByDesc('tarifas.id')
-            ->select('tarifas.*')
-            ->with(['procedimiento', 'profesional.persona', 'moneda'])
+            ->orderByDesc('tarifas.id'))
             ->paginate(20)->withQueryString();
 
         return $this->listado($request, 'admin.tarifas', [
             'tarifas' => $tarifas,
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
             'filtros' => ['estado' => $conHistoricas ? 'TODAS' : 'VIGENTES'],
         ]);

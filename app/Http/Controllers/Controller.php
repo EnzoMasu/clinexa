@@ -21,6 +21,16 @@ abstract class Controller
     }
 
     /**
+     * Como listado(), para pantallas cuya tabla es un partial con otro nombre (la página tiene más cosas).
+     */
+    protected function listadoEn(Request $request, string $pagina, string $tabla, array $datos): Response
+    {
+        return response()
+            ->view($request->ajax() ? $tabla : $pagina, $datos)
+            ->header('Vary', 'X-Requested-With');
+    }
+
+    /**
      * Filtra por texto contenido en cualquiera de las columnas (sin distinguir mayúsculas).
      */
     protected function buscarEn(Builder $query, string $busqueda, array $columnas): Builder

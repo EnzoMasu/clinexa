@@ -10,6 +10,7 @@ use App\Models\Estado;
 use App\Models\Procedimiento;
 use App\Models\Profesional;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use App\Support\Repartos\AltaAcuerdo;
 use App\Support\Repartos\CambiarAcuerdo;
 use App\Support\Repartos\Porcentaje;
@@ -17,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -33,6 +35,19 @@ class AcuerdoRepartoController extends Controller
         $conHistoricos = $request->query('estado') === 'TODOS';
         $tipo = array_key_exists((string) $request->query('tipo'), AcuerdoReparto::TIPOS) ? (string) $request->query('tipo') : null;
 
+        // El estado se elige con "Mostrar" (vigentes o también históricos), arriba: en la grilla solo ordena.
+        $grilla = Grilla::de($request)
+            ->opciones('tipo', 'Tipo', 'acuerdos_reparto.tipo', AcuerdoReparto::TIPOS)
+            ->texto('beneficiario', 'Beneficiario', 'personas.apellidos',
+                orden: DB::raw("COALESCE(personas.apellidos || ', ' || personas.nombres, equipos.nombre)"),
+                filtro: fn ($query, $valor) => $query->where(fn ($query) => $query->whereLike('personas.apellidos', "%{$valor}%")
+                    ->orWhereLike('personas.nombres', "%{$valor}%")->orWhereLike('equipos.nombre', "%{$valor}%")))
+            ->texto('alcance', 'Alcance', 'procedimientos.nombre')
+            ->numero('porcentaje', 'Porcentaje', 'acuerdos_reparto.porcentaje')
+            ->fecha('vigencia', 'Vigencia', 'acuerdos_reparto.vigente_desde')
+            ->opciones('estado', 'Estado', 'acuerdos_reparto.estado_id', [],
+                orden: fn ($query) => $query->select('nombre')->from('estados')->whereColumn('estados.id', 'acuerdos_reparto.estado_id'), filtro: false);
+
         $acuerdos = AcuerdoReparto::query()
             ->leftJoin('profesionales', 'profesionales.id', '=', 'acuerdos_reparto.profesional_id')
             ->leftJoin('personas', 'personas.id', '=', 'profesionales.persona_id')
@@ -45,16 +60,18 @@ class AcuerdoRepartoController extends Controller
                 ->orWhereLike('personas.nombres', "%{$busqueda}%")
                 ->orWhereLike('procedimientos.nombre', "%{$busqueda}%")
                 ->orWhereLike('equipos.nombre', "%{$busqueda}%")))
+            ->select('acuerdos_reparto.*')
+            ->with(['profesional.persona', 'procedimiento', 'equipo.dueno.persona']);
+        $acuerdos = $grilla->aplicar($acuerdos, fn ($query) => $query
             ->orderBy('acuerdos_reparto.tipo', 'desc') // PROFESIONAL antes que EQUIPO
             ->orderBy('personas.apellidos')->orderBy('equipos.nombre')
             ->orderByRaw('acuerdos_reparto.procedimiento_id IS NOT NULL')->orderBy('procedimientos.nombre')
-            ->orderByDesc('acuerdos_reparto.vigente_desde')->orderByDesc('acuerdos_reparto.id')
-            ->select('acuerdos_reparto.*')
-            ->with(['profesional.persona', 'procedimiento', 'equipo.dueno.persona'])
+            ->orderByDesc('acuerdos_reparto.vigente_desde')->orderByDesc('acuerdos_reparto.id'))
             ->paginate(20)->withQueryString();
 
         return $this->listado($request, 'admin.acuerdos-reparto', [
             'acuerdos' => $acuerdos,
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
             'filtros' => ['estado' => $conHistoricos ? 'TODOS' : 'VIGENTES', 'tipo' => $tipo],
         ]);
