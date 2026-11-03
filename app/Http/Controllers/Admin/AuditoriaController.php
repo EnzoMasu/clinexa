@@ -26,6 +26,11 @@ class AuditoriaController extends Controller
     /** Valor del filtro de usuario para los eventos sin usuario (intento con un correo inexistente). */
     public const SIN_USUARIO = 'ninguno';
 
+    public const ETIQUETA_SIN_USUARIO = '(Sin usuario: correo inexistente)';
+
+    /** @var array<string, array>|null Opciones de los filtros, una vez por pedido. */
+    private ?array $opcionesDeFiltro = null;
+
     public function index(Request $request): Response
     {
         $filtros = $this->filtros($request);
@@ -175,17 +180,23 @@ class AuditoriaController extends Controller
     {
         $pdo = DB::connection()->getPdo();
         $modulos = $this->nombresDeModulos();
-        $opciones = $this->opcionesDeFiltro();
+        // La lista de usuarios solo al dibujar la página entera: en la búsqueda en vivo el navegador conserva el desplegable.
+        $usuarios = $request->ajax() ? [self::SIN_USUARIO => self::ETIQUETA_SIN_USUARIO] : $this->opcionesDeFiltro()['usuarios'];
+        $acciones = collect(AccionAuditoria::cases())->mapWithKeys(fn (AccionAuditoria $accion) => [$accion->value => $accion->etiqueta()])->all();
         $casos = collect(Auditoria::modulosPorTabla())
             ->map(fn (string $modulo, string $tabla) => 'WHEN '.$pdo->quote($tabla).' THEN '.$pdo->quote($modulos[$modulo] ?? $tabla))->join(' ');
 
         return Grilla::de($request)
             ->fecha('fecha', 'Fecha y hora', 'logs_auditoria.fecha_hora', utc: true)
-            ->opciones('usuario', 'Usuario', 'logs_auditoria.usuario_id', $opciones['usuarios'],
+            ->opciones('usuario', 'Usuario', 'logs_auditoria.usuario_id', $usuarios, diferida: true,
                 orden: fn ($query) => $query->selectRaw('COALESCE(personas.apellidos, personas.razon_social, users.email)')->from('users')
                     ->leftJoin('personas', 'personas.id', '=', 'users.persona_id')->whereColumn('users.id', 'logs_auditoria.usuario_id'),
-                filtro: fn ($query, $valor) => $valor === self::SIN_USUARIO ? $query->whereNull('logs_auditoria.usuario_id') : $query->where('logs_auditoria.usuario_id', (int) $valor))
-            ->opciones('accion', 'Acción', 'logs_auditoria.accion', $opciones['acciones'])
+                filtro: fn ($query, $valor) => match (true) {
+                    $valor === self::SIN_USUARIO => $query->whereNull('logs_auditoria.usuario_id'),
+                    ctype_digit($valor) => $query->where('logs_auditoria.usuario_id', (int) $valor),
+                    default => $query, // un valor que no es un usuario no filtra
+                })
+            ->opciones('accion', 'Acción', 'logs_auditoria.accion', $acciones)
             ->opciones('modulo', 'Módulo', 'logs_auditoria.tabla_afectada', $modulos,
                 orden: DB::raw("CASE logs_auditoria.tabla_afectada {$casos} ELSE logs_auditoria.tabla_afectada END"),
                 filtro: fn ($query, $modulo) => $query->whereIn('logs_auditoria.tabla_afectada', array_keys(Auditoria::modulosPorTabla(), $modulo, true)))
@@ -195,12 +206,11 @@ class AuditoriaController extends Controller
 
     private function opcionesDeFiltro(): array
     {
-        return [
-            'usuarios' => [
-                self::SIN_USUARIO => '(Sin usuario: correo inexistente)',
-                ...User::with('persona')->get()->sortBy(fn (User $usuario) => $usuario->name)
+        return $this->opcionesDeFiltro ??= [
+            // "+" y no "...": el spread renumera las claves enteras y los valores dejarían de ser los ids de usuario.
+            'usuarios' => [self::SIN_USUARIO => self::ETIQUETA_SIN_USUARIO]
+                + User::with('persona')->get()->sortBy(fn (User $usuario) => $usuario->name)
                     ->mapWithKeys(fn (User $usuario) => [$usuario->id => $usuario->name])->all(),
-            ],
             'acciones' => collect(AccionAuditoria::cases())->mapWithKeys(fn (AccionAuditoria $accion) => [$accion->value => $accion->etiqueta()])->all(),
         ];
     }

@@ -67,11 +67,14 @@ final class Grilla
      * Desplegable: valor => etiqueta. Sin "filtro", compara la columna con el valor elegido; con una función
      * fn ($query, $valor), la aplica (el valor ya es una de las opciones).
      *
+     * "diferida": la lista completa solo viene al dibujar la página entera (en la búsqueda en vivo el navegador conserva
+     * el desplegable que ya tiene). Entonces el valor no se valida contra las opciones: lo valida "filtro".
+     *
      * @param  array<string|int, string>  $opciones
      */
-    public function opciones(string $clave, string $etiqueta, string|Expression $columna, array $opciones, string|Expression|Closure|false|null $orden = null, Closure|false|null $filtro = null): self
+    public function opciones(string $clave, string $etiqueta, string|Expression $columna, array $opciones, string|Expression|Closure|false|null $orden = null, Closure|false|null $filtro = null, bool $diferida = false): self
     {
-        return $this->agregar(new Columna($clave, $etiqueta, Columna::OPCIONES, $this->o($orden, $columna), $this->o($filtro, $columna), $opciones));
+        return $this->agregar(new Columna($clave, $etiqueta, Columna::OPCIONES, $this->o($orden, $columna), $this->o($filtro, $columna), $opciones, diferida: $diferida));
     }
 
     /**
@@ -278,7 +281,7 @@ final class Grilla
 
         return match ($columna->tipo) {
             Columna::NUMERO => preg_match('/^-?\d+(,\d+)?$/', $numero = str_replace(['.', ' '], '', $valor)) ? str_replace(',', '.', $numero) : null,
-            Columna::OPCIONES => array_key_exists($valor, $columna->opciones) ? $valor : null,
+            Columna::OPCIONES => $columna->diferida || array_key_exists($valor, $columna->opciones) ? $valor : null,
             default => $valor,
         };
     }

@@ -188,3 +188,20 @@ describe('clase Grilla', function () {
             ->and(grillaPersonas(['orden' => 'apellidos', 'dir' => 'desc']))->toBe(['Gama', 'Beta', 'Alfa']);
     });
 });
+
+describe('desplegable diferido (Auditoría: usuario)', function () {
+    test('la lista de usuarios viene solo en la página entera; en vivo el filtro igual funciona y conserva "Sin usuario"', function () {
+        $otro = User::factory()->conPersona(['apellidos' => 'Grillauno', 'nombres' => 'Liz'])->create();
+
+        $pagina = $this->get(route('admin.auditoria.index'))->assertOk()->getContent();
+        expect($pagina)->toContain('data-grilla-diferida')->toContain('<option value="'.$otro->id.'"')->toContain('(Sin usuario: correo inexistente)');
+
+        $vivo = $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('admin.auditoria.index', ['f' => ['usuario' => (string) $otro->id]]))->assertOk();
+        expect($vivo->getContent())->toContain('data-grilla-diferida')->toContain('(Sin usuario: correo inexistente)')
+            ->not->toContain('<option value="'.$otro->id.'"')
+            ->and($vivo->viewData('logs')->every(fn ($log) => $log->usuario_id === $otro->id))->toBeTrue();
+
+        // Un valor que no es un usuario no filtra ni falla.
+        $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('admin.auditoria.index', ['f' => ['usuario' => 'x; DROP']]))->assertOk();
+    });
+});

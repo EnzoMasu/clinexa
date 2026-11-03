@@ -46,7 +46,7 @@
                             @if (! $columna->filtrable())
                                 {{-- Sin filtro para esta columna. --}}
                             @elseif ($columna->tipo === Columna::OPCIONES)
-                                <select name="{{ $nombre }}" form="{{ $formulario }}" aria-label="Filtrar por {{ mb_strtolower($columna->etiqueta) }}" class="{{ $campo }} pe-7">
+                                <select name="{{ $nombre }}" form="{{ $formulario }}" @if ($columna->diferida) data-grilla-diferida @endif aria-label="Filtrar por {{ mb_strtolower($columna->etiqueta) }}" class="{{ $campo }} pe-7">
                                     <option value="">Todos</option>
                                     @foreach ($columna->opciones as $opcion => $etiqueta)
                                         <option value="{{ $opcion }}" @selected((string) $opcion === $valor)>{{ $etiqueta }}</option>

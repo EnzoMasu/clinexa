@@ -33,6 +33,7 @@ final class Columna
         public readonly mixed $filtro,
         public readonly array $opciones = [],
         public readonly bool $utc = false,
+        public readonly bool $diferida = false,
     ) {}
 
     public function ordenable(): bool

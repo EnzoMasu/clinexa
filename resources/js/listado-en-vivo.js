@@ -94,7 +94,14 @@ export default () => ({
         const enFiltro = activo?.name && this.$refs.resultados.contains(activo) && activo.form === this.$refs.formulario;
         const anterior = enFiltro ? { nombre: activo.name, valor: activo.value, inicio: activo.selectionStart, fin: activo.selectionEnd } : null;
 
+        // Desplegables con la lista solo en la página entera (data-grilla-diferida): se conserva el que ya estaba.
+        const diferidos = [...this.$refs.resultados.querySelectorAll('select[data-grilla-diferida]')];
+
         this.$refs.resultados.innerHTML = html;
+
+        for (const anteriorSelect of diferidos) {
+            this.$refs.resultados.querySelector(`select[data-grilla-diferida][name="${CSS.escape(anteriorSelect.name)}"]`)?.replaceWith(anteriorSelect);
+        }
 
         if (anterior) {
             const nuevo = this.$refs.resultados.querySelector(`[name="${CSS.escape(anterior.nombre)}"]`);
