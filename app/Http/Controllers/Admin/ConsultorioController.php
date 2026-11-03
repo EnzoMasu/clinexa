@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Consultorio;
 use App\Models\Estado;
 use App\Models\Sucursal;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,19 +19,23 @@ class ConsultorioController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Consultorio', 'consultorios.nombre')
+            ->texto('sucursal', 'Sucursal', 'sucursales.nombre')
+            ->estado('estado', 'Estado', 'consultorios.estado_id', Consultorio::class);
+
         $consultorios = Consultorio::query()
             ->select('consultorios.*')
             ->join('sucursales', 'sucursales.id', '=', 'consultorios.sucursal_id')
             ->with('sucursal')
             ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('consultorios.nombre', "%{$busqueda}%")
-                ->orWhereLike('sucursales.nombre', "%{$busqueda}%")))
-            ->orderBy('sucursales.nombre')
-            ->orderBy('consultorios.nombre')
+                ->orWhereLike('sucursales.nombre', "%{$busqueda}%")));
+        $consultorios = $grilla->aplicar($consultorios, fn ($query) => $query->orderBy('sucursales.nombre')->orderBy('consultorios.nombre'))
             ->paginate(15)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.consultorios', compact('consultorios', 'busqueda'));
+        return $this->listado($request, 'admin.consultorios', compact('consultorios', 'busqueda', 'grilla'));
     }
 
     public function create(): View

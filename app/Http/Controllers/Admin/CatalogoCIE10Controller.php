@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\CatalogoCIE10;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -16,15 +17,20 @@ class CatalogoCIE10Controller extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
-        $codigos = CatalogoCIE10::query()
-            ->when($busqueda !== '', fn ($query) => $query
+        $grilla = Grilla::de($request)
+            ->texto('codigo', 'Código', 'codigo')
+            ->texto('descripcion', 'Descripción', 'descripcion')
+            ->texto('capitulo', 'Capítulo', 'capitulo')
+            ->estado('estado', 'Estado', 'estado_id', CatalogoCIE10::class);
+
+        $codigos = $grilla->aplicar(CatalogoCIE10::query()
+            ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('codigo', "{$busqueda}%")
-                ->orWhereLike('descripcion', "%{$busqueda}%"))
-            ->orderBy('codigo')
+                ->orWhereLike('descripcion', "%{$busqueda}%"))), fn ($query) => $query->orderBy('codigo'))
             ->paginate(25)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.cie10', compact('codigos', 'busqueda'));
+        return $this->listado($request, 'admin.cie10', compact('codigos', 'busqueda', 'grilla'));
     }
 
     public function create(): View

@@ -9,6 +9,7 @@ use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Contracts\Database\Query\Expression;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Orden y filtros por columna de un listado (docs/grillas.md). Todo se resuelve en la consulta: el
@@ -74,19 +75,64 @@ final class Grilla
     }
 
     /**
-     * Estado (tabla estados): desplegable con los estados que se indiquen (por defecto ACTIVO e INACTIVO),
-     * ordenado por el nombre del estado.
+     * Estado (tabla estados): desplegable con los estados indicados, o con los permitidos del modelo
+     * (TieneEstado::estadosPermitidos) si se pasa su clase; por defecto ACTIVO e INACTIVO. Ordena por el
+     * nombre del estado.
      *
-     * @param  list<string>  $codigos
+     * @param  list<string>|class-string  $codigos
      */
-    public function estado(string $clave, string $etiqueta, string $columna, array $codigos = [Estado::ACTIVO, Estado::INACTIVO]): self
+    public function estado(string $clave, string $etiqueta, string $columna, array|string $codigos = [Estado::ACTIVO, Estado::INACTIVO]): self
     {
-        $opciones = Estado::query()->whereIn('codigo', $codigos)->pluck('nombre', 'codigo')
-            ->sortBy(fn ($nombre, $codigo) => array_search($codigo, $codigos, true))->all();
+        $opciones = is_string($codigos)
+            ? $codigos::estadosPermitidos()->pluck('nombre', 'codigo')->all()
+            : Estado::query()->whereIn('codigo', $codigos)->pluck('nombre', 'codigo')
+                ->sortBy(fn ($nombre, $codigo) => array_search($codigo, $codigos, true))->all();
+        $opciones = $opciones ?: Estado::query()->whereIn('codigo', [Estado::ACTIVO, Estado::INACTIVO])->orderBy('id')->pluck('nombre', 'codigo')->all();
 
         return $this->opciones($clave, $etiqueta, $columna, $opciones,
             orden: fn ($query) => $query->select('nombre')->from('estados')->whereColumn('estados.id', $columna),
             filtro: fn ($query, string $codigo) => $query->where($columna, Estado::idDe($codigo)));
+    }
+
+    /**
+     * Texto de un registro relacionado (p. ej. el nombre de la sucursal por consultorios.sucursal_id): ordena
+     * y filtra con subconsultas, sin joins.
+     */
+    public function textoDe(string $clave, string $etiqueta, string $fk, string $tabla, string $campo = 'nombre'): self
+    {
+        return $this->texto($clave, $etiqueta, $fk,
+            orden: fn ($query) => $query->select($campo)->from($tabla)->whereColumn("{$tabla}.id", $fk),
+            filtro: fn ($query, string $valor) => $query->whereIn($fk, fn ($sub) => $sub->select('id')->from($tabla)->whereLike($campo, "%{$valor}%")));
+    }
+
+    /**
+     * Nombre de una persona ("Apellidos, Nombres" o la razón social) por la columna con su id. "via": tabla de
+     * un rol (proveedores, profesionales...) cuando la columna apunta al rol y no a la persona.
+     */
+    public function persona(string $clave, string $etiqueta, string $columna, ?string $via = null): self
+    {
+        $nombre = "COALESCE(personas.apellidos || ', ' || personas.nombres, personas.apellidos, personas.razon_social, personas.nombres)";
+
+        return $this->texto($clave, $etiqueta, $columna,
+            orden: fn ($query) => $this->dePersona($query->selectRaw($nombre), $columna, $via),
+            filtro: fn ($query, string $valor) => $query->whereIn($columna, fn ($sub) => $this->idsDePersonas($sub, $via, fn ($personas) => $personas
+                ->whereLike('personas.apellidos', "%{$valor}%")->orWhereLike('personas.nombres', "%{$valor}%")
+                ->orWhereLike('personas.razon_social', "%{$valor}%")->orWhereLike(DB::raw($nombre), "%{$valor}%"))));
+    }
+
+    /** Documento de una persona (número de documento o RUC), como persona(). */
+    public function documento(string $clave, string $etiqueta, string $columna, ?string $via = null): self
+    {
+        return $this->texto($clave, $etiqueta, $columna,
+            orden: fn ($query) => $this->dePersona($query->selectRaw('COALESCE(personas.nro_documento, personas.ruc)'), $columna, $via),
+            filtro: fn ($query, string $valor) => $query->whereIn($columna, fn ($sub) => $this->idsDePersonas($sub, $via, fn ($personas) => $personas
+                ->whereLike('personas.nro_documento', "%{$valor}%")->orWhereLike('personas.ruc', "%{$valor}%"))));
+    }
+
+    /** Para intercalar columnas armadas en otro lado: ->pipe(fn (Grilla $grilla) => $this->columnasDePersona($grilla)). */
+    public function pipe(Closure $paso): self
+    {
+        return $paso($this);
     }
 
     /** Columna que solo se muestra (ni orden ni filtro): para datos que no salen de la consulta. */
@@ -234,6 +280,22 @@ final class Grilla
     {
         return preg_match('#^\d{2}/\d{2}/\d{4}$#', $texto) && Carbon::canBeCreatedFromFormat($texto, Fecha::FORMATO)
             && Carbon::createFromFormat(Fecha::FORMATO, $texto)->format(Fecha::FORMATO) === $texto ? Fecha::aIso($texto) : null;
+    }
+
+    /** Subconsulta de orden: la persona de la fila (directa o por la tabla del rol). */
+    private function dePersona($query, string $columna, ?string $via)
+    {
+        return $via
+            ? $query->from('personas')->join($via, "{$via}.persona_id", '=', 'personas.id')->whereColumn("{$via}.id", $columna)
+            : $query->from('personas')->whereColumn('personas.id', $columna);
+    }
+
+    /** Subconsulta de filtro: ids (de persona, o del rol con "via") de las personas que cumplen la condición. */
+    private function idsDePersonas($sub, ?string $via, Closure $condicion)
+    {
+        return $via
+            ? $sub->select("{$via}.id")->from($via)->join('personas', 'personas.id', '=', "{$via}.persona_id")->where($condicion)
+            : $sub->select('personas.id')->from('personas')->where($condicion);
     }
 
     /** null: la columna de la grilla; false: ninguno; otro: ese. */

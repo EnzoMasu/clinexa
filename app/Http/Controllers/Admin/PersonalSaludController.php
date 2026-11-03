@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Models\CargoSalud;
 use App\Models\PersonalSalud;
+use App\Support\Grilla\Grilla;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -27,6 +28,14 @@ class PersonalSaludController extends RolPersonaController
     protected function nombre(): string
     {
         return 'Personal de salud';
+    }
+
+    protected function grilla(Request $request, string $tabla): Grilla
+    {
+        return $this->columnasDePersona(Grilla::de($request))
+            ->textoDe('cargo', 'Cargo', "{$tabla}.cargo_salud_id", 'cargos_salud')
+            ->texto('registro', 'Registro profesional', "{$tabla}.registro_profesional")
+            ->estado('estado', 'Estado', "{$tabla}.estado_id", PersonalSalud::class);
     }
 
     protected function relacionesListado(): array

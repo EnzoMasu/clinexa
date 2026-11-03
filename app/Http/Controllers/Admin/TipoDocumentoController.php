@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Estado;
 use App\Models\ModuloSistema;
 use App\Models\TipoDocumento;
+use App\Support\Grilla\Grilla;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,9 +23,18 @@ class TipoDocumentoController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $grilla = Grilla::de($request)
+            ->texto('codigo', 'Código', 'codigo')
+            ->texto('nombre', 'Nombre', 'nombre')
+            // Varios módulos por tipo: se filtra por uno; ordenar por una lista no tiene sentido.
+            ->opciones('modulos', 'Habilitado en', 'id', \App\Models\ModuloSistema::query()->whereHas('tiposDocumento')->orderBy('nombre')->pluck('nombre', 'codigo')->all(),
+                orden: false, filtro: fn ($query, $codigo) => $query->whereHas('modulos', fn ($query) => $query->where('codigo', $codigo)))
+            ->estado('estado', 'Estado', 'estado_id', TipoDocumento::class);
+
         return $this->listado($request, 'admin.tipos-documento', [
-            'tiposDocumento' => $this->buscarEn(TipoDocumento::with('modulos'), $busqueda, ['codigo', 'nombre'])
-                ->orderBy('codigo')->paginate(15)->withQueryString(),
+            'tiposDocumento' => $grilla->aplicar($this->buscarEn(TipoDocumento::with('modulos'), $busqueda, ['codigo', 'nombre']), fn ($query) => $query->orderBy('codigo'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

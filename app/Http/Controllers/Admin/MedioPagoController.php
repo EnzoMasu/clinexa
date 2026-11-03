@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MedioPago;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,10 +16,14 @@ class MedioPagoController extends Controller
     public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Nombre', 'nombre')
+            ->estado('estado', 'Estado', 'estado_id', MedioPago::class);
 
         return $this->listado($request, 'admin.medios-pago', [
-            'mediosPago' => $this->buscarEn(MedioPago::query(), $busqueda, ['nombre'])
-                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'mediosPago' => $grilla->aplicar($this->buscarEn(MedioPago::query(), $busqueda, ['nombre']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

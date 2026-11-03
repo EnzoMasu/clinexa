@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Ciudad;
 use App\Models\Estado;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -17,6 +18,12 @@ class CiudadController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Ciudad', 'ciudades.nombre')
+            ->texto('departamento', 'Departamento', 'departamentos.nombre')
+            ->texto('pais', 'País', 'paises.nombre')
+            ->estado('estado', 'Estado', 'ciudades.estado_id', Ciudad::class);
+
         // Busca por ciudad, departamento o país.
         $ciudades = Ciudad::query()
             ->select('ciudades.*')
@@ -26,14 +33,15 @@ class CiudadController extends Controller
             ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('ciudades.nombre', "%{$busqueda}%")
                 ->orWhereLike('departamentos.nombre', "%{$busqueda}%")
-                ->orWhereLike('paises.nombre', "%{$busqueda}%")))
+                ->orWhereLike('paises.nombre', "%{$busqueda}%")));
+        $ciudades = $grilla->aplicar($ciudades, fn ($query) => $query
             ->orderBy('paises.nombre')
             ->orderBy('departamentos.nombre')
-            ->orderBy('ciudades.nombre')
+            ->orderBy('ciudades.nombre'))
             ->paginate(20)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.ciudades', compact('ciudades', 'busqueda'));
+        return $this->listado($request, 'admin.ciudades', compact('ciudades', 'busqueda', 'grilla'));
     }
 
     public function create(): View
