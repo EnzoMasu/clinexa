@@ -1,0 +1,251 @@
+<?php
+
+namespace App\Support\Grilla;
+
+use App\Models\Estado;
+use App\Support\Fecha;
+use Closure;
+use Illuminate\Contracts\Database\Query\Builder;
+use Illuminate\Contracts\Database\Query\Expression;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+
+/**
+ * Orden y filtros por columna de un listado (docs/grillas.md). Todo se resuelve en la consulta: el
+ * navegador solo manda "orden", "dir" y "f[clave]" en la URL. Solo cuentan las columnas declaradas
+ * acá (lista blanca): cualquier otra clave, dirección o valor que no corresponda se ignora.
+ *
+ * Uso en el controlador:
+ *   $grilla = Grilla::de($request)->texto('nombre', 'Nombre', 'paises.nombre')->estado('estado', 'Estado', 'paises.estado_id');
+ *   $grilla->aplicar($query, fn ($query) => $query->orderBy('nombre'))->paginate(20)->withQueryString();
+ * y en la vista: <x-admin.table :grilla="$grilla" :paginator="...">.
+ */
+final class Grilla
+{
+    /** Id del formulario del listado (x-admin.listado) al que pertenecen los campos de la fila de filtros. */
+    public const FORMULARIO = 'filtros-grilla';
+
+    /** Atributo de la request que marca que el listado usa una grilla (para RecordarGrilla). */
+    public const ATRIBUTO = 'grilla';
+
+    /** @var array<string, Columna> */
+    private array $columnas = [];
+
+    private function __construct(private readonly Request $request)
+    {
+        $request->attributes->set(self::ATRIBUTO, true);
+    }
+
+    public static function de(Request $request): self
+    {
+        return new self($request);
+    }
+
+    /** Texto: el filtro busca lo escrito en cualquier parte (sin distinguir mayúsculas). */
+    public function texto(string $clave, string $etiqueta, string|Expression $columna, string|Expression|Closure|false|null $orden = null, string|Expression|Closure|false|null $filtro = null): self
+    {
+        return $this->agregar(new Columna($clave, $etiqueta, Columna::TEXTO, $this->o($orden, $columna), $this->o($filtro, $columna)));
+    }
+
+    /** Número o importe: el filtro compara el valor exacto (acepta 1.500 o 1500; la coma es decimal). */
+    public function numero(string $clave, string $etiqueta, string|Expression $columna, string|Expression|Closure|false|null $orden = null, string|Expression|Closure|false|null $filtro = null): self
+    {
+        return $this->agregar(new Columna($clave, $etiqueta, Columna::NUMERO, $this->o($orden, $columna), $this->o($filtro, $columna)));
+    }
+
+    /**
+     * Fecha: el filtro es un rango desde/hasta (dd/mm/aaaa, ambos incluidos). "utc": la columna es un
+     * instante guardado en UTC (el día se toma en la hora local de la clínica).
+     */
+    public function fecha(string $clave, string $etiqueta, string|Expression $columna, bool $utc = false, string|Expression|Closure|false|null $orden = null): self
+    {
+        return $this->agregar(new Columna($clave, $etiqueta, Columna::FECHA, $this->o($orden, $columna), $columna, utc: $utc));
+    }
+
+    /**
+     * Desplegable: valor => etiqueta. Sin "filtro", compara la columna con el valor elegido; con una función
+     * fn ($query, $valor), la aplica (el valor ya es una de las opciones).
+     *
+     * @param  array<string|int, string>  $opciones
+     */
+    public function opciones(string $clave, string $etiqueta, string|Expression $columna, array $opciones, string|Expression|Closure|false|null $orden = null, Closure|false|null $filtro = null): self
+    {
+        return $this->agregar(new Columna($clave, $etiqueta, Columna::OPCIONES, $this->o($orden, $columna), $this->o($filtro, $columna), $opciones));
+    }
+
+    /**
+     * Estado (tabla estados): desplegable con los estados que se indiquen (por defecto ACTIVO e INACTIVO),
+     * ordenado por el nombre del estado.
+     *
+     * @param  list<string>  $codigos
+     */
+    public function estado(string $clave, string $etiqueta, string $columna, array $codigos = [Estado::ACTIVO, Estado::INACTIVO]): self
+    {
+        $opciones = Estado::query()->whereIn('codigo', $codigos)->pluck('nombre', 'codigo')
+            ->sortBy(fn ($nombre, $codigo) => array_search($codigo, $codigos, true))->all();
+
+        return $this->opciones($clave, $etiqueta, $columna, $opciones,
+            orden: fn ($query) => $query->select('nombre')->from('estados')->whereColumn('estados.id', $columna),
+            filtro: fn ($query, string $codigo) => $query->where($columna, Estado::idDe($codigo)));
+    }
+
+    /** Columna que solo se muestra (ni orden ni filtro): para datos que no salen de la consulta. */
+    public function fija(string $clave, string $etiqueta): self
+    {
+        return $this->agregar(new Columna($clave, $etiqueta, Columna::TEXTO, null, null));
+    }
+
+    /**
+     * Aplica los filtros y el orden pedidos. Sin orden pedido (o con uno no permitido), "porDefecto" pone el
+     * orden habitual del listado. Con orden pedido, se desempata por la clave primaria (paginación estable).
+     */
+    public function aplicar(Builder $query, ?Closure $porDefecto = null): Builder
+    {
+        foreach ($this->columnas as $columna) {
+            if ($columna->filtrable()) {
+                $this->filtrar($query, $columna, $this->valor($columna->clave));
+            }
+        }
+
+        $columna = $this->ordenada();
+        if ($columna === null) {
+            return $porDefecto ? ($porDefecto($query) ?? $query) : $query;
+        }
+
+        $query->orderBy($columna->orden, $this->direccion());
+        if (method_exists($query, 'getModel')) {
+            $query->orderBy($query->getModel()->getQualifiedKeyName(), $this->direccion());
+        }
+
+        return $query;
+    }
+
+    /** @return array<string, Columna> */
+    public function columnas(): array
+    {
+        return $this->columnas;
+    }
+
+    /** La columna por la que se ordena, si la pedida es válida. */
+    public function ordenada(): ?Columna
+    {
+        $clave = $this->request->query('orden');
+        $columna = is_string($clave) ? ($this->columnas[$clave] ?? null) : null;
+
+        return $columna?->ordenable() ? $columna : null;
+    }
+
+    public function direccion(): string
+    {
+        return $this->request->query('dir') === 'desc' ? 'desc' : 'asc';
+    }
+
+    /** Lo que se ve en el campo del filtro: texto, o ['desde' => ..., 'hasta' => ...] en las fechas. */
+    public function valor(string $clave): string|array
+    {
+        $columna = $this->columnas[$clave] ?? null;
+        $valor = ($this->request->query('f') ?? [])[$clave] ?? null;
+        $texto = fn (mixed $v) => is_string($v) ? mb_substr(trim($v), 0, 100) : '';
+
+        if ($columna?->tipo === Columna::FECHA) {
+            return ['desde' => $texto(is_array($valor) ? ($valor['desde'] ?? null) : null), 'hasta' => $texto(is_array($valor) ? ($valor['hasta'] ?? null) : null)];
+        }
+
+        return $texto($valor);
+    }
+
+    public function hayFiltros(): bool
+    {
+        foreach ($this->columnas as $columna) {
+            $valor = $this->valor($columna->clave);
+            if ($columna->filtrable() && (is_array($valor) ? implode('', $valor) !== '' : $valor !== '')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** URL para ordenar por la columna: asc, y desc si ya estaba en asc. Vuelve a la página 1. */
+    public function urlOrden(string $clave): string
+    {
+        $dir = $this->ordenada()?->clave === $clave && $this->direccion() === 'asc' ? 'desc' : 'asc';
+
+        return $this->request->fullUrlWithQuery(['orden' => $clave, 'dir' => $dir, 'page' => null]);
+    }
+
+    /** El listado sin filtros por columna ni orden (conserva la búsqueda general y los filtros de arriba). */
+    public function urlLimpiar(): string
+    {
+        return $this->request->fullUrlWithoutQuery(['f', 'orden', 'dir', 'page']);
+    }
+
+    private function filtrar(Builder $query, Columna $columna, string|array $valor): void
+    {
+        if ($columna->filtro instanceof Closure && $columna->tipo !== Columna::FECHA) {
+            $valor = $this->normalizar($columna, $valor);
+            if ($valor !== null) {
+                ($columna->filtro)($query, $valor);
+            }
+
+            return;
+        }
+
+        match ($columna->tipo) {
+            Columna::TEXTO => $valor !== '' && $query->whereLike($columna->filtro, "%{$valor}%"),
+            Columna::NUMERO => ($numero = $this->normalizar($columna, $valor)) !== null && $query->where($columna->filtro, $numero),
+            Columna::OPCIONES => ($opcion = $this->normalizar($columna, $valor)) !== null && $query->where($columna->filtro, $opcion),
+            Columna::FECHA => $this->filtrarFecha($query, $columna, $valor),
+        };
+    }
+
+    /** El valor listo para comparar, o null si está vacío o no es válido para la columna. */
+    private function normalizar(Columna $columna, string|array $valor): mixed
+    {
+        if (is_array($valor) || $valor === '') {
+            return null;
+        }
+
+        return match ($columna->tipo) {
+            Columna::NUMERO => preg_match('/^-?\d+(,\d+)?$/', $numero = str_replace(['.', ' '], '', $valor)) ? str_replace(',', '.', $numero) : null,
+            Columna::OPCIONES => array_key_exists($valor, $columna->opciones) ? $valor : null,
+            default => $valor,
+        };
+    }
+
+    private function filtrarFecha(Builder $query, Columna $columna, array $valor): void
+    {
+        $desde = $this->iso($valor['desde']);
+        $hasta = $this->iso($valor['hasta']);
+
+        if ($columna->utc) {
+            $zona = config('app.zona_horaria_local');
+            $desde && $query->where($columna->filtro, '>=', Carbon::parse($desde, $zona)->startOfDay()->utc());
+            $hasta && $query->where($columna->filtro, '<', Carbon::parse($hasta, $zona)->addDay()->startOfDay()->utc());
+
+            return;
+        }
+
+        $desde && $query->whereDate($columna->filtro, '>=', $desde);
+        $hasta && $query->whereDate($columna->filtro, '<=', $hasta);
+    }
+
+    private function iso(string $texto): ?string
+    {
+        return preg_match('#^\d{2}/\d{2}/\d{4}$#', $texto) && Carbon::canBeCreatedFromFormat($texto, Fecha::FORMATO)
+            && Carbon::createFromFormat(Fecha::FORMATO, $texto)->format(Fecha::FORMATO) === $texto ? Fecha::aIso($texto) : null;
+    }
+
+    /** null: la columna de la grilla; false: ninguno; otro: ese. */
+    private function o(mixed $valor, mixed $columna): mixed
+    {
+        return $valor === false ? null : ($valor ?? $columna);
+    }
+
+    private function agregar(Columna $columna): self
+    {
+        $this->columnas[$columna->clave] = $columna;
+
+        return $this;
+    }
+}

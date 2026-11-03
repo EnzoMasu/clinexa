@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pais;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,11 +16,17 @@ class PaisController extends Controller
     public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
+        $grilla = Grilla::de($request)
+            ->texto('codigo', 'Código', 'paises.codigo')
+            ->texto('nombre', 'Nombre', 'paises.nombre')
+            ->numero('departamentos', 'Departamentos', 'departamentos_count', filtro: fn ($query, $n) => $query->has('departamentos', '=', (int) $n))
+            ->estado('estado', 'Estado', 'paises.estado_id');
 
         return $this->listado($request, 'admin.paises', [
-            'paises' => $this->buscarEn(Pais::query()->withCount('departamentos'), $busqueda, ['nombre', 'codigo'])
-                ->orderBy('nombre')->paginate(20)->withQueryString(),
+            'paises' => $grilla->aplicar($this->buscarEn(Pais::query()->withCount('departamentos'), $busqueda, ['nombre', 'codigo']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(20)->withQueryString(),
             'busqueda' => $busqueda,
+            'grilla' => $grilla,
         ]);
     }
 

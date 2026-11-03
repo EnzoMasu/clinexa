@@ -140,7 +140,10 @@ test('el formulario de alta no busca al abrirse: pide escribir al menos 2 caract
         ->assertSee('hasta 15 resultados')
         ->getContent();
 
-    expect($html)->toContain('x-on:input.debounce.350ms="buscar()"')->toContain('minimo: 2');
+    expect($html)->toContain('x-on:input.debounce.350ms="buscar()"')->toContain('minimo: 2')
+        // La pista es el placeholder de la caja, no una fila aparte debajo.
+        ->toContain('placeholder="Escriba al menos 2 caracteres del nombre o del documento para buscar."')
+        ->and(substr_count($html, 'Escriba al menos 2 caracteres'))->toBe(2); // placeholder y title
 });
 
 test('no se puede crear el rol para una persona inactiva', function (string $ruta, string $modelo, array $campos) {

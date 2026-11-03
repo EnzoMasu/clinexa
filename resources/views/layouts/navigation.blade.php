@@ -130,7 +130,8 @@
                                         'mt-1 border-t border-gray-100 dark:border-gray-600' => ! $loop->first,
                                     ])>{{ $grupo }}</div>
                                     @foreach ($secciones as $ruta => $etiqueta)
-                                        <x-dropdown-link :href="route($ruta.'.index')">{{ $etiqueta }}</x-dropdown-link>
+                                        {{-- Sin Referer: desde el menú la grilla arranca limpia (RecordarGrilla). --}}
+                                        <x-dropdown-link :href="route($ruta.'.index')" referrerpolicy="no-referrer">{{ $etiqueta }}</x-dropdown-link>
                                     @endforeach
                                 @endforeach
                             </div>
@@ -200,7 +201,7 @@
                 @foreach ($gruposAdmin as $grupo => $secciones)
                     <div role="presentation" data-grupo-menu-movil="{{ $grupo }}" class="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 select-none">{{ $grupo }}</div>
                     @foreach ($secciones as $ruta => $etiqueta)
-                        <x-responsive-nav-link :href="route($ruta.'.index')" :active="request()->routeIs($ruta.'.*')">
+                        <x-responsive-nav-link :href="route($ruta.'.index')" :active="request()->routeIs($ruta.'.*')" referrerpolicy="no-referrer">
                             {{ $etiqueta }}
                         </x-responsive-nav-link>
                     @endforeach
