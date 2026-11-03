@@ -22,7 +22,7 @@ function grillasTodasRutas(): array
         'convenios.index', 'convenios.tarifas', 'departamentos.index', 'dietas.index', 'disponibilidades.index',
         'equipos.index', 'especialidades.index', 'estudios.index', 'facturas.index', 'facturas.timbrados',
         'facturas.tasas-iva', 'historias-clinicas.index', 'liquidaciones.index', 'medios-pago.index',
-        'motivos-anulacion.index', 'origenes-turno.index', 'pacientes.index', 'paises.index', 'perfiles-acceso.index',
+        'facturas.motivos', 'origenes-turno.index', 'pacientes.index', 'paises.index', 'perfiles-acceso.index',
         'personal-salud.index', 'personas.index', 'prestaciones.index', 'procedimientos.index', 'profesionales.index',
         'proveedores.index', 'responsables-pago.index', 'sucursales.index', 'tarifas.index', 'tipos-bloque-anamnesis.index',
         'tipos-documento.index', 'tipos-equipo.index', 'tipos-indicacion.index', 'tipos-red-social.index', 'turnos.index',

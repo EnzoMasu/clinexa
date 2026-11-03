@@ -1,7 +1,7 @@
 @use('App\Support\Fecha')
 @use('App\Support\Permisos')
 
-<x-admin.table :headers="['Nombre', 'Documento', 'Correo', 'Perfiles de acceso', 'Estado', 'Último acceso']" :paginator="$usuarios">
+<x-admin.table :grilla="$grilla" :paginator="$usuarios">
     @forelse ($usuarios as $usuario)
         <tr>
             <td class="px-6 py-4 font-medium">

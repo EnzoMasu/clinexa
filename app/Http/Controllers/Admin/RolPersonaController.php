@@ -58,17 +58,7 @@ abstract class RolPersonaController extends Controller
     /** Nombre (o razón social) y documento de la persona del rol, sobre personas unida a la consulta. */
     protected function columnasDePersona(Grilla $grilla, string $etiqueta = 'Nombre'): Grilla
     {
-        return $grilla
-            ->texto('nombre', $etiqueta, 'personas.apellidos',
-                orden: DB::raw("COALESCE(personas.apellidos || ', ' || personas.nombres, personas.apellidos, personas.razon_social, personas.nombres)"),
-                filtro: fn ($query, $valor) => $query->where(fn ($query) => $query
-                    ->whereLike('personas.apellidos', "%{$valor}%")->orWhereLike('personas.nombres', "%{$valor}%")
-                    ->orWhereLike('personas.razon_social', "%{$valor}%")
-                    ->orWhereLike(DB::raw("personas.apellidos || ', ' || personas.nombres"), "%{$valor}%")))
-            ->texto('documento', 'Documento', 'personas.nro_documento',
-                orden: DB::raw('COALESCE(personas.nro_documento, personas.ruc)'),
-                filtro: fn ($query, $valor) => $query->where(fn ($query) => $query
-                    ->whereLike('personas.nro_documento', "%{$valor}%")->orWhereLike('personas.ruc', "%{$valor}%")));
+        return $grilla->nombrePersona('nombre', $etiqueta)->documentoPersona('documento', 'Documento');
     }
 
     /** Relaciones que se precargan en el listado (evita una consulta por fila). */

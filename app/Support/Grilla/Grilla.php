@@ -120,6 +120,28 @@ final class Grilla
                 ->orWhereLike('personas.razon_social', "%{$valor}%")->orWhereLike(DB::raw($nombre), "%{$valor}%"))));
     }
 
+    /**
+     * Nombre de la persona cuando la tabla personas (o su alias "t") ya está unida a la consulta: ordena por
+     * "Apellidos, Nombres" o la razón social, y el filtro busca en apellidos, nombres y razón social.
+     */
+    public function nombrePersona(string $clave, string $etiqueta, string $t = 'personas'): self
+    {
+        $nombre = "COALESCE({$t}.apellidos || ', ' || {$t}.nombres, {$t}.apellidos, {$t}.razon_social, {$t}.nombres)";
+
+        return $this->texto($clave, $etiqueta, "{$t}.apellidos", orden: DB::raw($nombre),
+            filtro: fn ($query, $valor) => $query->where(fn ($query) => $query
+                ->whereLike("{$t}.apellidos", "%{$valor}%")->orWhereLike("{$t}.nombres", "%{$valor}%")
+                ->orWhereLike("{$t}.razon_social", "%{$valor}%")->orWhereLike(DB::raw("{$t}.apellidos || ', ' || {$t}.nombres"), "%{$valor}%")));
+    }
+
+    /** Documento (número o RUC) de la persona unida a la consulta, como nombrePersona(). */
+    public function documentoPersona(string $clave, string $etiqueta, string $t = 'personas'): self
+    {
+        return $this->texto($clave, $etiqueta, "{$t}.nro_documento", orden: DB::raw("COALESCE({$t}.nro_documento, {$t}.ruc)"),
+            filtro: fn ($query, $valor) => $query->where(fn ($query) => $query
+                ->whereLike("{$t}.nro_documento", "%{$valor}%")->orWhereLike("{$t}.ruc", "%{$valor}%")));
+    }
+
     /** Documento de una persona (número de documento o RUC), como persona(). */
     public function documento(string $clave, string $etiqueta, string $columna, ?string $via = null): self
     {
