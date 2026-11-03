@@ -76,17 +76,19 @@ final class Grilla
 
     /**
      * Estado (tabla estados): desplegable con los estados indicados, o con los permitidos del modelo
-     * (TieneEstado::estadosPermitidos) si se pasa su clase; por defecto ACTIVO e INACTIVO. Ordena por el
-     * nombre del estado.
+     * (TieneEstado::estadosPermitidos) si se pasa su clase, o código => etiqueta (las ETIQUETAS del modelo);
+     * por defecto ACTIVO e INACTIVO. Ordena por el nombre del estado.
      *
-     * @param  list<string>|class-string  $codigos
+     * @param  list<string>|array<string, string>|class-string  $codigos
      */
     public function estado(string $clave, string $etiqueta, string $columna, array|string $codigos = [Estado::ACTIVO, Estado::INACTIVO]): self
     {
-        $opciones = is_string($codigos)
-            ? $codigos::estadosPermitidos()->pluck('nombre', 'codigo')->all()
-            : Estado::query()->whereIn('codigo', $codigos)->pluck('nombre', 'codigo')
-                ->sortBy(fn ($nombre, $codigo) => array_search($codigo, $codigos, true))->all();
+        $opciones = match (true) {
+            is_string($codigos) => $codigos::estadosPermitidos()->pluck('nombre', 'codigo')->all(),
+            ! array_is_list($codigos) => $codigos,
+            default => Estado::query()->whereIn('codigo', $codigos)->pluck('nombre', 'codigo')
+                ->sortBy(fn ($nombre, $codigo) => array_search($codigo, $codigos, true))->all(),
+        };
         $opciones = $opciones ?: Estado::query()->whereIn('codigo', [Estado::ACTIVO, Estado::INACTIVO])->orderBy('id')->pluck('nombre', 'codigo')->all();
 
         return $this->opciones($clave, $etiqueta, $columna, $opciones,

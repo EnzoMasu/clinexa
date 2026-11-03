@@ -11,6 +11,7 @@ use App\Models\Prestacion;
 use App\Models\Profesional;
 use App\Support\Convenios\CalcularCobertura;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use App\Support\Permisos;
 use App\Support\Prestaciones\AnularPrestacion;
 use App\Support\Prestaciones\GenerarPrestacion;
@@ -21,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -49,6 +51,19 @@ class PrestacionController extends Controller
         $veAvisos = $request->user()->tienePermiso('VISACIONES', 'VER');
         $soloConAviso = $veAvisos && $request->query('cobertura') === 'AVISO';
 
+        $grilla = Grilla::de($request)
+            ->fecha('fecha', 'Fecha', 'prestaciones.fecha_servicio')
+            ->nombrePersona('paciente', 'Paciente')
+            ->persona('profesional', 'Profesional', 'prestaciones.profesional_id', via: 'profesionales')
+            ->textoDe('procedimiento', 'Procedimiento', 'prestaciones.procedimiento_id', 'procedimientos')
+            ->opciones('origen', 'Origen', 'prestaciones.informe_estudio_id', Prestacion::ORIGENES,
+                orden: DB::raw('prestaciones.informe_estudio_id IS NOT NULL'),
+                filtro: fn ($query, $origen) => $origen === 'INFORME' ? $query->whereNotNull('prestaciones.informe_estudio_id') : $query->whereNull('prestaciones.informe_estudio_id'))
+            ->numero('monto', 'Monto', 'prestaciones.monto')
+            ->estado('estado', 'Estado', 'prestaciones.estado_id', Prestacion::ETIQUETAS)
+            ->opciones('cobro', 'Cobro', 'cobro_vigente_exists', [Prestacion::COBRADA => Prestacion::COBRADA, Prestacion::PENDIENTE_DE_COBRO => Prestacion::PENDIENTE_DE_COBRO],
+                filtro: fn ($query, $valor) => $valor === Prestacion::COBRADA ? $query->whereHas('cobroVigente') : $query->whereDoesntHave('cobroVigente'));
+
         $prestaciones = ($soloPendientesDeReparto ? RepartirPrestacion::pendientes() : ($soloConAviso ? CalcularCobertura::conAviso() : Prestacion::query()))
             ->join('pacientes', 'pacientes.id', '=', 'prestaciones.paciente_id')
             ->join('personas', 'personas.id', '=', 'pacientes.persona_id')
@@ -63,11 +78,11 @@ class PrestacionController extends Controller
                 ->orWhereLike('personas.nombres', "%{$busqueda}%")
                 ->orWhereLike('personas.nro_documento', "{$busqueda}%")
                 ->orWhereLike('pacientes.nro_ficha', "%{$busqueda}%")))
-            ->orderByDesc('prestaciones.fecha_servicio')->orderByDesc('prestaciones.id')
             ->select('prestaciones.*')
             ->with(['paciente.persona', 'profesional.persona', 'procedimiento', 'moneda'])
             // El estado de cobro (Cobrada / Pendiente), derivado de si tiene un cobro vigente (docs/cobros-caja.md).
-            ->withExists('cobroVigente')
+            ->withExists('cobroVigente');
+        $prestaciones = $grilla->aplicar($prestaciones, fn ($query) => $query->orderByDesc('prestaciones.fecha_servicio')->orderByDesc('prestaciones.id'))
             ->paginate(20)->withQueryString();
 
         // "Consultas sin prestación" (solo lo finalizado desde el inicio del módulo): las consultas sin la base y los informes de
@@ -92,6 +107,7 @@ class PrestacionController extends Controller
             'pendientesDeGenerar' => $sinPrestacion && $puedeGenerar ? $this->pendientesDeGenerar($sinPrestacion, $informesSinPrestacion) : collect(),
             'puedeGenerar' => $puedeGenerar,
             'prestaciones' => $prestaciones,
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
             'filtros' => ['desde' => $desde, 'hasta' => $hasta, 'profesional' => $profesionalId, 'estado' => $estado, 'origen' => $origen, 'reparto' => $soloPendientesDeReparto ? 'PENDIENTE' : null,
                 'cobertura' => $soloConAviso ? 'AVISO' : null],

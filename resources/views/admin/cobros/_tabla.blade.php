@@ -1,6 +1,6 @@
 @use('App\Support\Fecha')
 
-<x-admin.table :headers="['Fecha', 'Paciente', 'Prestaciones', 'Medios', 'Total', 'Estado', 'Cajero']" :paginator="$cobros">
+<x-admin.table :grilla="$grilla" :paginator="$cobros">
     @forelse ($cobros as $cobro)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($cobro->cobrado_en, conHora: true) }}</td>
