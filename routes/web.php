@@ -31,6 +31,7 @@ use App\Http\Controllers\Admin\EquipoController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\EstudioController;
 use App\Http\Controllers\Admin\HistoriaClinicaController;
+use App\Http\Controllers\Admin\CompraController;
 use App\Http\Controllers\Admin\LiquidacionController;
 use App\Http\Controllers\Admin\OrdenEstudioController;
 use App\Http\Controllers\Admin\MatrizPermisosController;
@@ -451,6 +452,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     // El ticket de la aseguradora: PDF al vuelo, sin montos ni nada clínico; no se guarda en la caché.
     Route::get('consultas/{consulta}/ticket-aseguradora', [CoberturaController::class, 'ticket'])->name('visaciones.ticket')->whereNumber('consulta')
         ->middleware(['permiso:VISACIONES,EXPORTAR', SinAlmacenar::class]);
+
+    // Compras y gastos (docs/compras-gastos.md): carga y edición del borrador y detalle. El listado, el flujo y la imagen se suman por fases.
+    Route::get('compras/create', [CompraController::class, 'create'])->name('compras.create')->middleware('permiso:COMPRAS,CREAR');
+    Route::post('compras', [CompraController::class, 'store'])->name('compras.store')->middleware('permiso:COMPRAS,CREAR');
+    Route::get('compras/{compra}', [CompraController::class, 'show'])->name('compras.show')->whereNumber('compra')->middleware('permiso:COMPRAS,VER');
+    Route::get('compras/{compra}/edit', [CompraController::class, 'edit'])->name('compras.edit')->whereNumber('compra')->middleware('permiso:COMPRAS,EDITAR');
+    Route::put('compras/{compra}', [CompraController::class, 'update'])->name('compras.update')->whereNumber('compra')->middleware('permiso:COMPRAS,EDITAR');
 
     // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): un solo módulo con tres pestañas (liquidaciones, por cobrar por
     // aseguradora y prestaciones sin firma). Facturación arma, quita líneas, envía y registra pagos; Gerencia aprueba o devuelve. Nada se

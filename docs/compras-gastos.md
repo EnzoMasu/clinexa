@@ -1,8 +1,8 @@
 # Compras y gastos
 
 Registro de las compras y los gastos operativos de la clínica con su comprobante, categoría de gasto, condición e IVA. Spec, plan y
-tareas en `specs/001-compras-gastos/`. **Estado**: en construcción (esquema, permisos y catálogo de tipos listos; pantallas de compras
-pendientes).
+tareas en `specs/001-compras-gastos/`. **Estado**: en construcción (esquema, permisos y catálogo de tipos listos; alta, edición y detalle de la compra listos; flujo,
+listado e imagen pendientes).
 
 ## Alcance
 
