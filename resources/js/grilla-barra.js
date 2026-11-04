@@ -7,6 +7,7 @@ function ajustar(barra, tabla) {
     const ancho = tabla.scrollWidth;
     barra.firstElementChild.style.width = `${ancho}px`;
     barra.hidden = ancho <= tabla.clientWidth + 1;
+    tabla.toggleAttribute('data-desborda', !barra.hidden);
 }
 
 export function ajustarBarras() {

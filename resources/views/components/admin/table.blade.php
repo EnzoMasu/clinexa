@@ -69,8 +69,8 @@
                                         <div x-data="campoFecha({ valor: @js($valor[$extremo]) })">
                                             <input type="text" name="{{ $nombre }}[{{ $extremo }}]" form="{{ $formulario }}" value="{{ $valor[$extremo] }}"
                                                 x-ref="entrada" x-bind:value="valor" x-on:input="escribir($event)" data-grilla-fecha
-                                                placeholder="{{ $texto }} dd/mm/aaaa" inputmode="numeric" maxlength="10" autocomplete="off"
-                                                aria-label="{{ $columna->etiqueta }}: {{ mb_strtolower($texto) }} (dd/mm/aaaa)" class="{{ $campo }} min-w-[8.5rem]">
+                                                placeholder="{{ $texto }}" title="{{ $texto }} (dd/mm/aaaa)" inputmode="numeric" maxlength="10" autocomplete="off"
+                                                aria-label="{{ $columna->etiqueta }}: {{ mb_strtolower($texto) }} (dd/mm/aaaa)" class="{{ $campo }} min-w-[6.5rem]">
                                         </div>
                                     @endforeach
                                 </div>

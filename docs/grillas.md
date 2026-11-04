@@ -62,3 +62,12 @@ La página nunca se desplaza de costado: la grilla (`x-admin.table`) se desplaza
 recorte y ensanchaban la página. Arriba de los títulos hay una barra horizontal duplicada y sincronizada
 (`resources/js/grilla-barra.js`), visible solo si la tabla desborda; se rehace al cambiar la ventana y al recargar la
 tabla en vivo. No hay scroll vertical propio ni títulos fijos: la página baja normal.
+
+## Anchos de columna
+
+Todo en el componente común (`resources/css/app.css`, sobre `[data-grilla-scroll]`), sin tocar las vistas: celdas con
+0,75 rem de relleno lateral, tabla `w-max` (cada columna toma el ancho de su contenido; si no entra todo, la grilla se
+desplaza) y texto muy largo partido recién a 24 rem. Los filtros de fecha son más angostos (`Desde`/`Hasta`; el formato
+va en el `title`). La última columna (acciones) queda **fija a la derecha** (`sticky right-0`) con fondo opaco, y con
+sombra cuando la grilla desborda (`data-desborda`, lo marca `grilla-barra.js`). Elegido en vez de solo achicar porque
+con muchas acciones por fila (Confirmar, Cancelar, constancias) ninguna cantidad de ajuste garantiza que entren.
