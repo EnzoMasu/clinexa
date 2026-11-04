@@ -75,3 +75,10 @@ con muchas acciones por fila (Confirmar, Cancelar, constancias) ninguna cantidad
 Correcciones: el tema oscuro es por `media` (no hay clase `.dark`), así que el encabezado de la columna fija usa el
 variante `dark:` de Tailwind con el equivalente opaco del `<thead>`. Las acciones de Turnos van apiladas en vertical
 (`.acciones-apiladas`, también el aviso "Disponible desde"): la columna mide lo de la acción más larga y ya no tapa Visación.
+
+## Columna de acciones fija: solo si hay acciones
+
+La columna fija depende de `data-grilla-acciones`, que `x-admin.table` pone por defecto. Una grilla sin acciones pasa
+`:acciones="false"` (hoy solo Tasas de IVA, que edita en la propia celda) y ninguna columna queda fija. Acciones
+apiladas en vertical: `<x-admin.actions apilado>` (Pacientes, Historias clínicas, Prestaciones, Acuerdos de reparto,
+Tarifas, Tarifas de convenio) y, en Turnos, `.acciones-apiladas`. Regla: apilar con 3 o más acciones o textos largos.

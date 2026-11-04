@@ -215,3 +215,12 @@ test('la grilla solo scrollea en horizontal: contenedor relativo, barra de arrib
         ->and($html)->not->toMatch('#data-grilla-scroll\s+class="[^"]*overflow-y#')
         ->and($html)->not->toContain('max-h-[70vh]');
 });
+
+test('la columna fija existe solo si la grilla tiene columna de acciones', function () {
+    $paginador = new Illuminate\Pagination\LengthAwarePaginator([], 0, 10);
+
+    expect(grillaPaises()->getContent())->toContain('data-grilla-acciones')
+        ->and(Illuminate\Support\Facades\Blade::render('<x-admin.table :paginator="$p" />', ['p' => $paginador]))->toContain('data-grilla-acciones')
+        ->and(Illuminate\Support\Facades\Blade::render('<x-admin.table :paginator="$p" :acciones="false" />', ['p' => $paginador]))
+        ->toContain('data-grilla-scroll')->not->toContain('data-grilla-acciones');
+});

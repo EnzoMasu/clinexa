@@ -1,5 +1,5 @@
 {{-- Tabla de tasas de IVA (TasaIvaController::index): también la respuesta de la búsqueda en vivo. --}}
-<x-admin.table :grilla="$grilla" :paginator="$procedimientos">
+<x-admin.table :grilla="$grilla" :paginator="$procedimientos" :acciones="false">
     @forelse ($procedimientos as $procedimiento)
         <tr>
             <td class="px-6 py-4 tabular-nums">{{ $procedimiento->codigo }}</td>

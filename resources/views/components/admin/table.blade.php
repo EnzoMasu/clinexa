@@ -4,7 +4,7 @@
     Los campos de la fila pertenecen al formulario del listado (x-admin.listado) por el atributo "form":
     filtran en vivo y, sin JavaScript, se envían con el botón "Buscar". Ver docs/grillas.md.
 --}}
-@props(['headers' => [], 'paginator' => null, 'grilla' => null])
+@props(['headers' => [], 'paginator' => null, 'grilla' => null, 'acciones' => true])
 
 @php
     use App\Support\Grilla\Columna;
@@ -26,7 +26,8 @@
 @if ($esGrilla)
     <div data-grilla-barra hidden class="overflow-x-auto overflow-y-hidden" aria-hidden="true"><div class="h-px"></div></div>
 @endif
-<div @if ($esGrilla) data-grilla-scroll @endif class="relative overflow-x-auto">
+{{-- "acciones" en false: la grilla no tiene columna de acciones, y entonces ninguna columna queda fija (data-grilla-acciones). --}}
+<div @if ($esGrilla && $acciones) data-grilla-acciones @endif @if ($esGrilla) data-grilla-scroll @endif class="relative overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
         <thead class="bg-gray-50 dark:bg-gray-900/50">
             @if ($grilla)
