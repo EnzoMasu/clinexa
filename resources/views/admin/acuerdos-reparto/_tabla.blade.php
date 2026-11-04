@@ -10,7 +10,7 @@
             <td class="px-6 py-4 whitespace-nowrap tabular-nums">{{ $acuerdo->porcentajeTexto() }}</td>
             <td class="px-6 py-4">{{ $acuerdo->vigenciaTexto() }}</td>
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$acuerdo->estado" /></td>
-            <x-admin.actions>
+            <x-admin.actions apilado>
                 @if ($acuerdo->vigente() && ($cambiar = Permisos::url('admin.acuerdos-reparto.cambiar', $acuerdo)))
                     <a href="{{ $cambiar }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Cambiar porcentaje</a>
                 @endif
