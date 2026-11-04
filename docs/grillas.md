@@ -50,4 +50,7 @@ económico. El texto libre sigue sin buscar en los eventos ocultos (`AuditoriaCo
 ## Tests
 
 `tests/Feature/Grillas/GrillaTest.php` (orden, lista blanca, filtros, paginación, recordar) y `GrillasTodasTest.php`
-(cada columna de cada grilla ordena y filtra sin errores; agregar ahí las grillas nuevas).
+(cada columna de cada grilla ordena y filtra sin errores). La lista de grillas está en `tests/Feature/Grillas/rutas.php`:
+agregar ahí las nuevas. `GrillasDesplegablesTest` (grupo `lento`, con los datos demo) elige cada opción de cada desplegable
+por lo que dice y verifica que cada fila del resultado sea de ese registro: un valor que no es el id o el código real (p. ej.
+el índice 0, 1, 2…) lo hace fallar. Un desplegable nuevo necesita su línea en `grillasDesplegablesEtiquetas`.

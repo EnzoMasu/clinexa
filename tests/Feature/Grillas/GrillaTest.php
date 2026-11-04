@@ -67,7 +67,7 @@ test('el título indica el orden actual y el enlace alterna asc/desc volviendo a
 
     expect($html)->toContain('aria-sort="ascending"')
         ->and(grillaEnlaces($html))->toContain(['orden' => 'nombre', 'dir' => 'desc'], ['orden' => 'codigo', 'dir' => 'asc'])
-    ->and($html)
+        ->and($html)
         // Los campos ocultos llevan el orden al filtrar.
         ->toContain('name="orden" form="'.Grilla::FORMULARIO.'" value="nombre"');
 });
@@ -131,7 +131,7 @@ describe('al volver de un registro', function () {
         // Menú (sin Referer) u otra sección: limpia, y eso pasa a ser lo recordado.
         expect(grillaNombres(grillaPaises([], ['Referer' => route('admin.departamentos.index')])))->toHaveCount(4)
             ->and(grillaNombres(grillaPaises()))->toHaveCount(4)
-            ->and(grillaNombres(grillaPaises([], ['Referer' => route('admin.paises.edit', $arcadia)]))) ->toHaveCount(4);
+            ->and(grillaNombres(grillaPaises([], ['Referer' => route('admin.paises.edit', $arcadia)])))->toHaveCount(4);
     });
 
     test('la redirección después de guardar vuelve a la grilla como estaba', function () {
