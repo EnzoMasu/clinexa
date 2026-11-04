@@ -43,12 +43,12 @@
                 "Atender" y "No se presentó" están en la pantalla Consulta del profesional.
             --}}
             <td class="px-6 py-4 text-right whitespace-nowrap">
-                <div class="flex justify-end gap-3">
+                <div class="acciones-apiladas flex justify-end gap-3">
                     @if ($puedeCambiarEstado)
                         @foreach ($turno->accionesPosibles() as $accion)
                             @if ($accion === 'ausente' && ! $turno->llegoSuHora())
                                 {{-- La ausencia solo desde la hora del turno (Turno::pasarA lo valida igual). --}}
-                                <span class="flex items-center gap-1.5">
+                                <span class="flex flex-col items-end">
                                     <button type="button" disabled class="cursor-not-allowed text-sm font-medium text-gray-400 dark:text-gray-500">Ausente</button>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">Disponible desde {{ $turno->tieneHorario() ? substr($turno->hora_inicio, 0, 5) : Fecha::mostrar($turno->fecha) }}</span>
                                 </span>
