@@ -5,7 +5,7 @@ import altaTurno from './alta-turno';
 import buscadorCie10 from './buscador-cie10';
 import campoFecha from './campo-fecha';
 import consultaAutoguardado from './consulta-autoguardado';
-import iniciarAlturaGrillas from './grilla-altura';
+import iniciarBarraGrillas from './grilla-barra';
 import listadoEnVivo from './listado-en-vivo';
 import pantallaCobro from './pantalla-cobro';
 import pendientesProfesional from './pendientes-profesional';
@@ -31,4 +31,4 @@ Alpine.data('selectorPersona', selectorPersona);
 Alpine.data('verificarUnico', verificarUnico);
 
 Alpine.start();
-iniciarAlturaGrillas();
+iniciarBarraGrillas();

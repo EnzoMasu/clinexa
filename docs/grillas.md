@@ -54,3 +54,11 @@ económico. El texto libre sigue sin buscar en los eventos ocultos (`AuditoriaCo
 agregar ahí las nuevas. `GrillasDesplegablesTest` (grupo `lento`, con los datos demo) elige cada opción de cada desplegable
 por lo que dice y verifica que cada fila del resultado sea de ese registro: un valor que no es el id o el código real (p. ej.
 el índice 0, 1, 2…) lo hace fallar. Un desplegable nuevo necesita su línea en `grillasDesplegablesEtiquetas`.
+
+## Scroll
+
+La página nunca se desplaza de costado: la grilla (`x-admin.table`) se desplaza sola en horizontal. Su contenedor es
+`relative`; sin eso, los elementos `absolute` de la tabla (los `sr-only` de las columnas de la derecha) escapaban del
+recorte y ensanchaban la página. Arriba de los títulos hay una barra horizontal duplicada y sincronizada
+(`resources/js/grilla-barra.js`), visible solo si la tabla desborda; se rehace al cambiar la ventana y al recargar la
+tabla en vivo. No hay scroll vertical propio ni títulos fijos: la página baja normal.
