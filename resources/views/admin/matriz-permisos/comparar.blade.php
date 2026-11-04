@@ -15,7 +15,7 @@
         @if ($perfiles->isEmpty())
             <p class="text-sm text-gray-600 dark:text-gray-400">No hay perfiles de acceso cargados.</p>
         @else
-            <div class="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
+            <div class="relative overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                     <thead class="bg-gray-50 dark:bg-gray-900/50">
                         <tr>

@@ -43,7 +43,7 @@ test('una request AJAX devuelve solo el fragmento de la tabla, sin layout', func
         ->assertHeader('Vary', 'X-Requested-With')
         ->getContent();
 
-    expect(trim($html))->toStartWith('<div class="overflow-x-auto">')
+    expect(trim($html))->toStartWith('<div')->toContain('overflow-x-auto')
         ->toContain('<table')
         ->not->toContain('<html')
         ->not->toContain('<head')

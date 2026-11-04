@@ -15,9 +15,17 @@
     $campo = 'block w-full min-w-[6rem] rounded-md border-gray-300 py-1 text-xs font-normal normal-case tracking-normal shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300';
 @endphp
 
-<div class="overflow-x-auto">
+{{--
+    Scroll: un solo scroll horizontal, el de este contenedor (la página nunca se desplaza de costado). "relative" es
+    la causa de fondo: sin él, los elementos "absolute" de la tabla (p. ej. los "sr-only" de las columnas de más a la
+    derecha) tomaban la ventana como referencia, escapaban del recorte y ensanchaban la página. En una grilla
+    (con "grilla" o "paginator") el contenedor además scrollea en vertical, con alto máximo = lo que queda de la pantalla
+    (resources/js/grilla-altura.js; sin JavaScript, 70vh) y los títulos y filtros fijos. Una lista corta ocupa solo lo suyo.
+--}}
+@php($esGrilla = $grilla || $paginator)
+<div @if ($esGrilla) data-grilla-scroll @endif @class(['relative overflow-x-auto', 'overflow-y-auto overscroll-x-contain max-h-[70vh]' => $esGrilla])>
     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-        <thead class="bg-gray-50 dark:bg-gray-900/50">
+        <thead @class(['bg-gray-50 dark:bg-gray-900', 'sticky top-0 z-10 shadow-[0_1px_0_0_rgb(229,231,235)] dark:shadow-[0_1px_0_0_rgb(55,65,81)]' => $esGrilla])>
             @if ($grilla)
                 <tr>
                     @foreach ($grilla->columnas() as $columna)
@@ -96,7 +104,7 @@
 </div>
 
 @if ($paginator?->hasPages())
-    <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+    <div data-grilla-paginacion class="px-6 py-4 border-t border-gray-200 dark:border-gray-700">
         {{ $paginator->links() }}
     </div>
 @endif

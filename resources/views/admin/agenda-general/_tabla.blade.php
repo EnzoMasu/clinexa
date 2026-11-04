@@ -27,7 +27,7 @@
     @if ($columnas->isEmpty())
         <p class="px-4 py-6 text-sm text-gray-500 dark:text-gray-400">No hay profesionales ni turnos para esos filtros en esa fecha.</p>
     @else
-        <div class="overflow-x-auto px-4 py-3">
+        <div class="relative overflow-x-auto px-4 py-3">
             <table class="min-w-full border-collapse text-sm">
                 <thead>
                     <tr>

@@ -53,7 +53,7 @@
                         class="rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm">
                 </div>
 
-                <div class="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
+                <div class="relative overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                         <thead class="bg-gray-50 dark:bg-gray-900/50">
                             <tr>

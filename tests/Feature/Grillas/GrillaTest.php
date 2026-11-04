@@ -205,3 +205,11 @@ describe('desplegable diferido (Auditoría: usuario)', function () {
         $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('admin.auditoria.index', ['f' => ['usuario' => 'x; DROP']]))->assertOk();
     });
 });
+
+test('la grilla tiene su propio scroll: contenedor relativo, títulos fijos y alto máximo', function () {
+    $html = grillaPaises()->getContent();
+
+    expect($html)->toContain('data-grilla-scroll')
+        ->and($html)->toMatch('#data-grilla-scroll[^>]*class="[^"]*\brelative\b[^"]*\boverflow-x-auto\b#')
+        ->and($html)->toMatch('#<thead class="[^"]*\bsticky top-0\b#');
+});
