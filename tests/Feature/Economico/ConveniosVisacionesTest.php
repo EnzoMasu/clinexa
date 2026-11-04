@@ -497,7 +497,10 @@ function conveniosVisacionesEnvioUnico(Turno $turno, array $extra = [], bool $co
 test('el botón Visación y el estado del seguro aparecen en la Agenda general y en Turnos solo con VER sobre VISACIONES', function () {
     $turno = conveniosVisacionesTurnoEco();
     $enlace = route('admin.coberturas.show', ['paciente' => $this->paciente->id, 'turno' => $turno->id]);
-    $pantallas = [route('admin.agenda-general.index', ['fecha' => '06/10/2026']), route('admin.turnos.index')];
+    $pantallas = [route('admin.agenda-general.index', ['fecha' => '06/10/2026'])];
+    $turnosUrl = route('admin.turnos.index');
+    // Lo que dice la celda "Visación" del turno (los textos también están en el desplegable del filtro).
+    $celda = fn ($usuario) => trim(strip_tags(preg_match('/data-visacion-turno="'.$turno->id.'"[^>]*>(.*?)<\/td>/s', $this->actingAs($usuario)->get($turnosUrl)->getContent(), $m) ? $m[1] : 'SIN CELDA')); // la grilla de Turnos tiene columnas propias: Seguro y Visación
 
     // Sin cobertura: solo el botón, sin estado.
     foreach ($pantallas as $url) {
@@ -505,24 +508,38 @@ test('el botón Visación y el estado del seguro aparecen en la Agenda general y
             ->assertSee(e($enlace), false)->assertDontSee('Seguro:')->assertDontSee('Falta visación');
     }
 
+    $this->actingAs($this->recepcion)->get($turnosUrl)->assertOk()->assertSee('data-visacion-turno="'.$turno->id.'"', false);
+    expect($celda($this->recepcion))->toBe('-');
+
     // Con cobertura vigente y sin visación: "Seguro: aseguradora" y "Falta visación"; con la visación: "Visación cargada". Sin montos.
     conveniosVisacionesCobertura();
     foreach ($pantallas as $url) {
         $this->actingAs($this->recepcion)->get($url)->assertSee('Seguro: Seguros de Prueba, S.A.')->assertSee('Falta visación')->assertDontSee('Visación cargada');
     }
+    $this->actingAs($this->recepcion)->get($turnosUrl)->assertSee('Seguros de Prueba, S.A.');
+    expect($celda($this->recepcion))->toBe('Falta visar');
+    $this->actingAs($this->recepcion)->get($turnosUrl.'?f[visacion]=FALTA')->assertSee('data-visacion-turno="'.$turno->id.'"', false);
+    $this->actingAs($this->recepcion)->get($turnosUrl.'?f[visacion]=VISADO')->assertDontSee('data-visacion-turno="'.$turno->id.'"', false);
+    $this->actingAs($this->recepcion)->get($turnosUrl.'?f[visacion]=SIN_SEGURO')->assertDontSee('data-visacion-turno="'.$turno->id.'"', false);
     conveniosVisacionesVisacion($turno, [[$this->eco, LineaVisacion::APROBADO, LineaVisacion::NINGUNO]]);
     foreach ($pantallas as $url) {
         $this->actingAs($this->recepcion)->get($url)->assertSee('Visación cargada')->assertDontSee('Falta visación')->assertDontSee('₲');
     }
+    $this->actingAs($this->recepcion)->get($turnosUrl)->assertDontSee('₲');
+    expect($celda($this->recepcion))->toBe('Visado');
+    $this->actingAs($this->recepcion)->get($turnosUrl.'?f[visacion]=VISADO&orden=visacion')->assertSee('data-visacion-turno="'.$turno->id.'"', false);
+    $this->actingAs($this->recepcion)->get($turnosUrl.'?f[visacion]=FALTA&orden=seguro&dir=desc')->assertDontSee('data-visacion-turno="'.$turno->id.'"', false);
 
     // Una visación anulada vuelve a mostrar "Falta visación".
     Visacion::sole()->forceFill(['estado_id' => Estado::idDe(Estado::ANULADO)])->saveQuietly();
-    $this->actingAs($this->recepcion)->get(route('admin.turnos.index'))->assertSee('Falta visación');
+    $this->actingAs($this->recepcion)->get(route('admin.turnos.index'));
+    expect($celda($this->recepcion))->toBe('Falta visar');
 
     // Sin VER sobre VISACIONES (el Médico ve la agenda): nada de esto.
     foreach ($pantallas as $url) {
         $this->actingAs($this->medico)->get($url)->assertOk()->assertDontSee('data-visacion-turno', false)->assertDontSee('Seguro:')->assertDontSee('Falta visación');
     }
+    $this->actingAs($this->medico)->get($turnosUrl)->assertOk()->assertDontSee('data-visacion-turno', false)->assertDontSee('name="f[visacion]"', false)->assertDontSee('name="f[seguro]"', false);
 
     // Un turno cancelado no lleva el botón.
     $turno->forceFill(['estado_id' => Estado::idDe(Estado::CANCELADO)])->save();

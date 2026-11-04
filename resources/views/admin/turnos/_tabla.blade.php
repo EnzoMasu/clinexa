@@ -12,11 +12,23 @@
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($turno->fecha) }}</td>
             <td class="px-6 py-4 whitespace-nowrap"><x-admin.turno-hora :turno="$turno" fin /></td>
-            <td class="px-6 py-4">
-                <div class="font-medium">{{ $turno->paciente->persona->nombre_completo }}</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">Ficha {{ $turno->paciente->nro_ficha }}</div>
-                @include('admin.coberturas._visacion-turno')
-            </td>
+            <td class="px-6 py-4 font-medium">{{ $turno->paciente->persona->nombre_completo }}</td>
+            @if ($conVisacion)
+                @php($seguro = $visacionesTurnos[$turno->id] ?? null)
+                <td class="px-6 py-4">{{ $seguro['seguro'] ?? '-' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap" data-visacion-turno="{{ $turno->id }}">
+                    @if ($seguro)
+                        <a href="{{ route('admin.coberturas.show', ['paciente' => $turno->paciente_id, 'turno' => $turno->id, 'volver' => request()->getRequestUri()]) }}"
+                            @class([
+                                'text-sm font-medium hover:underline',
+                                'text-green-700 dark:text-green-400' => $seguro['visada'],
+                                'text-amber-700 dark:text-amber-300' => ! $seguro['visada'],
+                            ])>{{ $seguro['visada'] ? 'Visado' : 'Falta visar' }}</a>
+                    @else
+                        -
+                    @endif
+                </td>
+            @endif
             <td class="px-6 py-4">{{ $turno->profesional->persona->nombre_completo }}</td>
             <td class="px-6 py-4">{{ $turno->consultorio?->nombre_completo ?? '—' }}</td>
             <td class="px-6 py-4 text-gray-600 dark:text-gray-400">
@@ -68,6 +80,6 @@
             </td>
         </tr>
     @empty
-        <x-admin.empty-row colspan="8" :busqueda="$busqueda" />
+        <x-admin.empty-row :colspan="$conVisacion ? 10 : 8" :busqueda="$busqueda" />
     @endforelse
 </x-admin.table>

@@ -96,7 +96,10 @@ Una **visación anulada** deja a la prestación ya aplicada como está, con un a
   propio sitio) con el aviso. Acceso secundario: la ficha y el listado de Pacientes ("Cobertura y visaciones"), y la prestación. Además:
   historial de coberturas, anular visaciones con motivo y las prestaciones con cobertura o aviso, con "Aplicar visación", la firma y el
   ticket. "Cupo entre pacientes" no lleva el botón: es la pantalla del cupo por profesional, no lista turnos (los turnos entre pacientes
-  sí lo llevan en la Agenda general).
+  sí lo llevan en la Agenda general). La grilla de **Turnos** no lleva el botón: tiene las columnas **Seguro** (aseguradora de la cobertura
+  vigente; filtra por el id del responsable de pago) y **Visación** ("Falta visar" o "Visado", ambos con el enlace a esta página, o "-" sin
+  seguro o con el turno cancelado), solo con VER sobre VISACIONES; el criterio es el de `EstadoVisacionTurnos`, calculado en SQL por
+  `ColumnasVisacionTurnos` para ordenar y filtrar.
 - **Prestaciones**: el pagador, las partes, la firma y el aviso en el detalle (con el enlace a la página de la paciente y el ticket);
   para quien ve las visaciones, el aviso "Hay N prestaciones con aviso de cobertura" y el filtro.
 - **Cobrar**: la columna "A cobrar" (la parte de la paciente) y la lista "A cargo de aseguradora".

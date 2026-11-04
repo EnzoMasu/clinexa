@@ -69,6 +69,11 @@ function grillasDesplegablesEtiquetas(string $ruta, string $clave, Model $fila):
         'profesionales.especialidades' => $fila->especialidades()->syncWithoutDetaching([Especialidad::where('nombre', $texto)->sole()->id => ['activa' => true, 'fecha_desde' => '2026-01-01']]) !== [],
         'proveedores.categorias' => $nombres($fila->categorias),
         'tipos-documento.modulos' => $nombres($fila->modulos),
+        // Lo que dice la fila según el cálculo en PHP (EstadoVisacionTurnos), no según la consulta SQL que se prueba.
+        'turnos.seguro' => [\App\Support\Convenios\EstadoVisacionTurnos::para([$fila])[$fila->id]['seguro'] ?? ''],
+        'turnos.visacion' => [match (\App\Support\Convenios\EstadoVisacionTurnos::para([$fila])[$fila->id]['visada'] ?? null) {
+            true => 'Visado', false => 'Falta visar', null => 'Sin seguro',
+        }],
         'usuarios.perfiles' => $nombres($fila->perfiles),
         default => $clave === 'estado' ? grillasDesplegablesEstado($ruta === 'historias-clinicas' ? $fila->paciente : $fila) : [],
     };

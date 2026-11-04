@@ -17,6 +17,7 @@ use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
 use App\Support\Convenios\EstadoVisacionTurnos;
 use App\Support\Fecha;
+use App\Support\Convenios\ColumnasVisacionTurnos;
 use App\Support\Grilla\Grilla;
 use App\Support\Turnos\AgendarEntrePacientes;
 use Illuminate\Database\QueryException;
@@ -49,7 +50,9 @@ class TurnoController extends Controller
         $grilla = Grilla::de($request)
             ->fecha('fecha', 'Fecha', 'turnos.fecha')
             ->texto('horario', 'Horario', 'turnos.hora_inicio', filtro: false)
-            ->nombrePersona('paciente', 'Paciente', 'persona_paciente')
+            ->nombrePersona('paciente', 'Paciente', 'persona_paciente');
+        ColumnasVisacionTurnos::agregar($grilla); // Seguro y Visación, solo con VER sobre VISACIONES
+        $grilla
             ->nombrePersona('profesional', 'Profesional', 'persona_profesional')
             ->textoDe('consultorio', 'Consultorio', 'turnos.consultorio_id', 'consultorios')
             ->textoDe('procedimiento', 'Procedimiento', 'turnos.procedimiento_id', 'procedimientos')
@@ -76,7 +79,7 @@ class TurnoController extends Controller
 
         $visacionesTurnos = EstadoVisacionTurnos::para($turnos->getCollection());
 
-        return $this->listado($request, 'admin.turnos', compact('turnos', 'busqueda', 'visacionesTurnos', 'grilla'));
+        return $this->listado($request, 'admin.turnos', compact('turnos', 'busqueda', 'visacionesTurnos', 'grilla') + ['conVisacion' => EstadoVisacionTurnos::puedeVer()]);
     }
 
     public function create(): View
