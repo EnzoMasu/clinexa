@@ -98,6 +98,7 @@ export default () => ({
         const diferidos = [...this.$refs.resultados.querySelectorAll('select[data-grilla-diferida]')];
 
         this.$refs.resultados.innerHTML = html;
+        document.dispatchEvent(new Event('grilla-reemplazada'));
 
         for (const anteriorSelect of diferidos) {
             this.$refs.resultados.querySelector(`select[data-grilla-diferida][name="${CSS.escape(anteriorSelect.name)}"]`)?.replaceWith(anteriorSelect);

@@ -205,3 +205,13 @@ describe('desplegable diferido (Auditoría: usuario)', function () {
         $this->withHeader('X-Requested-With', 'XMLHttpRequest')->get(route('admin.auditoria.index', ['f' => ['usuario' => 'x; DROP']]))->assertOk();
     });
 });
+
+test('la grilla solo scrollea en horizontal: contenedor relativo, barra de arriba y sin sticky ni alto propio', function () {
+    $html = grillaPaises()->getContent();
+
+    expect($html)->toMatch('#data-grilla-scroll\s+class="[^"]*\brelative\b[^"]*\boverflow-x-auto\b#')
+        ->and($html)->toContain('data-grilla-barra')
+        ->and($html)->not->toContain('sticky top-0')
+        ->and($html)->not->toMatch('#data-grilla-scroll\s+class="[^"]*overflow-y#')
+        ->and($html)->not->toContain('max-h-[70vh]');
+});

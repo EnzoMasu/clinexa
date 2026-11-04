@@ -54,3 +54,24 @@ económico. El texto libre sigue sin buscar en los eventos ocultos (`AuditoriaCo
 agregar ahí las nuevas. `GrillasDesplegablesTest` (grupo `lento`, con los datos demo) elige cada opción de cada desplegable
 por lo que dice y verifica que cada fila del resultado sea de ese registro: un valor que no es el id o el código real (p. ej.
 el índice 0, 1, 2…) lo hace fallar. Un desplegable nuevo necesita su línea en `grillasDesplegablesEtiquetas`.
+
+## Scroll
+
+La página nunca se desplaza de costado: la grilla (`x-admin.table`) se desplaza sola en horizontal. Su contenedor es
+`relative`; sin eso, los elementos `absolute` de la tabla (los `sr-only` de las columnas de la derecha) escapaban del
+recorte y ensanchaban la página. Arriba de los títulos hay una barra horizontal duplicada y sincronizada
+(`resources/js/grilla-barra.js`), visible solo si la tabla desborda; se rehace al cambiar la ventana y al recargar la
+tabla en vivo. No hay scroll vertical propio ni títulos fijos: la página baja normal.
+
+## Anchos de columna
+
+Todo en el componente común (`resources/css/app.css`, sobre `[data-grilla-scroll]`), sin tocar las vistas: celdas con
+0,75 rem de relleno lateral, tabla `w-max` (cada columna toma el ancho de su contenido; si no entra todo, la grilla se
+desplaza) y texto muy largo partido recién a 24 rem. Los filtros de fecha son más angostos (`Desde`/`Hasta`; el formato
+va en el `title`). La última columna (acciones) queda **fija a la derecha** (`sticky right-0`) con fondo opaco, y con
+sombra cuando la grilla desborda (`data-desborda`, lo marca `grilla-barra.js`). Elegido en vez de solo achicar porque
+con muchas acciones por fila (Confirmar, Cancelar, constancias) ninguna cantidad de ajuste garantiza que entren.
+
+Correcciones: el tema oscuro es por `media` (no hay clase `.dark`), así que el encabezado de la columna fija usa el
+variante `dark:` de Tailwind con el equivalente opaco del `<thead>`. Las acciones de Turnos van apiladas en vertical
+(`.acciones-apiladas`, también el aviso "Disponible desde"): la columna mide lo de la acción más larga y ya no tapa Visación.

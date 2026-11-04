@@ -15,7 +15,18 @@
     $campo = 'block w-full min-w-[6rem] rounded-md border-gray-300 py-1 text-xs font-normal normal-case tracking-normal shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300';
 @endphp
 
-<div class="overflow-x-auto">
+{{--
+    Scroll: la grilla solo se desplaza en horizontal, y la página nunca. "relative" es la causa de fondo de la
+    barra de la página: sin él, los elementos "absolute" de la tabla (p. ej. los "sr-only" de las columnas de más a
+    la derecha) tomaban la ventana como referencia, escapaban del recorte y ensanchaban la página. En una grilla
+    (con "grilla" o "paginator") hay además una barra horizontal duplicada ARRIBA, sincronizada con la de abajo y
+    visible solo si la tabla desborda (resources/js/grilla-barra.js). Sin JavaScript queda solo la de abajo.
+--}}
+@php($esGrilla = $grilla || $paginator)
+@if ($esGrilla)
+    <div data-grilla-barra hidden class="overflow-x-auto overflow-y-hidden" aria-hidden="true"><div class="h-px"></div></div>
+@endif
+<div @if ($esGrilla) data-grilla-scroll @endif class="relative overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
         <thead class="bg-gray-50 dark:bg-gray-900/50">
             @if ($grilla)
@@ -58,8 +69,8 @@
                                         <div x-data="campoFecha({ valor: @js($valor[$extremo]) })">
                                             <input type="text" name="{{ $nombre }}[{{ $extremo }}]" form="{{ $formulario }}" value="{{ $valor[$extremo] }}"
                                                 x-ref="entrada" x-bind:value="valor" x-on:input="escribir($event)" data-grilla-fecha
-                                                placeholder="{{ $texto }} dd/mm/aaaa" inputmode="numeric" maxlength="10" autocomplete="off"
-                                                aria-label="{{ $columna->etiqueta }}: {{ mb_strtolower($texto) }} (dd/mm/aaaa)" class="{{ $campo }} min-w-[8.5rem]">
+                                                placeholder="{{ $texto }}" title="{{ $texto }} (dd/mm/aaaa)" inputmode="numeric" maxlength="10" autocomplete="off"
+                                                aria-label="{{ $columna->etiqueta }}: {{ mb_strtolower($texto) }} (dd/mm/aaaa)" class="{{ $campo }} min-w-[6.5rem]">
                                         </div>
                                     @endforeach
                                 </div>
