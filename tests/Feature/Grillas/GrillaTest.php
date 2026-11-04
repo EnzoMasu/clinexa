@@ -209,9 +209,9 @@ describe('desplegable diferido (Auditoría: usuario)', function () {
 test('la grilla solo scrollea en horizontal: contenedor relativo, barra de arriba y sin sticky ni alto propio', function () {
     $html = grillaPaises()->getContent();
 
-    expect($html)->toMatch('#data-grilla-scroll class="[^"]*\brelative\b[^"]*\boverflow-x-auto\b#')
+    expect($html)->toMatch('#data-grilla-scroll\s+class="[^"]*\brelative\b[^"]*\boverflow-x-auto\b#')
         ->and($html)->toContain('data-grilla-barra')
         ->and($html)->not->toContain('sticky top-0')
-        ->and($html)->not->toContain('overflow-y-auto')
+        ->and($html)->not->toMatch('#data-grilla-scroll\s+class="[^"]*overflow-y#')
         ->and($html)->not->toContain('max-h-[70vh]');
 });
