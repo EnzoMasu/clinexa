@@ -50,27 +50,10 @@
 
         <section aria-labelledby="listado-cajas" class="space-y-3">
             <h3 id="listado-cajas" class="font-semibold text-gray-900 dark:text-gray-100">{{ $veTodas ? 'Todas las cajas' : 'Mis cajas' }}</h3>
-            <form method="GET" action="{{ route('admin.cajas.index') }}" class="flex flex-wrap items-end gap-3">
-                <div class="w-64"><x-admin.select name="estado" label="Estado" :options="$opcionesEstado" :value="$filtroEstado" nullable /></div>
-                <x-secondary-button type="submit">Filtrar</x-secondary-button>
-            </form>
-            <x-admin.table :headers="['Fecha', 'Cajero', 'Monto inicial', 'Cobros', 'Total cobrado', 'Estado']" :paginator="$cajas">
-                @forelse ($cajas as $caja)
-                    <tr>
-                        <td class="px-6 py-3 whitespace-nowrap">{{ Fecha::mostrar($caja->fecha) }}</td>
-                        <td class="px-6 py-3">{{ $caja->cajero->persona?->nombre_completo ?? $caja->cajero->email }}</td>
-                        <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $caja->montoInicialTexto() }}</td>
-                        <td class="px-6 py-3 tabular-nums">{{ $caja->cobros_count }}</td>
-                        <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $caja->moneda->formatear($caja->cobros_sum_total ?? 0) }}</td>
-                        <td class="px-6 py-3">{{ $caja->etiquetaEstado() }}</td>
-                        <td class="px-6 py-3 text-right">
-                            <a href="{{ route('admin.cajas.show', $caja) }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Ver</a>
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">No hay cajas con este filtro.</td></tr>
-                @endforelse
-            </x-admin.table>
+            {{-- Estado, fechas y demás: en la fila de filtros de la grilla (docs/grillas.md). --}}
+            <x-admin.listado :action="route('admin.cajas.index')" :buscador="false">
+                @include('admin.cajas._tabla')
+            </x-admin.listado>
         </section>
     </div>
 </x-admin.page>

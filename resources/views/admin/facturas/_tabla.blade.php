@@ -1,6 +1,6 @@
 @use('App\Support\Fecha')
 
-<x-admin.table :headers="['Número', 'Fecha', 'Cliente', 'Total', 'Estado', 'Emitida por']" :paginator="$facturas">
+<x-admin.table :grilla="$grilla" :paginator="$facturas">
     @forelse ($facturas as $factura)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap font-medium tabular-nums">{{ $factura->numero_completo }}</td>

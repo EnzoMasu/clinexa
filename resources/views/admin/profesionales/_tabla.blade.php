@@ -1,6 +1,6 @@
 @use('App\Support\Permisos')
 
-<x-admin.table :headers="['Matrícula', 'Nombre', 'Documento', 'Especialidades', 'Estado']" :paginator="$registros">
+<x-admin.table :grilla="$grilla" :paginator="$registros">
     @forelse ($registros as $registro)
         <tr>
             <td class="px-6 py-4 dato font-medium">{{ $registro->matricula }}</td>

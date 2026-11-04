@@ -2,7 +2,7 @@
 @use('App\Support\Fecha')
 @use('App\Support\Permisos')
 
-<x-admin.table :headers="['Profesional', 'Consultorio', 'Día', 'Horario', 'Turnos de', 'Vigencia', 'Estado']" :paginator="$disponibilidades">
+<x-admin.table :grilla="$grilla" :paginator="$disponibilidades">
     @forelse ($disponibilidades as $disponibilidad)
         <tr>
             <td class="px-6 py-4 font-medium">{{ $disponibilidad->profesional->persona->nombre_completo }}</td>

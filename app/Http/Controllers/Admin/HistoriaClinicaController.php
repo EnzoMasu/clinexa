@@ -4,9 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Consulta;
+use App\Models\Estado;
 use App\Models\HistoriaClinica;
+use App\Models\Paciente;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
@@ -21,6 +25,17 @@ class HistoriaClinicaController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $finalizada = Estado::idDe(Estado::FINALIZADO);
+        $grilla = Grilla::de($request)
+            ->texto('ficha', 'Nro. ficha', 'pacientes.nro_ficha')
+            ->nombrePersona('paciente', 'Paciente')
+            ->documentoPersona('documento', 'Documento')
+            ->numero('consultas', 'Consultas', 'consultas_count',
+                filtro: fn ($query, $n) => $query->has('consultas', '=', (int) $n, 'and', fn ($query) => $query->finalizadas()))
+            ->fecha('ultima', 'Última consulta', DB::raw("(SELECT MAX(c.iniciada_en) FROM consultas c WHERE c.historia_clinica_id = historias_clinicas.id AND c.estado_id = {$finalizada})"),
+                utc: true, orden: 'consultas_max_iniciada_en')
+            ->estado('estado', 'Estado del paciente', 'pacientes.estado_id', Paciente::class);
+
         $historias = HistoriaClinica::query()
             ->select('historias_clinicas.*')
             ->join('pacientes', 'pacientes.id', '=', 'historias_clinicas.paciente_id')
@@ -32,15 +47,16 @@ class HistoriaClinicaController extends Controller
                 ->whereLike('personas.apellidos', "%{$busqueda}%")
                 ->orWhereLike('personas.nombres', "%{$busqueda}%")
                 ->orWhereLike('personas.nro_documento', "{$busqueda}%")
-                ->orWhereLike('pacientes.nro_ficha', "%{$busqueda}%")))
+                ->orWhereLike('pacientes.nro_ficha', "%{$busqueda}%")));
+        $historias = $grilla->aplicar($historias, fn ($query) => $query
             ->orderBy('personas.apellidos')
             ->orderBy('personas.nombres')
-            ->orderBy('historias_clinicas.id')
+            ->orderBy('historias_clinicas.id'))
             ->paginate(20)
             ->withQueryString();
 
         return $this->listado($request, 'admin.historias-clinicas', [
-            ...compact('historias', 'busqueda'),
+            ...compact('historias', 'busqueda', 'grilla'),
             // Una vez por pedido (no por fila): la parte de la regla que depende solo del usuario.
             'puedeAtender' => Gate::allows('atender', Consulta::class),
         ]);

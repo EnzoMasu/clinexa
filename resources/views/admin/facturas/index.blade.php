@@ -8,12 +8,7 @@
     </p>
 
     <x-admin.listado :action="route('admin.facturas.index')" :busqueda="$busqueda" placeholder="Buscar por número, cliente o documento…">
-        <x-slot name="filtros">
-            <div class="w-40"><x-admin.fecha name="desde" label="Desde" :value="$filtros['desde']" /></div>
-            <div class="w-40"><x-admin.fecha name="hasta" label="Hasta" :value="$filtros['hasta']" /></div>
-            <div class="w-48"><x-admin.select name="estado" label="Estado" :options="App\Models\Factura::ETIQUETAS" :value="$filtros['estado']" nullable /></div>
-        </x-slot>
-
+        {{-- Fechas, estado y demás: en la fila de filtros de la grilla (docs/grillas.md). --}}
         @include('admin.facturas._tabla')
     </x-admin.listado>
 </x-admin.page>

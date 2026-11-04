@@ -12,6 +12,7 @@ use App\Models\Persona;
 use App\Models\User;
 use App\Support\AdministradorPrincipal;
 use App\Support\BuscadorPersonas;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,16 @@ class UsuarioController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $grilla = Grilla::de($request)
+            ->nombrePersona('nombre', 'Nombre')
+            ->documentoPersona('documento', 'Documento')
+            ->texto('correo', 'Correo', 'users.email')
+            // Varios por usuario: se filtra por uno; ordenar por la lista no tiene sentido.
+            ->opciones('perfiles', 'Perfiles de acceso', 'users.id', PerfilAcceso::query()->orderBy('nombre')->pluck('nombre', 'id')->all(),
+                orden: false, filtro: fn ($query, $id) => $query->whereHas('perfiles', fn ($query) => $query->whereKey($id)))
+            ->estado('estado', 'Estado', 'users.estado_id', User::class)
+            ->fecha('acceso', 'Último acceso', 'users.ultimo_acceso', utc: true);
+
         // Nombre y documento vienen de la persona; el email se busca en users (es copia del de la persona).
         $usuarios = User::query()
             ->select('users.*')
@@ -37,13 +48,12 @@ class UsuarioController extends Controller
                 ->whereLike('personas.apellidos', "%{$busqueda}%")
                 ->orWhereLike('personas.nombres', "%{$busqueda}%")
                 ->orWhereLike('personas.nro_documento', "{$busqueda}%")
-                ->orWhereLike('users.email', "%{$busqueda}%")))
-            ->orderBy('personas.apellidos')
-            ->orderBy('personas.nombres')
+                ->orWhereLike('users.email', "%{$busqueda}%")));
+        $usuarios = $grilla->aplicar($usuarios, fn ($query) => $query->orderBy('personas.apellidos')->orderBy('personas.nombres'))
             ->paginate(20)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.usuarios', compact('usuarios', 'busqueda'));
+        return $this->listado($request, 'admin.usuarios', compact('usuarios', 'busqueda', 'grilla'));
     }
 
     public function create(): View

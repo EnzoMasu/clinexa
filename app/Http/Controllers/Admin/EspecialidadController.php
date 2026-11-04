@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Especialidad;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,10 +16,15 @@ class EspecialidadController extends Controller
     public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Nombre', 'nombre')
+            ->texto('descripcion', 'Descripción', 'descripcion')
+            ->estado('estado', 'Estado', 'estado_id', Especialidad::class);
 
         return $this->listado($request, 'admin.especialidades', [
-            'especialidades' => $this->buscarEn(Especialidad::query(), $busqueda, ['nombre', 'descripcion'])
-                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'especialidades' => $grilla->aplicar($this->buscarEn(Especialidad::query(), $busqueda, ['nombre', 'descripcion']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

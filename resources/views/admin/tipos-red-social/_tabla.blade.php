@@ -1,6 +1,6 @@
 @use('App\Support\Permisos')
 
-<x-admin.table :headers="['Nombre', 'Estado']" :paginator="$tiposRedSocial">
+<x-admin.table :grilla="$grilla" :paginator="$tiposRedSocial">
     @forelse ($tiposRedSocial as $tipoRedSocial)
         <tr>
             <td class="px-6 py-4 font-medium">{{ $tipoRedSocial->nombre }}</td>

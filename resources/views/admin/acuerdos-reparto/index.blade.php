@@ -10,7 +10,7 @@
     </p>
     <x-admin.listado :action="route('admin.acuerdos-reparto.index')" :busqueda="$busqueda" placeholder="Buscar por profesional, procedimiento o equipo…">
         <x-slot name="filtros">
-            <div class="w-48"><x-admin.select name="tipo" label="Tipo" :options="['PROFESIONAL' => 'Profesionales', 'EQUIPO' => 'Equipos']" :value="$filtros['tipo']" nullable /></div>
+            {{-- El tipo se filtra en la fila de filtros de la grilla (docs/grillas.md). --}}
             <div class="w-48"><x-admin.select name="estado" label="Mostrar" :options="['VIGENTES' => 'Solo vigentes', 'TODOS' => 'Vigentes e históricos']" :value="$filtros['estado']" /></div>
         </x-slot>
 

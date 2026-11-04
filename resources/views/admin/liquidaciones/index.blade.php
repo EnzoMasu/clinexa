@@ -22,11 +22,7 @@
     @endif
 
     <x-admin.listado :action="route('admin.liquidaciones.index')" :busqueda="$busqueda" placeholder="Buscar por N.º de liquidación…">
-        <x-slot name="filtros">
-            <div class="w-64"><x-admin.select name="aseguradora" label="Aseguradora" :options="$opcionesAseguradora" :value="$filtros['aseguradora']" nullable /></div>
-            <div class="w-56"><x-admin.select name="estado" label="Estado" :options="$opcionesEstado" :value="$filtros['estado']" nullable /></div>
-        </x-slot>
-
+        {{-- Fechas, estado y demás: en la fila de filtros de la grilla (docs/grillas.md). --}}
         @include('admin.liquidaciones._tabla')
     </x-admin.listado>
 </x-admin.page>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\OrigenTurno;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,10 +16,15 @@ class OrigenTurnoController extends Controller
     public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
+        $grilla = Grilla::de($request)
+            ->texto('codigo', 'Código', 'codigo')
+            ->texto('nombre', 'Nombre', 'nombre')
+            ->estado('estado', 'Estado', 'estado_id', OrigenTurno::class);
 
         return $this->listado($request, 'admin.origenes-turno', [
-            'origenesTurno' => $this->buscarEn(OrigenTurno::query(), $busqueda, ['codigo', 'nombre'])
-                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'origenesTurno' => $grilla->aplicar($this->buscarEn(OrigenTurno::query(), $busqueda, ['codigo', 'nombre']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

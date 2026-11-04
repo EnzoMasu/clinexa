@@ -8,14 +8,27 @@
  *
  * Además del texto (q), toma todos los campos del formulario: los filtros que agregue el listado
  * (selects, fechas) buscan al cambiar. Los campos vacíos no van en la URL.
+ *
+ * Grillas (docs/grillas.md): la fila de filtros va dentro de la tabla, pero sus campos son del formulario
+ * (atributo "form"), así que FormData los incluye. Los títulos que ordenan y "Limpiar" se cargan en vivo
+ * como la paginación. Al reemplazar la tabla se conserva el campo que se estaba escribiendo.
  */
+// Clave para comparar búsquedas: sin la página y con los parámetros ordenados (el orden de la URL no importa).
+const normalizar = (consulta) => {
+    const parametros = new URLSearchParams(consulta);
+    parametros.delete('page');
+    parametros.sort();
+
+    return parametros.toString();
+};
+
 export default () => ({
     cargando: false,
     ultimaBusqueda: null,
     peticion: null,
 
     init() {
-        this.ultimaBusqueda = this.consulta();
+        this.ultimaBusqueda = normalizar(this.consulta());
     },
 
     // Texto y filtros del formulario como query string, sin los vacíos.
@@ -33,10 +46,10 @@ export default () => ({
 
     buscar() {
         const consulta = this.consulta();
-        if (consulta === this.ultimaBusqueda) {
+        if (normalizar(consulta) === this.ultimaBusqueda) {
             return;
         }
-        this.ultimaBusqueda = consulta;
+        this.ultimaBusqueda = normalizar(consulta);
 
         // Una búsqueda nueva siempre vuelve a la página 1.
         const url = new URL(this.$refs.formulario.action);
@@ -51,14 +64,55 @@ export default () => ({
         }
     },
 
-    // Clicks dentro de los resultados: solo se interceptan los links de la paginación.
+    // Fila de filtros de la grilla: los textos buscan al dejar de escribir; las fechas, con alCambiarFecha.
+    alEscribirFiltro(evento) {
+        if (evento.target.form === this.$refs.formulario && !evento.target.hasAttribute('data-grilla-fecha')) {
+            this.buscar();
+        }
+    },
+
+    alCambiarFiltro(evento) {
+        if (evento.target.form === this.$refs.formulario && evento.target.tagName === 'SELECT') {
+            this.buscar();
+        }
+    },
+
+    // Clicks dentro de los resultados: paginación, títulos que ordenan y "Limpiar" de la grilla.
     paginar(evento) {
-        const link = evento.target.closest('nav[role="navigation"] a[href]');
+        const link = evento.target.closest('nav[role="navigation"] a[href], a[data-grilla-orden], a[data-grilla-limpiar]');
         if (!link || evento.ctrlKey || evento.metaKey || evento.shiftKey || evento.button !== 0) {
             return;
         }
         evento.preventDefault();
         this.cargar(link.href, { subir: true });
+    },
+
+    // Cambia la tabla. Si se estaba escribiendo en un filtro de la grilla, el campo nuevo recibe el foco,
+    // lo escrito hasta ahora (pudo seguir escribiéndose durante la carga) y la posición del cursor.
+    reemplazar(html) {
+        const activo = document.activeElement;
+        const enFiltro = activo?.name && this.$refs.resultados.contains(activo) && activo.form === this.$refs.formulario;
+        const anterior = enFiltro ? { nombre: activo.name, valor: activo.value, inicio: activo.selectionStart, fin: activo.selectionEnd } : null;
+
+        // Desplegables con la lista solo en la página entera (data-grilla-diferida): se conserva el que ya estaba.
+        const diferidos = [...this.$refs.resultados.querySelectorAll('select[data-grilla-diferida]')];
+
+        this.$refs.resultados.innerHTML = html;
+
+        for (const anteriorSelect of diferidos) {
+            this.$refs.resultados.querySelector(`select[data-grilla-diferida][name="${CSS.escape(anteriorSelect.name)}"]`)?.replaceWith(anteriorSelect);
+        }
+
+        if (anterior) {
+            const nuevo = this.$refs.resultados.querySelector(`[name="${CSS.escape(anterior.nombre)}"]`);
+            if (nuevo) {
+                nuevo.value = anterior.valor;
+                nuevo.focus();
+                if (anterior.inicio !== null && typeof nuevo.setSelectionRange === 'function') {
+                    try { nuevo.setSelectionRange(anterior.inicio, anterior.fin); } catch { /* type sin selección */ }
+                }
+            }
+        }
     },
 
     async cargar(url, { subir = false } = {}) {
@@ -79,8 +133,10 @@ export default () => ({
                 return;
             }
 
-            this.$refs.resultados.innerHTML = await respuesta.text();
+            this.ultimaBusqueda = normalizar(new URL(url, window.location.href).search); // lo que muestra la tabla nueva
+            this.reemplazar(await respuesta.text());
             window.history.replaceState(null, '', url); // la URL refleja búsqueda y página (recargar mantiene el estado)
+            this.buscar(); // por si se siguió escribiendo en un filtro mientras se cargaba
 
             if (subir) {
                 this.$refs.resultados.scrollIntoView({ block: 'start', behavior: 'smooth' });

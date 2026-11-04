@@ -4,7 +4,7 @@
 
 @php($veCobertura = CoberturaController::puedeVer())
 
-<x-admin.table :headers="['Nro. ficha', 'Nombre', 'Documento', 'Fecha de alta', 'Estado']" :paginator="$registros">
+<x-admin.table :grilla="$grilla" :paginator="$registros">
     @forelse ($registros as $registro)
         <tr>
             <td class="px-6 py-4 dato font-medium">{{ $registro->nro_ficha }}</td>

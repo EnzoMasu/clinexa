@@ -15,9 +15,11 @@ use App\Support\Cobros\Cobrar;
 use App\Support\Cobros\Guaranies;
 use App\Support\Cobros\RevisarCierre;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 /**
@@ -27,14 +29,23 @@ use Illuminate\View\View;
  */
 class CajaController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $usuario = $request->user();
         $veTodas = $usuario->tienePermiso('CIERRES_CAJA', 'VER');
         $estado = array_key_exists((string) $request->query('estado'), Caja::ETIQUETAS) ? (string) $request->query('estado') : null;
         $miCaja = Caja::query()->abiertaDe($usuario)->with(['moneda', 'estado'])->first();
+        $grilla = Grilla::de($request)
+            ->fecha('fecha', 'Fecha', 'cajas.fecha')
+            ->persona('cajero', 'Cajero', 'cajas.usuario_id', via: 'users')
+            ->numero('inicial', 'Monto inicial', 'cajas.monto_inicial')
+            ->numero('cobros', 'Cobros', 'cobros_count', filtro: fn ($query, $n) => $query->has('cobros', '=', (int) $n))
+            ->numero('cobrado', 'Total cobrado', 'cobros_sum_total',
+                filtro: fn ($query, $n) => $query->whereRaw('COALESCE((SELECT SUM(c.total) FROM cobros c WHERE c.caja_id = cajas.id), 0) = ?', [$n]))
+            ->estado('estado', 'Estado', 'cajas.estado_id', Caja::ETIQUETAS);
 
-        return view('admin.cajas.index', [
+        return $this->listadoEn($request, 'admin.cajas.index', 'admin.cajas._tabla', [
+            'grilla' => $grilla,
             'miCaja' => $miCaja,
             'miCajaDeOtroDia' => $miCaja && $miCaja->fecha->format('Y-m-d') !== Fecha::hoy()->format('Y-m-d') ? Cobrar::deOtroDia($miCaja) : null,
             'devueltas' => Caja::where('usuario_id', $usuario->id)->where('estado_id', Estado::idDe(Estado::DEVUELTO))
@@ -45,11 +56,11 @@ class CajaController extends Controller
             'cantidadPendientes' => $veTodas ? Caja::where('estado_id', Estado::idDe(Estado::CERRADO))->count() : 0,
             'filtroEstado' => $estado,
             'opcionesEstado' => Caja::ETIQUETAS,
-            'cajas' => Caja::query()
+            'cajas' => $grilla->aplicar(Caja::query()
                 ->unless($veTodas, fn ($query) => $query->where('usuario_id', $usuario->id))
                 ->when($estado, fn ($query) => $query->where('estado_id', Estado::idDe($estado)))
-                ->with(['cajero.persona', 'estado', 'moneda'])->withCount('cobros')->withSum('cobros', 'total')
-                ->orderByDesc('fecha')->orderByDesc('id')
+                ->with(['cajero.persona', 'estado', 'moneda'])->withCount('cobros')->withSum('cobros', 'total'),
+                fn ($query) => $query->orderByDesc('fecha')->orderByDesc('id'))
                 ->paginate(20)->withQueryString(),
         ]);
     }

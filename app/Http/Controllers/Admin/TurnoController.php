@@ -12,11 +12,12 @@ use App\Models\Procedimiento;
 use App\Models\Profesional;
 use App\Models\Turno;
 use App\Support\Agenda;
+use App\Support\Atencion\RegistrarSalida;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
 use App\Support\Convenios\EstadoVisacionTurnos;
 use App\Support\Fecha;
-use App\Support\Atencion\RegistrarSalida;
+use App\Support\Grilla\Grilla;
 use App\Support\Turnos\AgendarEntrePacientes;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -45,6 +46,15 @@ class TurnoController extends Controller
         $fecha = preg_match('#^\d{2}/\d{2}/\d{4}$#', $busqueda) && Carbon::canBeCreatedFromFormat($busqueda, Fecha::FORMATO)
             ? Fecha::aIso($busqueda) : null;
 
+        $grilla = Grilla::de($request)
+            ->fecha('fecha', 'Fecha', 'turnos.fecha')
+            ->texto('horario', 'Horario', 'turnos.hora_inicio', filtro: false)
+            ->nombrePersona('paciente', 'Paciente', 'persona_paciente')
+            ->nombrePersona('profesional', 'Profesional', 'persona_profesional')
+            ->textoDe('consultorio', 'Consultorio', 'turnos.consultorio_id', 'consultorios')
+            ->textoDe('procedimiento', 'Procedimiento', 'turnos.procedimiento_id', 'procedimientos')
+            ->estado('estado', 'Estado', 'turnos.estado_id', Turno::class);
+
         $turnos = Turno::query()
             ->select('turnos.*')
             ->join('pacientes', 'pacientes.id', '=', 'turnos.paciente_id')
@@ -59,15 +69,14 @@ class TurnoController extends Controller
                 ->orWhereLike('persona_paciente.nro_documento', "{$busqueda}%")
                 ->orWhereLike('pacientes.nro_ficha', "%{$busqueda}%")
                 ->orWhereLike('persona_profesional.apellidos', "%{$busqueda}%")
-                ->orWhereLike('persona_profesional.nombres', "%{$busqueda}%")))
-            ->orderByDesc('turnos.fecha')
-            ->ordenDelDia()
+                ->orWhereLike('persona_profesional.nombres', "%{$busqueda}%")));
+        $turnos = $grilla->aplicar($turnos, fn ($query) => $query->orderByDesc('turnos.fecha')->ordenDelDia())
             ->paginate(20)
             ->withQueryString();
 
         $visacionesTurnos = EstadoVisacionTurnos::para($turnos->getCollection());
 
-        return $this->listado($request, 'admin.turnos', compact('turnos', 'busqueda', 'visacionesTurnos'));
+        return $this->listado($request, 'admin.turnos', compact('turnos', 'busqueda', 'visacionesTurnos', 'grilla'));
     }
 
     public function create(): View

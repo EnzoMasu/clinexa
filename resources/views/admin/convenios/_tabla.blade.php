@@ -1,4 +1,4 @@
-<x-admin.table :headers="['Aseguradora', 'Convenio', 'Planes', 'Vigencia', 'Estado']" :paginator="$convenios">
+<x-admin.table :grilla="$grilla" :paginator="$convenios">
     @forelse ($convenios as $convenio)
         <tr>
             <td class="px-6 py-4 font-medium">{{ $convenio->aseguradoraTexto() }}</td>

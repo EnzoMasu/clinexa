@@ -8,6 +8,7 @@ use App\Models\Estado;
 use App\Models\Procedimiento;
 use App\Models\Proveedor;
 use App\Models\TipoEquipo;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -31,15 +32,24 @@ class EquipoController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Nombre', 'equipos.nombre')
+            ->textoDe('tipo', 'Tipo', 'equipos.tipo_equipo_id', 'tipos_equipo')
+            ->persona('dueno', 'Dueño', 'equipos.proveedor_id', via: 'proveedores')
+            ->texto('procedimientos', 'Procedimientos que lo usan', 'equipos.id', orden: false,
+                filtro: fn ($query, $valor) => $query->whereHas('procedimientos', fn ($query) => $query->whereLike('procedimientos.nombre', "%{$valor}%")))
+            ->estado('estado', 'Estado', 'equipos.estado_id', Equipo::class);
+
         return $this->listado($request, 'admin.equipos', [
-            'equipos' => Equipo::query()
+            'equipos' => $grilla->aplicar(Equipo::query()
                 ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
                     ->whereLike('nombre', "%{$busqueda}%")
                     ->orWhereHas('tipo', fn ($query) => $query->whereLike('nombre', "%{$busqueda}%"))
                     ->orWhereHas('dueno.persona', fn ($query) => $query->whereLike('apellidos', "%{$busqueda}%")
                         ->orWhereLike('nombres', "%{$busqueda}%")->orWhereLike('razon_social', "%{$busqueda}%"))))
-                ->with(['tipo', 'dueno.persona', 'procedimientos'])
-                ->orderBy('nombre')->paginate(15)->withQueryString(),
+                ->with(['tipo', 'dueno.persona', 'procedimientos']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

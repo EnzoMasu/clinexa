@@ -1,6 +1,6 @@
 @use('App\Support\Permisos')
 
-<x-admin.table :headers="['Convenio', 'Procedimiento', 'Monto', 'Vigencia', 'Estado']" :paginator="$tarifas">
+<x-admin.table :grilla="$grilla" :paginator="$tarifas">
     @forelse ($tarifas as $tarifa)
         <tr>
             <td class="px-6 py-4">{{ $tarifa->convenio->nombreCompleto() }}</td>

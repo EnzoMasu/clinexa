@@ -1,7 +1,7 @@
 @use('App\Models\AcuerdoReparto')
 @use('App\Support\Permisos')
 
-<x-admin.table :headers="['Tipo', 'Beneficiario', 'Alcance', 'Porcentaje', 'Vigencia', 'Estado']" :paginator="$acuerdos">
+<x-admin.table :grilla="$grilla" :paginator="$acuerdos">
     @forelse ($acuerdos as $acuerdo)
         <tr>
             <td class="px-6 py-4">{{ AcuerdoReparto::TIPOS[$acuerdo->tipo] }}</td>

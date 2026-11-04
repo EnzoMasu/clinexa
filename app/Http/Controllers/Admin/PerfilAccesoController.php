@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ModuloSistema;
 use App\Models\PerfilAcceso;
 use App\Models\Permiso;
+use App\Support\Grilla\Grilla;
 use App\Support\PermisosDePerfil;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,9 +22,17 @@ class PerfilAccesoController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Nombre', 'nombre')
+            ->texto('descripcion', 'Descripción', 'descripcion')
+            ->numero('permisos', 'Permisos', 'permisos_count', filtro: fn ($query, $n) => $query->has('permisos', '=', (int) $n))
+            ->numero('usuarios', 'Usuarios', 'users_count', filtro: fn ($query, $n) => $query->has('users', '=', (int) $n))
+            ->estado('estado', 'Estado', 'estado_id', PerfilAcceso::class);
+
         return $this->listado($request, 'admin.perfiles-acceso', [
-            'perfiles' => $this->buscarEn(PerfilAcceso::withCount(['users', 'permisos']), $busqueda, ['nombre', 'descripcion'])
-                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'perfiles' => $grilla->aplicar($this->buscarEn(PerfilAcceso::withCount(['users', 'permisos']), $busqueda, ['nombre', 'descripcion']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Persona;
 use App\Support\BuscadorPersonas;
+use App\Support\Grilla\Grilla;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -43,6 +44,21 @@ abstract class RolPersonaController extends Controller
     protected function columnasBusqueda(): array
     {
         return [];
+    }
+
+    /**
+     * Columnas de la grilla del listado (docs/grillas.md), en el orden de la tabla. Por defecto nombre,
+     * documento y estado; cada rol suma las suyas. La consulta ya trae personas unida.
+     */
+    protected function grilla(Request $request, string $tabla): Grilla
+    {
+        return $this->columnasDePersona(Grilla::de($request))->estado('estado', 'Estado', "{$tabla}.estado_id", $this->modelo());
+    }
+
+    /** Nombre (o razón social) y documento de la persona del rol, sobre personas unida a la consulta. */
+    protected function columnasDePersona(Grilla $grilla, string $etiqueta = 'Nombre'): Grilla
+    {
+        return $grilla->nombrePersona('nombre', $etiqueta)->documentoPersona('documento', 'Documento');
     }
 
     /** Relaciones que se precargan en el listado (evita una consulta por fila). */
@@ -98,6 +114,8 @@ abstract class RolPersonaController extends Controller
         $modelo = $this->modelo();
         $tabla = (new $modelo)->getTable();
 
+        $grilla = $this->grilla($request, $tabla);
+
         $registros = $modelo::query()
             ->select("{$tabla}.*")
             ->join('personas', 'personas.id', '=', "{$tabla}.persona_id")
@@ -113,13 +131,14 @@ abstract class RolPersonaController extends Controller
                     $query->orWhereLike("{$tabla}.{$columna}", "%{$busqueda}%");
                 }
                 $this->ampliarBusqueda($query, $busqueda, $tabla);
-            }))
+            }));
+        $registros = $grilla->aplicar($registros, fn ($query) => $query
             ->orderByRaw('COALESCE(personas.apellidos, personas.razon_social)')
-            ->orderBy('personas.nombres')
+            ->orderBy('personas.nombres'))
             ->paginate(20)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.'.$this->seccion(), compact('registros', 'busqueda'));
+        return $this->listado($request, 'admin.'.$this->seccion(), compact('registros', 'busqueda', 'grilla'));
     }
 
     public function create(): View

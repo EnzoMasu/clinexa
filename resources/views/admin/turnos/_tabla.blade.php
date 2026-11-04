@@ -7,7 +7,7 @@
 @php($puedeConstanciaRetiro = Permisos::puedeRuta('admin.constancias-retiro.emitir'))
 @php($puedeConstanciaEstado = Permisos::puedeRuta('admin.constancias-estado.emitir'))
 
-<x-admin.table :headers="['Fecha', 'Horario', 'Paciente', 'Profesional', 'Consultorio', 'Procedimiento', 'Estado']" :paginator="$turnos">
+<x-admin.table :grilla="$grilla" :paginator="$turnos">
     @forelse ($turnos as $turno)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($turno->fecha) }}</td>

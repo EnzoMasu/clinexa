@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\MotivoAnulacionFactura;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -16,9 +17,15 @@ class MotivoAnulacionController extends Controller
     public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Nombre', 'nombre')
+            ->opciones('detalle', 'Pide detalle', 'requiere_detalle', ['1' => 'Sí', '0' => 'No'], filtro: fn ($query, $valor) => $query->where('requiere_detalle', $valor === '1'))
+            ->estado('estado', 'Estado', 'estado_id', MotivoAnulacionFactura::class);
 
         return $this->listado($request, 'admin.motivos-anulacion', [
-            'motivos' => $this->buscarEn(MotivoAnulacionFactura::query(), $busqueda, ['nombre'])->orderBy('id')->paginate(15)->withQueryString(),
+            'motivos' => $grilla->aplicar($this->buscarEn(MotivoAnulacionFactura::query(), $busqueda, ['nombre']), fn ($query) => $query->orderBy('id'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

@@ -1,6 +1,6 @@
 @use('App\Support\Fecha')
 
-<x-admin.table :headers="['Nro. ficha', 'Paciente', 'Documento', 'Consultas', 'Última consulta', 'Estado del paciente']" :paginator="$historias">
+<x-admin.table :grilla="$grilla" :paginator="$historias">
     @forelse ($historias as $historia)
         <tr>
             <td class="px-6 py-4 dato font-medium">{{ $historia->paciente->nro_ficha }}</td>

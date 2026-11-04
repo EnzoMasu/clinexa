@@ -1,6 +1,6 @@
 @use('App\Support\Fecha')
 
-<x-admin.table :headers="['N.º', 'Aseguradora', 'Corte', 'Estado', 'Total', 'Saldo', 'Armada por']" :paginator="$liquidaciones">
+<x-admin.table :grilla="$grilla" :paginator="$liquidaciones">
     @forelse ($liquidaciones as $liquidacion)
         <tr>
             <td class="px-6 py-4 tabular-nums">{{ $liquidacion->id }}</td>

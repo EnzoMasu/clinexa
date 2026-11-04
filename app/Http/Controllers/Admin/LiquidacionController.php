@@ -15,6 +15,7 @@ use App\Models\Prestacion;
 use App\Models\ResponsablePago;
 use App\Support\Cobros\Guaranies;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use App\Support\Liquidaciones\ArmarLiquidacion;
 use App\Support\Liquidaciones\FlujoLiquidacion;
 use App\Support\Liquidaciones\PagosAseguradora;
@@ -24,6 +25,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response as RespuestaHttp;
 
@@ -45,15 +47,26 @@ class LiquidacionController extends Controller
         $busqueda = trim((string) $request->query('q'));
         $veRevision = $request->user()->tienePermiso('APROBACION_LIQUIDACIONES', 'VER');
 
+        $aprobadas = implode(', ', array_map(fn ($codigo) => Estado::idDe($codigo), Liquidacion::APROBADAS));
+        $saldo = DB::raw("CASE WHEN liquidaciones.estado_id IN ({$aprobadas}) THEN liquidaciones.total - COALESCE((SELECT SUM(p.monto) FROM pagos_aseguradora p WHERE p.liquidacion_id = liquidaciones.id AND p.anulado_en IS NULL), 0) END");
+        $grilla = Grilla::de($request)
+            ->numero('numero', 'N.º', 'liquidaciones.id')
+            ->persona('aseguradora', 'Aseguradora', 'liquidaciones.responsable_pago_id', via: 'responsables_pago')
+            ->fecha('corte', 'Corte', 'liquidaciones.fecha_corte')
+            ->estado('estado', 'Estado', 'liquidaciones.estado_id', Liquidacion::ETIQUETAS)
+            ->numero('total', 'Total', 'liquidaciones.total')
+            ->numero('saldo', 'Saldo', $saldo)
+            ->persona('armada', 'Armada por', 'liquidaciones.armada_por', via: 'users');
+
         return $this->listado($request, 'admin.liquidaciones', [
-            'liquidaciones' => Liquidacion::query()
+            'liquidaciones' => $grilla->aplicar(Liquidacion::query()
                 ->when($responsableId, fn ($query) => $query->where('responsable_pago_id', $responsableId))
                 ->when($estado, fn ($query) => $query->where('estado_id', Estado::idDe($estado)))
                 ->when(ctype_digit($busqueda), fn ($query) => $query->whereKey((int) $busqueda))
                 ->with(['responsablePago.persona', 'convenio', 'moneda', 'armadaPor.persona'])
-                ->withSum('pagosVigentes', 'monto')
-                ->orderByDesc('fecha_corte')->orderByDesc('id')
+                ->withSum('pagosVigentes', 'monto'), fn ($query) => $query->orderByDesc('fecha_corte')->orderByDesc('id'))
                 ->paginate(20)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
             'filtros' => ['aseguradora' => $responsableId, 'estado' => $estado],
             'opcionesAseguradora' => self::aseguradoras(),
