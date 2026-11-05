@@ -69,6 +69,10 @@ function grillasDesplegablesEtiquetas(string $ruta, string $clave, Model $fila):
         'profesionales.especialidades' => $fila->especialidades()->syncWithoutDetaching([Especialidad::where('nombre', $texto)->sole()->id => ['activa' => true, 'fecha_desde' => '2026-01-01']]) !== [],
         'proveedores.categorias' => $nombres($fila->categorias),
         'tipos-documento.modulos' => $nombres($fila->modulos),
+        'tipos-comprobante-compra.numero' => [$fila->requiere_numero ? ($fila->numero_formato_legal ? 'Sí (formato legal)' : 'Sí') : 'No'],
+        'tipos-comprobante-compra.timbrado' => [$fila->requiere_timbrado ? 'Sí' : 'No'],
+        'tipos-comprobante-compra.fecha' => [$fila->requiere_fecha_comprobante ? 'Sí' : 'No'],
+        'tipos-comprobante-compra.iva' => [$fila->discrimina_iva ? 'Sí' : 'No'],
         // Lo que dice la fila según el cálculo en PHP (EstadoVisacionTurnos), no según la consulta SQL que se prueba.
         'turnos.seguro' => [\App\Support\Convenios\EstadoVisacionTurnos::para([$fila])[$fila->id]['seguro'] ?? ''],
         'turnos.visacion' => [match (\App\Support\Convenios\EstadoVisacionTurnos::para([$fila])[$fila->id]['visada'] ?? null) {
