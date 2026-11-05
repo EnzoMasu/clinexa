@@ -50,6 +50,10 @@ Los tests de escapado por mutación (`EscapadoAtencionTest`, "mutación: si se r
 de **seguridad**: están en el grupo `lento` solo para que el comando rápido sea rápido. Antes de un merge
 no se omiten: el comando completo los incluye.
 
+## Tests de JavaScript (Vitest + jsdom)
+
+`npm run test:js` corre los tests del JS del sistema (`tests/Js`, con Vitest y jsdom). **`composer test:completo` no los incluye**: hay que correrlos aparte cada vez que se toque JavaScript de `resources/js/` o de los componentes que lo usan (y antes de fusionar). Vitest y jsdom son solo dependencias de desarrollo (`devDependencies`).
+
 ## Vistas compiladas por proceso
 
 `Tests\TestCase` compila las vistas Blade de cada proceso en `storage/framework/testing/views/proceso-N`
