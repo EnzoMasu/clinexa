@@ -16,6 +16,20 @@ export default () => ({
 
     init() {
         this.recalcular();
+        this.actualizarComprobantes();
+    },
+
+    /** Marca el comprobante como obligatorio (y le pone su nombre) en las filas cuyo medio lo exige; en las demás, lo deja opcional. */
+    actualizarComprobantes() {
+        this.$root.querySelectorAll('select[data-medio]').forEach((select) => {
+            const fila = select.closest('.grid');
+            const campo = fila.querySelector('input[data-comprobante]');
+            const etiqueta = fila.querySelector('[data-etiqueta-comprobante]');
+            const nombre = select.selectedOptions[0]?.dataset.comprobante;
+            campo.required = Boolean(nombre);
+            campo.setAttribute('aria-required', nombre ? 'true' : 'false');
+            etiqueta.textContent = nombre ? `${nombre} (obligatorio)` : select.value ? 'Comprobante (opcional)' : 'Comprobante (obligatorio salvo en efectivo)';
+        });
     },
 
     recalcular() {

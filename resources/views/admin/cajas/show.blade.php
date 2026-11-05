@@ -31,12 +31,13 @@
 
         <section aria-labelledby="cobros-caja" class="max-w-4xl space-y-3">
             <h3 id="cobros-caja" class="font-semibold text-gray-900 dark:text-gray-100">Cobros ({{ $cobros->count() }})</h3>
-            <x-admin.table :headers="['Hora', 'Paciente', 'Medios', 'Total']">
+            <x-admin.table :headers="['Hora', 'Paciente', 'Medios', 'Comprobantes', 'Total']">
                 @forelse ($cobros as $cobro)
                     <tr>
                         <td class="px-6 py-3 whitespace-nowrap">{{ Fecha::mostrar($cobro->cobrado_en, conHora: true) }}</td>
                         <td class="px-6 py-3">{{ $cobro->paciente->persona->nombre_completo }}</td>
                         <td class="px-6 py-3">{{ $cobro->lineas->map(fn ($linea) => $linea->medioPago->nombre.' '.$cobro->moneda->formatear($linea->monto))->join(' · ') }}</td>
+                        <td class="px-6 py-3">{{ $cobro->lineas->filter(fn ($linea) => $linea->referencia !== null)->map(fn ($linea) => $linea->medioPago->nombre.': '.$linea->referencia)->join(' · ') ?: '—' }}</td>
                         <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $cobro->totalTexto() }}@if ($cobro->revertido()) <span class="font-semibold text-red-700 dark:text-red-300">(revertido)</span>@endif</td>
                         <td class="px-6 py-3 text-right">
                             @if ($veCobros)
@@ -45,7 +46,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="5" class="px-6 py-6 text-center text-gray-500 dark:text-gray-400">Todavía no hay cobros en esta caja.</td></tr>
+                    <tr><td colspan="6" class="px-6 py-6 text-center text-gray-500 dark:text-gray-400">Todavía no hay cobros en esta caja.</td></tr>
                 @endforelse
             </x-admin.table>
         </section>

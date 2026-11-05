@@ -1,5 +1,6 @@
 @use('App\Support\Fecha')
 @use('App\Support\Cobros\RevertirCobro')
+@use('App\Support\Cobros\Cobrar')
 
 {{-- Detalle de un cobro (CobroController::show, docs/cobros-caja.md): las prestaciones que cubre y los medios. No se edita: se
      revierte completo ("Revertir" en la caja abierta propia; si no, "Solicitar la reversión", que Gerencia aprueba o rechaza). --}}
@@ -65,13 +66,33 @@
 
         <section aria-labelledby="pagos" class="max-w-3xl space-y-3">
             <h3 id="pagos" class="font-semibold text-gray-900 dark:text-gray-100">Pagos</h3>
-            <x-admin.table :headers="['Medio de pago', 'Monto', 'Referencia']">
+            <x-admin.table :headers="['Medio de pago', 'Monto', 'Comprobante']">
                 @foreach ($cobro->lineas as $linea)
                     <tr>
                         <td class="px-6 py-3">{{ $linea->medioPago->nombre }}</td>
                         <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $cobro->moneda->formatear($linea->monto) }}</td>
-                        <td class="px-6 py-3">{{ $linea->referencia ?? '—' }}</td>
-                        <td></td>
+                        <td class="px-6 py-3">
+                            @if ($linea->referencia !== null)
+                                <span class="text-xs text-gray-500 dark:text-gray-400">{{ $linea->medioPago->etiquetaComprobante() }}:</span> {{ $linea->referencia }}
+                            @elseif ($linea->medioPago->esEfectivo())
+                                —
+                            @else
+                                <span class="text-gray-500 dark:text-gray-400">Sin comprobante cargado</span>
+                            @endif
+                        </td>
+                        <td class="px-6 py-3 text-right">
+                            @if ($puedeCorregir && ! $linea->medioPago->esEfectivo())
+                                <details @if ($errors->has('comprobante') || $errors->has('motivo')) open @endif>
+                                    <summary class="cursor-pointer font-medium text-indigo-600 dark:text-indigo-400">Corregir</summary>
+                                    <form method="POST" action="{{ route('admin.cobros.corregir-comprobante', [$cobro, $linea]) }}" novalidate class="mt-2 space-y-2 text-left">
+                                        @csrf
+                                        <x-admin.input name="comprobante" :label="$linea->medioPago->etiquetaComprobante().($linea->medioPago->exigeComprobante() ? ' (obligatorio)' : '')" :value="$linea->referencia" maxlength="{{ Cobrar::REFERENCIA_MAXIMA }}" />
+                                        <x-admin.textarea name="motivo" label="Motivo de la corrección (obligatorio)" rows="2" minlength="{{ RevertirCobro::MOTIVO_MINIMO }}" maxlength="{{ RevertirCobro::MOTIVO_MAXIMO }}" required />
+                                        <x-primary-button>Guardar la corrección</x-primary-button>
+                                    </form>
+                                </details>
+                            @endif
+                        </td>
                     </tr>
                 @endforeach
             </x-admin.table>

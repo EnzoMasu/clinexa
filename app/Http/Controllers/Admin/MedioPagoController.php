@@ -18,6 +18,7 @@ class MedioPagoController extends Controller
         $busqueda = trim((string) $request->query('q'));
         $grilla = Grilla::de($request)
             ->texto('nombre', 'Nombre', 'nombre')
+            ->texto('comprobante', 'Comprobante', 'nombre_comprobante')
             ->estado('estado', 'Estado', 'estado_id', MedioPago::class);
 
         return $this->listado($request, 'admin.medios-pago', [
@@ -63,12 +64,19 @@ class MedioPagoController extends Controller
     {
         $reglas = [
             'nombre' => ['required', 'string', 'max:50', Rule::unique('medios_pago')->ignore($medioPago)],
+            'requiere_comprobante' => ['nullable', 'boolean'],
+            'nombre_comprobante' => ['nullable', 'string', 'max:40', 'required_if_accepted:requiere_comprobante'],
         ];
 
         if ($medioPago) {
             $reglas['estado_id'] = MedioPago::reglaEstado();
         }
 
-        return $request->validate($reglas);
+        $datos = $request->validate($reglas, ['nombre_comprobante.required_if_accepted' => 'Indique cómo se llama el comprobante (por ejemplo, «Voucher del POS»).'], ['nombre_comprobante' => 'nombre del comprobante']);
+        // El efectivo nunca pide comprobante.
+        $datos['requiere_comprobante'] = $request->boolean('requiere_comprobante') && ! $medioPago?->esEfectivo();
+        $datos['nombre_comprobante'] = trim((string) ($datos['nombre_comprobante'] ?? '')) ?: null;
+
+        return $datos;
     }
 }

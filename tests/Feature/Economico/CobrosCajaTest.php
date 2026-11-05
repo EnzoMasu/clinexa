@@ -86,7 +86,7 @@ function cobrosCajaCobrar(array $prestaciones, array $lineas, ?User $cajero = nu
     return test()->actingAs($cajero ?? test()->cajero)->from(route('admin.cobros.create'))->post(route('admin.cobros.store'), [
         'paciente_id' => test()->paciente->id,
         'prestaciones' => array_map(fn (Prestacion $prestacion) => $prestacion->id, $prestaciones),
-        'lineas' => array_map(fn (array $linea) => ['medio_pago_id' => $linea[0]->id, 'monto' => $linea[1], 'referencia' => $linea[2] ?? ''], $lineas),
+        'lineas' => array_map(fn (array $linea) => ['medio_pago_id' => $linea[0]->id, 'monto' => $linea[1], 'referencia' => $linea[2] ?? ($linea[0]->exigeComprobante() ? 'CMP-'.$linea[0]->id : '')], $lineas),
     ]);
 }
 

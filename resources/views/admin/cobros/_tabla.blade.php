@@ -10,6 +10,7 @@
             </td>
             <td class="px-6 py-4 tabular-nums">{{ $cobro->prestaciones_count }}</td>
             <td class="px-6 py-4">{{ $cobro->lineas->map(fn ($linea) => $linea->medioPago->nombre)->unique()->join(', ') }}</td>
+            <td class="px-6 py-4">{{ $cobro->lineas->pluck('referencia')->filter()->join(', ') ?: '—' }}</td>
             <td @class(['px-6 py-4 whitespace-nowrap tabular-nums', 'line-through text-gray-500 dark:text-gray-400' => $cobro->revertido()])>{{ $cobro->totalTexto() }}</td>
             <td @class(['px-6 py-4 whitespace-nowrap', 'font-semibold text-red-700 dark:text-red-300' => $cobro->revertido()])>{{ $cobro->etiquetaEstado() }}</td>
             <td class="px-6 py-4">{{ $cobro->cajero->persona?->nombre_completo ?? $cobro->cajero->email }}</td>
@@ -19,7 +20,7 @@
         </tr>
     @empty
         <tr>
-            <td colspan="8" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+            <td colspan="9" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                 @if ($busqueda !== '')
                     No hay resultados para «{{ $busqueda }}».
                 @else

@@ -8,6 +8,7 @@
  */
 
 use App\Enums\AccionAuditoria;
+use App\Exceptions\AccionRechazada;
 use App\Exceptions\RegistroEconomicoInmutable;
 use App\Models\Caja;
 use App\Models\CierreCaja;
@@ -22,6 +23,7 @@ use App\Models\Prestacion;
 use App\Models\Procedimiento;
 use App\Models\SolicitudReversionCobro;
 use App\Models\User;
+use App\Support\Cobros\CerrarCaja;
 use App\Support\Cobros\Cobrar;
 use App\Support\Cobros\RevertirCobro;
 use App\Support\PerfilesPredefinidos;
@@ -85,7 +87,7 @@ function reversionesCobroCobrar(User $cajero, array $prestaciones, array $lineas
     test()->actingAs($cajero)->from(route('admin.cobros.create'))->post(route('admin.cobros.store'), [
         'paciente_id' => test()->paciente->id,
         'prestaciones' => array_map(fn (Prestacion $prestacion) => $prestacion->id, $prestaciones),
-        'lineas' => array_map(fn (array $linea) => ['medio_pago_id' => $linea[0]->id, 'monto' => $linea[1]], $lineas),
+        'lineas' => array_map(fn (array $linea) => ['medio_pago_id' => $linea[0]->id, 'monto' => $linea[1], 'referencia' => $linea[2] ?? ($linea[0]->exigeComprobante() ? 'CMP-'.$linea[0]->id : '')], $lineas),
     ])->assertSessionHas('status');
 
     return Cobro::latest('id')->firstOrFail();
@@ -151,7 +153,7 @@ test('un cobro se revierte una sola vez: la segunda reversión y la solicitud so
 
     reversionesCobroRevertir($this->cajero, $cobro)->assertSessionHas('error', RevertirCobro::YA_REVERTIDO);
     reversionesCobroSolicitar($this->otroCajero, $cobro)->assertSessionHas('error', RevertirCobro::YA_REVERTIDO);
-    expect(fn () => RevertirCobro::ejecutar($this->cajero, $cobro, 'Otro motivo inventado.'))->toThrow(\App\Exceptions\AccionRechazada::class, RevertirCobro::YA_REVERTIDO)
+    expect(fn () => RevertirCobro::ejecutar($this->cajero, $cobro, 'Otro motivo inventado.'))->toThrow(AccionRechazada::class, RevertirCobro::YA_REVERTIDO)
         ->and(MovimientoCaja::where('tipo', MovimientoCaja::REVERSION)->count())->toBe(1)
         ->and(SolicitudReversionCobro::count())->toBe(0)
         ->and($caja->esperadoPorMedio())->toBe([$this->efectivo->id => 50000]);
@@ -248,9 +250,9 @@ test('transferencia y tarjeta devueltas desde una caja recién abierta: lo esper
     ]);
     // El efectivo no se declara negativo; los demás medios sí.
     $declarar([$this->efectivo->id => '-1', $this->transferencia->id => '-150.000', $this->tarjeta->id => '-100.000'])
-        ->assertSessionHas('error', \App\Support\Cobros\CerrarCaja::EFECTIVO_NEGATIVO);
+        ->assertSessionHas('error', CerrarCaja::EFECTIVO_NEGATIVO);
     // Declarado en cero, la diferencia se ve y pide motivo.
-    $declarar([$this->efectivo->id => '20.000'])->assertSessionHas('error', \App\Support\Cobros\CerrarCaja::FALTA_MOTIVO);
+    $declarar([$this->efectivo->id => '20.000'])->assertSessionHas('error', CerrarCaja::FALTA_MOTIVO);
     expect($nueva->fresh()->abierta())->toBeTrue();
 
     $declarar([$this->efectivo->id => '20.000', $this->transferencia->id => '-150.000', $this->tarjeta->id => '-90.000'], 'Falta un comprobante de la devolución por POS.')

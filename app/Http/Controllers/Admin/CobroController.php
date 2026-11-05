@@ -8,12 +8,14 @@ use App\Models\Caja;
 use App\Models\Cobro;
 use App\Models\Estado;
 use App\Models\Factura;
+use App\Models\LineaCobro;
 use App\Models\MedioPago;
 use App\Models\Moneda;
 use App\Models\Paciente;
 use App\Models\Prestacion;
 use App\Models\SolicitudReversionCobro;
 use App\Support\Cobros\Cobrar;
+use App\Support\Cobros\CorregirComprobante;
 use App\Support\Cobros\Guaranies;
 use App\Support\Cobros\RevertirCobro;
 use App\Support\Facturacion\EmitirFactura;
@@ -53,6 +55,9 @@ class CobroController extends Controller
             // Varios por cobro: se filtra por uno; ordenar por la lista no tiene sentido.
             ->opciones('medios', 'Medios', 'cobros.id', MedioPago::query()->orderBy('nombre')->pluck('nombre', 'id')->all(),
                 orden: false, filtro: fn ($query, $id) => $query->whereHas('lineas', fn ($query) => $query->where('medio_pago_id', $id)))
+            // Los comprobantes de sus pagos (para el arqueo): se busca por número; ordenar por la lista no tiene sentido.
+            ->texto('comprobantes', 'Comprobantes', 'cobros.id', orden: false,
+                filtro: fn ($query, $texto) => $query->whereHas('lineas', fn ($query) => $query->where('referencia', 'like', '%'.addcslashes((string) $texto, '%_\\').'%')))
             ->numero('total', 'Total', 'cobros.total')
             ->estado('estado', 'Estado', 'cobros.estado_id', Cobro::ETIQUETAS)
             ->persona('cajero', 'Cajero', 'cobros.usuario_id', via: 'users');
@@ -108,6 +113,7 @@ class CobroController extends Controller
             'veCaja' => $veCaja($cobro->caja),
             'veCajaReversion' => $veCaja($cobro->cajaReversion),
             'puedeRevertir' => $libre && $directa && Permisos::puedeRuta('admin.cobros.revertir'),
+            'puedeCorregir' => ! $cobro->revertido() && $cobro->caja->estado->codigo !== Estado::APROBADO && Permisos::puedeRuta('admin.cobros.corregir-comprobante'),
             'puedeSolicitar' => $libre && ! $directa && Permisos::puedeRuta('admin.cobros.solicitar-reversion'),
             'pendiente' => $pendiente,
             'veFactura' => $cobro->factura !== null && Permisos::puedeRuta('admin.facturas.show'),
@@ -128,6 +134,27 @@ class CobroController extends Controller
         }
 
         return redirect()->route('admin.cobros.show', $cobro)->with('status', "Cobro revertido: se devolvieron {$cobro->totalTexto()} desde su caja.");
+    }
+
+    /** Corrige el comprobante de una línea del cobro (EDITAR sobre COBROS): con motivo, auditado. */
+    public function corregirComprobante(Request $request, Cobro $cobro, LineaCobro $linea): RedirectResponse
+    {
+        abort_unless($linea->cobro_id === $cobro->id, 404);
+        $datos = $request->validate([
+            'comprobante' => ['nullable', 'string', 'max:'.Cobrar::REFERENCIA_MAXIMA],
+            'motivo' => ['required', 'string', 'min:'.RevertirCobro::MOTIVO_MINIMO, 'max:'.RevertirCobro::MOTIVO_MAXIMO],
+        ], [
+            'motivo.required' => 'Indique el motivo de la corrección.',
+            'motivo.min' => 'Indique el motivo de la corrección (al menos '.RevertirCobro::MOTIVO_MINIMO.' caracteres).',
+        ], ['comprobante' => 'comprobante', 'motivo' => 'motivo']);
+
+        try {
+            CorregirComprobante::ejecutar($request->user(), $linea, $datos['comprobante'] ?? null, $datos['motivo']);
+        } catch (AccionRechazada $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('admin.cobros.show', $cobro)->with('status', 'Comprobante corregido.');
     }
 
     public function solicitarReversion(Request $request, Cobro $cobro): RedirectResponse
@@ -257,7 +284,9 @@ class CobroController extends Controller
 
         // Las líneas vacías no cuentan; una a medias (medio sin monto o monto sin medio) se rechaza.
         $lineas = [];
-        foreach ($datos['lineas'] as $linea) {
+        $mediosElegidos = MedioPago::query()->whereKey(collect($datos['lineas'])->pluck('medio_pago_id')->filter()->all())->get()->keyBy('id');
+        $faltantes = [];
+        foreach ($datos['lineas'] as $i => $linea) {
             $medio = $linea['medio_pago_id'] ?? null;
             $monto = trim((string) ($linea['monto'] ?? ''));
             if ($medio === null && $monto === '') {
@@ -266,7 +295,16 @@ class CobroController extends Controller
             if ($medio === null || $monto === '') {
                 return back()->withInput()->with('error', 'Cada pago necesita el medio y el monto.');
             }
+            // Comprobante obligatorio según el medio: el error va en el campo de esa fila (Cobrar lo vuelve a verificar).
+            $elegido = $mediosElegidos->get((int) $medio);
+            if ($elegido?->exigeComprobante() && trim((string) ($linea['referencia'] ?? '')) === '') {
+                $faltantes["lineas.{$i}.referencia"] = $elegido->mensajeComprobanteFaltante();
+            }
             $lineas[] = ['medio_pago_id' => (int) $medio, 'monto' => Guaranies::entero($monto), 'referencia' => $linea['referencia'] ?? null];
+        }
+
+        if ($faltantes !== []) {
+            return back()->withInput()->withErrors($faltantes);
         }
 
         try {

@@ -105,6 +105,10 @@ final class Cobrar
                     if (mb_strlen((string) ($linea['referencia'] ?? '')) > self::REFERENCIA_MAXIMA) {
                         throw new AccionRechazada('La referencia no puede tener más de '.self::REFERENCIA_MAXIMA.' caracteres.');
                     }
+                    // Los medios no efectivo (los que lo piden en el catálogo) exigen el comprobante; no se pide que sea único.
+                    if ($medio->exigeComprobante() && trim((string) ($linea['referencia'] ?? '')) === '') {
+                        throw new AccionRechazada($medio->mensajeComprobanteFaltante());
+                    }
                     $pagos += (int) $linea['monto'];
                 }
                 $moneda = Moneda::guarani();
