@@ -163,3 +163,42 @@ test('no se reactiva un hijo cuyo padre está inactivo, y el mensaje dice qué p
 
     expect($this->horqueta->fresh()->estaActivo())->toBeTrue();
 });
+
+test('la migración de Asunción pone la clave al "Asunción (Capital)" sin clave, sin renombrar, y el seeder no duplica', function () {
+    $capital = Departamento::where('nombre', 'Asunción (Distrito Capital)')->sole();
+    $capital->forceFill(['nombre' => 'Asunción (Capital)', 'clave_origen' => null])->saveQuietly();
+    $asuncion = Ciudad::where('departamento_id', $capital->id)->where('nombre', 'Asunción')->sole();
+    $asuncion->forceFill(['clave_origen' => null])->saveQuietly();
+    $otras = Departamento::where('id', '!=', $capital->id)->orderBy('id')->get(['id', 'nombre', 'estado_id', 'clave_origen'])->toArray();
+    $antes = [Departamento::count(), Ciudad::count()];
+
+    $migracion = require database_path('migrations/2026_11_06_110001_geografia_clave_asuncion.php');
+    $migracion->up();
+    $migracion->up(); // repetible
+
+    expect($capital->fresh()->clave_origen)->toBe('PY:Asunción (Distrito Capital)')
+        ->and($capital->fresh()->nombre)->toBe('Asunción (Capital)')
+        ->and($capital->fresh()->estado_id)->toBe($capital->estado_id)
+        ->and($asuncion->fresh()->clave_origen)->toBe('PY:Asunción (Distrito Capital)/Asunción')
+        ->and(Departamento::where('id', '!=', $capital->id)->orderBy('id')->get(['id', 'nombre', 'estado_id', 'clave_origen'])->toArray())->toBe($otras);
+
+    $this->seed(GeografiaSeeder::class);
+
+    expect([Departamento::count(), Ciudad::count()])->toBe($antes)
+        ->and($capital->fresh()->nombre)->toBe('Asunción (Capital)')
+        ->and(Departamento::whereNull('clave_origen')->count())->toBe(0)
+        ->and(Ciudad::whereNull('clave_origen')->count())->toBe(0);
+});
+
+test('la migración de Asunción no falla si no hay Paraguay, si ya tienen clave o si el departamento no existe', function () {
+    $migracion = require database_path('migrations/2026_11_06_110001_geografia_clave_asuncion.php');
+    $migracion->up(); // ya tienen clave
+
+    Departamento::where('nombre', 'Asunción (Distrito Capital)')->update(['clave_origen' => null, 'nombre' => 'Otro nombre']);
+    $migracion->up(); // no existe ninguna variante: no hace nada
+    expect(Departamento::whereNull('clave_origen')->count())->toBe(1);
+
+    Pais::where('codigo', 'PY')->update(['codigo' => 'XX']);
+    $migracion->up(); // sin Paraguay
+    expect(Departamento::whereNull('clave_origen')->count())->toBe(1);
+});
