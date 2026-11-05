@@ -36,6 +36,7 @@
 - Los helpers de test definidos como funciones globales llevan el prefijo del archivo (p. ej.
   `perfilesPredefinidosExistente` en `PerfilesPredefinidosTest`): los choques de nombre ya rompieron la
   suite dos veces.
+- `npm run test:js` (Vitest + jsdom, `tests/Js`): obligatorio cuando se toque JavaScript del sistema; `composer test:completo` NO lo incluye.
 - Detalle en `docs/pruebas.md`.
 
 ## Producción

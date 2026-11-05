@@ -6,6 +6,7 @@
 <x-admin.page title="Registrar urgencia">
     <x-admin.form :action="route('admin.turnos.urgencias.store')" :cancel="route('admin.turnos.urgencias')" width="max-w-3xl" submit-label="Registrar urgencia">
         <x-admin.selector-persona name="paciente_id" label="Paciente" :url="route('admin.turnos.pacientes')"
+            ruta-alta-rapida="admin.pacientes.alta-rapida" :tipos-alta-rapida="['FISICA']" rol-alta-rapida="paciente" destino-alta-rapida="esta urgencia"
             :inicial="$pacienteInicial" :ofrecer-alta="false" sin-resultados="No hay pacientes activos con esa búsqueda."
             ayuda="Solo aparecen pacientes activos. Busque por nombre, documento o número de ficha." />
         @include('admin.atencion._ayuda-paciente')

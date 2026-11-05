@@ -12,7 +12,8 @@
                 <p class="text-sm"><a href="{{ route('admin.coberturas.show', $registro) }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Cobertura y visaciones</a></p>
             @endif
         @else
-            <x-admin.selector-persona :url="route('admin.pacientes.personas-disponibles')" />
+            <x-admin.selector-persona :url="route('admin.pacientes.personas-disponibles')"
+                ruta-alta-rapida="admin.pacientes.personas-rapida" :tipos-alta-rapida="['FISICA']" destino-alta-rapida="este paciente" />
         @endif
 
         <x-admin.input name="nro_ficha" label="Número de ficha" :value="$registro->nro_ficha" unico="paciente.nro_ficha" :unico-ignorar="$registro->id" maxlength="20" required aria-describedby="nro_ficha_ayuda" />

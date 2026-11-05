@@ -18,6 +18,7 @@
         </fieldset>
 
         <x-admin.selector-persona name="paciente_id" label="Paciente" :url="route('admin.turnos.pacientes')"
+            ruta-alta-rapida="admin.pacientes.alta-rapida" :tipos-alta-rapida="['FISICA']" rol-alta-rapida="paciente" destino-alta-rapida="este turno"
             :inicial="$pacienteInicial" :ofrecer-alta="false" sin-resultados="No hay pacientes activos con esa búsqueda."
             ayuda="Solo aparecen pacientes activos. Busque por nombre, documento o número de ficha." />
 

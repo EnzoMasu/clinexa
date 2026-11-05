@@ -28,7 +28,8 @@
         @if ($registro->exists)
             <x-admin.persona-solo-lectura :persona="$registro->persona" />
         @else
-            <x-admin.selector-persona :url="route('admin.profesionales.personas-disponibles')" />
+            <x-admin.selector-persona :url="route('admin.profesionales.personas-disponibles')"
+                ruta-alta-rapida="admin.profesionales.personas-rapida" :tipos-alta-rapida="['FISICA']" destino-alta-rapida="este profesional" />
         @endif
 
         <div class="max-w-sm">

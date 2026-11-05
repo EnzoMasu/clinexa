@@ -2,19 +2,15 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Requests\Admin\PersonaRequest;
 use App\Models\CategoriaProveedor;
 use App\Models\Estado;
-use App\Models\Pais;
 use App\Models\Persona;
 use App\Models\Proveedor;
 use App\Models\RedSocialProveedor;
 use App\Models\TipoRedSocial;
-use App\Models\TipoDocumento;
 use App\Support\BuscadorPersonas;
 use App\Support\Enlace;
 use App\Support\Grilla\Grilla;
-use App\Support\Personas\AltaPersona;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -58,21 +54,10 @@ class ProveedorController extends RolPersonaController
         return BuscadorPersonas::json($personas);
     }
 
-    /**
-     * Alta rápida de persona desde el formulario de Proveedor (popup): las mismas validaciones que
-     * Personas (PersonaRequest) y el mismo alta (AltaPersona, auditada como alta de Persona). Responde
-     * { id, texto } para elegirla en el selector; un error de validación vuelve como 422 en JSON.
-     * No da acceso a listar ni editar Personas.
-     */
-    public function altaRapidaPersona(PersonaRequest $request): JsonResponse
+    /** La persona creada con el alta rápida queda elegible para quien la creó, aunque no vea Personas. */
+    protected function personaCreadaEnAltaRapida(Request $request, Persona $persona): void
     {
-        $persona = AltaPersona::crear($request->validated());
         $this->recordarElegibles($request, [$persona->id]);
-
-        return response()->json([
-            'id' => $persona->id,
-            'texto' => BuscadorPersonas::texto($persona->load('tipoDocumento')),
-        ], 201, [], BuscadorPersonas::JSON_SEGURO);
     }
 
     protected function personaElegible(int $personaId): bool
@@ -299,14 +284,6 @@ class ProveedorController extends RolPersonaController
             ...($registro ? [] : [
                 'personaInicial' => $this->personaAnterior(),
                 'buscaPorNombre' => self::buscaPorNombre(),
-                // Popup de alta rápida: los mismos campos que el alta de Personas.
-                'personaNueva' => new Persona([
-                    'tipo_persona' => 'FISICA',
-                    'tipo_documento_id' => TipoDocumento::predeterminadoPara('PERSONAS'),
-                    'pais_nacionalidad_id' => Pais::idParaguay(),
-                ]),
-                'tiposDocumento' => PersonaController::tiposDocumento(),
-                'paises' => Pais::opciones(),
             ]),
             'categorias' => CategoriaProveedor::query()
                 ->where(fn ($query) => $query->activos()->orWhereIn('id', $yaAsignadas))

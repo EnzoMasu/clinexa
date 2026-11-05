@@ -1,6 +1,6 @@
 {{--
-    Campos de una persona (alta y edición de Personas, y alta rápida del formulario de Proveedor). Necesita
-    $persona, $tiposDocumento y $paises, y estar dentro de un x-data con "tipo" (FISICA o JURIDICA).
+    Campos de una persona (alta y edición de Personas, y alta rápida desde los selectores de personas). Necesita
+    $persona, $tiposDocumento y $paises, y estar dentro de un x-data con "tipo" (FISICA o JURIDICA). Opcional $tiposPersona: los tipos que se ofrecen.
 --}}
 @php
     use App\Models\Persona;
@@ -14,7 +14,7 @@
 @endphp
 
         <div class="grid gap-6 sm:grid-cols-2">
-            <x-admin.select name="tipo_persona" label="Tipo de persona" :options="['FISICA' => 'Física', 'JURIDICA' => 'Jurídica']"
+            <x-admin.select name="tipo_persona" label="Tipo de persona" :options="array_intersect_key(['FISICA' => 'Física', 'JURIDICA' => 'Jurídica'], array_flip($tiposPersona ?? ['FISICA', 'JURIDICA']))"
                 :value="$tipoInicial" x-model="tipo" required />
 
             {{-- RUC: obligatorio para la persona jurídica y opcional para la física (que se identifica con CI o pasaporte). --}}

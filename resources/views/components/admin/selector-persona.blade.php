@@ -13,6 +13,12 @@
     Proveedores pasa la suya para la búsqueda por número exacto. El slot "altaRapida" se muestra cuando no
     hay resultados, con "q" (lo buscado) a mano; una persona creada desde afuera se elige con el evento de
     ventana "persona-creada" ({ campo, persona: { id, texto } }).
+
+    Alta rápida: "ruta-alta-rapida" (nombre de una ruta POST) ofrece "Crear" cuando no hay resultados, solo a quien
+    tiene el permiso de esa ruta, y abre el formulario completo de Personas en una ventana emergente
+    (x-admin.alta-rapida-persona), sin salir de la pantalla. "parametros-alta-rapida": parámetros de esa ruta;
+    "tipos-alta-rapida": tipos de persona que se ofrecen; "rol-alta-rapida": si la ruta crea también el registro
+    (p. ej. 'paciente'); "destino-alta-rapida": cómo se nombra el formulario en el texto de la ventana.
 --}}
 @props([
     'url',
@@ -25,6 +31,11 @@
     'sinResultados' => 'No hay personas disponibles con esa búsqueda.',
     'restaurar' => true,
     'pista' => null,
+    'rutaAltaRapida' => null,
+    'parametrosAltaRapida' => [],
+    'tiposAltaRapida' => ['FISICA', 'JURIDICA'],
+    'rolAltaRapida' => null,
+    'destinoAltaRapida' => 'este formulario',
 ])
 
 @php
@@ -36,7 +47,9 @@
     if ($restaurar && $inicial === null && old($name) && ($anterior = Persona::with('tipoDocumento')->find(old($name)))) {
         $inicial = ['id' => $anterior->id, 'texto' => BuscadorPersonas::texto($anterior, $conEmail)];
     }
-    $urlNuevaPersona = $ofrecerAlta ? Permisos::url('admin.personas.create') : null;
+    // Con alta rápida disponible no se manda a otra pantalla.
+    $altaRapida = $rutaAltaRapida && Permisos::puedeRuta($rutaAltaRapida);
+    $urlNuevaPersona = $ofrecerAlta && ! $altaRapida ? Permisos::url('admin.personas.create') : null;
     $minimo = BuscadorPersonas::MINIMO;
     // La pista va como placeholder de la caja de búsqueda (por defecto, la misma en todos los buscadores de personas).
     $pista ??= "Escriba al menos {$minimo} caracteres del nombre o del documento para buscar.";
@@ -77,7 +90,10 @@
                 @if ($urlNuevaPersona)
                     <a href="{{ $urlNuevaPersona }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Cargar una persona nueva</a>
                 @endif
-                {{ $altaRapida ?? '' }}
+                @if ($altaRapida)
+                    <button type="button" x-on:click="$dispatch('abrir-alta-rapida-persona', { campo, numero: q.trim() })"
+                        class="ml-1 font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Crear</button>
+                @endif
             </li>
             <li x-show="cargando" style="display: none" class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400" role="status">Buscando…</li>
         </ul>
@@ -86,3 +102,9 @@
     <noscript><p class="text-sm text-red-600">Para elegir la persona se necesita JavaScript habilitado.</p></noscript>
     <x-input-error :messages="$errors->get($name)" />
 </div>
+
+@if ($altaRapida)
+    @push('modales')
+        <x-admin.alta-rapida-persona :url="route($rutaAltaRapida, $parametrosAltaRapida)" :campo="$name" :tipos="$tiposAltaRapida" :con-rol="$rolAltaRapida" :destino="$destinoAltaRapida" />
+    @endpush
+@endif

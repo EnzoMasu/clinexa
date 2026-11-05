@@ -7,6 +7,7 @@
             <x-admin.persona-solo-lectura :persona="$registro->persona" />
         @else
             <x-admin.selector-persona :url="route('admin.personal-salud.personas-disponibles')"
+                ruta-alta-rapida="admin.personal-salud.personas-rapida" :tipos-alta-rapida="['FISICA']" destino-alta-rapida="este personal de salud"
                 ayuda="Solo aparecen personas físicas activas que todavía no son personal de salud." />
         @endif
 
