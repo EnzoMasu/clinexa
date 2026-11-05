@@ -2,6 +2,7 @@ import './bootstrap';
 
 import Alpine from 'alpinejs';
 import altaTurno from './alta-turno';
+import arqueoCaja from './arqueo-caja';
 import buscadorCie10 from './buscador-cie10';
 import campoFecha from './campo-fecha';
 import consultaAutoguardado from './consulta-autoguardado';
@@ -18,6 +19,7 @@ import verificarUnico from './verificar-unico';
 window.Alpine = Alpine;
 
 Alpine.data('altaTurno', altaTurno);
+Alpine.data('arqueoCaja', arqueoCaja);
 Alpine.data('buscadorCie10', buscadorCie10);
 Alpine.data('campoFecha', campoFecha);
 Alpine.data('consultaAutoguardado', consultaAutoguardado);

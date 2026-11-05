@@ -12,8 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Un cierre declarado de una caja (docs/cobros-caja.md): lo contado por medio (CierreCajaMedio), el motivo si hay diferencia y su
- * revisión. PENDIENTE (de aprobación) -> APROBADO, o -> DEVUELTO con la nota de Gerencia; una caja devuelta y vuelta a cerrar
- * tiene otro cierre, y el anterior se conserva. El modelo rechaza cualquier otro cambio, y el borrado.
+ * revisión: cada vuelta del arqueo. PENDIENTE (de recepción) -> APROBADO (recibido), o -> DEVUELTO con el motivo de Gerencia; una
+ * caja devuelta y reenviada tiene otro cierre, y el anterior se conserva (el historial: quién devolvió, cuándo, el motivo y lo declarado). El modelo rechaza cualquier otro cambio, y el borrado.
  */
 class CierreCaja extends Model
 {
@@ -21,7 +21,7 @@ class CierreCaja extends Model
 
     protected $table = 'cierres_caja';
 
-    public const ETIQUETAS = [Estado::PENDIENTE => 'Pendiente de aprobación', Estado::APROBADO => 'Aprobado', Estado::DEVUELTO => 'Devuelto'];
+    public const ETIQUETAS = [Estado::PENDIENTE => 'Pendiente de recepción', Estado::APROBADO => 'Recibido', Estado::DEVUELTO => 'Devuelto por diferencias'];
 
     private const CAMPOS_DE_REVISION = ['estado_id', 'revisado_por', 'revisado_en', 'nota_revision', 'updated_at'];
 

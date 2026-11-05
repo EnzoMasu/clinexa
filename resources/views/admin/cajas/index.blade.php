@@ -19,6 +19,8 @@
                     <a href="{{ route('admin.cajas.show', $miCaja) }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Ver la caja y cerrarla</a>
                 </div>
             </section>
+        @elseif ($puedeAbrir && $devueltas->isNotEmpty())
+            <p role="status" class="max-w-3xl rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">{{ \App\Support\Cobros\AbrirCaja::CON_DEVUELTA }}</p>
         @elseif ($puedeAbrir)
             <section aria-labelledby="abrir-caja" class="max-w-xl space-y-3 rounded-md border border-gray-200 p-4 dark:border-gray-700">
                 <h3 id="abrir-caja" class="font-semibold text-gray-900 dark:text-gray-100">Abrir mi caja</h3>
@@ -29,6 +31,19 @@
                         <x-admin.input name="monto_inicial" label="Monto inicial en efectivo (₲)" inputmode="numeric" maxlength="17" autocomplete="off" value="0" required />
                         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Sin decimales, por ejemplo 100000 o 100.000. Cero si empieza sin efectivo.</p>
                     </div>
+                    {{-- Con una sola sucursal activa se asigna sola; con más, el cajero la elige (AbrirCaja). --}}
+                    @if ($sucursales->count() > 1)
+                        <div>
+                            <x-input-label for="sucursal_id" value="Sucursal (obligatorio)" />
+                            <select id="sucursal_id" name="sucursal_id" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                <option value="">Elija la sucursal</option>
+                                @foreach ($sucursales as $sucursal)
+                                    <option value="{{ $sucursal->id }}" @selected((int) old('sucursal_id') === $sucursal->id)>{{ $sucursal->nombre }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error class="mt-1" :messages="$errors->get('sucursal_id')" />
+                        </div>
+                    @endif
                     <x-primary-button>Abrir caja</x-primary-button>
                 </form>
             </section>
@@ -36,14 +51,14 @@
 
         @foreach ($devueltas as $devuelta)
             <p role="status" class="max-w-3xl rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
-                Gerencia devolvió el cierre de su caja del {{ Fecha::mostrar($devuelta->fecha) }}{{ $devuelta->ultimoCierre?->nota_revision ? ': '.$devuelta->ultimoCierre->nota_revision : '.' }}
-                <a href="{{ route('admin.cajas.show', $devuelta) }}" class="font-medium underline">Corregir y volver a cerrar</a>
+                Gerencia devolvió por diferencias el arqueo de su caja del {{ Fecha::mostrar($devuelta->fecha) }}{{ $devuelta->ultimoCierre?->nota_revision ? ': '.$devuelta->ultimoCierre->nota_revision : '.' }}
+                <a href="{{ route('admin.cajas.show', $devuelta) }}" class="font-medium underline">Corregir y reenviar</a>
             </p>
         @endforeach
 
         @if ($veTodas && $cantidadPendientes > 0)
             <p role="status" class="max-w-3xl rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
-                {{ $cantidadPendientes === 1 ? 'Hay 1 caja cerrada pendiente de aprobación.' : "Hay {$cantidadPendientes} cajas cerradas pendientes de aprobación." }}
+                {{ $cantidadPendientes === 1 ? 'Hay 1 caja pendiente de recepción.' : "Hay {$cantidadPendientes} cajas pendientes de recepción." }}
                 <a href="{{ route('admin.cajas.index', ['estado' => \App\Models\Estado::CERRADO]) }}" class="font-medium underline">Ver las pendientes</a>
             </p>
         @endif

@@ -81,12 +81,22 @@
                             @endif
                         </td>
                         <td class="px-6 py-3 text-right">
-                            @if ($puedeCorregir && ! $linea->medioPago->esEfectivo())
-                                <details @if ($errors->has('comprobante') || $errors->has('motivo')) open @endif>
+                            @if ($puedeCorregir)
+                                {{-- Arqueo devuelto: el cajero corrige el medio y el comprobante (nunca el monto); el servidor verifica todo. --}}
+                                <details @if (old('linea_id') == $linea->id) open @endif>
                                     <summary class="cursor-pointer font-medium text-indigo-600 dark:text-indigo-400">Corregir</summary>
                                     <form method="POST" action="{{ route('admin.cobros.corregir-comprobante', [$cobro, $linea]) }}" novalidate class="mt-2 space-y-2 text-left">
                                         @csrf
-                                        <x-admin.input name="comprobante" :label="$linea->medioPago->etiquetaComprobante().($linea->medioPago->exigeComprobante() ? ' (obligatorio)' : '')" :value="$linea->referencia" maxlength="{{ Cobrar::REFERENCIA_MAXIMA }}" />
+                                        <input type="hidden" name="linea_id" value="{{ $linea->id }}">
+                                        <div>
+                                            <x-input-label for="medio_{{ $linea->id }}" value="Medio de pago" />
+                                            <select id="medio_{{ $linea->id }}" name="medio_pago_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                                @foreach ($mediosActivos->concat([$linea->medioPago])->unique('id')->sortBy('nombre') as $medio)
+                                                    <option value="{{ $medio->id }}" @selected((int) (old('linea_id') == $linea->id ? old('medio_pago_id') : $linea->medio_pago_id) === $medio->id)>{{ $medio->nombre }}{{ $medio->exigeComprobante() ? ' ('.$medio->etiquetaComprobante().' obligatorio)' : '' }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <x-admin.input name="comprobante" label="Comprobante (obligatorio según el medio; en efectivo queda vacío)" :value="old('linea_id') == $linea->id ? old('comprobante') : $linea->referencia" maxlength="{{ Cobrar::REFERENCIA_MAXIMA }}" />
                                         <x-admin.textarea name="motivo" label="Motivo de la corrección (obligatorio)" rows="2" minlength="{{ RevertirCobro::MOTIVO_MINIMO }}" maxlength="{{ RevertirCobro::MOTIVO_MAXIMO }}" required />
                                         <x-primary-button>Guardar la corrección</x-primary-button>
                                     </form>

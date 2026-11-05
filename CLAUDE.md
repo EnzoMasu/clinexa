@@ -61,7 +61,7 @@ agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-gene
   `Finalizar`, `DeshacerAtencion`, `CerrarJornada`, `GuardarSecciones`, `Autoguardado`, `EvaluadorSignos`).
 - `app/Support/Turnos/`: `AgendarEntrePacientes`, `RegistrarUrgencia`. `app/Support/Agenda.php`.
 - `app/Support/`: `Permisos`, `PermisosDePerfil`, `PerfilesPredefinidos`, `Auditoria`,
-  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `PdfClinico/PdfInformeEstudio` (informe de estudio), `Reposo/` (certificado de reposo: emitir, anular, PDF), `OrdenEstudio/` (orden de estudio: emitir, anular, PDF), `Tarifas/` (buscar, alta, cambiar), `Prestaciones/` (generar al finalizar, tarifar, anular), `Repartos/` (acuerdos: buscar, alta, cambiar; calcular y repartir la prestación), `Cobros/` (abrir, cobrar, cerrar y revisar la caja; revertir cobros), `Convenios/` (convenios, coberturas, visaciones, calcular quién paga, aplicar visación, firma, ticket), `Liquidaciones/` (armar, flujo y aprobación, bloqueo de la prestación, pagos de la aseguradora, planilla), `Facturacion/` (emisor simulado `EmisorDocumentos`, emitir con el timbrado, IVA, anular o solicitar, bloqueo, PDF, timbrados), `BuscadorPersonas`, `Unicidad`.
+  `ContextoAuditoria`, `Respaldos`, `HojaReceta`, `PdfClinico/GenerarPdf` (PDF de triaje y de consulta, al vuelo), `PdfClinico/PdfIndicaciones` (indicaciones generales en hoja aparte), `PdfClinico/PdfInformeEstudio` (informe de estudio), `Reposo/` (certificado de reposo: emitir, anular, PDF), `OrdenEstudio/` (orden de estudio: emitir, anular, PDF), `Tarifas/` (buscar, alta, cambiar), `Prestaciones/` (generar al finalizar, tarifar, anular), `Repartos/` (acuerdos: buscar, alta, cambiar; calcular y repartir la prestación), `Cobros/` (abrir, cobrar, arqueo: cerrar, recibir o devolver, corregir medio y comprobante, PDF; revertir cobros), `Convenios/` (convenios, coberturas, visaciones, calcular quién paga, aplicar visación, firma, ticket), `Liquidaciones/` (armar, flujo y aprobación, bloqueo de la prestación, pagos de la aseguradora, planilla), `Facturacion/` (emisor simulado `EmisorDocumentos`, emitir con el timbrado, IVA, anular o solicitar, bloqueo, PDF, timbrados), `BuscadorPersonas`, `Unicidad`.
 - `app/Console/Commands/`: `Respaldo` (`clinexa:respaldo`), `DatosDemo` (`clinexa:datos-demo`, solo desarrollo; etapas en `database/seeders/Demo/`), `CrearAdmin`, `TraspasarPrincipal`,
   `MigrarUsuariosAPersona`.
 - `app/Policies/`, `app/Http/Middleware/`, `app/Http/Requests/`, `app/Rules/`: autorización y validación.
@@ -69,7 +69,7 @@ agenda-urgencias, triaje, retiros, constancias, reposo-medico, indicaciones-gene
 - `database/migrations`, `database/seeders`: esquema y datos base (módulos, permisos, perfiles, CIE10).
 - `resources/views/admin/`: vistas por módulo; `resources/views/components/`: componentes Blade.
 - `resources/js/`: un script por comportamiento (`popup-consultas`, `consulta-autoguardado`,
-  `listado-en-vivo`, `alta-turno`, `selector-persona`, `buscador-cie10`, `pantalla-cobro`). Sin datos clínicos en el navegador.
+  `listado-en-vivo`, `alta-turno`, `selector-persona`, `buscador-cie10`, `pantalla-cobro`, `arqueo-caja`). Sin datos clínicos en el navegador.
 - `tests/Feature` y `tests/Unit` (SQLite en memoria); `tests/Postgres` (`clinexa_test`).
 - `.claude/commands/`: `/aplicar RAMA` (migrar la base real con foto y respaldo) y
   `/fusionar RAMA "mensaje"` (squash a main).

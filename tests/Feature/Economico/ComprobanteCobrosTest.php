@@ -6,15 +6,11 @@
  * las grillas; y su corrección queda auditada. Datos inventados.
  */
 
-use App\Enums\AccionAuditoria;
 use App\Exceptions\AccionRechazada;
-use App\Exceptions\RegistroEconomicoInmutable;
 use App\Models\Caja;
 use App\Models\Cobro;
 use App\Models\Consulta;
-use App\Models\Estado;
 use App\Models\LineaCobro;
-use App\Models\LogAuditoria;
 use App\Models\MedioPago;
 use App\Models\PerfilAcceso;
 use App\Models\Prestacion;
@@ -146,45 +142,4 @@ test('el comprobante se ve en el detalle del cobro, en la grilla de cobros y en 
     $this->get(route('admin.cobros.create'))->assertOk();
 });
 
-test('corregir el comprobante: solo el comprobante, con motivo, y queda auditado (quién, cuándo, antes y después)', function () {
-    comprobanteCobrosCobrar(comprobanteCobrosPrestacion(), MedioPago::TRANSFERENCIA, 'TRF-0001')->assertSessionHas('status');
-    $cobro = Cobro::sole();
-    $linea = $cobro->lineas->sole();
-    $ruta = route('admin.cobros.corregir-comprobante', [$cobro, $linea]);
-
-    // Sin motivo, vacío (el medio lo exige) o igual: no cambia.
-    $this->actingAs($this->cajero)->post($ruta, ['comprobante' => 'TRF-0002', 'motivo' => ''])->assertSessionHasErrors('motivo');
-    $this->post($ruta, ['comprobante' => '', 'motivo' => 'Era otro número'])->assertSessionHas('error');
-    $this->post($ruta, ['comprobante' => 'TRF-0001', 'motivo' => 'Era otro número'])->assertSessionHas('error');
-    expect($linea->fresh()->referencia)->toBe('TRF-0001');
-
-    $this->post($ruta, ['comprobante' => 'TRF-0002', 'motivo' => 'Error de tipeo'])->assertSessionHas('status', 'Comprobante corregido.');
-    $linea->refresh();
-    expect($linea->referencia)->toBe('TRF-0002')->and((int) $linea->monto)->toBe(100000)
-        ->and($linea->medio_pago_id)->toBe(($this->medio)(MedioPago::TRANSFERENCIA)->id);
-
-    $log = LogAuditoria::where('tabla_afectada', 'lineas_cobro')->where('registro_afectado_id', (string) $linea->id)
-        ->where('accion', AccionAuditoria::EDITAR->value)->sole();
-    expect($log->usuario_id)->toBe($this->cajero->id)->and($log->fecha_hora)->not->toBeNull()
-        ->and($log->valor_anterior)->toBe(['referencia' => 'TRF-0001'])->and($log->valor_nuevo)->toBe(['referencia' => 'TRF-0002'])
-        ->and($log->detalle)->toBe("Corrección del comprobante del cobro {$cobro->id}. Motivo: Error de tipeo");
-});
-
-test('no se corrige en un cobro revertido ni en una caja aprobada, ni sin el permiso, ni el efectivo, ni el medio ni el monto', function () {
-    comprobanteCobrosCobrar(comprobanteCobrosPrestacion(), MedioPago::TRANSFERENCIA, 'TRF-0001')->assertSessionHas('status');
-    $cobro = Cobro::sole();
-    $linea = $cobro->lineas->sole();
-    $ruta = route('admin.cobros.corregir-comprobante', [$cobro, $linea]);
-    $datos = ['comprobante' => 'TRF-9999', 'motivo' => 'Corrección de prueba'];
-
-    // Gerencia solo ve los cobros: no tiene EDITAR.
-    $this->actingAs($this->gerente)->post($ruta, $datos)->assertForbidden();
-    // La línea no admite otro cambio que el comprobante.
-    expect(fn () => $linea->forceFill(['monto' => 1])->save())->toThrow(RegistroEconomicoInmutable::class)
-        ->and(fn () => $linea->forceFill(['medio_pago_id' => ($this->medio)(MedioPago::CHEQUE)->id])->save())->toThrow(RegistroEconomicoInmutable::class);
-
-    $this->actingAs($this->cajero)->get(route('admin.cobros.show', $cobro))->assertSee('Corregir');
-    DB::table('cajas')->update(['estado_id' => Estado::idDe(Estado::APROBADO)]);
-    $this->post($ruta, $datos)->assertSessionHas('error', 'La caja de este cobro ya está aprobada: su comprobante ya no se corrige.');
-    expect($linea->fresh()->referencia)->toBe('TRF-0001');
-});
+// La corrección del comprobante y del medio, solo en un arqueo devuelto: tests/Feature/Economico/ArqueoCajaTest.php.

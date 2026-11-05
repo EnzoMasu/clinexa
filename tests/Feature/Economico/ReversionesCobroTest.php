@@ -243,7 +243,7 @@ test('transferencia y tarjeta devueltas desde una caja recién abierta: lo esper
 
     expect($nueva->esperadoPorMedio())->toBe([$this->efectivo->id => 20000, $this->transferencia->id => -150000, $this->tarjeta->id => -100000]);
     $this->actingAs($this->cajero)->get(route('admin.cajas.show', $nueva))->assertOk()
-        ->assertSee('Transferencia (esperado: ₲ -150.000)')->assertSee('Tarjeta (POS) (esperado: ₲ -100.000)')->assertSee('declare el neto con el signo menos');
+        ->assertSee('₲ -150.000')->assertSee('₲ -100.000')->assertSee('value="-150.000"', false)->assertSee('value="-100.000"', false)->assertSee('declare el neto con el signo menos');
 
     $declarar = fn (array $contado, ?string $motivo = null) => $this->actingAs($this->cajero)->from(route('admin.cajas.show', $nueva))->post(route('admin.cajas.cerrar', $nueva), [
         'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $contado[$id] ?? '0'])->all(), 'motivo' => $motivo,
@@ -265,8 +265,8 @@ test('transferencia y tarjeta devueltas desde una caja recién abierta: lo esper
 
     // Gerencia ve el cierre con los negativos y lo aprueba.
     $this->actingAs($this->gerente)->get(route('admin.cajas.show', $nueva))->assertOk()->assertSee('₲ -150.000')->assertSee('₲ 10.000')
-        ->assertSee('Falta un comprobante de la devolución por POS.')->assertSee('Aprobar el cierre');
-    $this->post(route('admin.cajas.aprobar', $nueva))->assertSessionHas('status', 'Cierre aprobado.');
+        ->assertSee('Falta un comprobante de la devolución por POS.')->assertSee('Aceptar (recibido)');
+    $this->post(route('admin.cajas.aprobar', $nueva))->assertSessionHas('status', 'Arqueo recibido.');
     expect($nueva->fresh()->tieneEstado(Estado::APROBADO))->toBeTrue();
 });
 
