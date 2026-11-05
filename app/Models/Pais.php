@@ -25,6 +25,15 @@ class Pais extends Model
         return 'GEOGRAFIA';
     }
 
+    /** Motivo por el que no se puede desactivar (tiene departamentos activos), o null si se puede. */
+    public function bloqueoDeBaja(): ?string
+    {
+        $n = $this->departamentos()->activos()->count();
+
+        return $n === 0 ? null : sprintf('No se puede desactivar %s: tiene %s. Desactívelos antes.', $this->nombre,
+            $n === 1 ? 'un departamento activo' : "{$n} departamentos activos");
+    }
+
     public function departamentos(): HasMany
     {
         return $this->hasMany(Departamento::class);
@@ -39,7 +48,8 @@ class Pais extends Model
     {
         return self::query()
             ->where(fn ($query) => $query->activos()->when($actual, fn ($query) => $query->orWhere('id', $actual)))
-            ->orderBy('nombre')->pluck('nombre', 'id')->all();
+            ->orderBy('nombre')->get()
+            ->mapWithKeys(fn (self $pais) => [$pais->id => $pais->nombreConEstado()])->all();
     }
 
     /**
