@@ -44,6 +44,9 @@ cantidad de filas de `personas`, `pacientes`, `historias_clinicas`, `consultas`,
   exacto `clinexa_restore_test_` + 16 hexadecimales en minúscula, y nunca la configurada, la de tests
   (`clinexa_test`), `clinexa_dev`, `clinexa_recorrido` ni las del sistema. Solo elimina la que creó: no
   borra bases temporales de otras corridas.
+- Si `dropdb --force` falla (suele ser el autovacuum de PostgreSQL sobre la base recién restaurada, que
+  el usuario de la clínica no puede terminar), se reintenta hasta 3 veces sin `--force`, con pausas
+  cortas. Si igual falla, se avisa en pantalla y en el log.
 - Si una corrida se corta (se cierra la consola, se apaga el equipo), su base temporal queda en el
   servidor. No se borra sola: el nombre aparece en pantalla ("Probando la restauración en la base
   temporal …"), y si dropdb falla queda además en el log. Elimínela a mano, por su nombre exacto.

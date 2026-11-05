@@ -6,6 +6,7 @@ use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Sleep;
 use RuntimeException;
 
 /**
@@ -32,6 +33,9 @@ final class Respaldos
 
     /** Bases que nunca se eliminan, se llamen como se llamen en la configuración. */
     public const BASES_PROTEGIDAS = ['clinexa', 'clinexa_dev', 'clinexa_test', 'clinexa_recorrido', 'clinexa_restore_test', 'postgres', 'template0', 'template1'];
+
+    /** Reintentos de dropdb (sin --force) si el primero falla. */
+    public const REINTENTOS_ELIMINAR = 3;
 
     /** La base temporal de esta instancia (de esta corrida). */
     private readonly string $baseDePrueba;
@@ -143,12 +147,25 @@ final class Respaldos
         return $this->correr(['createdb', ...$this->conectar(), $this->baseDePrueba]);
     }
 
-    /** Elimina la base temporal de esta corrida (si existe). Solo esa: ver verificarBaseDePrueba. */
+    /**
+     * Elimina la base temporal de esta corrida (si existe). Solo esa: ver verificarBaseDePrueba.
+     *
+     * Primero con --force. Recién restaurada, PostgreSQL suele lanzar el autovacuum sobre ella, y
+     * --force no puede terminar ese proceso (no es del usuario de la clínica): falla. Por eso se
+     * reintenta sin --force (DROP DATABASE sí le pide al autovacuum que se vaya) tras una pausa corta.
+     * Devuelve el resultado del último intento.
+     */
     public function eliminarBaseDePrueba(): ProcessResult
     {
         $this->verificarBaseDePrueba($this->baseDePrueba);
 
-        return $this->correr(['dropdb', ...$this->conectar(), '--if-exists', '--force', $this->baseDePrueba]);
+        $resultado = $this->correr(['dropdb', ...$this->conectar(), '--if-exists', '--force', $this->baseDePrueba]);
+        for ($intento = 1; ! $resultado->successful() && $intento <= self::REINTENTOS_ELIMINAR; $intento++) {
+            Sleep::for($intento)->seconds();
+            $resultado = $this->correr(['dropdb', ...$this->conectar(), '--if-exists', $this->baseDePrueba]);
+        }
+
+        return $resultado;
     }
 
     public function restaurarEnPrueba(string $ruta): ProcessResult

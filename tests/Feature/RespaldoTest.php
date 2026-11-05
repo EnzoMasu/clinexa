@@ -6,6 +6,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Sleep;
 
 // Grupo "lento" (docs/pruebas.md): Respaldo (herramientas de PostgreSQL simuladas, archivos de prueba). No corre en el comando rápido.
 uses()->group('lento');
@@ -135,6 +136,7 @@ test('solo respalda PostgreSQL', function () {
 
 test('--probar: si dropdb no puede eliminar la base temporal, avisa y queda en el log', function () {
     Log::spy();
+    Sleep::fake();
     Process::fake(function (PendingProcess $proceso) {
         $herramienta = basename($proceso->command[0], '.exe');
         if ($herramienta === 'pg_dump') {
@@ -153,7 +155,37 @@ test('--probar: si dropdb no puede eliminar la base temporal, avisa y queda en e
 
     Log::shouldHaveReceived('warning')->withArgs(fn (string $mensaje, array $contexto) => str_contains($mensaje, 'dropdb')
         && preg_match(Respaldos::PATRON_BASE_DE_PRUEBA, $contexto['base']) === 1 && $contexto['codigo_de_salida'] === 1
-        && $contexto['error'] === 'la base está siendo utilizada')->atLeast()->once();
+        && $contexto['error'] === 'la base está siendo utilizada')->once();
+    // Un intento con --force y los reintentos sin --force, todos sobre la misma base.
+    Process::assertRanTimes(fn (PendingProcess $p) => basename($p->command[0], '.exe') === 'dropdb', 1 + Respaldos::REINTENTOS_ELIMINAR);
+});
+
+test('--probar: si dropdb --force falla (autovacuum de otro rol), reintenta sin --force y elimina la base', function () {
+    Log::spy();
+    Sleep::fake();
+    $dropdb = [];
+    Process::fake(function (PendingProcess $proceso) use (&$dropdb) {
+        $herramienta = basename($proceso->command[0], '.exe');
+        if ($herramienta === 'pg_dump') {
+            File::put($proceso->command[array_search('-f', $proceso->command, true) + 1], 'PGDMP simulado');
+        }
+        if ($herramienta === 'dropdb') {
+            $dropdb[] = $proceso->command;
+
+            return count($dropdb) === 1 ? Process::result(errorOutput: 'se ha denegado el permiso para terminar el proceso', exitCode: 1) : Process::result();
+        }
+
+        return $herramienta === 'pg_restore' ? Process::result("; Archive\n201; 1259 16390 TABLE public personas postgres\n") : Process::result();
+    });
+
+    // La comparación con la conexión simulada no importa acá: solo la eliminación.
+    $this->artisan('clinexa:respaldo', ['--probar' => true])->expectsOutputToContain(' eliminada.');
+
+    expect($dropdb)->toHaveCount(2)
+        ->and(in_array('--force', $dropdb[0], true))->toBeTrue()
+        ->and(in_array('--force', $dropdb[1], true))->toBeFalse()
+        ->and(end($dropdb[0]))->toBe(end($dropdb[1]))->toMatch(Respaldos::PATRON_BASE_DE_PRUEBA);
+    Log::shouldNotHaveReceived('warning');
 });
 
 test('--probar: createdb, pg_restore, psql y dropdb usan la misma base temporal, con nombre único, y se elimina solo esa', function () {
