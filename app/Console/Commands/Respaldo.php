@@ -13,8 +13,8 @@ use RuntimeException;
 /**
  * Respaldo de la base configurada con pg_dump (formato custom), a una carpeta fuera del repositorio
  * (config clinexa.respaldos.carpeta). Verifica el archivo con pg_restore --list. Con --probar,
- * además lo restaura en clinexa_restore_test, compara filas de las tablas clave con la base y
- * elimina esa base temporal. Nunca borra respaldos viejos. Ver docs/respaldo.md.
+ * además lo restaura en una base temporal propia de la corrida (clinexa_restore_test_<aleatorio>),
+ * compara filas de las tablas clave con la base y elimina esa base temporal, solo esa. Nunca borra respaldos viejos. Ver docs/respaldo.md.
  */
 class Respaldo extends Command
 {
@@ -58,16 +58,20 @@ class Respaldo extends Command
         return $this->option('probar') ? $this->probar($respaldos, $ruta) : self::SUCCESS;
     }
 
-    /** Restaura en clinexa_restore_test, compara filas y elimina esa base (siempre, aunque algo falle). */
+    /**
+     * Restaura en la base temporal de esta corrida, compara filas y elimina esa base (siempre, aunque
+     * algo falle). Con nombre propio no hay que limpiar restos de otra corrida: nunca se tocan.
+     */
     private function probar(Respaldos $respaldos, string $ruta): int
     {
-        $base = Respaldos::BASE_DE_PRUEBA;
+        $base = $respaldos->baseDePrueba();
         $this->info("Probando la restauración en la base temporal {$base}…");
+        $propia = false; // si createdb falla, esa base (si existe) no es de esta corrida: no se elimina
 
         try {
-            $respaldos->eliminarBaseDePrueba(); // por si quedó de una prueba anterior interrumpida
             $creada = $respaldos->crearBaseDePrueba();
-            if (! $creada->successful()) {
+            $propia = $creada->successful();
+            if (! $propia) {
                 $this->error("No se pudo crear la base {$base}: ".trim($creada->errorOutput()));
 
                 return self::FAILURE;
@@ -85,18 +89,28 @@ class Respaldo extends Command
 
             return self::FAILURE;
         } finally {
-            $eliminada = $respaldos->eliminarBaseDePrueba();
-            if ($eliminada->successful()) {
-                $this->line("Base temporal {$base} eliminada.");
-            } else {
-                // Además de avisar en pantalla, queda en el log (sin contraseñas: solo lo que dice dropdb).
-                Log::warning('clinexa:respaldo --probar: dropdb no pudo eliminar la base temporal.', [
-                    'base' => $base, 'codigo_de_salida' => $eliminada->exitCode(),
-                    'error' => trim($eliminada->errorOutput()), 'salida' => trim($eliminada->output()),
-                ]);
-                $this->error("No se pudo eliminar la base temporal {$base}: ".trim($eliminada->errorOutput()).' Elimínela a mano.');
+            if ($propia) {
+                $this->eliminarPropia($respaldos, $base);
             }
         }
+    }
+
+    /** Elimina la base temporal de esta corrida; si dropdb falla, avisa en pantalla y en el log. */
+    private function eliminarPropia(Respaldos $respaldos, string $base): void
+    {
+        $eliminada = $respaldos->eliminarBaseDePrueba();
+        if ($eliminada->successful()) {
+            $this->line("Base temporal {$base} eliminada.");
+
+            return;
+        }
+
+        // Además de avisar en pantalla, queda en el log (sin contraseñas: solo lo que dice dropdb).
+        Log::warning('clinexa:respaldo --probar: dropdb no pudo eliminar la base temporal.', [
+            'base' => $base, 'codigo_de_salida' => $eliminada->exitCode(),
+            'error' => trim($eliminada->errorOutput()), 'salida' => trim($eliminada->output()),
+        ]);
+        $this->error("No se pudo eliminar la base temporal {$base}: ".trim($eliminada->errorOutput()).' Elimínela a mano.');
     }
 
     /** @param  array<string, int|null>  $restauradas */
