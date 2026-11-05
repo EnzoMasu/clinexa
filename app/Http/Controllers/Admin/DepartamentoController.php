@@ -64,6 +64,10 @@ class DepartamentoController extends Controller
             && $datos['estado_id'] != Estado::idDe(Estado::ACTIVO) && ($motivo = $departamento->bloqueoDeBaja())) {
             return back()->withInput()->withErrors(['estado_id' => $motivo]);
         }
+        if (isset($datos['estado_id']) && (int) $datos['estado_id'] !== (int) $departamento->estado_id
+            && $datos['estado_id'] == Estado::idDe(Estado::ACTIVO) && ($motivo = $departamento->bloqueoDeAlta())) {
+            return back()->withInput()->withErrors(['estado_id' => $motivo]);
+        }
         $departamento->update($datos);
 
         return redirect()->route('admin.departamentos.index')->with('status', 'Departamento actualizado.');

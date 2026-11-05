@@ -63,7 +63,12 @@ class CiudadController extends Controller
 
     public function update(Request $request, Ciudad $ciudad): RedirectResponse
     {
-        $ciudad->update($this->validar($request, $ciudad));
+        $datos = $this->validar($request, $ciudad);
+        if (isset($datos['estado_id']) && (int) $datos['estado_id'] !== (int) $ciudad->estado_id
+            && $datos['estado_id'] == Estado::idDe(Estado::ACTIVO) && ($motivo = $ciudad->bloqueoDeAlta())) {
+            return back()->withInput()->withErrors(['estado_id' => $motivo]);
+        }
+        $ciudad->update($datos);
 
         return redirect()->route('admin.ciudades.index')->with('status', 'Ciudad actualizada.');
     }

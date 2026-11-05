@@ -128,3 +128,38 @@ test('registros anteriores a la clave de origen se adoptan por nombre, sin dupli
         ->and(Departamento::whereNull('clave_origen')->count())->toBe(0)
         ->and(Ciudad::whereNull('clave_origen')->count())->toBe(0);
 });
+
+test('no se reactiva un hijo cuyo padre está inactivo, y el mensaje dice qué padre reactivar primero', function () {
+    $inactivo = App\Models\Estado::idDe(App\Models\Estado::INACTIVO);
+    $activo = App\Models\Estado::idDe(App\Models\Estado::ACTIVO);
+    Ciudad::where('departamento_id', $this->concepcion->id)->update(['estado_id' => $inactivo]);
+    $this->concepcion->update(['estado_id' => $inactivo]);
+    $this->paraguay->departamentos()->activos()->update(['estado_id' => $inactivo]);
+    $this->paraguay->update(['estado_id' => $inactivo]);
+
+    // Departamento con país inactivo.
+    $this->put(route('admin.departamentos.update', $this->concepcion), [
+        'nombre' => 'Concepción', 'pais_id' => $this->paraguay->id, 'estado_id' => $activo,
+    ])->assertSessionHasErrors(['estado_id' => 'No se puede reactivar Concepción: su país, Paraguay, está inactivo. Reactive primero el país.']);
+    expect($this->concepcion->fresh()->estaActivo())->toBeFalse();
+
+    // Se reactiva el país; ahora el departamento sí, y recién entonces la ciudad.
+    $this->put(route('admin.paises.update', $this->paraguay), [
+        'nombre' => 'Paraguay', 'codigo' => 'PY', 'estado_id' => $activo,
+    ])->assertSessionHasNoErrors();
+
+    // Ciudad con departamento inactivo (Concepción sigue inactivo).
+    $this->put(route('admin.ciudades.update', $this->horqueta), [
+        'nombre' => 'Horqueta', 'departamento_id' => $this->concepcion->id, 'estado_id' => $activo,
+    ])->assertSessionHasErrors(['estado_id' => 'No se puede reactivar Horqueta: su departamento, Concepción, está inactivo. Reactive primero el departamento.']);
+    expect($this->horqueta->fresh()->estaActivo())->toBeFalse();
+
+    $this->put(route('admin.departamentos.update', $this->concepcion), [
+        'nombre' => 'Concepción', 'pais_id' => $this->paraguay->id, 'estado_id' => $activo,
+    ])->assertSessionHasNoErrors();
+    $this->put(route('admin.ciudades.update', $this->horqueta), [
+        'nombre' => 'Horqueta', 'departamento_id' => $this->concepcion->id, 'estado_id' => $activo,
+    ])->assertSessionHasNoErrors();
+
+    expect($this->horqueta->fresh()->estaActivo())->toBeTrue();
+});

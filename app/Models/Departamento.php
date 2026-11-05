@@ -39,6 +39,13 @@ class Departamento extends Model
             $n === 1 ? 'una ciudad activa' : "{$n} ciudades activas");
     }
 
+    /** Motivo por el que no se puede reactivar (su país está inactivo), o null si se puede. */
+    public function bloqueoDeAlta(): ?string
+    {
+        return $this->pais->estaActivo() ? null
+            : "No se puede reactivar {$this->nombre}: su país, {$this->pais->nombre}, está inactivo. Reactive primero el país.";
+    }
+
     public function ciudades(): HasMany
     {
         return $this->hasMany(Ciudad::class);
