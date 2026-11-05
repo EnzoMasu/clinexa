@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Estado;
+use App\Models\MedioPago;
 use App\Models\ModuloSistema;
 use App\Models\PerfilAcceso;
 use App\Support\PerfilesPredefinidos;
@@ -168,7 +169,7 @@ return new class extends Migration
 
         // Solo en una instalación existente (con módulos): en una nueva los crean ModuloSistemaSeeder y MediosPagoSeeder.
         if (DB::table('modulos_sistema')->exists()) {
-            (new MediosPagoSeeder)->run();
+            (new MediosPagoSeeder([MedioPago::EFECTIVO, MedioPago::TRANSFERENCIA, MedioPago::TARJETA]))->run();
 
             ModuloSistema::updateOrCreate(['codigo' => 'CAJAS'], ['nombre' => 'Cajas'])
                 ->configurarEstados([Estado::ABIERTO, Estado::CERRADO, Estado::APROBADO, Estado::DEVUELTO]);

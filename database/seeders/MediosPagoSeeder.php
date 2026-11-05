@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Los medios de pago de referencia (docs/cobros-caja.md): Efectivo, Transferencia y Tarjeta (POS), con su código. Si ya hay uno
  * sin código con ese nombre (o uno de sus alias), lo adopta: le pone el código y no toca nada más. Nunca cambia el nombre ni el
- * estado de uno existente. Marca Efectivo como el medio efectivo (`es_efectivo`, desde la migración de reversiones). Idempotente.
+ * estado de uno existente. Marca Transferencia, Tarjeta, Depósito y Cheque como medios que piden comprobante. Marca Efectivo como el medio efectivo (`es_efectivo`, desde la migración de reversiones). Idempotente.
  * Con DB::table, para que la migración que lo llama no falle en `migrate --pretend`.
  */
 class MediosPagoSeeder extends Seeder
@@ -21,11 +21,27 @@ class MediosPagoSeeder extends Seeder
         MedioPago::EFECTIVO => ['Efectivo', ['efectivo']],
         MedioPago::TRANSFERENCIA => ['Transferencia', ['transferencia', 'transferencia bancaria']],
         MedioPago::TARJETA => ['Tarjeta (POS)', ['tarjeta (pos)', 'tarjeta', 'pos']],
+        MedioPago::DEPOSITO => ['Depósito', ['depósito', 'deposito', 'depósito bancario', 'deposito bancario']],
+        MedioPago::CHEQUE => ['Cheque', ['cheque']],
     ];
+
+    /** codigo => cómo se llama el comprobante que exige el medio (docs/cobros-caja.md). El efectivo no exige ninguno. */
+    public const COMPROBANTES = [
+        MedioPago::TRANSFERENCIA => 'Código de la transferencia',
+        MedioPago::TARJETA => 'Voucher del POS',
+        MedioPago::DEPOSITO => 'Boleta del depósito',
+        MedioPago::CHEQUE => 'Número del cheque',
+    ];
+
+    /** @param  list<string>|null  $codigos  Los medios a cargar; todos si es null (la migración de cobros y caja carga solo los tres originales). */
+    public function __construct(private readonly ?array $codigos = null) {}
 
     public function run(): void
     {
         foreach (self::REFERENCIA as $codigo => [$nombre, $alias]) {
+            if ($this->codigos !== null && ! in_array($codigo, $this->codigos, true)) {
+                continue;
+            }
             if (DB::table('medios_pago')->where('codigo', $codigo)->exists()) {
                 continue;
             }
@@ -43,6 +59,16 @@ class MediosPagoSeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+        }
+        // Pide comprobante: los de referencia que todavía no se configuraron (sin nombre de comprobante). No pisa lo que ya se editó.
+        if (Schema::hasColumn('medios_pago', 'requiere_comprobante')) {
+            foreach (self::COMPROBANTES as $codigo => $nombre) {
+                if ($this->codigos !== null && ! in_array($codigo, $this->codigos, true)) {
+                    continue;
+                }
+                DB::table('medios_pago')->where('codigo', $codigo)->whereNull('nombre_comprobante')
+                    ->update(['requiere_comprobante' => true, 'nombre_comprobante' => $nombre, 'updated_at' => now()]);
+            }
         }
         // La migración de cobros y caja corre este seeder antes de que exista la columna (la agrega la de reversiones).
         if (Schema::hasColumn('medios_pago', 'es_efectivo')) {

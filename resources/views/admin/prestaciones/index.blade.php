@@ -73,11 +73,7 @@
 
     <x-admin.listado :action="route('admin.prestaciones.index')" :busqueda="$busqueda" placeholder="Buscar por paciente, documento o ficha…">
         <x-slot name="filtros">
-            <div class="w-40"><x-admin.fecha name="desde" label="Desde" :value="$filtros['desde']" /></div>
-            <div class="w-40"><x-admin.fecha name="hasta" label="Hasta" :value="$filtros['hasta']" /></div>
-            <div class="w-56"><x-admin.select name="profesional" label="Profesional" :options="$opcionesProfesional" :value="$filtros['profesional']" nullable /></div>
-            <div class="w-48"><x-admin.select name="estado" label="Estado" :options="$opcionesEstado" :value="$filtros['estado']" nullable /></div>
-            <div class="w-48"><x-admin.select name="origen" label="Origen" :options="$opcionesOrigen" :value="$filtros['origen']" nullable /></div>
+            {{-- Fecha, profesional, estado y origen: en la fila de filtros de la grilla (docs/grillas.md). Acá, lo que no es una columna. --}}
             @if ($veAvisos)
                 <div class="w-48"><x-admin.select name="cobertura" label="Cobertura" :options="['AVISO' => 'Con aviso de cobertura']" :value="$filtros['cobertura']" nullable /></div>
             @endif

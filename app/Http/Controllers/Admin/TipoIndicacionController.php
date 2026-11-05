@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\TipoIndicacion;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,10 +16,14 @@ class TipoIndicacionController extends Controller
     public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Nombre', 'nombre')
+            ->estado('estado', 'Estado', 'estado_id', TipoIndicacion::class);
 
         return $this->listado($request, 'admin.tipos-indicacion', [
-            'tiposIndicacion' => $this->buscarEn(TipoIndicacion::query(), $busqueda, ['nombre'])
-                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'tiposIndicacion' => $grilla->aplicar($this->buscarEn(TipoIndicacion::query(), $busqueda, ['nombre']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

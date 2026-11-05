@@ -16,8 +16,11 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * La caja de un cajero (docs/cobros-caja.md): se abre con un monto inicial en efectivo y recibe cobros solo mientras está ABIERTA
  * y en el día de su apertura. Una sola abierta por cajero (`cajas_una_abierta_por_cajero`: abierta = sin `cerrada_en`).
  *
- * - ABIERTO -> CERRADO: el cajero declara lo contado por medio (CierreCaja). Queda pendiente de aprobación.
- * - CERRADO -> APROBADO o DEVUELTO: Gerencia. La devuelta solo se vuelve a cerrar (DEVUELTO -> CERRADO), sin recibir cobros.
+ * - ABIERTO -> CERRADO ("Pendiente de recepción"): el cajero declara lo contado por medio (CierreCaja, el arqueo).
+ * - CERRADO -> APROBADO ("Recibido") o DEVUELTO ("Devuelto por diferencias", con el motivo): Gerencia. La devuelta solo se reenvía
+ *   (DEVUELTO -> CERRADO, otro cierre), sin recibir cobros; mientras exista, su cajero no abre otra caja.
+ *
+ * Cada caja es de una sucursal (`sucursal_id`, fija desde la apertura).
  *
  * El modelo rechaza cualquier otro cambio, y el borrado.
  */
@@ -29,16 +32,16 @@ class Caja extends Model
 
     public const ETIQUETAS = [
         Estado::ABIERTO => 'Abierta',
-        Estado::CERRADO => 'Cerrada (pendiente de aprobación)',
-        Estado::APROBADO => 'Aprobada',
-        Estado::DEVUELTO => 'Devuelta para corregir',
+        Estado::CERRADO => 'Pendiente de recepción',
+        Estado::DEVUELTO => 'Devuelto por diferencias',
+        Estado::APROBADO => 'Recibido',
     ];
 
     private const CAMPOS_DE_CIERRE = ['estado_id', 'cerrada_en', 'updated_at'];
 
     private const CAMPOS_DE_REVISION = ['estado_id', 'updated_at'];
 
-    protected $fillable = ['usuario_id', 'fecha', 'abierta_en', 'monto_inicial', 'moneda_id'];
+    protected $fillable = ['usuario_id', 'sucursal_id', 'fecha', 'abierta_en', 'monto_inicial', 'moneda_id'];
 
     public static function moduloEstado(): string
     {
@@ -56,6 +59,13 @@ class Caja extends Model
 
     protected static function booted(): void
     {
+        // En SQLite la columna admite vacío (la migración no reconstruye la tabla); en PostgreSQL es NOT NULL.
+        static::creating(function (Caja $caja) {
+            if ($caja->sucursal_id === null) {
+                throw new \LogicException('La caja necesita su sucursal.');
+            }
+        });
+
         static::updating(function (Caja $caja) {
             $desde = Estado::find($caja->getOriginal('estado_id'))?->codigo;
             $hacia = Estado::find($caja->estado_id)?->codigo;
@@ -76,8 +86,8 @@ class Caja extends Model
     {
         return match (Estado::find($this->estado_id)?->codigo) {
             Estado::CERRADO => 'Cierre de caja',
-            Estado::APROBADO => 'Cierre aprobado',
-            Estado::DEVUELTO => 'Cierre devuelto',
+            Estado::APROBADO => 'Cierre recibido',
+            Estado::DEVUELTO => 'Cierre devuelto por diferencias',
             default => null,
         };
     }
@@ -85,6 +95,11 @@ class Caja extends Model
     public function cajero(): BelongsTo
     {
         return $this->belongsTo(User::class, 'usuario_id');
+    }
+
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class);
     }
 
     public function moneda(): BelongsTo
@@ -132,6 +147,11 @@ class Caja extends Model
     public function devuelta(): bool
     {
         return $this->tieneEstado(Estado::DEVUELTO);
+    }
+
+    public function recibida(): bool
+    {
+        return $this->tieneEstado(Estado::APROBADO);
     }
 
     public function etiquetaEstado(): string

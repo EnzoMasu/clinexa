@@ -42,7 +42,7 @@ class Permiso extends Model
         // aprobación de reversiones: ver las solicitudes y aprobarlas o rechazarlas (EDITAR).
         'CAJAS' => ['VER', 'CREAR', 'EDITAR'],
         'CIERRES_CAJA' => ['VER', 'EDITAR'],
-        'COBROS' => ['VER', 'CREAR', 'DESACTIVAR'],
+        'COBROS' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
         'REVERSIONES_COBRO' => ['VER', 'EDITAR'],
         // Convenios (docs/convenios-seguros.md): convenios, planes y tarifas del convenio (alta, cambio y baja; nada se borra).
         // Coberturas: ver, cargar (CREAR, también la que reemplaza a la vigente) y dar de baja (EDITAR). Visaciones: todas (EDITAR =

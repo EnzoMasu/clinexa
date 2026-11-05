@@ -2,11 +2,13 @@ import './bootstrap';
 
 import Alpine from 'alpinejs';
 import altaTurno from './alta-turno';
+import arqueoCaja from './arqueo-caja';
 import buscadorCie10 from './buscador-cie10';
 import campoFecha from './campo-fecha';
 import compraFormulario from './compra-formulario';
 import consultaAutoguardado from './consulta-autoguardado';
 import imprimirFactura from './imprimir-factura';
+import iniciarBarraGrillas from './grilla-barra';
 import listadoEnVivo from './listado-en-vivo';
 import pantallaCobro from './pantalla-cobro';
 import pendientesProfesional from './pendientes-profesional';
@@ -21,6 +23,7 @@ window.Alpine = Alpine;
 
 Alpine.data('altaRapidaPersona', altaRapidaPersona);
 Alpine.data('altaTurno', altaTurno);
+Alpine.data('arqueoCaja', arqueoCaja);
 Alpine.data('buscadorCie10', buscadorCie10);
 Alpine.data('campoFecha', campoFecha);
 Alpine.data('compraFormulario', compraFormulario);
@@ -36,3 +39,4 @@ Alpine.data('selectorPersona', selectorPersona);
 Alpine.data('verificarUnico', verificarUnico);
 
 Alpine.start();
+iniciarBarraGrillas();

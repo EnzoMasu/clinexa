@@ -13,6 +13,7 @@ use App\Models\TipoRedSocial;
 use App\Models\TipoDocumento;
 use App\Support\BuscadorPersonas;
 use App\Support\Enlace;
+use App\Support\Grilla\Grilla;
 use App\Support\Personas\AltaPersona;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -250,6 +251,18 @@ class ProveedorController extends RolPersonaController
             'redes.*.tipo_red_social_id' => 'tipo de red',
             'redes.*.enlace' => 'enlace o usuario',
         ];
+    }
+
+    protected function grilla(Request $request, string $tabla): Grilla
+    {
+        return $this->columnasDePersona(Grilla::de($request), 'Nombre / Razón social')
+            // Varias por proveedor: se filtra por una; ordenar por la lista no tiene sentido.
+            ->opciones('categorias', 'Categorías', "{$tabla}.id", CategoriaProveedor::query()->orderBy('nombre')->pluck('nombre', 'id')->all(),
+                orden: false, filtro: fn ($query, $id) => $query->whereHas('categorias', fn ($query) => $query->whereKey($id)))
+            ->numero('contactos', 'Contactos', 'contactos_activos_count',
+                filtro: fn ($query, $n) => $query->has('contactos', '=', (int) $n, 'and', fn ($query) => $query->where('activo', true)))
+            ->texto('condiciones', 'Condiciones comerciales', "{$tabla}.condiciones_comerciales")
+            ->estado('estado', 'Estado', "{$tabla}.estado_id", Proveedor::class);
     }
 
     protected function relacionesListado(): array

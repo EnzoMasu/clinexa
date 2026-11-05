@@ -11,16 +11,17 @@ use App\Models\Disponibilidad;
 use App\Models\Paciente;
 use App\Models\Persona;
 use App\Models\Procedimiento;
-use App\Models\Turno;
 use App\Models\TipoDocumento;
+use App\Models\Turno;
 use App\Models\User;
+use App\Support\Ruc;
 use Carbon\Carbon;
 use Database\Seeders\DatosRealesClinicaSeeder;
 use Database\Seeders\Demo\BaseClinica;
 use Database\Seeders\Demo\DiasDemo;
 use Database\Seeders\Demo\EconomiaDemo;
-use App\Support\Ruc;
 use Database\Seeders\GeografiaSeeder;
+use Database\Seeders\MediosPagoSeeder;
 use Database\Seeders\ModuloSistemaSeeder;
 use Database\Seeders\PerfilAdministradorSeeder;
 use Database\Seeders\PerfilesPredefinidosSeeder;
@@ -162,7 +163,7 @@ test('la base de la clínica agrega lo que falta sin renombrar ni duplicar lo ex
         ->and(Procedimiento::where('codigo', 'ECO-TV')->value('nombre'))->toBe('Nombre cambiado en el panel')
         ->and(Procedimiento::count())->toBe(8)
         ->and(DB::table('consultorios')->pluck('nombre')->sort()->values()->all())->toBe(['101', '102'])
-        ->and(DB::table('medios_pago')->count())->toBe(3);
+        ->and(DB::table('medios_pago')->count())->toBe(count(MediosPagoSeeder::REFERENCIA));
 });
 
 test('el dígito verificador del RUC sigue el módulo 11 de la DNIT', function () {
@@ -286,7 +287,7 @@ test('las liquidaciones: la primera aseguradora aprobada con un pago parcial, la
     $verificar();
 })->group('lento'); // corre el comando completo (docs/pruebas.md)
 
-test('--recorrido carga solo el estado inicial de un día de trabajo, sin movimientos, con la fecha de hoy y de forma idempotente', function () use ($correr) {
+test('--recorrido carga solo el estado inicial de un día de trabajo, sin movimientos, con la fecha de hoy y de forma idempotente', function () {
     $recorrido = fn () => test()->artisan('clinexa:datos-demo', ['--confirmo-desarrollo' => true, '--recorrido' => true, '--password' => DATOS_DEMO_CLAVE]);
     $recorrido()->assertSuccessful();
     $foto = fn () => collect(['users', 'pacientes', 'disponibilidades', 'estudios', 'dietas', 'equipos', 'tarifas', 'acuerdos_reparto', 'convenios', 'planes_convenio',

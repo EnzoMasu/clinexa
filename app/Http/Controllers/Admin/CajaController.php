@@ -13,43 +13,57 @@ use App\Support\Cobros\AbrirCaja;
 use App\Support\Cobros\CerrarCaja;
 use App\Support\Cobros\Cobrar;
 use App\Support\Cobros\Guaranies;
+use App\Support\Cobros\PdfArqueo;
 use App\Support\Cobros\RevisarCierre;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * Cajas (docs/cobros-caja.md): "Mi caja" (abrir, ver lo esperado y cerrar la propia) y el listado de cajas. El cajero ve las suyas;
- * quien tiene VER sobre CIERRES_CAJA (Gerencia) ve todas y aprueba o devuelve los cierres (EDITAR). Recepción, Médico y Enfermería
+ * quien tiene VER sobre CIERRES_CAJA (Gerencia) ve todas y acepta o rechaza los arqueos (EDITAR). La impresión del arqueo, en PDF. Recepción, Médico y Enfermería
  * no tienen el módulo.
  */
 class CajaController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $usuario = $request->user();
         $veTodas = $usuario->tienePermiso('CIERRES_CAJA', 'VER');
         $estado = array_key_exists((string) $request->query('estado'), Caja::ETIQUETAS) ? (string) $request->query('estado') : null;
         $miCaja = Caja::query()->abiertaDe($usuario)->with(['moneda', 'estado'])->first();
+        $grilla = Grilla::de($request)
+            ->fecha('fecha', 'Fecha', 'cajas.fecha')
+            ->persona('cajero', 'Cajero', 'cajas.usuario_id', via: 'users')
+            ->numero('inicial', 'Monto inicial', 'cajas.monto_inicial')
+            ->numero('cobros', 'Cobros', 'cobros_count', filtro: fn ($query, $n) => $query->has('cobros', '=', (int) $n))
+            ->numero('cobrado', 'Total cobrado', 'cobros_sum_total',
+                filtro: fn ($query, $n) => $query->whereRaw('COALESCE((SELECT SUM(c.total) FROM cobros c WHERE c.caja_id = cajas.id), 0) = ?', [$n]))
+            ->estado('estado', 'Estado', 'cajas.estado_id', Caja::ETIQUETAS);
 
-        return view('admin.cajas.index', [
+        return $this->listadoEn($request, 'admin.cajas.index', 'admin.cajas._tabla', [
+            'grilla' => $grilla,
             'miCaja' => $miCaja,
             'miCajaDeOtroDia' => $miCaja && $miCaja->fecha->format('Y-m-d') !== Fecha::hoy()->format('Y-m-d') ? Cobrar::deOtroDia($miCaja) : null,
             'devueltas' => Caja::where('usuario_id', $usuario->id)->where('estado_id', Estado::idDe(Estado::DEVUELTO))
                 ->with(['ultimoCierre.revisadoPor.persona'])->orderBy('id')->get(),
             'puedeAbrir' => $miCaja === null && Permisos::puedeRuta('admin.cajas.abrir'),
+            'sucursales' => AbrirCaja::sucursales(),
             'puedeCobrar' => $miCaja !== null && Permisos::puedeRuta('admin.cobros.create'),
             'veTodas' => $veTodas,
             'cantidadPendientes' => $veTodas ? Caja::where('estado_id', Estado::idDe(Estado::CERRADO))->count() : 0,
             'filtroEstado' => $estado,
             'opcionesEstado' => Caja::ETIQUETAS,
-            'cajas' => Caja::query()
+            'cajas' => $grilla->aplicar(Caja::query()
                 ->unless($veTodas, fn ($query) => $query->where('usuario_id', $usuario->id))
                 ->when($estado, fn ($query) => $query->where('estado_id', Estado::idDe($estado)))
-                ->with(['cajero.persona', 'estado', 'moneda'])->withCount('cobros')->withSum('cobros', 'total')
-                ->orderByDesc('fecha')->orderByDesc('id')
+                ->with(['cajero.persona', 'estado', 'moneda'])->withCount('cobros')->withSum('cobros', 'total'),
+                fn ($query) => $query->orderByDesc('fecha')->orderByDesc('id'))
                 ->paginate(20)->withQueryString(),
         ]);
     }
@@ -58,7 +72,7 @@ class CajaController extends Controller
     {
         $usuario = $request->user();
         $this->autorizarVer($usuario, $caja);
-        $caja->load(['cajero.persona', 'estado', 'moneda', 'cierres' => fn ($query) => $query->orderByDesc('id'),
+        $caja->load(['cajero.persona', 'sucursal', 'estado', 'moneda', 'cierres' => fn ($query) => $query->orderByDesc('id'),
             'cierres.estado', 'cierres.medios.medioPago', 'cierres.cajero.persona', 'cierres.revisadoPor.persona']);
         $propia = $caja->usuario_id === $usuario->id;
         $puedeCerrar = $propia && ($caja->abierta() || $caja->devuelta()) && Permisos::puedeRuta('admin.cajas.cerrar');
@@ -75,17 +89,21 @@ class CajaController extends Controller
             'devoluciones' => $caja->movimientos()->where('tipo', MovimientoCaja::REVERSION)->with(['cobro.paciente.persona', 'medioPago'])->orderBy('id')->get(),
             'puedeCerrar' => $puedeCerrar,
             'puedeRevisar' => ! $propia && $caja->cerrada() && Permisos::puedeRuta('admin.cajas.aprobar'),
+            // En un arqueo devuelto, su cajero corrige el medio y el comprobante de los cobros desde el detalle de cada uno.
+            'puedeCorregirCobros' => $propia && $caja->devuelta() && Permisos::puedeRuta('admin.cobros.corregir-comprobante'),
+            'puedeImprimir' => $caja->cierres->isNotEmpty() && Permisos::puedeRuta('admin.cajas.arqueo'),
             'veCobros' => $usuario->tienePermiso('COBROS', 'VER'),
         ]);
     }
 
     public function abrir(Request $request): RedirectResponse
     {
-        $datos = $request->validate(['monto_inicial' => Guaranies::regla(admiteCero: true)],
-            ['monto_inicial.regex' => Guaranies::MENSAJE], ['monto_inicial' => 'monto inicial']);
+        $datos = $request->validate(['monto_inicial' => Guaranies::regla(admiteCero: true), 'sucursal_id' => ['nullable', 'integer']],
+            ['monto_inicial.regex' => Guaranies::MENSAJE], ['monto_inicial' => 'monto inicial', 'sucursal_id' => 'sucursal']);
 
         try {
-            $caja = AbrirCaja::ejecutar($request->user(), Guaranies::entero($datos['monto_inicial']));
+            $caja = AbrirCaja::ejecutar($request->user(), Guaranies::entero($datos['monto_inicial']),
+                isset($datos['sucursal_id']) ? (int) $datos['sucursal_id'] : null);
         } catch (AccionRechazada $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }
@@ -109,7 +127,7 @@ class CajaController extends Controller
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('admin.cajas.show', $caja)->with('status', 'Caja cerrada: queda pendiente de aprobación.');
+        return redirect()->route('admin.cajas.show', $caja)->with('status', 'Caja cerrada: queda pendiente de recepción.');
     }
 
     public function aprobar(Request $request, Caja $caja): RedirectResponse
@@ -122,15 +140,15 @@ class CajaController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('admin.cajas.show', $caja)->with('status', 'Cierre aprobado.');
+        return redirect()->route('admin.cajas.show', $caja)->with('status', 'Arqueo recibido.');
     }
 
     public function devolver(Request $request, Caja $caja): RedirectResponse
     {
         $nota = $request->validate(
             ['nota_devolucion' => ['required', 'string', 'min:'.RevisarCierre::NOTA_MINIMA, 'max:'.RevisarCierre::NOTA_MAXIMA]],
-            ['nota_devolucion.required' => 'Indique qué hay que corregir.', 'nota_devolucion.min' => 'Indique qué hay que corregir (al menos '.RevisarCierre::NOTA_MINIMA.' caracteres).'],
-            ['nota_devolucion' => 'nota'],
+            ['nota_devolucion.required' => RevisarCierre::FALTA_MOTIVO, 'nota_devolucion.min' => RevisarCierre::FALTA_MOTIVO],
+            ['nota_devolucion' => 'observación'],
         )['nota_devolucion'];
 
         try {
@@ -139,7 +157,19 @@ class CajaController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('admin.cajas.show', $caja)->with('status', 'Cierre devuelto al cajero para corregir.');
+        return redirect()->route('admin.cajas.show', $caja)->with('status', 'Arqueo devuelto por diferencias al cajero.');
+    }
+
+    /** La impresión del arqueo (PDF al vuelo, auditado): el cajero, la suya; Gerencia, cualquiera. */
+    public function arqueo(Request $request, Caja $caja): SymfonyResponse
+    {
+        $this->autorizarVer($request->user(), $caja);
+
+        try {
+            return PdfArqueo::ejecutar($caja);
+        } catch (AccionRechazada $e) {
+            return back()->with('error', $e->getMessage());
+        }
     }
 
     /** El cajero ve las suyas; las de otros, solo quien ve todas (VER sobre CIERRES_CAJA). */

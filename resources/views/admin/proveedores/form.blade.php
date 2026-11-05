@@ -53,7 +53,6 @@
             {{-- Sin PERSONAS,VER solo se busca por número exacto (no se recorren las personas, que incluyen
                  pacientes); si no está, se carga en el popup de abajo sin salir del formulario. --}}
             <x-admin.selector-persona :url="route('admin.proveedores.personas-disponibles')" :inicial="$personaInicial" :restaurar="false"
-                :placeholder="$buscaPorNombre ? 'Buscar por nombre o documento…' : 'Número de CI, pasaporte o RUC…'"
                 :pista="$buscaPorNombre ? null : 'Escriba el número completo de CI, pasaporte o RUC (el RUC, con o sin dígito verificador). No se busca por nombre.'"
                 :ayuda="$buscaPorNombre
                     ? 'Solo aparecen personas activas que todavía no son proveedores. Nombre y documento se toman de la persona.'

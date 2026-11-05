@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Departamento;
 use App\Models\Estado;
 use App\Models\Pais;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,6 +19,12 @@ class DepartamentoController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Departamento', 'departamentos.nombre')
+            ->texto('pais', 'País', 'paises.nombre')
+            ->numero('ciudades', 'Ciudades', 'ciudades_count', filtro: fn ($query, $n) => $query->has('ciudades', '=', (int) $n))
+            ->estado('estado', 'Estado', 'departamentos.estado_id', Departamento::class);
+
         $departamentos = Departamento::query()
             ->select('departamentos.*')
             ->join('paises', 'paises.id', '=', 'departamentos.pais_id')
@@ -25,13 +32,12 @@ class DepartamentoController extends Controller
             ->withCount('ciudades')
             ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('departamentos.nombre', "%{$busqueda}%")
-                ->orWhereLike('paises.nombre', "%{$busqueda}%")))
-            ->orderBy('paises.nombre')
-            ->orderBy('departamentos.nombre')
+                ->orWhereLike('paises.nombre', "%{$busqueda}%")));
+        $departamentos = $grilla->aplicar($departamentos, fn ($query) => $query->orderBy('paises.nombre')->orderBy('departamentos.nombre'))
             ->paginate(20)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.departamentos', compact('departamentos', 'busqueda'));
+        return $this->listado($request, 'admin.departamentos', compact('departamentos', 'busqueda', 'grilla'));
     }
 
     public function create(): View
@@ -53,13 +59,26 @@ class DepartamentoController extends Controller
 
     public function update(Request $request, Departamento $departamento): RedirectResponse
     {
-        $departamento->update($this->validar($request, $departamento));
+        $datos = $this->validar($request, $departamento);
+        if (isset($datos['estado_id']) && (int) $datos['estado_id'] !== (int) $departamento->estado_id
+            && $datos['estado_id'] != Estado::idDe(Estado::ACTIVO) && ($motivo = $departamento->bloqueoDeBaja())) {
+            return back()->withInput()->withErrors(['estado_id' => $motivo]);
+        }
+        if (isset($datos['estado_id']) && (int) $datos['estado_id'] !== (int) $departamento->estado_id
+            && $datos['estado_id'] == Estado::idDe(Estado::ACTIVO) && ($motivo = $departamento->bloqueoDeAlta())) {
+            return back()->withInput()->withErrors(['estado_id' => $motivo]);
+        }
+        $departamento->update($datos);
 
         return redirect()->route('admin.departamentos.index')->with('status', 'Departamento actualizado.');
     }
 
     public function desactivar(Departamento $departamento): RedirectResponse
     {
+        if ($motivo = $departamento->bloqueoDeBaja()) {
+            return back()->with('error', $motivo);
+        }
+
         $departamento->desactivar();
 
         return redirect()->route('admin.departamentos.index')->with('status', 'Departamento desactivado.');

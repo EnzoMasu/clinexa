@@ -30,6 +30,13 @@ class Ciudad extends Model
         return $this->belongsTo(Departamento::class);
     }
 
+    /** Motivo por el que no se puede reactivar (su departamento está inactivo), o null si se puede. */
+    public function bloqueoDeAlta(): ?string
+    {
+        return $this->departamento->estaActivo() ? null
+            : "No se puede reactivar {$this->nombre}: su departamento, {$this->departamento->nombre}, está inactivo. Reactive primero el departamento.";
+    }
+
     /**
      * Regla para un ciudad_id opcional: vacío, una ciudad ACTIVA, o la que el registro ya tenía.
      */

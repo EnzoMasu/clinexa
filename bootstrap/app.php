@@ -18,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             UsuarioActivo::class,
+            // Orden y filtros de las grillas, recuperados al volver de un registro (docs/grillas.md).
+            \App\Http\Middleware\RecordarGrilla::class,
         ]);
 
         // Auditoría: marca el pedido web (solo entonces se registran cambios). Va primero, antes

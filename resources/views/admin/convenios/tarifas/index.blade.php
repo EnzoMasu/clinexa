@@ -9,7 +9,7 @@
     </p>
     <x-admin.listado :action="route('admin.convenios.tarifas')" :busqueda="$busqueda" placeholder="Buscar por procedimiento…">
         <x-slot name="filtros">
-            <div class="w-64"><x-admin.select name="convenio" label="Convenio" :options="$opcionesConvenio" :value="$filtros['convenio']" nullable /></div>
+            {{-- El convenio se filtra en la fila de filtros de la grilla (docs/grillas.md). --}}
             <div class="w-48"><x-admin.select name="estado" label="Mostrar" :options="['VIGENTES' => 'Solo vigentes', 'TODAS' => 'Vigentes e históricas']" :value="$filtros['estado']" /></div>
         </x-slot>
 

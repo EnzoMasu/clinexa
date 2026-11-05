@@ -4,25 +4,21 @@ use App\Http\Controllers\Admin\AcuerdoRepartoController;
 use App\Http\Controllers\Admin\AgendaGeneralController;
 use App\Http\Controllers\Admin\AtencionController;
 use App\Http\Controllers\Admin\AuditoriaController;
-use App\Http\Controllers\Admin\CargoSaludController;
-use App\Http\Controllers\Admin\ConstanciaController;
-use App\Http\Controllers\Admin\CorreccionController;
-use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CajaController;
+use App\Http\Controllers\Admin\CargoSaludController;
+use App\Http\Controllers\Admin\CatalogoCIE10Controller;
 use App\Http\Controllers\Admin\CategoriaGastoController;
 use App\Http\Controllers\Admin\CategoriaProveedorController;
 use App\Http\Controllers\Admin\CiudadController;
-use App\Http\Controllers\Admin\CoberturaController;
 use App\Http\Controllers\Admin\ClinicaController;
+use App\Http\Controllers\Admin\CoberturaController;
 use App\Http\Controllers\Admin\CobroController;
-use App\Http\Controllers\Admin\FacturaController;
-use App\Http\Controllers\Admin\MotivoAnulacionController;
-use App\Http\Controllers\Admin\TipoComprobanteCompraController;
-use App\Http\Controllers\Admin\TasaIvaController;
-use App\Http\Controllers\Admin\TimbradoController;
+use App\Http\Controllers\Admin\CompraController;
+use App\Http\Controllers\Admin\ConstanciaController;
 use App\Http\Controllers\Admin\ConsultaController;
 use App\Http\Controllers\Admin\ConsultorioController;
 use App\Http\Controllers\Admin\ConvenioController;
+use App\Http\Controllers\Admin\CorreccionController;
 use App\Http\Controllers\Admin\CupoEntrePacientesController;
 use App\Http\Controllers\Admin\DepartamentoController;
 use App\Http\Controllers\Admin\DietaController;
@@ -30,12 +26,13 @@ use App\Http\Controllers\Admin\DisponibilidadController;
 use App\Http\Controllers\Admin\EquipoController;
 use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\EstudioController;
+use App\Http\Controllers\Admin\FacturaController;
 use App\Http\Controllers\Admin\HistoriaClinicaController;
-use App\Http\Controllers\Admin\CompraController;
 use App\Http\Controllers\Admin\LiquidacionController;
-use App\Http\Controllers\Admin\OrdenEstudioController;
 use App\Http\Controllers\Admin\MatrizPermisosController;
 use App\Http\Controllers\Admin\MedioPagoController;
+use App\Http\Controllers\Admin\MotivoAnulacionController;
+use App\Http\Controllers\Admin\OrdenEstudioController;
 use App\Http\Controllers\Admin\OrigenTurnoController;
 use App\Http\Controllers\Admin\PacienteController;
 use App\Http\Controllers\Admin\PaisController;
@@ -51,11 +48,14 @@ use App\Http\Controllers\Admin\ProfesionalController;
 use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\RecetaController;
 use App\Http\Controllers\Admin\ReposoMedicoController;
-use App\Http\Controllers\Admin\SalidaController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
+use App\Http\Controllers\Admin\SalidaController;
 use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TarifaController;
+use App\Http\Controllers\Admin\TasaIvaController;
+use App\Http\Controllers\Admin\TimbradoController;
 use App\Http\Controllers\Admin\TipoBloqueAnamnesisController;
+use App\Http\Controllers\Admin\TipoComprobanteCompraController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
 use App\Http\Controllers\Admin\TipoEquipoController;
 use App\Http\Controllers\Admin\TipoIndicacionController;
@@ -295,7 +295,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
             // "Guardar triaje" sin JavaScript (el mismo autoguardado, por un formulario común).
             Route::post('consultas/{consulta}/triaje/guardar', [PreparacionController::class, 'guardar'])->name('preparacion.guardar')->whereNumber('consulta')
                 ->middleware(['throttle:autoguardado', 'consulta.abierta']);
-            Route::post('consultas/{consulta}/triaje/terminar',[PreparacionController::class, 'marcarLista'])->name('preparacion.lista')->whereNumber('consulta')->middleware('consulta.abierta');
+            Route::post('consultas/{consulta}/triaje/terminar', [PreparacionController::class, 'marcarLista'])->name('preparacion.lista')->whereNumber('consulta')->middleware('consulta.abierta');
             Route::post('consultas/{consulta}/triaje/reabrir', [PreparacionController::class, 'reabrir'])->name('preparacion.reabrir')->whereNumber('consulta')->middleware('consulta.abierta');
         });
 
@@ -399,6 +399,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::post('cajas/{caja}/cerrar', [CajaController::class, 'cerrar'])->name('cajas.cerrar')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
     Route::post('cajas/{caja}/aprobar', [CajaController::class, 'aprobar'])->name('cajas.aprobar')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     Route::post('cajas/{caja}/devolver', [CajaController::class, 'devolver'])->name('cajas.devolver')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
+    // La impresión del arqueo: PDF al vuelo, auditado, sin nada clínico; no se guarda en la caché.
+    Route::get('cajas/{caja}/arqueo', [CajaController::class, 'arqueo'])->name('cajas.arqueo')->whereNumber('caja')
+        ->middleware(['permiso:CAJAS,VER', SinAlmacenar::class]);
     Route::get('cobros', [CobroController::class, 'index'])->name('cobros.index')->middleware('permiso:COBROS,VER');
     // Cobrar emite la factura (docs/facturacion.md): hacen falta los dos permisos.
     Route::get('cobros/create', [CobroController::class, 'create'])->name('cobros.create')->middleware(['permiso:COBROS,CREAR', 'permiso:FACTURAS,CREAR']);
@@ -407,6 +410,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     // Reversión de un cobro: Caja revierte (un cobro de su caja abierta) o solicita la reversión (DESACTIVAR); Gerencia ve las
     // solicitudes pendientes (una pestaña de Cobros) y las aprueba o rechaza.
     Route::post('cobros/{cobro}/revertir', [CobroController::class, 'revertir'])->name('cobros.revertir')->whereNumber('cobro')->middleware('permiso:COBROS,DESACTIVAR');
+    Route::post('cobros/{cobro}/lineas/{linea}/comprobante', [CobroController::class, 'corregirComprobante'])->name('cobros.corregir-comprobante')->whereNumber(['cobro', 'linea'])->middleware('permiso:COBROS,EDITAR');
     Route::post('cobros/{cobro}/solicitar-reversion', [CobroController::class, 'solicitarReversion'])->name('cobros.solicitar-reversion')->whereNumber('cobro')->middleware('permiso:COBROS,DESACTIVAR');
     Route::get('cobros/reversiones', [CobroController::class, 'reversiones'])->name('cobros.reversiones')->middleware('permiso:REVERSIONES_COBRO,VER');
     Route::post('cobros/reversiones/{solicitud}/aprobar', [CobroController::class, 'aprobarReversion'])->name('cobros.reversiones.aprobar')->whereNumber('solicitud')->middleware('permiso:REVERSIONES_COBRO,EDITAR');

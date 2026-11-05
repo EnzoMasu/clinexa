@@ -8,6 +8,7 @@
  */
 
 use App\Enums\AccionAuditoria;
+use App\Exceptions\AccionRechazada;
 use App\Exceptions\RegistroEconomicoInmutable;
 use App\Models\Caja;
 use App\Models\CierreCaja;
@@ -22,6 +23,7 @@ use App\Models\Prestacion;
 use App\Models\Procedimiento;
 use App\Models\SolicitudReversionCobro;
 use App\Models\User;
+use App\Support\Cobros\CerrarCaja;
 use App\Support\Cobros\Cobrar;
 use App\Support\Cobros\RevertirCobro;
 use App\Support\PerfilesPredefinidos;
@@ -85,7 +87,7 @@ function reversionesCobroCobrar(User $cajero, array $prestaciones, array $lineas
     test()->actingAs($cajero)->from(route('admin.cobros.create'))->post(route('admin.cobros.store'), [
         'paciente_id' => test()->paciente->id,
         'prestaciones' => array_map(fn (Prestacion $prestacion) => $prestacion->id, $prestaciones),
-        'lineas' => array_map(fn (array $linea) => ['medio_pago_id' => $linea[0]->id, 'monto' => $linea[1]], $lineas),
+        'lineas' => array_map(fn (array $linea) => ['medio_pago_id' => $linea[0]->id, 'monto' => $linea[1], 'referencia' => $linea[2] ?? ($linea[0]->exigeComprobante() ? 'CMP-'.$linea[0]->id : '')], $lineas),
     ])->assertSessionHas('status');
 
     return Cobro::latest('id')->firstOrFail();
@@ -151,7 +153,7 @@ test('un cobro se revierte una sola vez: la segunda reversión y la solicitud so
 
     reversionesCobroRevertir($this->cajero, $cobro)->assertSessionHas('error', RevertirCobro::YA_REVERTIDO);
     reversionesCobroSolicitar($this->otroCajero, $cobro)->assertSessionHas('error', RevertirCobro::YA_REVERTIDO);
-    expect(fn () => RevertirCobro::ejecutar($this->cajero, $cobro, 'Otro motivo inventado.'))->toThrow(\App\Exceptions\AccionRechazada::class, RevertirCobro::YA_REVERTIDO)
+    expect(fn () => RevertirCobro::ejecutar($this->cajero, $cobro, 'Otro motivo inventado.'))->toThrow(AccionRechazada::class, RevertirCobro::YA_REVERTIDO)
         ->and(MovimientoCaja::where('tipo', MovimientoCaja::REVERSION)->count())->toBe(1)
         ->and(SolicitudReversionCobro::count())->toBe(0)
         ->and($caja->esperadoPorMedio())->toBe([$this->efectivo->id => 50000]);
@@ -241,16 +243,16 @@ test('transferencia y tarjeta devueltas desde una caja recién abierta: lo esper
 
     expect($nueva->esperadoPorMedio())->toBe([$this->efectivo->id => 20000, $this->transferencia->id => -150000, $this->tarjeta->id => -100000]);
     $this->actingAs($this->cajero)->get(route('admin.cajas.show', $nueva))->assertOk()
-        ->assertSee('Transferencia (esperado: ₲ -150.000)')->assertSee('Tarjeta (POS) (esperado: ₲ -100.000)')->assertSee('declare el neto con el signo menos');
+        ->assertSee('₲ -150.000')->assertSee('₲ -100.000')->assertSee('value="-150.000"', false)->assertSee('value="-100.000"', false)->assertSee('declare el neto con el signo menos');
 
     $declarar = fn (array $contado, ?string $motivo = null) => $this->actingAs($this->cajero)->from(route('admin.cajas.show', $nueva))->post(route('admin.cajas.cerrar', $nueva), [
         'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $contado[$id] ?? '0'])->all(), 'motivo' => $motivo,
     ]);
     // El efectivo no se declara negativo; los demás medios sí.
     $declarar([$this->efectivo->id => '-1', $this->transferencia->id => '-150.000', $this->tarjeta->id => '-100.000'])
-        ->assertSessionHas('error', \App\Support\Cobros\CerrarCaja::EFECTIVO_NEGATIVO);
+        ->assertSessionHas('error', CerrarCaja::EFECTIVO_NEGATIVO);
     // Declarado en cero, la diferencia se ve y pide motivo.
-    $declarar([$this->efectivo->id => '20.000'])->assertSessionHas('error', \App\Support\Cobros\CerrarCaja::FALTA_MOTIVO);
+    $declarar([$this->efectivo->id => '20.000'])->assertSessionHas('error', CerrarCaja::FALTA_MOTIVO);
     expect($nueva->fresh()->abierta())->toBeTrue();
 
     $declarar([$this->efectivo->id => '20.000', $this->transferencia->id => '-150.000', $this->tarjeta->id => '-90.000'], 'Falta un comprobante de la devolución por POS.')
@@ -263,8 +265,8 @@ test('transferencia y tarjeta devueltas desde una caja recién abierta: lo esper
 
     // Gerencia ve el cierre con los negativos y lo aprueba.
     $this->actingAs($this->gerente)->get(route('admin.cajas.show', $nueva))->assertOk()->assertSee('₲ -150.000')->assertSee('₲ 10.000')
-        ->assertSee('Falta un comprobante de la devolución por POS.')->assertSee('Aprobar el cierre');
-    $this->post(route('admin.cajas.aprobar', $nueva))->assertSessionHas('status', 'Cierre aprobado.');
+        ->assertSee('Falta un comprobante de la devolución por POS.')->assertSee('Aceptar (recibido)');
+    $this->post(route('admin.cajas.aprobar', $nueva))->assertSessionHas('status', 'Arqueo recibido.');
     expect($nueva->fresh()->tieneEstado(Estado::APROBADO))->toBeTrue();
 });
 

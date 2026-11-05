@@ -7,16 +7,28 @@
 @php($puedeConstanciaRetiro = Permisos::puedeRuta('admin.constancias-retiro.emitir'))
 @php($puedeConstanciaEstado = Permisos::puedeRuta('admin.constancias-estado.emitir'))
 
-<x-admin.table :headers="['Fecha', 'Horario', 'Paciente', 'Profesional', 'Consultorio', 'Procedimiento', 'Estado']" :paginator="$turnos">
+<x-admin.table :grilla="$grilla" :paginator="$turnos">
     @forelse ($turnos as $turno)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($turno->fecha) }}</td>
             <td class="px-6 py-4 whitespace-nowrap"><x-admin.turno-hora :turno="$turno" fin /></td>
-            <td class="px-6 py-4">
-                <div class="font-medium">{{ $turno->paciente->persona->nombre_completo }}</div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">Ficha {{ $turno->paciente->nro_ficha }}</div>
-                @include('admin.coberturas._visacion-turno')
-            </td>
+            <td class="px-6 py-4 font-medium">{{ $turno->paciente->persona->nombre_completo }}</td>
+            @if ($conVisacion)
+                @php($seguro = $visacionesTurnos[$turno->id] ?? null)
+                <td class="px-6 py-4">{{ $seguro['seguro'] ?? '-' }}</td>
+                <td class="px-6 py-4 whitespace-nowrap" data-visacion-turno="{{ $turno->id }}">
+                    @if ($seguro)
+                        <a href="{{ route('admin.coberturas.show', ['paciente' => $turno->paciente_id, 'turno' => $turno->id, 'volver' => request()->getRequestUri()]) }}"
+                            @class([
+                                'text-sm font-medium hover:underline',
+                                'text-green-700 dark:text-green-400' => $seguro['visada'],
+                                'text-amber-700 dark:text-amber-300' => ! $seguro['visada'],
+                            ])>{{ $seguro['visada'] ? 'Visado' : 'Falta visar' }}</a>
+                    @else
+                        -
+                    @endif
+                </td>
+            @endif
             <td class="px-6 py-4">{{ $turno->profesional->persona->nombre_completo }}</td>
             <td class="px-6 py-4">{{ $turno->consultorio?->nombre_completo ?? '—' }}</td>
             <td class="px-6 py-4 text-gray-600 dark:text-gray-400">
@@ -31,12 +43,12 @@
                 "Atender" y "No se presentó" están en la pantalla Consulta del profesional.
             --}}
             <td class="px-6 py-4 text-right whitespace-nowrap">
-                <div class="flex justify-end gap-3">
+                <div class="acciones-apiladas flex justify-end gap-3">
                     @if ($puedeCambiarEstado)
                         @foreach ($turno->accionesPosibles() as $accion)
                             @if ($accion === 'ausente' && ! $turno->llegoSuHora())
                                 {{-- La ausencia solo desde la hora del turno (Turno::pasarA lo valida igual). --}}
-                                <span class="flex items-center gap-1.5">
+                                <span class="flex flex-col items-end">
                                     <button type="button" disabled class="cursor-not-allowed text-sm font-medium text-gray-400 dark:text-gray-500">Ausente</button>
                                     <span class="text-xs text-gray-500 dark:text-gray-400">Disponible desde {{ $turno->tieneHorario() ? substr($turno->hora_inicio, 0, 5) : Fecha::mostrar($turno->fecha) }}</span>
                                 </span>
@@ -68,6 +80,6 @@
             </td>
         </tr>
     @empty
-        <x-admin.empty-row colspan="8" :busqueda="$busqueda" />
+        <x-admin.empty-row :colspan="$conVisacion ? 10 : 8" :busqueda="$busqueda" />
     @endforelse
 </x-admin.table>

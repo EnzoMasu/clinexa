@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\PersonaRequest;
 use App\Models\Pais;
 use App\Models\Persona;
 use App\Models\TipoDocumento;
+use App\Support\Grilla\Grilla;
 use App\Support\Personas\AltaPersona;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,14 @@ class PersonaController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $grilla = Grilla::de($request)
+            ->documentoPersona('documento', 'Documento')
+            ->nombrePersona('nombre', 'Nombre / Razón social')
+            ->opciones('tipo', 'Tipo', 'personas.tipo_persona', ['FISICA' => 'FISICA', 'JURIDICA' => 'JURIDICA'])
+            ->texto('contacto', 'Contacto', 'personas.email', filtro: fn ($query, $valor) => $query->where(fn ($query) => $query
+                ->whereLike('personas.email', "%{$valor}%")->orWhereLike('personas.telefono', "%{$valor}%")))
+            ->estado('estado', 'Estado', 'personas.estado_id', Persona::class);
+
         $personas = Persona::query()
             ->with(['tipoDocumento', 'usuario']) // usuario: para no ofrecer acciones sobre la persona del administrador principal
             ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
@@ -28,13 +37,12 @@ class PersonaController extends Controller
                 ->orWhereLike('apellidos', "%{$busqueda}%")
                 ->orWhereLike('nombres', "%{$busqueda}%")
                 ->orWhereLike('razon_social', "%{$busqueda}%")
-                ->orWhereLike('nombre_fantasia', "%{$busqueda}%")))
-            ->orderByRaw('COALESCE(apellidos, razon_social)')
-            ->orderBy('nombres')
+                ->orWhereLike('nombre_fantasia', "%{$busqueda}%")));
+        $personas = $grilla->aplicar($personas, fn ($query) => $query->orderByRaw('COALESCE(apellidos, razon_social)')->orderBy('nombres'))
             ->paginate(20)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.personas', compact('personas', 'busqueda'));
+        return $this->listado($request, 'admin.personas', compact('personas', 'busqueda', 'grilla'));
     }
 
     public function create(): View

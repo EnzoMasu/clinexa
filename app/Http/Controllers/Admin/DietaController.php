@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Dieta;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -19,10 +20,15 @@ class DietaController extends Controller
     public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Nombre', 'nombre')
+            ->texto('texto', 'Texto', 'texto')
+            ->estado('estado', 'Estado', 'estado_id', Dieta::class);
 
         return $this->listado($request, 'admin.dietas', [
-            'dietas' => $this->buscarEn(Dieta::query(), $busqueda, ['nombre'])
-                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'dietas' => $grilla->aplicar($this->buscarEn(Dieta::query(), $busqueda, ['nombre']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

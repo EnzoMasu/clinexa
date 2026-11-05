@@ -6,7 +6,9 @@ use App\Models\Especialidad;
 use App\Models\Estado;
 use App\Models\Profesional;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class ProfesionalController extends RolPersonaController
@@ -47,6 +49,17 @@ class ProfesionalController extends RolPersonaController
             // Deshabilitada (0) = sigue cargada pero no la ejerce; sin el campo, habilitada.
             'especialidades.*.activa' => ['nullable', 'boolean'],
         ];
+    }
+
+    protected function grilla(Request $request, string $tabla): Grilla
+    {
+        return Grilla::de($request)
+            ->texto('matricula', 'Matrícula', "{$tabla}.matricula")
+            ->pipe(fn (Grilla $grilla) => $this->columnasDePersona($grilla))
+            // Varias por profesional: se filtra por una; ordenar por la lista no tiene sentido.
+            ->opciones('especialidades', 'Especialidades', "{$tabla}.id", Especialidad::query()->orderBy('nombre')->pluck('nombre', 'id')->all(),
+                orden: false, filtro: fn ($query, $id) => $query->whereHas('especialidades', fn ($query) => $query->whereKey($id)))
+            ->estado('estado', 'Estado', "{$tabla}.estado_id", Profesional::class);
     }
 
     protected function relacionesListado(): array

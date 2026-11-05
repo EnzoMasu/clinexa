@@ -1,6 +1,6 @@
 @use('App\Support\Fecha')
 
-<x-admin.table :headers="['Fecha', 'Paciente', 'Profesional', 'Procedimiento', 'Origen', 'Monto', 'Estado', 'Cobro']" :paginator="$prestaciones">
+<x-admin.table :grilla="$grilla" :paginator="$prestaciones">
     @forelse ($prestaciones as $prestacion)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($prestacion->fecha_servicio) }}</td>
@@ -21,7 +21,7 @@
                 ])>{{ $prestacion->etiquetaEstado() }}</span>
             </td>
             <td class="px-6 py-4">@include('admin.prestaciones._estado-cobro', ['estadoCobro' => $prestacion->estadoCobroTexto()])</td>
-            <x-admin.actions>
+            <x-admin.actions apilado>
                 @if ($puedeTarifar && $prestacion->pendiente())
                     <form method="POST" action="{{ route('admin.prestaciones.tarifar', $prestacion) }}" class="inline">
                         @csrf

@@ -124,11 +124,11 @@
                             <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                 <div>
                                     <x-input-label for="lineas_{{ $i }}_medio" value="Medio de pago" />
-                                    <select id="lineas_{{ $i }}_medio" name="lineas[{{ $i }}][medio_pago_id]"
+                                    <select id="lineas_{{ $i }}_medio" name="lineas[{{ $i }}][medio_pago_id]" data-medio x-on:change="actualizarComprobantes()"
                                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                         <option value="">—</option>
                                         @foreach ($medios as $medio)
-                                            <option value="{{ $medio->id }}" @selected((string) old("lineas.{$i}.medio_pago_id", $i === 0 && $medio->esEfectivo() ? $medio->id : '') === (string) $medio->id)>{{ $medio->nombre }}</option>
+                                            <option value="{{ $medio->id }}" @if ($medio->exigeComprobante()) data-comprobante="{{ $medio->etiquetaComprobante() }}" @endif @selected((string) old("lineas.{$i}.medio_pago_id", $i === 0 && $medio->esEfectivo() ? $medio->id : '') === (string) $medio->id)>{{ $medio->nombre }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -140,10 +140,12 @@
                                     <x-input-error class="mt-1" :messages="$errors->get('lineas.'.$i.'.monto')" />
                                 </div>
                                 <div>
-                                    <x-input-label for="lineas_{{ $i }}_referencia" value="Referencia (opcional)" />
-                                    <input id="lineas_{{ $i }}_referencia" name="lineas[{{ $i }}][referencia]" value="{{ old("lineas.{$i}.referencia") }}" maxlength="{{ Cobrar::REFERENCIA_MAXIMA }}" autocomplete="off"
-                                        placeholder="N.º de transferencia o del POS"
-                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                    {{-- Con un medio que lo exige (Transferencia, POS, Depósito, Cheque) la pantalla lo marca como obligatorio; el servidor lo verifica igual. --}}
+                                    <label for="lineas_{{ $i }}_referencia" data-etiqueta-comprobante class="block font-medium text-sm text-gray-700 dark:text-gray-300">Comprobante (obligatorio salvo en efectivo)</label>
+                                    <input id="lineas_{{ $i }}_referencia" name="lineas[{{ $i }}][referencia]" data-comprobante value="{{ old("lineas.{$i}.referencia") }}" maxlength="{{ Cobrar::REFERENCIA_MAXIMA }}" autocomplete="off"
+                                        @if ($errors->has("lineas.{$i}.referencia")) aria-invalid="true" aria-describedby="lineas_{{ $i }}_referencia_error" @endif
+                                        @class(['mt-1 block w-full rounded-md shadow-sm dark:bg-gray-900 dark:text-gray-300', 'border-gray-300 dark:border-gray-700' => ! $errors->has("lineas.{$i}.referencia"), 'border-red-500 dark:border-red-400' => $errors->has("lineas.{$i}.referencia")])>
+                                    <div id="lineas_{{ $i }}_referencia_error"><x-input-error class="mt-1" :messages="$errors->get('lineas.'.$i.'.referencia')" /></div>
                                 </div>
                             </div>
                         @endfor

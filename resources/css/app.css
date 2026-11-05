@@ -4,6 +4,26 @@
 
 @layer components {
     /*
+     * Anchos de las grillas (x-admin.table con "grilla" o "paginator", marcadas con data-grilla-scroll). Ver docs/grillas.md.
+     * - Celdas más angostas (0,75 rem a cada lado en vez de 1,5) y tabla del ancho de su contenido ("w-max"): una columna
+     *   ya no se parte en varias líneas por falta de lugar; si no entra todo, la grilla se desplaza en horizontal.
+     *   Un texto muy largo se parte recién a los 24 rem.
+     * - Si la grilla tiene columna de acciones (data-grilla-acciones; x-admin.table :acciones="false" la quita), la última columna queda fija a la derecha mientras se desplaza, siempre completa. Con fondo opaco y,
+     *   si la grilla desborda (data-desborda, lo pone grilla-barra.js), una sombra a su izquierda.
+     */
+    [data-grilla-scroll] > table { @apply w-max min-w-full; }
+    [data-grilla-scroll] :is(th, td) { @apply px-3; max-width: 24rem; }
+    [data-grilla-acciones] :is(th, td):not([colspan]):last-child {
+        @apply sticky right-0 whitespace-nowrap bg-white dark:bg-gray-800;
+        max-width: none;
+    }
+    /* Encabezado: el mismo color que el <thead> (gray-50 / gray-900 al 50 %) pero opaco, para que no se vea lo de abajo. El tema oscuro es "media" (sin clase .dark): se usa el variante dark: de Tailwind. */
+    [data-grilla-acciones] thead :is(th, td):not([colspan]):last-child { @apply bg-gray-50 dark:bg-[rgb(24,32,47)]; }
+    /* Acciones apiladas en vertical: la columna fija mide lo que la acción más larga. */
+    [data-grilla-acciones] td:last-child > .acciones-apiladas { @apply flex-col items-end gap-1; }
+    [data-grilla-acciones][data-desborda] :is(th, td):not([colspan]):last-child { box-shadow: -6px 0 6px -6px rgb(0 0 0 / 0.25); }
+
+    /*
      * Datos en monoespaciado (horas, fechas, códigos, documentos, fichas, matrículas): siempre con el par de
      * colores de texto, oscuro en modo claro y claro en modo oscuro. Sin color propio, un dato fuera de una
      * tabla heredaba el negro del navegador y en modo oscuro casi no se leía. Para un dato secundario,

@@ -8,12 +8,7 @@
     </p>
 
     <x-admin.listado :action="route('admin.cobros.index')" :busqueda="$busqueda" placeholder="Buscar por paciente, documento o ficha…">
-        <x-slot name="filtros">
-            <div class="w-40"><x-admin.fecha name="desde" label="Desde" :value="$filtros['desde']" /></div>
-            <div class="w-40"><x-admin.fecha name="hasta" label="Hasta" :value="$filtros['hasta']" /></div>
-            <div class="w-40"><x-admin.select name="estado" label="Estado" :options="App\Models\Cobro::ETIQUETAS" :value="$filtros['estado']" nullable /></div>
-        </x-slot>
-
+        {{-- Fechas, estado y demás: en la fila de filtros de la grilla (docs/grillas.md). --}}
         @include('admin.cobros._tabla')
     </x-admin.listado>
 </x-admin.page>

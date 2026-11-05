@@ -6,18 +6,21 @@ use App\Exceptions\AccionRechazada;
 use App\Http\Controllers\Controller;
 use App\Models\Caja;
 use App\Models\Cobro;
+use App\Models\Estado;
+use App\Models\Factura;
+use App\Models\LineaCobro;
 use App\Models\MedioPago;
 use App\Models\Moneda;
 use App\Models\Paciente;
-use App\Models\Estado;
-use App\Models\Factura;
 use App\Models\Prestacion;
 use App\Models\SolicitudReversionCobro;
 use App\Support\Cobros\Cobrar;
+use App\Support\Cobros\CorregirComprobante;
 use App\Support\Cobros\Guaranies;
 use App\Support\Cobros\RevertirCobro;
 use App\Support\Facturacion\EmitirFactura;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,18 +48,33 @@ class CobroController extends Controller
         $hasta = $this->fecha($request->query('hasta'));
         $estado = in_array($request->query('estado'), [Estado::VIGENTE, Estado::REVERTIDO], true) ? $request->query('estado') : null;
 
+        $grilla = Grilla::de($request)
+            ->fecha('fecha', 'Fecha', 'cobros.cobrado_en', utc: true)
+            ->nombrePersona('paciente', 'Paciente')
+            ->numero('prestaciones', 'Prestaciones', 'prestaciones_count', filtro: fn ($query, $n) => $query->has('prestaciones', '=', (int) $n))
+            // Varios por cobro: se filtra por uno; ordenar por la lista no tiene sentido.
+            ->opciones('medios', 'Medios', 'cobros.id', MedioPago::query()->orderBy('nombre')->pluck('nombre', 'id')->all(),
+                orden: false, filtro: fn ($query, $id) => $query->whereHas('lineas', fn ($query) => $query->where('medio_pago_id', $id)))
+            // Los comprobantes de sus pagos (para el arqueo): se busca por número; ordenar por la lista no tiene sentido.
+            ->texto('comprobantes', 'Comprobantes', 'cobros.id', orden: false,
+                filtro: fn ($query, $texto) => $query->whereHas('lineas', fn ($query) => $query->where('referencia', 'like', '%'.addcslashes((string) $texto, '%_\\').'%')))
+            ->numero('total', 'Total', 'cobros.total')
+            ->estado('estado', 'Estado', 'cobros.estado_id', Cobro::ETIQUETAS)
+            ->persona('cajero', 'Cajero', 'cobros.usuario_id', via: 'users');
+
         return $this->listado($request, 'admin.cobros', [
-            'cobros' => Cobro::query()
+            'cobros' => $grilla->aplicar(Cobro::query()
                 ->join('pacientes', 'pacientes.id', '=', 'cobros.paciente_id')
                 ->join('personas', 'personas.id', '=', 'pacientes.persona_id')
                 ->when($desde, fn ($query) => $query->where('cobros.cobrado_en', '>=', Carbon::parse($desde, config('app.zona_horaria_local'))->startOfDay()->utc()))
                 ->when($hasta, fn ($query) => $query->where('cobros.cobrado_en', '<', Carbon::parse($hasta, config('app.zona_horaria_local'))->addDay()->startOfDay()->utc()))
                 ->when($busqueda !== '', fn ($query) => $this->buscarPaciente($query, $busqueda))
                 ->when($estado, fn ($query) => $query->where('cobros.estado_id', Estado::idDe($estado)))
-                ->orderByDesc('cobros.cobrado_en')->orderByDesc('cobros.id')
                 ->select('cobros.*')
-                ->with(['paciente.persona', 'cajero.persona', 'lineas.medioPago', 'moneda', 'estado'])->withCount('prestaciones')
+                ->with(['paciente.persona', 'cajero.persona', 'lineas.medioPago', 'moneda', 'estado'])->withCount('prestaciones'),
+                fn ($query) => $query->orderByDesc('cobros.cobrado_en')->orderByDesc('cobros.id'))
                 ->paginate(20)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
             'filtros' => ['desde' => $desde, 'hasta' => $hasta, 'estado' => $estado],
             'puedeCobrar' => Permisos::puedeRuta('admin.cobros.create'),
@@ -95,6 +113,10 @@ class CobroController extends Controller
             'veCaja' => $veCaja($cobro->caja),
             'veCajaReversion' => $veCaja($cobro->cajaReversion),
             'puedeRevertir' => $libre && $directa && Permisos::puedeRuta('admin.cobros.revertir'),
+            // Solo en un arqueo devuelto por diferencias, y solo su cajero (Cobros\CorregirComprobante).
+            'puedeCorregir' => ! $cobro->revertido() && $cobro->caja->devuelta() && $cobro->caja->usuario_id === $usuario->id
+                && Permisos::puedeRuta('admin.cobros.corregir-comprobante'),
+            'mediosActivos' => MedioPago::activos()->orderBy('nombre')->get(),
             'puedeSolicitar' => $libre && ! $directa && Permisos::puedeRuta('admin.cobros.solicitar-reversion'),
             'pendiente' => $pendiente,
             'puedeImprimir' => $cobro->factura !== null && Permisos::puedeRuta('admin.facturas.imprimir'),
@@ -116,6 +138,29 @@ class CobroController extends Controller
         }
 
         return redirect()->route('admin.cobros.show', $cobro)->with('status', "Cobro revertido: se devolvieron {$cobro->totalTexto()} desde su caja.");
+    }
+
+    /** Corrige el comprobante y el medio de una línea del cobro en un arqueo devuelto (EDITAR sobre COBROS): con motivo, auditado. */
+    public function corregirComprobante(Request $request, Cobro $cobro, LineaCobro $linea): RedirectResponse
+    {
+        abort_unless($linea->cobro_id === $cobro->id, 404);
+        $datos = $request->validate([
+            'medio_pago_id' => ['nullable', 'integer'],
+            'comprobante' => ['nullable', 'string', 'max:'.Cobrar::REFERENCIA_MAXIMA],
+            'motivo' => ['required', 'string', 'min:'.RevertirCobro::MOTIVO_MINIMO, 'max:'.RevertirCobro::MOTIVO_MAXIMO],
+        ], [
+            'motivo.required' => 'Indique el motivo de la corrección.',
+            'motivo.min' => 'Indique el motivo de la corrección (al menos '.RevertirCobro::MOTIVO_MINIMO.' caracteres).',
+        ], ['medio_pago_id' => 'medio de pago', 'comprobante' => 'comprobante', 'motivo' => 'motivo']);
+
+        try {
+            CorregirComprobante::ejecutar($request->user(), $linea, $datos['comprobante'] ?? null, $datos['motivo'],
+                isset($datos['medio_pago_id']) ? (int) $datos['medio_pago_id'] : null);
+        } catch (AccionRechazada $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('admin.cobros.show', $cobro)->with('status', 'Pago corregido.');
     }
 
     public function solicitarReversion(Request $request, Cobro $cobro): RedirectResponse
@@ -245,7 +290,9 @@ class CobroController extends Controller
 
         // Las líneas vacías no cuentan; una a medias (medio sin monto o monto sin medio) se rechaza.
         $lineas = [];
-        foreach ($datos['lineas'] as $linea) {
+        $mediosElegidos = MedioPago::query()->whereKey(collect($datos['lineas'])->pluck('medio_pago_id')->filter()->all())->get()->keyBy('id');
+        $faltantes = [];
+        foreach ($datos['lineas'] as $i => $linea) {
             $medio = $linea['medio_pago_id'] ?? null;
             $monto = trim((string) ($linea['monto'] ?? ''));
             if ($medio === null && $monto === '') {
@@ -254,7 +301,16 @@ class CobroController extends Controller
             if ($medio === null || $monto === '') {
                 return back()->withInput()->with('error', 'Cada pago necesita el medio y el monto.');
             }
+            // Comprobante obligatorio según el medio: el error va en el campo de esa fila (Cobrar lo vuelve a verificar).
+            $elegido = $mediosElegidos->get((int) $medio);
+            if ($elegido?->exigeComprobante() && trim((string) ($linea['referencia'] ?? '')) === '') {
+                $faltantes["lineas.{$i}.referencia"] = $elegido->mensajeComprobanteFaltante();
+            }
             $lineas[] = ['medio_pago_id' => (int) $medio, 'monto' => Guaranies::entero($monto), 'referencia' => $linea['referencia'] ?? null];
+        }
+
+        if ($faltantes !== []) {
+            return back()->withInput()->withErrors($faltantes);
         }
 
         try {

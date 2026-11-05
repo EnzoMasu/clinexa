@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Procedimiento;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -16,9 +17,17 @@ class ProcedimientoController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $grilla = Grilla::de($request)
+            ->texto('codigo', 'Código', 'codigo')
+            ->texto('nombre', 'Nombre', 'nombre')
+            ->opciones('tipo', 'Tipo', 'tipo', ['CONSULTA' => 'CONSULTA', 'ESTUDIO' => 'ESTUDIO'])
+            ->numero('duracion', 'Duración', 'duracion_estimada_minutos')
+            ->estado('estado', 'Estado', 'estado_id', Procedimiento::class);
+
         return $this->listado($request, 'admin.procedimientos', [
-            'procedimientos' => $this->buscarEn(Procedimiento::query(), $busqueda, ['codigo', 'nombre', 'tipo'])
-                ->orderBy('codigo')->paginate(15)->withQueryString(),
+            'procedimientos' => $grilla->aplicar($this->buscarEn(Procedimiento::query(), $busqueda, ['codigo', 'nombre', 'tipo']), fn ($query) => $query->orderBy('codigo'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

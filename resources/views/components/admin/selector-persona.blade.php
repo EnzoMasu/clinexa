@@ -9,9 +9,10 @@
     oculta el enlace para cargar una persona nueva.
 
     "restaurar" en false: no recupera la persona de old() (quien llama la pasa ya verificada en "inicial").
-    "placeholder" y "pista" cambian los textos de la búsqueda (p. ej. búsqueda por número exacto). El slot
-    "altaRapida" se muestra cuando no hay resultados, con "q" (lo buscado) a mano; una persona creada desde
-    afuera se elige con el evento de ventana "persona-creada" ({ campo, persona: { id, texto } }).
+    "pista": placeholder de la caja de búsqueda (por defecto, el mínimo de caracteres para buscar); p. ej.
+    Proveedores pasa la suya para la búsqueda por número exacto. El slot "altaRapida" se muestra cuando no
+    hay resultados, con "q" (lo buscado) a mano; una persona creada desde afuera se elige con el evento de
+    ventana "persona-creada" ({ campo, persona: { id, texto } }).
 --}}
 @props([
     'url',
@@ -23,7 +24,6 @@
     'ofrecerAlta' => true,
     'sinResultados' => 'No hay personas disponibles con esa búsqueda.',
     'restaurar' => true,
-    'placeholder' => 'Buscar por nombre o documento…',
     'pista' => null,
 ])
 
@@ -38,6 +38,7 @@
     }
     $urlNuevaPersona = $ofrecerAlta ? Permisos::url('admin.personas.create') : null;
     $minimo = BuscadorPersonas::MINIMO;
+    // La pista va como placeholder de la caja de búsqueda (por defecto, la misma en todos los buscadores de personas).
     $pista ??= "Escriba al menos {$minimo} caracteres del nombre o del documento para buscar.";
 @endphp
 
@@ -56,13 +57,14 @@
     {{-- Búsqueda --}}
     <div x-show="! elegida" style="{{ $inicial ? 'display: none' : '' }}">
         <x-text-input :id="$name.'_buscar'" type="search" x-ref="busqueda" x-model="q" x-on:input.debounce.350ms="buscar()"
-            placeholder="{{ $placeholder }}" autocomplete="off" class="block w-full"
+            placeholder="{{ $pista }}" title="{{ $pista }}" autocomplete="off" class="block w-full"
             aria-describedby="{{ $name }}_ayuda" />
         <p id="{{ $name }}_ayuda" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
             {{ $ayuda }} Se muestran hasta {{ BuscadorPersonas::LIMITE }} resultados: si no aparece, afine la búsqueda.
         </p>
 
-        <ul class="mt-2 max-h-64 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700"
+        {{-- Sin nada que mostrar (todavía no se escribió el mínimo) la lista no aparece: el mínimo lo dice el placeholder. --}}
+        <ul x-show="! faltanCaracteres || resultados.length > 0" style="display: none" class="mt-2 max-h-64 overflow-y-auto rounded-md border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700"
             x-bind:aria-busy="cargando.toString()">
             <template x-for="persona in resultados" x-bind:key="persona.id">
                 <li>
@@ -70,10 +72,6 @@
                         class="block w-full px-3 py-2 text-left text-sm text-gray-800 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:text-gray-200 dark:hover:bg-gray-700 dark:focus:bg-gray-700"></button>
                 </li>
             </template>
-            {{-- Visible de entrada: el formulario no busca hasta que se escriba. --}}
-            <li x-show="faltanCaracteres" class="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">
-                {{ $pista }}
-            </li>
             <li x-show="buscado && ! cargando && ! faltanCaracteres && resultados.length === 0" style="display: none" class="px-3 py-3 text-sm text-gray-600 dark:text-gray-400">
                 {{ $sinResultados }}
                 @if ($urlNuevaPersona)

@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Models\ResponsablePago;
+use App\Support\Grilla\Grilla;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 
 class ResponsablePagoController extends RolPersonaController
 {
@@ -15,6 +17,13 @@ class ResponsablePagoController extends RolPersonaController
     protected function seccion(): string
     {
         return 'responsables-pago';
+    }
+
+    protected function grilla(Request $request, string $tabla): Grilla
+    {
+        return $this->columnasDePersona(Grilla::de($request), 'Nombre / Razón social')
+            ->numero('limite', 'Límite de crédito', "{$tabla}.limite_credito")
+            ->estado('estado', 'Estado', "{$tabla}.estado_id", ResponsablePago::class);
     }
 
     protected function nombre(): string

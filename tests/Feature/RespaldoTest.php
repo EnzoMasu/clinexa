@@ -4,7 +4,9 @@ use App\Support\Respaldos;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Sleep;
 
 // Grupo "lento" (docs/pruebas.md): Respaldo (herramientas de PostgreSQL simuladas, archivos de prueba). No corre en el comando rápido.
 uses()->group('lento');
@@ -18,9 +20,10 @@ uses()->group('lento');
 
 const CONTRASENA_SIMULADA = 'Secreta#123 con espacios';
 
+// Carpeta propia de cada prueba: nombre aleatorio (no uniqid(), que son microsegundos y choca entre procesos en paralelo).
 beforeEach(function () {
     Carbon::setTestNow(Carbon::parse('2026-10-08 18:05:00', 'UTC')); // 15:05 en Paraguay
-    $this->carpeta = sys_get_temp_dir().DIRECTORY_SEPARATOR.'clinexa respaldos '.uniqid().DIRECTORY_SEPARATOR.'sub carpeta';
+    $this->carpeta = sys_get_temp_dir().DIRECTORY_SEPARATOR.'clinexa respaldos '.bin2hex(random_bytes(16)).DIRECTORY_SEPARATOR.'sub carpeta';
     config([
         'database.default' => 'pg_simulada',
         'database.connections.pg_simulada' => ['driver' => 'pgsql', 'host' => '127.0.0.1', 'port' => 1, 'database' => 'base_simulada',
@@ -131,29 +134,186 @@ test('solo respalda PostgreSQL', function () {
     Process::assertNothingRan();
 });
 
+test('--probar: si dropdb no puede eliminar la base temporal, avisa y queda en el log', function () {
+    Log::spy();
+    Sleep::fake();
+    Process::fake(function (PendingProcess $proceso) {
+        $herramienta = basename($proceso->command[0], '.exe');
+        if ($herramienta === 'pg_dump') {
+            File::put($proceso->command[array_search('-f', $proceso->command, true) + 1], 'PGDMP simulado');
+        }
+
+        return match ($herramienta) {
+            'pg_restore' => Process::result("; Archive\n201; 1259 16390 TABLE public personas postgres\n"),
+            'dropdb' => Process::result(errorOutput: 'la base está siendo utilizada', exitCode: 1),
+            default => Process::result(),
+        };
+    });
+
+    $this->artisan('clinexa:respaldo', ['--probar' => true])
+        ->expectsOutputToContain('No se pudo eliminar la base temporal clinexa_restore_test_'); // el resto, en el log
+
+    Log::shouldHaveReceived('warning')->withArgs(fn (string $mensaje, array $contexto) => str_contains($mensaje, 'dropdb')
+        && preg_match(Respaldos::PATRON_BASE_DE_PRUEBA, $contexto['base']) === 1 && $contexto['codigo_de_salida'] === 1
+        && $contexto['error'] === 'la base está siendo utilizada')->once();
+    // Un intento con --force y los reintentos sin --force, todos sobre la misma base.
+    Process::assertRanTimes(fn (PendingProcess $p) => basename($p->command[0], '.exe') === 'dropdb', 1 + Respaldos::REINTENTOS_ELIMINAR);
+});
+
+test('--probar: si dropdb --force falla (autovacuum de otro rol), reintenta sin --force y elimina la base', function () {
+    Log::spy();
+    Sleep::fake();
+    $dropdb = [];
+    Process::fake(function (PendingProcess $proceso) use (&$dropdb) {
+        $herramienta = basename($proceso->command[0], '.exe');
+        if ($herramienta === 'pg_dump') {
+            File::put($proceso->command[array_search('-f', $proceso->command, true) + 1], 'PGDMP simulado');
+        }
+        if ($herramienta === 'dropdb') {
+            $dropdb[] = $proceso->command;
+
+            return count($dropdb) === 1 ? Process::result(errorOutput: 'se ha denegado el permiso para terminar el proceso', exitCode: 1) : Process::result();
+        }
+
+        return $herramienta === 'pg_restore' ? Process::result("; Archive\n201; 1259 16390 TABLE public personas postgres\n") : Process::result();
+    });
+
+    // La comparación con la conexión simulada no importa acá: solo la eliminación.
+    $this->artisan('clinexa:respaldo', ['--probar' => true])->expectsOutputToContain(' eliminada.');
+
+    expect($dropdb)->toHaveCount(2)
+        ->and(in_array('--force', $dropdb[0], true))->toBeTrue()
+        ->and(in_array('--force', $dropdb[1], true))->toBeFalse()
+        ->and(end($dropdb[0]))->toBe(end($dropdb[1]))->toMatch(Respaldos::PATRON_BASE_DE_PRUEBA);
+    Log::shouldNotHaveReceived('warning');
+});
+
+test('--probar: createdb, pg_restore, psql y dropdb usan la misma base temporal, con nombre único, y se elimina solo esa', function () {
+    $comandos = [];
+    Process::fake(function (PendingProcess $proceso) use (&$comandos) {
+        $comandos[] = $proceso->command;
+        if (basename($proceso->command[0], '.exe') === 'pg_dump') {
+            File::put($proceso->command[array_search('-f', $proceso->command, true) + 1], 'PGDMP simulado');
+        }
+
+        return Process::result(basename($proceso->command[0], '.exe') === 'pg_restore' ? "; Archive\n201; 1259 16390 TABLE public personas postgres\n" : '');
+    });
+
+    $this->artisan('clinexa:respaldo', ['--probar' => true]);
+    $this->artisan('clinexa:respaldo', ['--probar' => true]);
+
+    $porHerramienta = fn (string $nombre) => collect($comandos)
+        ->filter(fn (array $comando) => basename($comando[0], '.exe') === $nombre);
+    $creadas = $porHerramienta('createdb')->map(fn (array $c) => end($c))->values()->all();
+    $eliminadas = $porHerramienta('dropdb')->map(fn (array $c) => end($c))->values()->all();
+    $restauradas = $porHerramienta('pg_restore')->filter(fn (array $c) => in_array('-d', $c, true))
+        ->map(fn (array $c) => $c[array_search('-d', $c, true) + 1])->values()->all();
+
+    expect($creadas)->toHaveCount(2)
+        ->and($creadas[0])->toMatch(Respaldos::PATRON_BASE_DE_PRUEBA)
+        ->and($creadas[1])->toMatch(Respaldos::PATRON_BASE_DE_PRUEBA)
+        ->and($creadas[0])->not->toBe($creadas[1])
+        // Cada corrida elimina una sola base, la suya: no limpia restos de otras antes de empezar.
+        ->and($eliminadas)->toBe($creadas)
+        ->and($restauradas)->toBe($creadas);
+});
+
+test('--probar: si createdb falla, no elimina nada (esa base, si existe, no es de esta corrida)', function () {
+    Process::fake(function (PendingProcess $proceso) {
+        $herramienta = basename($proceso->command[0], '.exe');
+        if ($herramienta === 'pg_dump') {
+            File::put($proceso->command[array_search('-f', $proceso->command, true) + 1], 'PGDMP simulado');
+        }
+
+        return match ($herramienta) {
+            'pg_restore' => Process::result("; Archive\n201; 1259 16390 TABLE public personas postgres\n"),
+            'createdb' => Process::result(errorOutput: 'la base ya existe', exitCode: 1),
+            default => Process::result(),
+        };
+    });
+
+    $this->artisan('clinexa:respaldo', ['--probar' => true])->assertFailed()
+        ->expectsOutputToContain(': la base ya existe');
+
+    Process::assertDidntRun(fn (PendingProcess $p) => basename($p->command[0], '.exe') === 'dropdb');
+});
+
 describe('guardas de la base temporal', function () {
-    test('solo se crea o elimina exactamente clinexa_restore_test', function (string $nombre) {
-        Process::fake();
+    /** Respaldos con la conexión simulada y el nombre de base temporal indicado. */
+    function respaldoConBaseDePrueba(?string $nombre): Respaldos
+    {
+        return new Respaldos(config('database.connections.pg_simulada'), $nombre);
+    }
 
-        expect(fn () => Respaldos::desdeConfiguracion()->eliminarBaseDePrueba($nombre))->toThrow(RuntimeException::class, 'Por seguridad');
+    test('cada instancia tiene su base temporal: el prefijo y 16 hexadecimales, distinta cada vez', function () {
+        $nombres = collect(range(1, 50))->map(fn () => Respaldos::desdeConfiguracion()->baseDePrueba());
+
+        $nombres->each(fn (string $n) => expect($n)->toMatch(Respaldos::PATRON_BASE_DE_PRUEBA)
+            ->and(strlen($n))->toBeLessThanOrEqual(63)); // límite de nombres de PostgreSQL
+        expect($nombres->unique())->toHaveCount(50);
+    });
+
+    test('no se crea, restaura, cuenta ni elimina una base que no cumple el patrón o está protegida', function (string $nombre) {
+        Process::fake();
+        $respaldos = respaldoConBaseDePrueba($nombre);
+
+        expect(fn () => $respaldos->crearBaseDePrueba())->toThrow(RuntimeException::class, 'Por seguridad')
+            ->and(fn () => $respaldos->restaurarEnPrueba('/tmp/x.dump'))->toThrow(RuntimeException::class, 'Por seguridad')
+            ->and(fn () => $respaldos->contarEnPrueba())->toThrow(RuntimeException::class, 'Por seguridad')
+            ->and(fn () => $respaldos->eliminarBaseDePrueba())->toThrow(RuntimeException::class, 'Por seguridad');
         Process::assertNothingRan();
-    })->with(['clinexa', 'clinexa_test', 'base_simulada', 'postgres', 'CLINEXA_RESTORE_TEST', 'clinexa_restore_test2', ' clinexa_restore_test']);
+    })->with([
+        'la configurada' => 'base_simulada',
+        'clinexa' => 'clinexa',
+        'clinexa_dev' => 'clinexa_dev',
+        'clinexa_test' => 'clinexa_test',
+        'clinexa_recorrido' => 'clinexa_recorrido',
+        'postgres' => 'postgres',
+        'template1' => 'template1',
+        'el nombre fijo anterior' => 'clinexa_restore_test',
+        'prefijo sin sufijo' => 'clinexa_restore_test_',
+        'sufijo corto' => 'clinexa_restore_test_0123456789abcde',
+        'sufijo largo' => 'clinexa_restore_test_0123456789abcdef0',
+        'sufijo en mayúsculas' => 'clinexa_restore_test_0123456789ABCDEF',
+        'sufijo no hexadecimal' => 'clinexa_restore_test_0123456789abcdeg',
+        'prefijo en mayúsculas' => 'CLINEXA_RESTORE_TEST_0123456789abcdef',
+        'espacio adelante' => ' clinexa_restore_test_0123456789abcdef',
+        'salto de línea al final' => "clinexa_restore_test_0123456789abcdef\n",
+        'otro sufijo agregado' => 'clinexa_restore_test_0123456789abcdef_x',
+        'otro prefijo' => 'x_clinexa_restore_test_0123456789abcdef',
+        'comodín' => 'clinexa_restore_test_%',
+        'inyección' => 'clinexa_restore_test_0123456789abcdef;drop',
+        'sin prefijo' => '0123456789abcdef',
+        'clinexa_test_ con sufijo' => 'clinexa_test_0123456789abcdef',
+    ]);
 
-    test('ni siquiera clinexa_restore_test si es la base configurada', function () {
-        config(['database.connections.pg_simulada.database' => Respaldos::BASE_DE_PRUEBA]);
+    test('aunque cumpla el patrón, no se acepta otro nombre que el de la base de esta corrida', function () {
         Process::fake();
+        $respaldos = respaldoConBaseDePrueba('clinexa_restore_test_0123456789abcdef');
 
-        expect(fn () => Respaldos::desdeConfiguracion()->eliminarBaseDePrueba())->toThrow(RuntimeException::class, 'Por seguridad');
-        expect(fn () => Respaldos::desdeConfiguracion()->crearBaseDePrueba())->toThrow(RuntimeException::class, 'Por seguridad');
+        expect(fn () => $respaldos->verificarBaseDePrueba('clinexa_restore_test_fedcba9876543210'))->toThrow(RuntimeException::class, 'Por seguridad');
+        $respaldos->verificarBaseDePrueba('clinexa_restore_test_0123456789abcdef'); // la suya sí
         Process::assertNothingRan();
     });
 
-    test('con el nombre correcto, dropdb recibe exactamente esa base', function () {
+    test('ni siquiera una que cumple el patrón si es la base configurada', function () {
+        config(['database.connections.pg_simulada.database' => 'clinexa_restore_test_0123456789abcdef']);
         Process::fake();
+        $respaldos = respaldoConBaseDePrueba('clinexa_restore_test_0123456789abcdef');
 
-        Respaldos::desdeConfiguracion()->eliminarBaseDePrueba();
+        expect(fn () => $respaldos->eliminarBaseDePrueba())->toThrow(RuntimeException::class, 'Por seguridad')
+            ->and(fn () => $respaldos->crearBaseDePrueba())->toThrow(RuntimeException::class, 'Por seguridad');
+        Process::assertNothingRan();
+    });
 
-        Process::assertRan(fn (PendingProcess $p) => basename($p->command[0], '.exe') === 'dropdb' && end($p->command) === 'clinexa_restore_test'
+    test('con el nombre correcto, dropdb recibe exactamente la base de esta corrida', function () {
+        Process::fake();
+        $respaldos = Respaldos::desdeConfiguracion();
+
+        $respaldos->eliminarBaseDePrueba();
+
+        Process::assertRanTimes(fn (PendingProcess $p) => basename($p->command[0], '.exe') === 'dropdb', 1);
+        Process::assertRan(fn (PendingProcess $p) => basename($p->command[0], '.exe') === 'dropdb' && end($p->command) === $respaldos->baseDePrueba()
             && in_array('--if-exists', $p->command, true));
     });
 });

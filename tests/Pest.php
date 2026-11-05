@@ -25,7 +25,9 @@ pest()->extend(TestCase::class)
 require_once __DIR__.'/Feature/HistoriaClinica/escenario.php';
 // Y los de entre pacientes y urgencias (se apoyan en el anterior).
 require_once __DIR__.'/Feature/Urgencias/escenario.php';
-// Y los de Compras y gastos.
+// Las rutas de todas las grillas (docs/grillas.md).
+require_once __DIR__.'/Feature/Grillas/rutas.php';
+// El escenario de Compras y gastos.
 require_once __DIR__.'/Feature/Compras/escenario.php';
 
 // Solo lo que depende de PostgreSQL (restricciones EXCLUDE): base clinexa_test. PostgresTestCase ya

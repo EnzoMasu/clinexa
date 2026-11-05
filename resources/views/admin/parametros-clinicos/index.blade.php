@@ -15,7 +15,7 @@
             Solo los parámetros aprobados marcan alertas.
         </p>
 
-        <div class="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
+        <div class="relative overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
             <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
                 <thead class="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:bg-gray-900/50 dark:text-gray-400">
                     <tr>

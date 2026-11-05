@@ -12,6 +12,7 @@ use App\Models\SolicitudAnulacionFactura;
 use App\Support\Facturacion\AnularFactura;
 use App\Support\Facturacion\PdfFactura;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use App\Support\Permisos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,8 +36,17 @@ class FacturaController extends Controller
         $hasta = $this->fecha($request->query('hasta'));
         $estado = array_key_exists((string) $request->query('estado'), Factura::ETIQUETAS) ? $request->query('estado') : null;
 
+        $grilla = Grilla::de($request)
+            ->texto('numero', 'Número', 'facturas.numero_completo')
+            ->fecha('fecha', 'Fecha', 'facturas.emitida_en', utc: true)
+            ->texto('cliente', 'Cliente', 'facturas.cliente_nombre', filtro: fn ($query, $valor) => $query->where(fn ($query) => $query
+                ->whereLike('facturas.cliente_nombre', "%{$valor}%")->orWhereLike('facturas.cliente_documento', "%{$valor}%")))
+            ->numero('total', 'Total', 'facturas.total')
+            ->estado('estado', 'Estado', 'facturas.estado_id', Factura::ETIQUETAS)
+            ->persona('emisor', 'Emitida por', 'facturas.usuario_id', via: 'users');
+
         return $this->listado($request, 'admin.facturas', [
-            'facturas' => Factura::query()
+            'facturas' => $grilla->aplicar(Factura::query()
                 ->when($desde, fn ($query) => $query->where('emitida_en', '>=', Carbon::parse($desde, config('app.zona_horaria_local'))->startOfDay()->utc()))
                 ->when($hasta, fn ($query) => $query->where('emitida_en', '<', Carbon::parse($hasta, config('app.zona_horaria_local'))->addDay()->startOfDay()->utc()))
                 ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
@@ -44,9 +54,9 @@ class FacturaController extends Controller
                     ->orWhereLike('cliente_nombre', "%{$busqueda}%")
                     ->orWhereLike('cliente_documento', "%{$busqueda}%")))
                 ->when($estado, fn ($query) => $query->where('estado_id', Estado::idDe($estado)))
-                ->orderByDesc('emitida_en')->orderByDesc('id')
-                ->with(['moneda', 'emisor.persona'])
+                ->with(['moneda', 'emisor.persona']), fn ($query) => $query->orderByDesc('emitida_en')->orderByDesc('id'))
                 ->paginate(20)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
             'filtros' => ['desde' => $desde, 'hasta' => $hasta, 'estado' => $estado],
         ]);

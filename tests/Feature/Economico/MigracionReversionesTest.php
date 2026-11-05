@@ -6,6 +6,7 @@
  * Es idempotente, da los permisos solo a Caja y Gerencia, y con cobros ya existentes no revierte ninguno.
  */
 
+use App\Models\Caja;
 use App\Models\Cobro;
 use App\Models\Consulta;
 use App\Models\Estado;
@@ -63,7 +64,7 @@ function migracionReversionesSinNada(): void
         $modulo->delete();
     }
     if ($cobros = ModuloSistema::where('codigo', 'COBROS')->first()) {
-        $desactivar = Permiso::where('modulo_sistema_id', $cobros->id)->where('accion', 'DESACTIVAR')->pluck('id');
+        $desactivar = Permiso::where('modulo_sistema_id', $cobros->id)->whereIn('accion', ['DESACTIVAR', 'EDITAR'])->pluck('id');
         DB::table('perfil_permiso')->whereIn('permiso_id', $desactivar)
             ->whereNotIn('perfil_acceso_id', PerfilAcceso::where('codigo', PerfilAcceso::ADMINISTRADOR)->pluck('id'))->delete();
     }
@@ -162,13 +163,13 @@ test('con cobros y cierres ya existentes: no revierte ninguno, quedan vigentes y
     $this->actingAs($cajero)->post(route('admin.cajas.abrir'), ['monto_inicial' => '0'])->assertSessionHas('status');
     $this->post(route('admin.cobros.store'), ['paciente_id' => $this->paciente->id, 'prestaciones' => [$prestacion->id],
         'lineas' => [['medio_pago_id' => MedioPago::efectivo()->id, 'monto' => '100000']]])->assertSessionHas('status');
-    $this->post(route('admin.cajas.cerrar', \App\Models\Caja::sole()), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === MedioPago::efectivo()->id ? '100000' : '0'])->all()])
+    $this->post(route('admin.cajas.cerrar', Caja::sole()), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === MedioPago::efectivo()->id ? '100000' : '0'])->all()])
         ->assertSessionHas('status');
     $efectivoId = MedioPago::efectivo()->id;
     migracionReversionesSinNada();
     $montosCierre = fn () => DB::table('cierre_caja_medios')->orderBy('id')->get(['id', 'medio_pago_id', 'esperado', 'contado', 'diferencia'])->map(fn ($fila) => (array) $fila)->all();
     $cierreAntes = $montosCierre();
-    expect($cierreAntes)->toHaveCount(3);
+    expect($cierreAntes)->toHaveCount(MedioPago::count());
     $foto = fn () => [
         DB::table('cobros')->orderBy('id')->get(['id', 'caja_id', 'total', 'estado_id'])->map(fn ($fila) => (array) $fila)->all(),
         DB::table('cobro_prestaciones')->orderBy('id')->get()->map(fn ($fila) => (array) $fila)->all(),
@@ -189,5 +190,5 @@ test('con cobros y cierres ya existentes: no revierte ninguno, quedan vigentes y
         ->and(Cobrar::pendientes()->count())->toBe(0)
         ->and($montosCierre())->toBe($cierreAntes)
         ->and(DB::table('cierre_caja_medios')->where('es_efectivo', true)->pluck('medio_pago_id')->all())->toBe([$efectivoId])
-        ->and(\App\Models\Caja::sole()->cerrada())->toBeTrue();
+        ->and(Caja::sole()->cerrada())->toBeTrue();
 });

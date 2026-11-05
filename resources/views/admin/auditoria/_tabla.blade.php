@@ -1,7 +1,7 @@
 @use('App\Support\Auditoria')
 @use('App\Support\Fecha')
 
-<x-admin.table :headers="['Fecha y hora', 'Usuario', 'Acción', 'Módulo', 'Registro', 'IP']" :paginator="$logs">
+<x-admin.table :grilla="$grilla" :paginator="$logs">
     @forelse ($logs as $log)
         <tr>
             <td class="px-6 py-4 whitespace-nowrap dato text-sm">{{ Fecha::mostrar($log->fecha_hora, conHora: true) }}</td>

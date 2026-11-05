@@ -49,7 +49,7 @@
                     No hay módulos del sistema cargados. Ejecute <code>php artisan db:seed --class=ModuloSistemaSeeder</code>.
                 </p>
             @else
-                <div class="overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
+                <div class="relative overflow-x-auto rounded-md border border-gray-200 dark:border-gray-700">
                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                         <thead class="bg-gray-50 dark:bg-gray-900/50">
                             <tr>

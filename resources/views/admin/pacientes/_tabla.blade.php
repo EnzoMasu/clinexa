@@ -4,7 +4,7 @@
 
 @php($veCobertura = CoberturaController::puedeVer())
 
-<x-admin.table :headers="['Nro. ficha', 'Nombre', 'Documento', 'Fecha de alta', 'Estado']" :paginator="$registros">
+<x-admin.table :grilla="$grilla" :paginator="$registros">
     @forelse ($registros as $registro)
         <tr>
             <td class="px-6 py-4 dato font-medium">{{ $registro->nro_ficha }}</td>
@@ -14,7 +14,7 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($registro->fecha_alta) }}</td>
             <td class="px-6 py-4"><x-admin.estado-badge :estado="$registro->estado" /></td>
-            <x-admin.actions
+            <x-admin.actions apilado
                 :edit="Permisos::url('admin.pacientes.edit', $registro)"
                 :desactivar="$registro->estaActivo() ? Permisos::url('admin.pacientes.desactivar', $registro) : null">
                 {{-- Con VER sobre la historia clínica. --}}

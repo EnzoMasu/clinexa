@@ -13,6 +13,7 @@ use App\Models\TarifaConvenio;
 use App\Support\Cobros\Guaranies;
 use App\Support\Convenios\GestionConvenios;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -32,8 +33,18 @@ class ConvenioController extends Controller
         $busqueda = trim((string) $request->query('q'));
         $conHistoricos = $request->query('estado') === 'TODOS';
 
+        // El estado se elige con "Mostrar" (vigentes o también históricos), arriba: en la grilla solo ordena.
+        $grilla = Grilla::de($request)
+            ->nombrePersona('aseguradora', 'Aseguradora')
+            ->texto('convenio', 'Convenio', 'convenios.nombre')
+            ->texto('planes', 'Planes', 'convenios.id', orden: false,
+                filtro: fn ($query, $valor) => $query->whereHas('planes', fn ($query) => $query->whereLike('nombre', "%{$valor}%")))
+            ->fecha('vigencia', 'Vigencia', 'convenios.vigente_desde')
+            ->opciones('estado', 'Estado', 'convenios.estado_id', [],
+                orden: fn ($query) => $query->select('nombre')->from('estados')->whereColumn('estados.id', 'convenios.estado_id'), filtro: false);
+
         return $this->listado($request, 'admin.convenios', [
-            'convenios' => Convenio::query()
+            'convenios' => $grilla->aplicar(Convenio::query()
                 ->join('responsables_pago', 'responsables_pago.id', '=', 'convenios.responsable_pago_id')
                 ->join('personas', 'personas.id', '=', 'responsables_pago.persona_id')
                 ->unless($conHistoricos, fn ($query) => $query->where('convenios.estado_id', Estado::idDe(Estado::VIGENTE)))
@@ -41,10 +52,11 @@ class ConvenioController extends Controller
                     ->whereLike('convenios.nombre', "%{$busqueda}%")
                     ->orWhereLike('personas.apellidos', "%{$busqueda}%")
                     ->orWhereLike('personas.nombres', "%{$busqueda}%")))
-                ->orderBy('personas.apellidos')->orderBy('personas.nombres')->orderByDesc('convenios.vigente_desde')
                 ->select('convenios.*')
-                ->with(['responsablePago.persona', 'planes'])
+                ->with(['responsablePago.persona', 'planes']),
+                fn ($query) => $query->orderBy('personas.apellidos')->orderBy('personas.nombres')->orderByDesc('convenios.vigente_desde'))
                 ->paginate(20)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
             'filtros' => ['estado' => $conHistoricos ? 'TODOS' : 'VIGENTES'],
             'activa' => 'convenios',
@@ -130,18 +142,32 @@ class ConvenioController extends Controller
         $conHistoricas = $request->query('estado') === 'TODAS';
         $convenioId = filter_var($request->query('convenio'), FILTER_VALIDATE_INT) ?: null;
 
+        $grilla = Grilla::de($request)
+            ->texto('convenio', 'Convenio', 'convenios.nombre', filtro: fn ($query, $valor) => $query->where(fn ($query) => $query
+                ->whereLike('convenios.nombre', "%{$valor}%")
+                ->orWhereIn('convenios.responsable_pago_id', fn ($sub) => $sub->select('responsables_pago.id')->from('responsables_pago')
+                    ->join('personas', 'personas.id', '=', 'responsables_pago.persona_id')
+                    ->where(fn ($q) => $q->whereLike('personas.razon_social', "%{$valor}%")->orWhereLike('personas.apellidos', "%{$valor}%")))))
+            ->texto('procedimiento', 'Procedimiento', 'procedimientos.nombre', filtro: fn ($query, $valor) => $query->where(fn ($query) => $query
+                ->whereLike('procedimientos.nombre', "%{$valor}%")->orWhereLike('procedimientos.codigo', "%{$valor}%")))
+            ->numero('monto', 'Monto', 'tarifas_convenio.monto')
+            ->fecha('vigencia', 'Vigencia', 'tarifas_convenio.vigente_desde')
+            ->opciones('estado', 'Estado', 'tarifas_convenio.estado_id', [],
+                orden: fn ($query) => $query->select('nombre')->from('estados')->whereColumn('estados.id', 'tarifas_convenio.estado_id'), filtro: false);
+
         return $this->listado($request, 'admin.convenios.tarifas', [
-            'tarifas' => TarifaConvenio::query()
+            'tarifas' => $grilla->aplicar(TarifaConvenio::query()
                 ->join('procedimientos', 'procedimientos.id', '=', 'tarifas_convenio.procedimiento_id')
                 ->join('convenios', 'convenios.id', '=', 'tarifas_convenio.convenio_id')
                 ->unless($conHistoricas, fn ($query) => $query->where('tarifas_convenio.estado_id', Estado::idDe(Estado::VIGENTE)))
                 ->when($convenioId, fn ($query) => $query->where('tarifas_convenio.convenio_id', $convenioId))
                 ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
                     ->whereLike('procedimientos.nombre', "%{$busqueda}%")->orWhereLike('procedimientos.codigo', "%{$busqueda}%")))
-                ->orderBy('convenios.nombre')->orderBy('procedimientos.nombre')->orderByDesc('tarifas_convenio.vigente_desde')->orderByDesc('tarifas_convenio.id')
                 ->select('tarifas_convenio.*')
-                ->with(['procedimiento', 'convenio.responsablePago.persona', 'moneda'])
+                ->with(['procedimiento', 'convenio.responsablePago.persona', 'moneda']),
+                fn ($query) => $query->orderBy('convenios.nombre')->orderBy('procedimientos.nombre')->orderByDesc('tarifas_convenio.vigente_desde')->orderByDesc('tarifas_convenio.id'))
                 ->paginate(20)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
             'filtros' => ['estado' => $conHistoricas ? 'TODAS' : 'VIGENTES', 'convenio' => $convenioId],
             'opcionesConvenio' => self::convenios(),

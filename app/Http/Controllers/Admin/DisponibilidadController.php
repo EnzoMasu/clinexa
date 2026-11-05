@@ -9,10 +9,12 @@ use App\Models\Estado;
 use App\Models\Profesional;
 use App\Support\BuscadorPersonas;
 use App\Support\Fecha;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use Illuminate\View\View;
@@ -23,6 +25,16 @@ class DisponibilidadController extends Controller
     {
         $busqueda = trim((string) $request->query('q'));
 
+        $dia = "CASE disponibilidades.dia_semana WHEN 'LUN' THEN 1 WHEN 'MAR' THEN 2 WHEN 'MIE' THEN 3 WHEN 'JUE' THEN 4 WHEN 'VIE' THEN 5 WHEN 'SAB' THEN 6 ELSE 7 END";
+        $grilla = Grilla::de($request)
+            ->nombrePersona('profesional', 'Profesional')
+            ->texto('consultorio', 'Consultorio', 'consultorios.nombre')
+            ->opciones('dia', 'Día', 'disponibilidades.dia_semana', Disponibilidad::DIAS, orden: DB::raw($dia))
+            ->texto('horario', 'Horario', 'disponibilidades.hora_desde', filtro: false)
+            ->numero('duracion', 'Turnos de', 'disponibilidades.duracion_turno_minutos')
+            ->fecha('vigencia', 'Vigencia', 'disponibilidades.vigencia_desde')
+            ->estado('estado', 'Estado', 'disponibilidades.estado_id', Disponibilidad::class);
+
         $disponibilidades = Disponibilidad::query()
             ->select('disponibilidades.*')
             ->join('profesionales', 'profesionales.id', '=', 'disponibilidades.profesional_id')
@@ -32,15 +44,15 @@ class DisponibilidadController extends Controller
             ->when($busqueda !== '', fn ($query) => $query->where(fn ($query) => $query
                 ->whereLike('personas.apellidos', "%{$busqueda}%")
                 ->orWhereLike('personas.nombres', "%{$busqueda}%")
-                ->orWhereLike('consultorios.nombre', "%{$busqueda}%")))
+                ->orWhereLike('consultorios.nombre', "%{$busqueda}%")));
+        $disponibilidades = $grilla->aplicar($disponibilidades, fn ($query) => $query
             ->orderBy('personas.apellidos')
-            // Lunes a domingo (no alfabético).
-            ->orderByRaw("CASE disponibilidades.dia_semana WHEN 'LUN' THEN 1 WHEN 'MAR' THEN 2 WHEN 'MIE' THEN 3 WHEN 'JUE' THEN 4 WHEN 'VIE' THEN 5 WHEN 'SAB' THEN 6 ELSE 7 END")
-            ->orderBy('disponibilidades.hora_desde')
+            ->orderByRaw($dia) // lunes a domingo (no alfabético)
+            ->orderBy('disponibilidades.hora_desde'))
             ->paginate(20)
             ->withQueryString();
 
-        return $this->listado($request, 'admin.disponibilidades', compact('disponibilidades', 'busqueda'));
+        return $this->listado($request, 'admin.disponibilidades', compact('disponibilidades', 'busqueda', 'grilla'));
     }
 
     public function create(): View

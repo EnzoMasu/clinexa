@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Ciudad;
 use App\Models\Clinica;
 use App\Models\Sucursal;
+use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -17,10 +18,16 @@ class SucursalController extends Controller
     public function index(Request $request): Response
     {
         $busqueda = trim((string) $request->query('q'));
+        $grilla = Grilla::de($request)
+            ->texto('nombre', 'Nombre', 'nombre')
+            ->texto('direccion', 'Dirección', 'direccion')
+            ->texto('telefono', 'Teléfono', 'telefono')
+            ->estado('estado', 'Estado', 'estado_id', Sucursal::class);
 
         return $this->listado($request, 'admin.sucursales', [
-            'sucursales' => $this->buscarEn(Sucursal::query(), $busqueda, ['nombre', 'direccion', 'telefono'])
-                ->orderBy('nombre')->paginate(15)->withQueryString(),
+            'sucursales' => $grilla->aplicar($this->buscarEn(Sucursal::query(), $busqueda, ['nombre', 'direccion', 'telefono']), fn ($query) => $query->orderBy('nombre'))
+                ->paginate(15)->withQueryString(),
+            'grilla' => $grilla,
             'busqueda' => $busqueda,
         ]);
     }

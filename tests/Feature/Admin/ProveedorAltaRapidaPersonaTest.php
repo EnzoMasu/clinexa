@@ -128,7 +128,8 @@ describe('guardar el proveedor', function () {
 
     test('el formulario ofrece buscar por número y el alta rápida', function () {
         $this->get(route('admin.proveedores.create'))->assertOk()
-            ->assertSee('Número de CI, pasaporte o RUC…')
+            // La pista de la búsqueda por número va como placeholder de la caja (como en main), sin fila aparte.
+            ->assertSee('placeholder="Escriba el número completo de CI, pasaporte o RUC (el RUC, con o sin dígito verificador). No se busca por nombre."', false)
             ->assertSee('proveedores\\/personas-rapida', false)
             ->assertSee('Nueva persona');
     });

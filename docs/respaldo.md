@@ -32,15 +32,24 @@ php artisan clinexa:respaldo
 php artisan clinexa:respaldo --probar
 ```
 
-Además de respaldar, restaura el archivo en una base temporal `clinexa_restore_test`, compara la
+Además de respaldar, restaura el archivo en una base temporal propia de esa corrida,
+`clinexa_restore_test_<16 hexadecimales aleatorios>` (así dos corridas simultáneas no se pisan), compara la
 cantidad de filas de `personas`, `pacientes`, `historias_clinicas`, `consultas`, `logs_auditoria` y
 `users` con la base, y elimina la base temporal (siempre, aunque algo falle).
 
 - Si solo `logs_auditoria` tiene más filas en la base, es porque alguien usó el sistema mientras se
   respaldaba: se informa como aviso, no como error.
 - Cualquier otra diferencia es un error: no confíe en ese respaldo hasta revisarlo.
-- Por seguridad, la única base que este comando crea y elimina es exactamente `clinexa_restore_test`,
-  y nunca la configurada, la de tests (`clinexa_test`) ni las del sistema.
+- Por seguridad, la única base que este comando crea y elimina es la temporal de esa corrida: nombre
+  exacto `clinexa_restore_test_` + 16 hexadecimales en minúscula, y nunca la configurada, la de tests
+  (`clinexa_test`), `clinexa_dev`, `clinexa_recorrido` ni las del sistema. Solo elimina la que creó: no
+  borra bases temporales de otras corridas.
+- Si `dropdb --force` falla (suele ser el autovacuum de PostgreSQL sobre la base recién restaurada, que
+  el usuario de la clínica no puede terminar), se reintenta hasta 3 veces sin `--force`, con pausas
+  cortas. Si igual falla, se avisa en pantalla y en el log.
+- Si una corrida se corta (se cierra la consola, se apaga el equipo), su base temporal queda en el
+  servidor. No se borra sola: el nombre aparece en pantalla ("Probando la restauración en la base
+  temporal …"), y si dropdb falla queda además en el log. Elimínela a mano, por su nombre exacto.
 
 Conviene correr `--probar` de vez en cuando: un respaldo que nunca se probó no es un respaldo.
 

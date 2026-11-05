@@ -6,6 +6,7 @@ use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Sleep;
 use RuntimeException;
 
 /**
@@ -20,17 +21,46 @@ use RuntimeException;
  */
 final class Respaldos
 {
-    /** La única base que --probar puede crear y eliminar. */
-    public const BASE_DE_PRUEBA = 'clinexa_restore_test';
+    /**
+     * Prefijo de la base temporal de --probar. Cada corrida usa la suya: el prefijo y un sufijo
+     * aleatorio de 16 caracteres hexadecimales en minúscula (clinexa_restore_test_3f9a…), para que dos
+     * corridas simultáneas no se pisen. Es la única forma de nombre que se puede crear y eliminar.
+     */
+    public const PREFIJO_BASE_DE_PRUEBA = 'clinexa_restore_test_';
+
+    /** El nombre completo de una base temporal válida: prefijo y sufijo esperado, nada más. */
+    public const PATRON_BASE_DE_PRUEBA = '/^clinexa_restore_test_[0-9a-f]{16}\z/';
 
     /** Bases que nunca se eliminan, se llamen como se llamen en la configuración. */
-    public const BASES_PROTEGIDAS = ['clinexa', 'clinexa_test', 'postgres', 'template0', 'template1'];
+    public const BASES_PROTEGIDAS = ['clinexa', 'clinexa_dev', 'clinexa_test', 'clinexa_recorrido', 'clinexa_restore_test', 'postgres', 'template0', 'template1'];
+
+    /** Reintentos de dropdb (sin --force) si el primero falla. */
+    public const REINTENTOS_ELIMINAR = 3;
+
+    /** La base temporal de esta instancia (de esta corrida). */
+    private readonly string $baseDePrueba;
 
     /** Tablas cuya cantidad de filas se compara al probar la restauración. */
     public const TABLAS_CLAVE = ['personas', 'pacientes', 'historias_clinicas', 'consultas', 'logs_auditoria', 'users'];
 
     /** @param  array{host: string, port: int|string, username: string, password: ?string, database: string}  $conexion */
-    public function __construct(private readonly array $conexion) {}
+    public function __construct(private readonly array $conexion, ?string $baseDePrueba = null)
+    {
+        // El nombre se puede indicar (los tests de las guardas); las guardas se aplican igual al usarlo.
+        $this->baseDePrueba = $baseDePrueba ?? self::nuevaBaseDePrueba();
+    }
+
+    /** Un nombre nuevo de base temporal: el prefijo y 16 caracteres hexadecimales aleatorios. */
+    public static function nuevaBaseDePrueba(): string
+    {
+        return self::PREFIJO_BASE_DE_PRUEBA.bin2hex(random_bytes(8));
+    }
+
+    /** La base temporal de esta corrida. */
+    public function baseDePrueba(): string
+    {
+        return $this->baseDePrueba;
+    }
 
     /** Con la conexión configurada por defecto (tiene que ser PostgreSQL). */
     public static function desdeConfiguracion(): self
@@ -112,24 +142,37 @@ final class Respaldos
 
     public function crearBaseDePrueba(): ProcessResult
     {
-        $this->verificarBaseDePrueba(self::BASE_DE_PRUEBA);
+        $this->verificarBaseDePrueba($this->baseDePrueba);
 
-        return $this->correr(['createdb', ...$this->conectar(), self::BASE_DE_PRUEBA]);
+        return $this->correr(['createdb', ...$this->conectar(), $this->baseDePrueba]);
     }
 
-    /** Elimina la base de prueba (si existe). Solo esa: ver verificarBaseDePrueba. */
-    public function eliminarBaseDePrueba(string $nombre = self::BASE_DE_PRUEBA): ProcessResult
+    /**
+     * Elimina la base temporal de esta corrida (si existe). Solo esa: ver verificarBaseDePrueba.
+     *
+     * Primero con --force. Recién restaurada, PostgreSQL suele lanzar el autovacuum sobre ella, y
+     * --force no puede terminar ese proceso (no es del usuario de la clínica): falla. Por eso se
+     * reintenta sin --force (DROP DATABASE sí le pide al autovacuum que se vaya) tras una pausa corta.
+     * Devuelve el resultado del último intento.
+     */
+    public function eliminarBaseDePrueba(): ProcessResult
     {
-        $this->verificarBaseDePrueba($nombre);
+        $this->verificarBaseDePrueba($this->baseDePrueba);
 
-        return $this->correr(['dropdb', ...$this->conectar(), '--if-exists', '--force', $nombre]);
+        $resultado = $this->correr(['dropdb', ...$this->conectar(), '--if-exists', '--force', $this->baseDePrueba]);
+        for ($intento = 1; ! $resultado->successful() && $intento <= self::REINTENTOS_ELIMINAR; $intento++) {
+            Sleep::for($intento)->seconds();
+            $resultado = $this->correr(['dropdb', ...$this->conectar(), '--if-exists', $this->baseDePrueba]);
+        }
+
+        return $resultado;
     }
 
     public function restaurarEnPrueba(string $ruta): ProcessResult
     {
-        $this->verificarBaseDePrueba(self::BASE_DE_PRUEBA);
+        $this->verificarBaseDePrueba($this->baseDePrueba);
 
-        return $this->correr(['pg_restore', ...$this->conectar(), '--no-owner', '--no-privileges', '-d', self::BASE_DE_PRUEBA, $ruta]);
+        return $this->correr(['pg_restore', ...$this->conectar(), '--no-owner', '--no-privileges', '-d', $this->baseDePrueba, $ruta]);
     }
 
     /**
@@ -139,9 +182,9 @@ final class Respaldos
      */
     public function contarEnPrueba(): array
     {
-        $this->verificarBaseDePrueba(self::BASE_DE_PRUEBA);
+        $this->verificarBaseDePrueba($this->baseDePrueba);
 
-        $resultado = $this->correr(['psql', ...$this->conectar(), '-X', '-A', '-t', '-F', '|', '-d', self::BASE_DE_PRUEBA, '-c', $this->consultaConteo()]);
+        $resultado = $this->correr(['psql', ...$this->conectar(), '-X', '-A', '-t', '-F', '|', '-d', $this->baseDePrueba, '-c', $this->consultaConteo()]);
         if (! $resultado->successful()) {
             throw new RuntimeException('No se pudieron contar las filas en la base de prueba: '.trim($resultado->errorOutput()));
         }
@@ -159,13 +202,17 @@ final class Respaldos
     }
 
     /**
-     * Guarda dura: la única base que se crea, restaura y elimina es exactamente clinexa_restore_test,
-     * y nunca la configurada, la de tests ni las del sistema.
+     * Guarda dura: la única base que se crea, restaura y elimina es la temporal de esta corrida, con
+     * nombre exacto clinexa_restore_test_ + 16 hexadecimales, y nunca la configurada, la de tests ni
+     * las del sistema (comparadas sin distinguir mayúsculas).
      */
     public function verificarBaseDePrueba(string $nombre): void
     {
-        if ($nombre !== self::BASE_DE_PRUEBA || $nombre === $this->base() || in_array($nombre, self::BASES_PROTEGIDAS, true)) {
-            throw new RuntimeException('Por seguridad, solo se puede crear o eliminar la base '.self::BASE_DE_PRUEBA." (se pidió \"{$nombre}\"; la configurada es \"{$this->base()}\").");
+        $protegidas = array_map('strtolower', [...self::BASES_PROTEGIDAS, $this->base()]);
+        if (preg_match(self::PATRON_BASE_DE_PRUEBA, $nombre) !== 1
+            || $nombre !== $this->baseDePrueba
+            || in_array(strtolower($nombre), $protegidas, true)) {
+            throw new RuntimeException('Por seguridad, solo se puede crear o eliminar la base temporal de esta corrida ('.self::PREFIJO_BASE_DE_PRUEBA."<16 hexadecimales>; se pidió \"{$nombre}\"; la configurada es \"{$this->base()}\").");
         }
     }
 

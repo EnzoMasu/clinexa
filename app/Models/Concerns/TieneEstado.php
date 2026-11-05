@@ -51,6 +51,12 @@ trait TieneEstado
         return $this->tieneEstado(Estado::ACTIVO);
     }
 
+    /** Nombre para mostrar en fichas y selectores: los inactivos se ven como tales, no desaparecen. */
+    public function nombreConEstado(): string
+    {
+        return $this->estaActivo() ? $this->nombre : "{$this->nombre} (inactivo)";
+    }
+
     public function desactivar(): void
     {
         $this->update(['estado_id' => Estado::idDe(Estado::INACTIVO)]);
