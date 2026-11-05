@@ -30,6 +30,15 @@ class Departamento extends Model
         return $this->belongsTo(Pais::class);
     }
 
+    /** Motivo por el que no se puede desactivar (tiene ciudades activas), o null si se puede. */
+    public function bloqueoDeBaja(): ?string
+    {
+        $n = $this->ciudades()->activos()->count();
+
+        return $n === 0 ? null : sprintf('No se puede desactivar %s: tiene %s. Desactívelas antes.', $this->nombre,
+            $n === 1 ? 'una ciudad activa' : "{$n} ciudades activas");
+    }
+
     public function ciudades(): HasMany
     {
         return $this->hasMany(Ciudad::class);

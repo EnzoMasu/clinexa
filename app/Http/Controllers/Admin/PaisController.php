@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Estado;
 use App\Models\Pais;
 use App\Support\Grilla\Grilla;
 use Illuminate\Http\RedirectResponse;
@@ -20,7 +21,7 @@ class PaisController extends Controller
             ->texto('codigo', 'Código', 'paises.codigo')
             ->texto('nombre', 'Nombre', 'paises.nombre')
             ->numero('departamentos', 'Departamentos', 'departamentos_count', filtro: fn ($query, $n) => $query->has('departamentos', '=', (int) $n))
-            ->estado('estado', 'Estado', 'paises.estado_id');
+            ->estado('estado', 'Estado', 'paises.estado_id', Pais::class);
 
         return $this->listado($request, 'admin.paises', [
             'paises' => $grilla->aplicar($this->buscarEn(Pais::query()->withCount('departamentos'), $busqueda, ['nombre', 'codigo']), fn ($query) => $query->orderBy('nombre'))
@@ -49,13 +50,22 @@ class PaisController extends Controller
 
     public function update(Request $request, Pais $pais): RedirectResponse
     {
-        $pais->update($this->validar($request, $pais));
+        $datos = $this->validar($request, $pais);
+        if (isset($datos['estado_id']) && (int) $datos['estado_id'] !== (int) $pais->estado_id
+            && $datos['estado_id'] != Estado::idDe(Estado::ACTIVO) && ($motivo = $pais->bloqueoDeBaja())) {
+            return back()->withInput()->withErrors(['estado_id' => $motivo]);
+        }
+        $pais->update($datos);
 
         return redirect()->route('admin.paises.index')->with('status', 'País actualizado.');
     }
 
     public function desactivar(Pais $pais): RedirectResponse
     {
+        if ($motivo = $pais->bloqueoDeBaja()) {
+            return back()->with('error', $motivo);
+        }
+
         $pais->desactivar();
 
         return redirect()->route('admin.paises.index')->with('status', 'País desactivado.');

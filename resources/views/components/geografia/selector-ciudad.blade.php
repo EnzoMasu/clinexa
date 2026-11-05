@@ -27,6 +27,11 @@
     $paisId = $departamentoActual?->pais_id ?? ($paises->count() === 1 ? $paises->first()->id : null);
     $departamentoId = $departamentoActual?->id;
 
+    $paisActual = $departamentoActual?->pais;
+    if ($paisActual && ! $paises->contains('id', $paisActual->id)) {
+        $paises->push($paisActual);
+    }
+
     $departamentos = $paisId ? Departamento::activos()->where('pais_id', $paisId)->orderBy('nombre')->get() : collect();
     $ciudades = ! $soloDepartamento && $departamentoId ? Ciudad::activos()->where('departamento_id', $departamentoId)->orderBy('nombre')->get() : collect();
     // Lo actual se muestra aunque se haya desactivado después.
@@ -48,7 +53,7 @@
         <select id="{{ $name }}_pais" x-ref="pais" x-on:change="cambiarPais()" class="{{ $clases }}">
             <option value="">—</option>
             @foreach ($paises as $pais)
-                <option value="{{ $pais->id }}" @selected($paisId === $pais->id)>{{ $pais->nombre }}</option>
+                <option value="{{ $pais->id }}" @selected($paisId === $pais->id)>{{ $pais->nombreConEstado() }}</option>
             @endforeach
         </select>
     </div>
@@ -60,7 +65,7 @@
             @disabled($departamentos->isEmpty())>
             <option value="">—</option>
             @foreach ($departamentos as $departamento)
-                <option value="{{ $departamento->id }}" @selected($departamentoId === $departamento->id)>{{ $departamento->nombre }}</option>
+                <option value="{{ $departamento->id }}" @selected($departamentoId === $departamento->id)>{{ $departamento->nombreConEstado() }}</option>
             @endforeach
         </select>
         @if ($soloDepartamento)
@@ -74,7 +79,7 @@
             <select id="{{ $name }}" name="{{ $name }}" x-ref="ciudad" class="{{ $clases }}" @disabled($ciudades->isEmpty())>
                 <option value="">—</option>
                 @foreach ($ciudades as $ciudad)
-                    <option value="{{ $ciudad->id }}" @selected((string) $valor === (string) $ciudad->id)>{{ $ciudad->nombre }}</option>
+                    <option value="{{ $ciudad->id }}" @selected((string) $valor === (string) $ciudad->id)>{{ $ciudad->nombreConEstado() }}</option>
                 @endforeach
             </select>
             <x-input-error class="mt-2" :messages="$errors->get($name)" />

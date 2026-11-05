@@ -59,13 +59,22 @@ class DepartamentoController extends Controller
 
     public function update(Request $request, Departamento $departamento): RedirectResponse
     {
-        $departamento->update($this->validar($request, $departamento));
+        $datos = $this->validar($request, $departamento);
+        if (isset($datos['estado_id']) && (int) $datos['estado_id'] !== (int) $departamento->estado_id
+            && $datos['estado_id'] != Estado::idDe(Estado::ACTIVO) && ($motivo = $departamento->bloqueoDeBaja())) {
+            return back()->withInput()->withErrors(['estado_id' => $motivo]);
+        }
+        $departamento->update($datos);
 
         return redirect()->route('admin.departamentos.index')->with('status', 'Departamento actualizado.');
     }
 
     public function desactivar(Departamento $departamento): RedirectResponse
     {
+        if ($motivo = $departamento->bloqueoDeBaja()) {
+            return back()->with('error', $motivo);
+        }
+
         $departamento->desactivar();
 
         return redirect()->route('admin.departamentos.index')->with('status', 'Departamento desactivado.');

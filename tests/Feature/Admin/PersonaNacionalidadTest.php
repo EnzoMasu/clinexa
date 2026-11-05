@@ -84,7 +84,7 @@ test('rechaza un país inexistente o inactivo, pero conserva el inactivo que ya 
 
     // Al crear no se ofrece; al editar a quien ya lo tenía, sí, y se puede guardar.
     $this->get(route('admin.personas.create'))->assertDontSee('>Brasil</option>', false);
-    $this->get(route('admin.personas.edit', $persona))->assertSee('>Brasil</option>', false);
+    $this->get(route('admin.personas.edit', $persona))->assertSee('>Brasil (inactivo)</option>', false);
     $this->put(route('admin.personas.update', $persona), enFormulario(fisicaConNacionalidad([
         'pais_nacionalidad_id' => $this->brasil->id, 'estado_id' => estadoId('ACTIVO'),
     ])))->assertSessionHasNoErrors();

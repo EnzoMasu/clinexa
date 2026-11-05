@@ -120,7 +120,9 @@ class PerfilesPredefinidos
             'PROFESIONALES' => self::VER, 'PROVEEDORES' => self::VER, 'CATEGORIAS_PROVEEDOR' => self::VER, 'TIPOS_RED_SOCIAL' => self::VER,
             'ESPECIALIDADES' => self::VER, 'SUCURSALES' => self::VER, 'TIPOS_DOCUMENTO' => self::VER, 'PROCEDIMIENTOS' => self::VER,
             'MEDIOS_PAGO' => self::VER, 'CATEGORIAS_GASTO' => self::VER, 'CIE10' => self::VER, 'TIPOS_BLOQUE_ANAMNESIS' => self::VER,
-            'TIPOS_INDICACION' => self::VER, 'GEOGRAFIA' => self::VER, 'AUDITORIA' => self::VER,
+            'TIPOS_INDICACION' => self::VER, 'AUDITORIA' => self::VER,
+            // Geografía (2026-11-04): administra países, departamentos y ciudades (se desactivan, no se borran).
+            'GEOGRAFIA' => self::TODO,
             // Triaje (2026-10-13): ver el personal de salud, sus cargos y los parámetros clínicos.
             'PERSONAL_SALUD' => self::VER, 'CARGOS_SALUD' => self::VER, 'PARAMETROS_CLINICOS' => self::VER,
             // Económico: administra las tarifas, tarifa y anula prestaciones.
