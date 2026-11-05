@@ -6,7 +6,8 @@
         @if ($registro->exists)
             <x-admin.persona-solo-lectura :persona="$registro->persona" />
         @else
-            <x-admin.selector-persona :url="route('admin.responsables-pago.personas-disponibles')" />
+            <x-admin.selector-persona :url="route('admin.responsables-pago.personas-disponibles')"
+                ruta-alta-rapida="admin.responsables-pago.personas-rapida" destino-alta-rapida="este responsable de pago" />
         @endif
 
         <x-admin.input name="limite_credito" label="Límite de crédito (opcional, en guaraníes)" type="number" min="0" step="1" :value="$registro->limite_credito !== null ? (float) $registro->limite_credito : null" />

@@ -53,15 +53,12 @@
             {{-- Sin PERSONAS,VER solo se busca por número exacto (no se recorren las personas, que incluyen
                  pacientes); si no está, se carga en el popup de abajo sin salir del formulario. --}}
             <x-admin.selector-persona :url="route('admin.proveedores.personas-disponibles')" :inicial="$personaInicial" :restaurar="false"
+                ruta-alta-rapida="admin.proveedores.personas-rapida" destino-alta-rapida="este proveedor"
                 :pista="$buscaPorNombre ? null : 'Escriba el número completo de CI, pasaporte o RUC (el RUC, con o sin dígito verificador). No se busca por nombre.'"
                 :ayuda="$buscaPorNombre
                     ? 'Solo aparecen personas activas que todavía no son proveedores. Nombre y documento se toman de la persona.'
                     : 'Solo aparece la persona activa, todavía sin proveedor, con ese número exacto. Nombre y documento se toman de la persona.'"
                 :sin-resultados="$buscaPorNombre ? 'No hay personas disponibles con esa búsqueda.' : 'No hay ninguna persona disponible con ese número.'">
-                <x-slot:altaRapida>
-                    <button type="button" x-on:click="$dispatch('abrir-alta-rapida-persona', { numero: q.trim() })"
-                        class="ml-1 font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">Cargarla acá</button>
-                </x-slot:altaRapida>
             </x-admin.selector-persona>
         @endif
 
@@ -215,34 +212,4 @@
         @endif
     </x-admin.form>
 
-    @unless ($registro->exists)
-        {{-- Alta rápida de persona: fuera del formulario del proveedor (no se anidan formularios); se envía
-             aparte y, si se crea, queda elegida arriba. Mismos campos y validaciones que Personas. --}}
-        <x-modal name="alta-rapida-persona" max-width="2xl" focusable>
-            <form x-data="altaRapidaPersona({ url: @js(route('admin.proveedores.personas-rapida')), campo: 'persona_id' })"
-                x-on:abrir-alta-rapida-persona.window="abrir($event.detail.numero)" x-on:submit.prevent="guardar()"
-                class="space-y-6 p-6" novalidate>
-                @csrf
-                <div>
-                    <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">Nueva persona</h2>
-                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Se guarda como en Personas y queda elegida para este proveedor. Los datos del proveedor que ya cargó no se pierden.</p>
-                </div>
-
-                <div x-show="errores.length" style="display: none" role="alert"
-                    class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
-                    <p class="font-medium">Revise los datos:</p>
-                    <ul class="mt-1 list-disc pl-5">
-                        <template x-for="error in errores"><li x-text="error"></li></template>
-                    </ul>
-                </div>
-
-                @include('admin.personas._campos', ['persona' => $personaNueva])
-
-                <div class="flex justify-end gap-3">
-                    <x-secondary-button type="button" x-on:click="cerrar()">Cancelar</x-secondary-button>
-                    <x-primary-button x-bind:disabled="guardando">Guardar persona</x-primary-button>
-                </div>
-            </form>
-        </x-modal>
-    @endunless
 </x-admin.page>

@@ -1,13 +1,15 @@
 /**
- * Alta rápida de persona en el formulario de Proveedor (popup x-modal "alta-rapida-persona"). Se abre con
- * el evento de ventana "abrir-alta-rapida-persona" ({ numero }) desde el selector cuando no hay
- * resultados: el número buscado se precarga como RUC (si tiene guion) o como número de documento.
+ * Alta rápida de persona desde cualquier selector de personas (componente x-admin.alta-rapida-persona, popup
+ * x-modal "alta-rapida-persona-<campo>"). Se abre con el evento de ventana "abrir-alta-rapida-persona"
+ * ({ campo, numero }) desde el selector cuando no hay resultados: el número buscado se precarga como RUC
+ * (si tiene guion) o como número de documento.
  *
  * Envía los mismos campos que el alta de Personas (las validaciones son las del servidor). Si se crea,
  * avisa con "persona-creada" ({ campo, persona: { id, texto } }) para que el selector la elija, y cierra.
  * No guarda nada en el navegador.
  */
 export default ({ url, campo = 'persona_id', tipoInicial = 'FISICA' }) => ({
+    modal: `alta-rapida-persona-${campo}`,
     tipo: tipoInicial,
     errores: [],
     guardando: false,
@@ -22,11 +24,11 @@ export default ({ url, campo = 'persona_id', tipoInicial = 'FISICA' }) => ({
         if (entrada && valor !== '') {
             entrada.value = valor;
         }
-        this.$dispatch('open-modal', 'alta-rapida-persona');
+        this.$dispatch('open-modal', this.modal);
     },
 
     cerrar() {
-        this.$dispatch('close-modal', 'alta-rapida-persona');
+        this.$dispatch('close-modal', this.modal);
     },
 
     async guardar() {

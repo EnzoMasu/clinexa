@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PersonaRequest;
 use App\Models\Persona;
 use App\Support\BuscadorPersonas;
 use App\Support\Grilla\Grilla;
+use App\Support\Personas\AltaPersona;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
@@ -13,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -222,6 +225,40 @@ abstract class RolPersonaController extends Controller
 
         return BuscadorPersonas::responder($modelo::personasDisponibles(), (string) $request->query('q'));
     }
+
+    /**
+     * Alta rápida de persona desde el formulario de este rol (ventana emergente de x-admin.selector-persona):
+     * las mismas validaciones que Personas (PersonaRequest) y el mismo alta (AltaPersona, auditada como alta de
+     * Persona). Solo crea la persona: el rol se guarda con el formulario de origen. Responde { id, texto } para
+     * elegirla; un error de validación vuelve como 422 en JSON. No da acceso a listar ni editar Personas.
+     */
+    public function altaRapidaPersona(PersonaRequest $request): JsonResponse
+    {
+        $this->exigirTipoDelRol($request->validated('tipo_persona'));
+
+        $persona = AltaPersona::crear($request->validated());
+        $this->personaCreadaEnAltaRapida($request, $persona);
+
+        return response()->json([
+            'id' => $persona->id,
+            'texto' => BuscadorPersonas::texto($persona->load('tipoDocumento')),
+        ], 201, [], BuscadorPersonas::JSON_SEGURO);
+    }
+
+    /** El tipo de persona tiene que poder recibir el rol (p. ej. un paciente no es una empresa). */
+    protected function exigirTipoDelRol(string $tipo): void
+    {
+        $modelo = $this->modelo();
+
+        if (! in_array($tipo, $modelo::tiposPersona(), true)) {
+            throw ValidationException::withMessages([
+                'tipo_persona' => 'Ese tipo de persona no puede registrarse como '.mb_strtolower($this->nombre()).'.',
+            ]);
+        }
+    }
+
+    /** Qué hacer con la persona recién creada por el alta rápida (Proveedor la recuerda en la sesión). */
+    protected function personaCreadaEnAltaRapida(Request $request, Persona $persona): void {}
 
     protected function registro(string $id): Model
     {

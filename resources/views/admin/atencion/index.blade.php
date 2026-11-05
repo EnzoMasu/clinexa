@@ -73,6 +73,7 @@
                 x-data="{ historia: null, plantilla: {{ Js::from(route('admin.atencion.atender-sin-turno', ['historiaClinica' => '__ID__'])) }} }"
                 x-on:elegido="historia = $event.detail.id">
                 <x-admin.selector-persona name="paciente_atencion" label="Paciente" :url="route('admin.atencion.pacientes')"
+                    ruta-alta-rapida="admin.pacientes.alta-rapida" :parametros-alta-rapida="['como' => 'historia']" :tipos-alta-rapida="['FISICA']" rol-alta-rapida="paciente" destino-alta-rapida="esta atención"
                     :ofrecer-alta="false" sin-resultados="No hay pacientes activos con esa búsqueda."
                     ayuda="Solo aparecen pacientes activos. Busque por nombre, documento o número de ficha." />
 

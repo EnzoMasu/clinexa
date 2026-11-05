@@ -37,5 +37,8 @@
                 {{ $slot }}
             </main>
         </div>
+
+        {{-- Ventanas emergentes que un componente no puede dibujar donde está (p. ej. dentro de un formulario). --}}
+        @stack('modales')
     </body>
 </html>

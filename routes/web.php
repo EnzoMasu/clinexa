@@ -532,12 +532,16 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         Route::get("{$uri}/personas-disponibles", [$controlador, 'personasDisponibles'])
             ->name("{$uri}.personas-disponibles")
             ->middleware(["permiso:{$modulo},CREAR", ...($uri === 'proveedores' ? ['throttle:buscador-personas'] : [])]);
+        // Alta rápida de persona desde el formulario del rol (ventana emergente), sin permiso sobre Personas.
+        Route::post("{$uri}/personas-rapida", [$controlador, 'altaRapidaPersona'])
+            ->name("{$uri}.personas-rapida")
+            ->middleware(["permiso:{$modulo},CREAR", 'throttle:buscador-personas']);
         $seccion($uri, $controlador, $modulo, $parametro, conBaja: true);
     }
-    // Alta rápida de persona desde el formulario de Proveedor (popup), sin permiso sobre Personas.
-    Route::post('proveedores/personas-rapida', [ProveedorController::class, 'altaRapidaPersona'])
-        ->name('proveedores.personas-rapida')
-        ->middleware(['permiso:PROVEEDORES,CREAR', 'throttle:buscador-personas']);
+    // Alta rápida de persona + paciente, para los selectores de pacientes de Turnos, Urgencias y Atención.
+    Route::post('pacientes/alta-rapida', [PacienteController::class, 'altaRapidaPaciente'])
+        ->name('pacientes.alta-rapida')
+        ->middleware(['permiso:PACIENTES,CREAR', 'throttle:buscador-personas']);
 });
 
 // "Preparación" pasó a llamarse "Triaje": las URLs viejas de lectura redirigen para siempre (301) a las nuevas.
