@@ -16,8 +16,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * El cierre de una caja por su cajero (docs/cobros-caja.md): declara lo contado en cada medio; el sistema calcula lo esperado
  * (Caja::esperadoPorMedio: el monto inicial solo en efectivo, más los cobros) y la diferencia (contado - esperado). Si algún medio
- * tiene diferencia, el motivo es obligatorio. La caja pasa a CERRADO (pendiente de aprobación) y ya no recibe cobros. Una caja
- * DEVUELTA se cierra igual, con otro cierre (el anterior se conserva). Lo contado en efectivo es cero o más; en los demás medios
+ * tiene diferencia, el motivo (la observación) es obligatorio; si no hay, queda vacío y lo que venga se descarta. La caja pasa a
+ * CERRADO (pendiente de recepción) y ya no recibe cobros. Una caja
+ * DEVUELTA (por diferencias) se reenvía igual, con otro cierre (el anterior se conserva). Lo contado en efectivo es cero o más; en los demás medios
  * puede ser negativo (lo esperado lo es cuando se devolvió por ese medio más de lo que entró). Queda en Auditoría: CREAR del cierre y de sus medios, EDITAR
  * de la caja. El permiso (EDITAR sobre CAJAS) lo controla la ruta.
  */
@@ -77,6 +78,10 @@ final class CerrarCaja
             $conDiferencia = collect($filas)->contains(fn (array $fila) => $fila['contado'] !== $fila['esperado']);
             if ($conDiferencia && mb_strlen($motivo) < self::MOTIVO_MINIMO) {
                 throw new AccionRechazada(self::FALTA_MOTIVO);
+            }
+            // Sin diferencia la observación queda vacía: lo que venga se descarta, sin error.
+            if (! $conDiferencia) {
+                $motivo = '';
             }
 
             return Auditoria::conDetalle("Cierre de la caja {$actual->id}", function () use ($cajero, $actual, $filas, $motivo) {

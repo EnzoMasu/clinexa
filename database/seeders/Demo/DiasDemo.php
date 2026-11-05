@@ -19,6 +19,7 @@ use App\Models\Prestacion;
 use App\Models\Procedimiento;
 use App\Models\Receta;
 use App\Models\SalidaSinAtencion;
+use App\Models\Sucursal;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoIndicacion;
 use App\Models\Turno;
@@ -262,7 +263,7 @@ class DiasDemo extends EtapaDemo
         $casos = $this->como($this->correo('recepcion'), fn () => array_map(fn (array $caso) => $this->darTurno($dia, $caso), $casos));
 
         $this->momento($dia, '07:30');
-        $this->como($this->correo('caja1'), fn () => AbrirCaja::ejecutar($this->usuario('caja1'), self::MONTO_INICIAL_CAJA));
+        $this->como($this->correo('caja1'), fn () => AbrirCaja::ejecutar($this->usuario('caja1'), self::MONTO_INICIAL_CAJA, Sucursal::principal()?->id));
         $this->contar('cajas abiertas');
 
         $this->momento($dia, '07:40');
@@ -654,7 +655,7 @@ class DiasDemo extends EtapaDemo
     {
         $caja2 = $this->usuario('caja2');
         $this->como($caja2->email, function () use ($caja2) {
-            AbrirCaja::ejecutar($caja2, 300000);
+            AbrirCaja::ejecutar($caja2, 300000, Sucursal::principal()?->id);
             $this->contar('cajas abiertas');
             [$primera, $segunda] = array_map(fn (int $orden) => $this->pacientes[$orden], self::PARA_HOY);
             $this->cobrar('caja2', $primera, 'MIXTO');

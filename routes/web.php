@@ -395,6 +395,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::post('cajas/{caja}/cerrar', [CajaController::class, 'cerrar'])->name('cajas.cerrar')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
     Route::post('cajas/{caja}/aprobar', [CajaController::class, 'aprobar'])->name('cajas.aprobar')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     Route::post('cajas/{caja}/devolver', [CajaController::class, 'devolver'])->name('cajas.devolver')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
+    // La impresión del arqueo: PDF al vuelo, auditado, sin nada clínico; no se guarda en la caché.
+    Route::get('cajas/{caja}/arqueo', [CajaController::class, 'arqueo'])->name('cajas.arqueo')->whereNumber('caja')
+        ->middleware(['permiso:CAJAS,VER', SinAlmacenar::class]);
     Route::get('cobros', [CobroController::class, 'index'])->name('cobros.index')->middleware('permiso:COBROS,VER');
     // Cobrar emite la factura (docs/facturacion.md): hacen falta los dos permisos.
     Route::get('cobros/create', [CobroController::class, 'create'])->name('cobros.create')->middleware(['permiso:COBROS,CREAR', 'permiso:FACTURAS,CREAR']);

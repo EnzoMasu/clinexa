@@ -113,7 +113,10 @@ class CobroController extends Controller
             'veCaja' => $veCaja($cobro->caja),
             'veCajaReversion' => $veCaja($cobro->cajaReversion),
             'puedeRevertir' => $libre && $directa && Permisos::puedeRuta('admin.cobros.revertir'),
-            'puedeCorregir' => ! $cobro->revertido() && $cobro->caja->estado->codigo !== Estado::APROBADO && Permisos::puedeRuta('admin.cobros.corregir-comprobante'),
+            // Solo en un arqueo devuelto por diferencias, y solo su cajero (Cobros\CorregirComprobante).
+            'puedeCorregir' => ! $cobro->revertido() && $cobro->caja->devuelta() && $cobro->caja->usuario_id === $usuario->id
+                && Permisos::puedeRuta('admin.cobros.corregir-comprobante'),
+            'mediosActivos' => MedioPago::activos()->orderBy('nombre')->get(),
             'puedeSolicitar' => $libre && ! $directa && Permisos::puedeRuta('admin.cobros.solicitar-reversion'),
             'pendiente' => $pendiente,
             'veFactura' => $cobro->factura !== null && Permisos::puedeRuta('admin.facturas.show'),
@@ -136,25 +139,27 @@ class CobroController extends Controller
         return redirect()->route('admin.cobros.show', $cobro)->with('status', "Cobro revertido: se devolvieron {$cobro->totalTexto()} desde su caja.");
     }
 
-    /** Corrige el comprobante de una línea del cobro (EDITAR sobre COBROS): con motivo, auditado. */
+    /** Corrige el comprobante y el medio de una línea del cobro en un arqueo devuelto (EDITAR sobre COBROS): con motivo, auditado. */
     public function corregirComprobante(Request $request, Cobro $cobro, LineaCobro $linea): RedirectResponse
     {
         abort_unless($linea->cobro_id === $cobro->id, 404);
         $datos = $request->validate([
+            'medio_pago_id' => ['nullable', 'integer'],
             'comprobante' => ['nullable', 'string', 'max:'.Cobrar::REFERENCIA_MAXIMA],
             'motivo' => ['required', 'string', 'min:'.RevertirCobro::MOTIVO_MINIMO, 'max:'.RevertirCobro::MOTIVO_MAXIMO],
         ], [
             'motivo.required' => 'Indique el motivo de la corrección.',
             'motivo.min' => 'Indique el motivo de la corrección (al menos '.RevertirCobro::MOTIVO_MINIMO.' caracteres).',
-        ], ['comprobante' => 'comprobante', 'motivo' => 'motivo']);
+        ], ['medio_pago_id' => 'medio de pago', 'comprobante' => 'comprobante', 'motivo' => 'motivo']);
 
         try {
-            CorregirComprobante::ejecutar($request->user(), $linea, $datos['comprobante'] ?? null, $datos['motivo']);
+            CorregirComprobante::ejecutar($request->user(), $linea, $datos['comprobante'] ?? null, $datos['motivo'],
+                isset($datos['medio_pago_id']) ? (int) $datos['medio_pago_id'] : null);
         } catch (AccionRechazada $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return redirect()->route('admin.cobros.show', $cobro)->with('status', 'Comprobante corregido.');
+        return redirect()->route('admin.cobros.show', $cobro)->with('status', 'Pago corregido.');
     }
 
     public function solicitarReversion(Request $request, Cobro $cobro): RedirectResponse

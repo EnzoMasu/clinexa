@@ -10,9 +10,9 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * La revisión de Gerencia de una caja cerrada (docs/cobros-caja.md): aprobar su último cierre o devolverlo con una nota. La
- * devuelta queda DEVUELTO: el cajero vuelve a declarar lo contado y la cierra de nuevo; no recibe cobros ni impide abrir la del
- * día. Nadie revisa el cierre de su propia caja. Queda en Auditoría: EDITAR del cierre (con la nota) y de la caja. El permiso
+ * La recepción de Gerencia de una caja pendiente (docs/cobros-caja.md): aceptar su último cierre (queda "Recibido", nota opcional) o
+ * rechazarlo con la observación obligatoria (queda "Devuelto por diferencias"): el cajero corrige y la reenvía; no recibe cobros y,
+ * mientras esté devuelta, su cajero no abre otra caja. Nadie revisa el cierre de su propia caja. Queda en Auditoría: EDITAR del cierre (con la nota) y de la caja. El permiso
  * (EDITAR sobre CIERRES_CAJA) lo controla la ruta.
  */
 final class RevisarCierre
@@ -21,7 +21,9 @@ final class RevisarCierre
 
     public const NOTA_MAXIMA = 300;
 
-    public const PROPIA = 'No puede aprobar ni devolver el cierre de su propia caja.';
+    public const PROPIA = 'No puede aceptar ni rechazar el cierre de su propia caja.';
+
+    public const FALTA_MOTIVO = 'Indique la observación con el inconveniente (al menos '.self::NOTA_MINIMA.' caracteres).';
 
     public static function aprobar(User $revisor, Caja $caja, ?string $nota = null): CierreCaja
     {
@@ -32,7 +34,7 @@ final class RevisarCierre
     {
         $nota = trim($nota);
         if (mb_strlen($nota) < self::NOTA_MINIMA) {
-            throw new AccionRechazada('Indique qué hay que corregir (al menos '.self::NOTA_MINIMA.' caracteres).');
+            throw new AccionRechazada(self::FALTA_MOTIVO);
         }
 
         return self::revisar($revisor, $caja, Estado::DEVUELTO, $nota);
@@ -41,9 +43,11 @@ final class RevisarCierre
     private static function revisar(User $revisor, Caja $caja, string $estado, string $nota): CierreCaja
     {
         return DB::transaction(function () use ($revisor, $caja, $estado, $nota) {
+            // Primero el cajero (como AbrirCaja): una devolución y una apertura simultáneas del mismo cajero se ordenan.
+            DB::table('users')->where('id', Caja::query()->whereKey($caja->getKey())->value('usuario_id'))->lockForUpdate()->first();
             $actual = Caja::query()->whereKey($caja->getKey())->lockForUpdate()->firstOrFail();
             if (! $actual->cerrada()) {
-                throw new AccionRechazada('Esta caja no está pendiente de aprobación.');
+                throw new AccionRechazada('Esta caja no está pendiente de recepción.');
             }
             if ($actual->usuario_id === $revisor->id) {
                 throw new AccionRechazada(self::PROPIA);

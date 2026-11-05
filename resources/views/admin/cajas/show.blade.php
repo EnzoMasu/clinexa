@@ -11,7 +11,19 @@
             <div><dt class="text-gray-500 dark:text-gray-400">Cajero</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $caja->cajero->persona?->nombre_completo ?? $caja->cajero->email }}</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Apertura</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ Fecha::mostrar($caja->abierta_en, conHora: true) }}</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Monto inicial (efectivo)</dt><dd class="font-medium text-gray-900 dark:text-gray-100 tabular-nums">{{ $caja->montoInicialTexto() }}</dd></div>
+            <div><dt class="text-gray-500 dark:text-gray-400">Sucursal</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $caja->sucursal?->nombre }}</dd></div>
         </dl>
+
+        @if ($puedeImprimir)
+            <a href="{{ route('admin.cajas.arqueo', $caja) }}" target="_blank" rel="noopener" class="inline-block font-medium text-indigo-600 hover:underline dark:text-indigo-400">Imprimir el arqueo (PDF)</a>
+        @endif
+
+        @if ($puedeCorregirCobros)
+            <p role="status" class="max-w-3xl rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
+                Arqueo devuelto por diferencias. Puede corregir el medio de pago y el comprobante de cada cobro desde "Ver" (no el monto: la
+                anulación sigue su propio camino). Lo esperado se recalcula solo; después declare lo contado y reenvíe.
+            </p>
+        @endif
 
         <section aria-labelledby="esperado" class="max-w-3xl space-y-3">
             <h3 id="esperado" class="font-semibold text-gray-900 dark:text-gray-100">Lo esperado por medio de pago</h3>
@@ -75,48 +87,69 @@
 
         @if ($puedeCerrar)
             <section aria-labelledby="cerrar-caja" class="max-w-3xl space-y-3 rounded-md border border-gray-200 p-4 dark:border-gray-700">
-                <h3 id="cerrar-caja" class="font-semibold text-gray-900 dark:text-gray-100">{{ $caja->devuelta() ? 'Corregir y volver a cerrar' : 'Cerrar la caja' }}</h3>
+                <h3 id="cerrar-caja" class="font-semibold text-gray-900 dark:text-gray-100">{{ $caja->devuelta() ? 'Corregir y reenviar el arqueo' : 'Cerrar la caja' }}</h3>
                 @if ($caja->devuelta() && $caja->cierres->first()?->nota_revision)
-                    <p role="status" class="rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">Nota de Gerencia: {{ $caja->cierres->first()->nota_revision }}</p>
+                    <p role="status" class="rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">Observación de Gerencia: {{ $caja->cierres->first()->nota_revision }}</p>
                 @endif
-                <p class="text-gray-600 dark:text-gray-400">Declare lo que contó en cada medio (cero si no hay nada; fuera del efectivo puede ser negativo si se devolvió más de lo que entró). Si no coincide con lo esperado, indique el motivo. Cerrada, la caja ya no recibe cobros.</p>
-                <form method="POST" action="{{ route('admin.cajas.cerrar', $caja) }}" novalidate class="space-y-3">
+                <p class="text-gray-600 dark:text-gray-400">Cada medio trae lo esperado: cámbielo si lo que contó es distinto (fuera del efectivo puede ser negativo si se devolvió más de lo que entró). Si hay diferencia, la observación es obligatoria; si no, queda vacía. Cerrada, la caja ya no recibe cobros y queda pendiente de recepción.</p>
+                {{-- Precargado con lo esperado; resources/js/arqueo-caja.js muestra la diferencia en vivo y bloquea la observación sin diferencia (el servidor verifica todo). --}}
+                <form method="POST" action="{{ route('admin.cajas.cerrar', $caja) }}" novalidate class="space-y-3" x-data="arqueoCaja">
                     @csrf
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <x-admin.table :headers="['Medio de pago', 'Esperado', 'Declarado', 'Diferencia']">
                         @foreach ($mediosADeclarar as $medio)
-                            <div>
-                                <x-input-label for="contado_{{ $medio->id }}" :value="$medio->nombre.' (esperado: '.$caja->moneda->formatear($esperado[$medio->id] ?? 0).')'" />
-                                {{-- Fuera del efectivo se admite el signo menos (el teclado numérico del teléfono no lo tiene). --}}
-                                <input id="contado_{{ $medio->id }}" name="contado[{{ $medio->id }}]" value="{{ old('contado.'.$medio->id) }}" inputmode="{{ $medio->esEfectivo() ? 'numeric' : 'text' }}" maxlength="18" autocomplete="off" required
-                                    @if (($esperado[$medio->id] ?? 0) < 0) aria-describedby="negativo_{{ $medio->id }}" @endif
-                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
-                                @if (($esperado[$medio->id] ?? 0) < 0)
-                                    <p id="negativo_{{ $medio->id }}" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Se devolvió más de lo que entró por este medio: declare el neto con el signo menos (por ejemplo, -150.000).</p>
-                                @endif
-                                <x-input-error class="mt-1" :messages="$errors->get('contado.'.$medio->id)" />
-                            </div>
+                            @php($esperadoMedio = $esperado[$medio->id] ?? 0)
+                            <tr data-fila-arqueo data-esperado="{{ $esperadoMedio }}">
+                                <td class="px-6 py-3"><label for="contado_{{ $medio->id }}">{{ $medio->nombre }}</label></td>
+                                <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $caja->moneda->formatear($esperadoMedio) }}</td>
+                                <td class="px-6 py-3">
+                                    {{-- Fuera del efectivo se admite el signo menos (el teclado numérico del teléfono no lo tiene). --}}
+                                    <input id="contado_{{ $medio->id }}" name="contado[{{ $medio->id }}]" value="{{ old('contado.'.$medio->id, number_format($esperadoMedio, 0, '', '.')) }}" inputmode="{{ $medio->esEfectivo() ? 'numeric' : 'text' }}" maxlength="18" autocomplete="off" required
+                                        data-declarado x-on:input="recalcular()"
+                                        @if ($esperadoMedio < 0) aria-describedby="negativo_{{ $medio->id }}" @endif
+                                        class="block w-40 rounded-md border-gray-300 shadow-sm tabular-nums dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                    @if ($esperadoMedio < 0)
+                                        <p id="negativo_{{ $medio->id }}" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Se devolvió más de lo que entró: declare el neto con el signo menos (por ejemplo, -150.000).</p>
+                                    @endif
+                                    <x-input-error class="mt-1" :messages="$errors->get('contado.'.$medio->id)" />
+                                </td>
+                                <td class="px-6 py-3 whitespace-nowrap tabular-nums" data-diferencia aria-live="polite">—</td>
+                                <td></td>
+                            </tr>
                         @endforeach
+                        <tr class="font-semibold">
+                            <td class="px-6 py-3">Total</td>
+                            <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $caja->moneda->formatear(collect($mediosADeclarar)->sum(fn ($medio) => $esperado[$medio->id] ?? 0)) }}</td>
+                            <td class="px-6 py-3 whitespace-nowrap tabular-nums" x-text="totalDeclarado">—</td>
+                            <td class="px-6 py-3 whitespace-nowrap tabular-nums" x-text="totalDiferencia" aria-live="polite">—</td>
+                            <td></td>
+                        </tr>
+                    </x-admin.table>
+                    <div>
+                        <x-input-label for="motivo" value="Observación (obligatoria solo si hay diferencia)" />
+                        <textarea id="motivo" name="motivo" rows="2" maxlength="{{ CerrarCaja::MOTIVO_MAXIMO }}" data-observacion
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm disabled:bg-gray-100 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:disabled:bg-gray-800">{{ old('motivo') }}</textarea>
+                        <p x-show="!conDiferencia" style="display: none" class="mt-1 text-xs text-gray-500 dark:text-gray-400">Sin diferencia: la observación queda vacía.</p>
+                        <x-input-error class="mt-1" :messages="$errors->get('motivo')" />
                     </div>
-                    <x-admin.textarea name="motivo" label="Motivo de la diferencia (obligatorio si hay diferencia)" rows="2" maxlength="{{ CerrarCaja::MOTIVO_MAXIMO }}" />
-                    <x-primary-button>Cerrar la caja</x-primary-button>
+                    <x-primary-button>{{ $caja->devuelta() ? 'Reenviar el arqueo' : 'Cerrar la caja' }}</x-primary-button>
                 </form>
             </section>
         @endif
 
         @if ($puedeRevisar)
             <section aria-labelledby="revisar-cierre" class="max-w-3xl space-y-4 rounded-md border border-gray-200 p-4 dark:border-gray-700">
-                <h3 id="revisar-cierre" class="font-semibold text-gray-900 dark:text-gray-100">Revisar el cierre</h3>
+                <h3 id="revisar-cierre" class="font-semibold text-gray-900 dark:text-gray-100">Recibir el arqueo</h3>
                 <form method="POST" action="{{ route('admin.cajas.aprobar', $caja) }}" class="space-y-2">
                     @csrf
                     <x-admin.textarea name="nota" label="Nota (opcional)" rows="2" maxlength="{{ RevisarCierre::NOTA_MAXIMA }}" />
-                    <x-primary-button>Aprobar el cierre</x-primary-button>
+                    <x-primary-button>Aceptar (recibido)</x-primary-button>
                 </form>
                 <details class="rounded-md border border-amber-200 p-3 dark:border-amber-900" @if ($errors->has('nota_devolucion')) open @endif>
-                    <summary class="cursor-pointer font-medium text-amber-700 dark:text-amber-300">Devolver al cajero para corregir</summary>
+                    <summary class="cursor-pointer font-medium text-amber-700 dark:text-amber-300">Rechazar (devolver por diferencias)</summary>
                     <form method="POST" action="{{ route('admin.cajas.devolver', $caja) }}" novalidate class="mt-3 space-y-2">
                         @csrf
-                        <x-admin.textarea name="nota_devolucion" label="Qué hay que corregir (obligatorio)" rows="2" minlength="{{ RevisarCierre::NOTA_MINIMA }}" maxlength="{{ RevisarCierre::NOTA_MAXIMA }}" required />
-                        <x-secondary-button type="submit">Devolver</x-secondary-button>
+                        <x-admin.textarea name="nota_devolucion" label="Observación con el inconveniente (obligatoria)" rows="2" minlength="{{ RevisarCierre::NOTA_MINIMA }}" maxlength="{{ RevisarCierre::NOTA_MAXIMA }}" required />
+                        <x-secondary-button type="submit">Rechazar</x-secondary-button>
                     </form>
                 </details>
             </section>
@@ -124,16 +157,17 @@
 
         @if ($caja->cierres->isNotEmpty())
             <section aria-labelledby="cierres" class="max-w-4xl space-y-4">
-                <h3 id="cierres" class="font-semibold text-gray-900 dark:text-gray-100">Cierres</h3>
+                <h3 id="cierres" class="font-semibold text-gray-900 dark:text-gray-100">Historial del arqueo</h3>
                 @foreach ($caja->cierres as $cierre)
                     <div class="space-y-2 rounded-md border border-gray-200 p-4 dark:border-gray-700">
                         <p class="text-gray-700 dark:text-gray-300">
-                            <span class="font-medium">{{ $cierre->etiquetaEstado() }}</span> · cerrado el {{ Fecha::mostrar($cierre->cerrado_en, conHora: true) }}
+                            <span class="font-medium">Intento {{ $caja->cierres->count() - $loop->index }}: {{ $cierre->etiquetaEstado() }}</span>
+                            · enviado el {{ Fecha::mostrar($cierre->cerrado_en, conHora: true) }}{{ $cierre->cajero ? ' por '.($cierre->cajero->persona?->nombre_completo ?? $cierre->cajero->email) : '' }}
                             @if ($cierre->revisado_en)
-                                · revisado el {{ Fecha::mostrar($cierre->revisado_en, conHora: true) }}{{ $cierre->revisadoPor ? ' por '.$cierre->revisadoPor->persona?->nombre_completo : '' }}
+                                · {{ $cierre->tieneEstado(\App\Models\Estado::DEVUELTO) ? 'devuelto' : 'recibido' }} el {{ Fecha::mostrar($cierre->revisado_en, conHora: true) }}{{ $cierre->revisadoPor ? ' por '.($cierre->revisadoPor->persona?->nombre_completo ?? $cierre->revisadoPor->email) : '' }}
                             @endif
                         </p>
-                        <x-admin.table :headers="['Medio de pago', 'Esperado', 'Contado', 'Diferencia']">
+                        <x-admin.table :headers="['Medio de pago', 'Esperado', 'Declarado', 'Diferencia']">
                             @foreach ($cierre->medios as $fila)
                                 <tr>
                                     <td class="px-6 py-3">{{ $fila->medioPago->nombre }}</td>
@@ -145,10 +179,10 @@
                             @endforeach
                         </x-admin.table>
                         @if ($cierre->motivo_diferencia)
-                            <p class="text-gray-700 dark:text-gray-300"><span class="text-gray-500 dark:text-gray-400">Motivo de la diferencia:</span> {{ $cierre->motivo_diferencia }}</p>
+                            <p class="text-gray-700 dark:text-gray-300"><span class="text-gray-500 dark:text-gray-400">Observación del cajero:</span> {{ $cierre->motivo_diferencia }}</p>
                         @endif
                         @if ($cierre->nota_revision)
-                            <p class="text-gray-700 dark:text-gray-300"><span class="text-gray-500 dark:text-gray-400">Nota de la revisión:</span> {{ $cierre->nota_revision }}</p>
+                            <p class="text-gray-700 dark:text-gray-300"><span class="text-gray-500 dark:text-gray-400">{{ $cierre->tieneEstado(\App\Models\Estado::DEVUELTO) ? 'Motivo de la devolución' : 'Nota de Gerencia' }}:</span> {{ $cierre->nota_revision }}</p>
                         @endif
                     </div>
                 @endforeach
