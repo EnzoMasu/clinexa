@@ -2,15 +2,22 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Requests\Admin\PersonaRequest;
 use App\Models\CategoriaProveedor;
 use App\Models\Estado;
+use App\Models\Pais;
+use App\Models\Persona;
 use App\Models\Proveedor;
 use App\Models\RedSocialProveedor;
 use App\Models\TipoRedSocial;
+use App\Models\TipoDocumento;
+use App\Support\BuscadorPersonas;
 use App\Support\Enlace;
 use App\Support\Grilla\Grilla;
+use App\Support\Personas\AltaPersona;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -21,6 +28,90 @@ class ProveedorController extends RolPersonaController
     public const MAXIMO_CONTACTOS_ACTIVOS = 20;
 
     public const MAXIMO_REDES = 10;
+
+    /**
+     * Quien no ve Personas solo puede elegir personas que él mismo encontró (por número exacto) o creó con
+     * el alta rápida: sus ids quedan en la sesión (del servidor), como mucho estos.
+     */
+    public const SESION_ELEGIBLES = 'proveedores.personas_elegibles';
+
+    public const MAXIMO_ELEGIBLES = 50;
+
+    /** Error genérico al guardar: no dice si el id no existe, si está inactivo o si ya es proveedor. */
+    public const PERSONA_NO_DISPONIBLE = 'La persona elegida no está disponible. Búsquela de nuevo por su número de documento.';
+
+    /** Con PERSONAS,VER se busca por nombre o documento, como siempre; sin él, solo por número exacto. */
+    public static function buscaPorNombre(): bool
+    {
+        return (bool) request()->user()?->tienePermiso('PERSONAS', 'VER');
+    }
+
+    public function personasDisponibles(Request $request): JsonResponse
+    {
+        if (self::buscaPorNombre()) {
+            return parent::personasDisponibles($request);
+        }
+
+        $personas = BuscadorPersonas::exactos(Proveedor::personasDisponibles(), (string) $request->query('q'));
+        $this->recordarElegibles($request, $personas->modelKeys());
+
+        return BuscadorPersonas::json($personas);
+    }
+
+    /**
+     * Alta rápida de persona desde el formulario de Proveedor (popup): las mismas validaciones que
+     * Personas (PersonaRequest) y el mismo alta (AltaPersona, auditada como alta de Persona). Responde
+     * { id, texto } para elegirla en el selector; un error de validación vuelve como 422 en JSON.
+     * No da acceso a listar ni editar Personas.
+     */
+    public function altaRapidaPersona(PersonaRequest $request): JsonResponse
+    {
+        $persona = AltaPersona::crear($request->validated());
+        $this->recordarElegibles($request, [$persona->id]);
+
+        return response()->json([
+            'id' => $persona->id,
+            'texto' => BuscadorPersonas::texto($persona->load('tipoDocumento')),
+        ], 201, [], BuscadorPersonas::JSON_SEGURO);
+    }
+
+    protected function personaElegible(int $personaId): bool
+    {
+        return self::buscaPorNombre() || in_array($personaId, (array) session(self::SESION_ELEGIBLES, []), true);
+    }
+
+    protected function motivoPersonaNoDisponible(int $personaId): string
+    {
+        return self::PERSONA_NO_DISPONIBLE;
+    }
+
+    /** @param  list<int>  $ids */
+    private function recordarElegibles(Request $request, array $ids): void
+    {
+        if ($ids === []) {
+            return;
+        }
+
+        $actuales = array_map('intval', (array) $request->session()->get(self::SESION_ELEGIBLES, []));
+        $todos = array_values(array_unique([...array_diff($actuales, $ids), ...$ids]));
+        $request->session()->put(self::SESION_ELEGIBLES, array_slice($todos, -self::MAXIMO_ELEGIBLES));
+    }
+
+    /**
+     * Persona que se había elegido, tras un error de validación: solo si sigue disponible y quien carga
+     * puede elegirla (así un persona_id inventado no muestra el nombre de nadie).
+     */
+    private function personaAnterior(): ?array
+    {
+        $id = (int) old('persona_id');
+        if ($id <= 0 || ! $this->personaElegible($id)) {
+            return null;
+        }
+
+        $persona = Proveedor::personasDisponibles()->with('tipoDocumento')->whereKey($id)->first();
+
+        return $persona ? ['id' => $persona->id, 'texto' => BuscadorPersonas::texto($persona)] : null;
+    }
 
     protected function modelo(): string
     {
@@ -205,6 +296,18 @@ class ProveedorController extends RolPersonaController
         $yaAsignadas = $registro ? $registro->categorias->modelKeys() : [];
 
         return [
+            ...($registro ? [] : [
+                'personaInicial' => $this->personaAnterior(),
+                'buscaPorNombre' => self::buscaPorNombre(),
+                // Popup de alta rápida: los mismos campos que el alta de Personas.
+                'personaNueva' => new Persona([
+                    'tipo_persona' => 'FISICA',
+                    'tipo_documento_id' => TipoDocumento::predeterminadoPara('PERSONAS'),
+                    'pais_nacionalidad_id' => Pais::idParaguay(),
+                ]),
+                'tiposDocumento' => PersonaController::tiposDocumento(),
+                'paises' => Pais::opciones(),
+            ]),
             'categorias' => CategoriaProveedor::query()
                 ->where(fn ($query) => $query->activos()->orWhereIn('id', $yaAsignadas))
                 ->orderBy('nombre')

@@ -22,6 +22,7 @@ use App\Models\CategoriaProveedor;
 use App\Models\Ciudad;
 use App\Models\Cobro;
 use App\Models\CobroPrestacion;
+use App\Models\Compra;
 use App\Models\CoberturaPaciente;
 use App\Models\Consulta;
 use App\Models\Convenio;
@@ -74,6 +75,7 @@ use App\Models\SalidaSinAtencion;
 use App\Models\SolicitudReversionCobro;
 use App\Models\Sucursal;
 use App\Models\Tarifa;
+use App\Models\TipoComprobanteCompra;
 use App\Models\TarifaConvenio;
 use App\Models\TipoBloqueAnamnesis;
 use App\Models\TipoDocumento;
@@ -152,6 +154,8 @@ final class Auditoria
         // Facturación (docs/facturacion.md): la factura antes que sus líneas (es la tabla del módulo); las solicitudes de anulación, los
         // timbrados, los datos de la clínica y el catálogo de motivos, cada uno su módulo. Montos solo para quien ve las facturas.
         Factura::class, DetalleFactura::class, SolicitudAnulacionFactura::class, Timbrado::class, Clinica::class, MotivoAnulacionFactura::class,
+        // Compras y gastos (docs/compras-gastos.md): la compra (módulo COMPRAS) y el catálogo de tipos de comprobante. Sin datos de pacientes.
+        Compra::class, TipoComprobanteCompra::class,
     ];
 
     /**

@@ -95,6 +95,15 @@ Notas sobre la matriz:
 - Los formularios de Recepción no piden permiso de los catálogos que usan: tipo de documento, país,
   departamento, ciudad y sucursal se cargan sin permiso de su módulo. Lo mismo pasa con los catálogos de la
   consulta: CIE-10, tipos de bloque y tipos de indicación. Por eso esos perfiles no los tienen.
+- Compras y tesorería no tiene PERSONAS. En el alta de Proveedor, quien no tiene PERSONAS,VER busca la persona
+  **solo por número exacto** de CI, pasaporte o RUC (el RUC con o sin dígito verificador), nunca por nombre: así
+  no puede recorrer las personas, que incluyen pacientes. El resultado es solo "Apellidos, Nombres — documento".
+  Si no está, la carga en el popup del mismo formulario (`proveedores.personas-rapida`, con PROVEEDORES,CREAR):
+  mismos campos y validaciones que Personas (`PersonaRequest`), el mismo alta (`Support\Personas\AltaPersona`),
+  auditada como alta de Persona con su usuario; no le da acceso a listar ni editar Personas. Búsqueda y alta
+  rápida: hasta 30 pedidos por minuto por usuario (`throttle:buscador-personas`). Al guardar, solo puede elegir
+  personas que encontró o creó en su sesión, y el error es genérico (no dice si el id existe, está inactivo o ya
+  es proveedor). Quien tiene PERSONAS,VER sigue buscando por nombre como siempre.
 - El Médico **no administra la agenda**: no tiene EDITAR sobre TURNOS, así que no ve ni usa los botones
   Confirmar, Cancelar y Ausente de la pantalla Turnos. Lo que hace sobre **sus** turnos desde la pantalla
   Consulta ("No se presentó", "Pasar a ausente" y "Cerrar jornada") se autoriza con CREAR sobre

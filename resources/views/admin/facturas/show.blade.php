@@ -42,6 +42,7 @@
         </dl>
 
         @if ($puedePdf)
+            <a href="{{ route('admin.facturas.imprimir', $factura) }}" class="inline-flex items-center rounded-md bg-indigo-600 px-3 py-2 font-medium text-white hover:bg-indigo-500">Imprimir factura</a>
             <a href="{{ route('admin.facturas.pdf', $factura) }}" target="_blank" rel="noopener" class="inline-flex items-center rounded-md border border-gray-300 px-3 py-2 font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-800">Factura (PDF)</a>
         @endif
 

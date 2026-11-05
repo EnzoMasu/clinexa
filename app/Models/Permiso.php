@@ -63,6 +63,12 @@ class Permiso extends Model
         'TIMBRADOS' => ['VER', 'CREAR', 'EDITAR'],
         'DATOS_FISCALES' => ['VER', 'EDITAR'],
         'MOTIVOS_ANULACION' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
+        // Compras y gastos (docs/compras-gastos.md): ver, cargar el borrador (CREAR), editarlo (EDITAR) y anular la confirmada o
+        // descartar cualquier borrador (DESACTIVAR); el borrador propio se descarta con VER. La confirmación: ver y confirmar (EDITAR),
+        // nunca lo propio. El catálogo de tipos de comprobante.
+        'COMPRAS' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
+        'CONFIRMACION_COMPRAS' => ['VER', 'EDITAR'],
+        'TIPOS_COMPROBANTE_COMPRA' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
     ];
 
     /** Acciones que se pueden asignar en la matriz para ese módulo. */

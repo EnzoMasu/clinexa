@@ -56,8 +56,13 @@ class RegistroEconomicoInmutable extends LogicException
         return new self('Una factura no se edita: solo se cobra (al emitirse) o se anula, y su número se conserva; un timbrado solo pasa a histórico o avanza su numeración.');
     }
 
+    public static function compra(): self
+    {
+        return new self('Una compra solo se edita en borrador; después solo se confirma o se anula (con motivo).');
+    }
+
     public static function borrado(): self
     {
-        return new self('Las tarifas, las prestaciones, los acuerdos, los repartos, las cajas, los cobros, los convenios, las visaciones, las liquidaciones, las facturas y los timbrados no se borran.');
+        return new self('Las tarifas, las prestaciones, los acuerdos, los repartos, las cajas, los cobros, los convenios, las visaciones, las liquidaciones, las facturas, los timbrados, las compras y los tipos de comprobante de compra no se borran.');
     }
 }

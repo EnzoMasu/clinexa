@@ -59,6 +59,8 @@ final class Unicidad
             'mensaje' => 'Ya hay un tipo de red social con este nombre.'],
         'tipo_bloque_anamnesis.nombre' => ['tabla' => 'tipos_bloque_anamnesis', 'columna' => 'nombre', 'modulo' => 'TIPOS_BLOQUE_ANAMNESIS',
             'mensaje' => 'Ya hay un tipo de bloque de anamnesis con este nombre.'],
+        'tipo_comprobante_compra.nombre' => ['tabla' => 'tipos_comprobante_compra', 'columna' => 'nombre', 'modulo' => 'TIPOS_COMPROBANTE_COMPRA',
+            'mensaje' => 'Ya hay un tipo de comprobante de compra con este nombre.'],
         'tipo_indicacion.nombre' => ['tabla' => 'tipos_indicacion', 'columna' => 'nombre', 'modulo' => 'TIPOS_INDICACION',
             'mensaje' => 'Ya hay un tipo de indicación con este nombre.'],
         'dieta.nombre' => ['tabla' => 'dietas', 'columna' => 'nombre', 'modulo' => 'DIETAS',

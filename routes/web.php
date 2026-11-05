@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\CiudadController;
 use App\Http\Controllers\Admin\ClinicaController;
 use App\Http\Controllers\Admin\CoberturaController;
 use App\Http\Controllers\Admin\CobroController;
+use App\Http\Controllers\Admin\CompraController;
 use App\Http\Controllers\Admin\ConstanciaController;
 use App\Http\Controllers\Admin\ConsultaController;
 use App\Http\Controllers\Admin\ConsultorioController;
@@ -54,6 +55,7 @@ use App\Http\Controllers\Admin\TarifaController;
 use App\Http\Controllers\Admin\TasaIvaController;
 use App\Http\Controllers\Admin\TimbradoController;
 use App\Http\Controllers\Admin\TipoBloqueAnamnesisController;
+use App\Http\Controllers\Admin\TipoComprobanteCompraController;
 use App\Http\Controllers\Admin\TipoDocumentoController;
 use App\Http\Controllers\Admin\TipoEquipoController;
 use App\Http\Controllers\Admin\TipoIndicacionController;
@@ -138,6 +140,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     $seccion('cie10', CatalogoCIE10Controller::class, 'CIE10', 'cie10', conBaja: true);
     $seccion('medios-pago', MedioPagoController::class, 'MEDIOS_PAGO', 'medioPago', conBaja: true);
     $seccion('categorias-gasto', CategoriaGastoController::class, 'CATEGORIAS_GASTO', 'categoriaGasto', conBaja: true);
+    // Tipos de comprobante de compra (docs/compras-gastos.md): catálogo con sus casillas de reglas.
+    $seccion('tipos-comprobante-compra', TipoComprobanteCompraController::class, 'TIPOS_COMPROBANTE_COMPRA', 'tipoComprobanteCompra', conBaja: true);
     $seccion('categorias-proveedor', CategoriaProveedorController::class, 'CATEGORIAS_PROVEEDOR', 'categoriaProveedor', conBaja: true);
     $seccion('tipos-red-social', TipoRedSocialController::class, 'TIPOS_RED_SOCIAL', 'tipoRedSocial', conBaja: true);
     $seccion('procedimientos', ProcedimientoController::class, 'PROCEDIMIENTOS', 'procedimiento', conBaja: true);
@@ -453,6 +457,17 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::get('consultas/{consulta}/ticket-aseguradora', [CoberturaController::class, 'ticket'])->name('visaciones.ticket')->whereNumber('consulta')
         ->middleware(['permiso:VISACIONES,EXPORTAR', SinAlmacenar::class]);
 
+    // Compras y gastos (docs/compras-gastos.md): listado, carga y edición del borrador, detalle, confirmar y anular. La imagen del comprobante queda para después.
+    Route::get('compras', [CompraController::class, 'index'])->name('compras.index')->middleware('permiso:COMPRAS,VER');
+    Route::get('compras/create', [CompraController::class, 'create'])->name('compras.create')->middleware('permiso:COMPRAS,CREAR');
+    Route::post('compras', [CompraController::class, 'store'])->name('compras.store')->middleware('permiso:COMPRAS,CREAR');
+    Route::get('compras/{compra}', [CompraController::class, 'show'])->name('compras.show')->whereNumber('compra')->middleware('permiso:COMPRAS,VER');
+    Route::get('compras/{compra}/edit', [CompraController::class, 'edit'])->name('compras.edit')->whereNumber('compra')->middleware('permiso:COMPRAS,EDITAR');
+    Route::put('compras/{compra}', [CompraController::class, 'update'])->name('compras.update')->whereNumber('compra')->middleware('permiso:COMPRAS,EDITAR');
+    // Confirmar (nadie confirma lo que cargó) y anular o descartar con motivo: sin plazo, sin segunda aprobación.
+    Route::patch('compras/{compra}/confirmar', [CompraController::class, 'confirmar'])->name('compras.confirmar')->whereNumber('compra')->middleware('permiso:CONFIRMACION_COMPRAS,EDITAR');
+    Route::patch('compras/{compra}/anular', [CompraController::class, 'anular'])->name('compras.anular')->whereNumber('compra')->middleware('permiso:COMPRAS,VER');
+
     // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): un solo módulo con tres pestañas (liquidaciones, por cobrar por
     // aseguradora y prestaciones sin firma). Facturación arma, quita líneas, envía y registra pagos; Gerencia aprueba o devuelve. Nada se
     // borra: se quita (con motivo) o se anula.
@@ -480,6 +495,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::get('facturas', [FacturaController::class, 'index'])->name('facturas.index')->middleware('permiso:FACTURAS,VER');
     Route::get('facturas/{factura}', [FacturaController::class, 'show'])->name('facturas.show')->whereNumber('factura')->middleware('permiso:FACTURAS,VER');
     // El PDF: al vuelo, sin nada clínico; no se guarda en la caché.
+    // Pantalla de lectura con el PDF embebido, lista para imprimir (el PDF se pide aparte, a facturas.pdf, que es el que audita).
+    Route::get('facturas/{factura}/imprimir', [FacturaController::class, 'imprimir'])->name('facturas.imprimir')->whereNumber('factura')
+        ->middleware(['permiso:FACTURAS,EXPORTAR', SinAlmacenar::class]);
     Route::get('facturas/{factura}/pdf', [FacturaController::class, 'pdf'])->name('facturas.pdf')->whereNumber('factura')
         ->middleware(['permiso:FACTURAS,EXPORTAR', SinAlmacenar::class]);
     Route::post('facturas/{factura}/anular', [FacturaController::class, 'anular'])->name('facturas.anular')->whereNumber('factura')->middleware('permiso:FACTURAS,DESACTIVAR');
@@ -513,9 +531,13 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     ] as [$uri, $controlador, $modulo, $parametro]) {
         Route::get("{$uri}/personas-disponibles", [$controlador, 'personasDisponibles'])
             ->name("{$uri}.personas-disponibles")
-            ->middleware("permiso:{$modulo},CREAR");
+            ->middleware(["permiso:{$modulo},CREAR", ...($uri === 'proveedores' ? ['throttle:buscador-personas'] : [])]);
         $seccion($uri, $controlador, $modulo, $parametro, conBaja: true);
     }
+    // Alta rápida de persona desde el formulario de Proveedor (popup), sin permiso sobre Personas.
+    Route::post('proveedores/personas-rapida', [ProveedorController::class, 'altaRapidaPersona'])
+        ->name('proveedores.personas-rapida')
+        ->middleware(['permiso:PROVEEDORES,CREAR', 'throttle:buscador-personas']);
 });
 
 // "Preparación" pasó a llamarse "Triaje": las URLs viejas de lectura redirigen para siempre (301) a las nuevas.

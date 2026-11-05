@@ -8,7 +8,11 @@
     "inicial" (['id' => ..., 'texto' => ...]) es lo elegido de antes y "ofrecerAlta" en false
     oculta el enlace para cargar una persona nueva.
 
-    "pista": placeholder de la caja de búsqueda (por defecto, el mínimo de caracteres para buscar).
+    "restaurar" en false: no recupera la persona de old() (quien llama la pasa ya verificada en "inicial").
+    "pista": placeholder de la caja de búsqueda (por defecto, el mínimo de caracteres para buscar); p. ej.
+    Proveedores pasa la suya para la búsqueda por número exacto. El slot "altaRapida" se muestra cuando no
+    hay resultados, con "q" (lo buscado) a mano; una persona creada desde afuera se elige con el evento de
+    ventana "persona-creada" ({ campo, persona: { id, texto } }).
 --}}
 @props([
     'url',
@@ -19,6 +23,7 @@
     'inicial' => null,
     'ofrecerAlta' => true,
     'sinResultados' => 'No hay personas disponibles con esa búsqueda.',
+    'restaurar' => true,
     'pista' => null,
 ])
 
@@ -28,16 +33,17 @@
     use App\Support\Permisos;
 
     // Tras un error de validación se conserva la persona que se había elegido (o lo que indique "inicial").
-    if ($inicial === null && old($name) && ($anterior = Persona::with('tipoDocumento')->find(old($name)))) {
+    if ($restaurar && $inicial === null && old($name) && ($anterior = Persona::with('tipoDocumento')->find(old($name)))) {
         $inicial = ['id' => $anterior->id, 'texto' => BuscadorPersonas::texto($anterior, $conEmail)];
     }
     $urlNuevaPersona = $ofrecerAlta ? Permisos::url('admin.personas.create') : null;
     $minimo = BuscadorPersonas::MINIMO;
-    // La pista va como placeholder de la caja de búsqueda (mismo texto en todos los buscadores de personas).
+    // La pista va como placeholder de la caja de búsqueda (por defecto, la misma en todos los buscadores de personas).
     $pista ??= "Escriba al menos {$minimo} caracteres del nombre o del documento para buscar.";
 @endphp
 
-<div x-data="selectorPersona({ url: @js($url), inicial: @js($inicial), minimo: {{ $minimo }}, campo: @js($name) })" class="space-y-2">
+<div x-data="selectorPersona({ url: @js($url), inicial: @js($inicial), minimo: {{ $minimo }}, campo: @js($name) })" class="space-y-2"
+    x-on:persona-creada.window="if ($event.detail.campo === campo) elegir($event.detail.persona)">
     <x-input-label :for="$name.'_buscar'" :value="$label" />
     <input type="hidden" name="{{ $name }}" x-bind:value="elegida ? elegida.id : ''" value="{{ $inicial['id'] ?? '' }}">
 
@@ -71,6 +77,7 @@
                 @if ($urlNuevaPersona)
                     <a href="{{ $urlNuevaPersona }}" class="font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Cargar una persona nueva</a>
                 @endif
+                {{ $altaRapida ?? '' }}
             </li>
             <li x-show="cargando" style="display: none" class="px-3 py-2 text-sm text-gray-500 dark:text-gray-400" role="status">Buscando…</li>
         </ul>

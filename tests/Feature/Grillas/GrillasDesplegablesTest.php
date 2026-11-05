@@ -4,6 +4,8 @@ use App\Models\AcuerdoReparto;
 use App\Models\CatalogoCIE10;
 use App\Models\CategoriaGasto;
 use App\Models\CategoriaProveedor;
+use App\Models\Compra;
+use App\Enums\CondicionCompra;
 use App\Models\Disponibilidad;
 use App\Models\Especialidad;
 use App\Models\Estado;
@@ -40,10 +42,27 @@ beforeEach(function () {
     }
     $this->artisan('clinexa:datos-demo', ['--confirmo-desarrollo' => true, '--password' => 'Clave-De-Prueba-5432'])->assertSuccessful();
     CategoriaGasto::create(['nombre' => 'Gasto de prueba', 'estado_id' => Estado::idDe(Estado::ACTIVO)]); // los datos demo no traen ninguna
+    CategoriaGasto::create(['nombre' => 'Otro gasto de prueba', 'estado_id' => Estado::idDe(Estado::ACTIVO)]);
+    grillasDesplegablesCompras(); // ni compras
     $this->actingAs(User::factory()->administrador()->conPersona(['apellidos' => 'Pruebas', 'nombres' => 'Desplegables'])->create());
 });
 
 afterEach(fn () => Carbon::setTestNow());
+
+/** Dos compras inventadas (otra categoría y condición cada una) para los desplegables de Compras. */
+function grillasDesplegablesCompras(): void
+{
+    $usuario = User::factory()->create();
+    foreach ([['Gasto de prueba', CondicionCompra::CONTADO, null, 0], ['Otro gasto de prueba', CondicionCompra::CREDITO, '2026-11-20', 1000]] as $i => [$categoria, $condicion, $vencimiento, $anticipo]) {
+        Compra::create([
+            'proveedor_id' => App\Models\Proveedor::create(['persona_id' => Persona::factory()->create()->id])->id,
+            'categoria_gasto_id' => CategoriaGasto::where('nombre', $categoria)->sole()->id,
+            'fecha' => '2026-10-05', 'tipo_comprobante_id' => App\Models\TipoComprobanteCompra::where('nombre', 'Ticket')->sole()->id,
+            'numero_comprobante' => "D-{$i}", 'fecha_comprobante' => '2026-10-05', 'moneda_id' => App\Models\Moneda::guarani()->id,
+            'total' => 25000, 'condicion' => $condicion, 'vencimiento' => $vencimiento, 'anticipo' => $anticipo, 'registrada_por' => $usuario->id,
+        ]);
+    }
+}
 
 /** Lo que dice la opción que le corresponde a la fila, según el registro (no según el desplegable). */
 function grillasDesplegablesEtiquetas(string $ruta, string $clave, Model $fila): array
@@ -57,6 +76,8 @@ function grillasDesplegablesEtiquetas(string $ruta, string $clave, Model $fila):
         'auditoria.accion' => [$fila->accion->etiqueta()],
         'auditoria.modulo' => [ModuloSistema::where('codigo', Auditoria::modulosPorTabla()[$fila->tabla_afectada] ?? '')->value('nombre')],
         'acuerdos-reparto.tipo' => [AcuerdoReparto::TIPOS[$fila->tipo]],
+        'compras.categoria' => [$fila->categoriaGasto->nombre],
+        'compras.condicion' => [$fila->condicion->etiqueta()],
         'cobros.medios' => $fila->lineas->map(fn ($linea) => $linea->medioPago->nombre)->all(),
         'disponibilidades.dia' => [Disponibilidad::DIAS[$fila->dia_semana]],
         'facturas.motivos.detalle' => [$fila->requiere_detalle ? 'Sí' : 'No'],
@@ -69,6 +90,10 @@ function grillasDesplegablesEtiquetas(string $ruta, string $clave, Model $fila):
         'profesionales.especialidades' => $fila->especialidades()->syncWithoutDetaching([Especialidad::where('nombre', $texto)->sole()->id => ['activa' => true, 'fecha_desde' => '2026-01-01']]) !== [],
         'proveedores.categorias' => $nombres($fila->categorias),
         'tipos-documento.modulos' => $nombres($fila->modulos),
+        'tipos-comprobante-compra.numero' => [$fila->requiere_numero ? ($fila->numero_formato_legal ? 'Sí (formato legal)' : 'Sí') : 'No'],
+        'tipos-comprobante-compra.timbrado' => [$fila->requiere_timbrado ? 'Sí' : 'No'],
+        'tipos-comprobante-compra.fecha' => [$fila->requiere_fecha_comprobante ? 'Sí' : 'No'],
+        'tipos-comprobante-compra.iva' => [$fila->discrimina_iva ? 'Sí' : 'No'],
         // Lo que dice la fila según el cálculo en PHP (EstadoVisacionTurnos), no según la consulta SQL que se prueba.
         'turnos.seguro' => [\App\Support\Convenios\EstadoVisacionTurnos::para([$fila])[$fila->id]['seguro'] ?? ''],
         'turnos.visacion' => [match (\App\Support\Convenios\EstadoVisacionTurnos::para([$fila])[$fila->id]['visada'] ?? null) {

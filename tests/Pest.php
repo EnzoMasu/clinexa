@@ -27,6 +27,8 @@ require_once __DIR__.'/Feature/HistoriaClinica/escenario.php';
 require_once __DIR__.'/Feature/Urgencias/escenario.php';
 // Las rutas de todas las grillas (docs/grillas.md).
 require_once __DIR__.'/Feature/Grillas/rutas.php';
+// El escenario de Compras y gastos.
+require_once __DIR__.'/Feature/Compras/escenario.php';
 
 // Solo lo que depende de PostgreSQL (restricciones EXCLUDE): base clinexa_test. PostgresTestCase ya
 // trae RefreshDatabase, con su propio control de migración.
