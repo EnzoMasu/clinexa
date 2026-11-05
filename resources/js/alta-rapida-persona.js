@@ -9,6 +9,7 @@
  * No guarda nada en el navegador.
  */
 export default ({ url, campo = 'persona_id', tipoInicial = 'FISICA' }) => ({
+    campo,
     modal: `alta-rapida-persona-${campo}`,
     tipo: tipoInicial,
     errores: [],
