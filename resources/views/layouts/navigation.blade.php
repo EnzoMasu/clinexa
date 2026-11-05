@@ -50,6 +50,8 @@
             // Facturación (docs/facturacion.md): un solo módulo con pestañas (facturas, solicitudes de anulación, timbrados, tasas de IVA
             // y motivos). La factura se emite al cobrar, desde Cobros.
             'admin.facturas' => 'Facturas',
+            // Compras y gastos (docs/compras-gastos.md): listado, carga, confirmación y anulación.
+            'admin.compras' => 'Compras',
         ],
         'Catálogos' => [
             'admin.especialidades' => 'Especialidades',

@@ -457,12 +457,16 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::get('consultas/{consulta}/ticket-aseguradora', [CoberturaController::class, 'ticket'])->name('visaciones.ticket')->whereNumber('consulta')
         ->middleware(['permiso:VISACIONES,EXPORTAR', SinAlmacenar::class]);
 
-    // Compras y gastos (docs/compras-gastos.md): carga y edición del borrador y detalle. El listado, el flujo y la imagen se suman por fases.
+    // Compras y gastos (docs/compras-gastos.md): listado, carga y edición del borrador, detalle, confirmar y anular. La imagen del comprobante queda para después.
+    Route::get('compras', [CompraController::class, 'index'])->name('compras.index')->middleware('permiso:COMPRAS,VER');
     Route::get('compras/create', [CompraController::class, 'create'])->name('compras.create')->middleware('permiso:COMPRAS,CREAR');
     Route::post('compras', [CompraController::class, 'store'])->name('compras.store')->middleware('permiso:COMPRAS,CREAR');
     Route::get('compras/{compra}', [CompraController::class, 'show'])->name('compras.show')->whereNumber('compra')->middleware('permiso:COMPRAS,VER');
     Route::get('compras/{compra}/edit', [CompraController::class, 'edit'])->name('compras.edit')->whereNumber('compra')->middleware('permiso:COMPRAS,EDITAR');
     Route::put('compras/{compra}', [CompraController::class, 'update'])->name('compras.update')->whereNumber('compra')->middleware('permiso:COMPRAS,EDITAR');
+    // Confirmar (nadie confirma lo que cargó) y anular o descartar con motivo: sin plazo, sin segunda aprobación.
+    Route::patch('compras/{compra}/confirmar', [CompraController::class, 'confirmar'])->name('compras.confirmar')->whereNumber('compra')->middleware('permiso:CONFIRMACION_COMPRAS,EDITAR');
+    Route::patch('compras/{compra}/anular', [CompraController::class, 'anular'])->name('compras.anular')->whereNumber('compra')->middleware('permiso:COMPRAS,VER');
 
     // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): un solo módulo con tres pestañas (liquidaciones, por cobrar por
     // aseguradora y prestaciones sin firma). Facturación arma, quita líneas, envía y registra pagos; Gerencia aprueba o devuelve. Nada se

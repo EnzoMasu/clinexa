@@ -7,7 +7,7 @@ function grillasTodasRutas(): array
 {
     return [
         'acuerdos-reparto.index', 'auditoria.index', 'cajas.index', 'cargos-salud.index', 'categorias-gasto.index',
-        'categorias-proveedor.index', 'cie10.index', 'ciudades.index', 'cobros.index', 'consultorios.index',
+        'categorias-proveedor.index', 'cie10.index', 'ciudades.index', 'cobros.index', 'compras.index', 'consultorios.index',
         'convenios.index', 'convenios.tarifas', 'departamentos.index', 'dietas.index', 'disponibilidades.index',
         'equipos.index', 'especialidades.index', 'estudios.index', 'facturas.index', 'facturas.timbrados',
         'facturas.tasas-iva', 'historias-clinicas.index', 'liquidaciones.index', 'medios-pago.index',

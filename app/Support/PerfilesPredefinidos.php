@@ -142,9 +142,9 @@ class PerfilesPredefinidos
             // timbrados, los datos de la clínica, las tasas de IVA y los motivos de anulación. No emite (no tiene caja).
             'FACTURAS' => self::VER_EXPORTAR, 'ANULACIONES_FACTURA' => ['VER', 'EDITAR'], 'TIMBRADOS' => self::VER_CREAR_EDITAR,
             'DATOS_FISCALES' => ['VER', 'EDITAR'], 'MOTIVOS_ANULACION' => self::TODO,
-            // Compras y gastos (docs/compras-gastos.md): ve las compras, confirma las que cargó otra persona y anula o descarta
-            // (DESACTIVAR). No carga. Ve los tipos de comprobante.
-            'COMPRAS' => ['VER', 'DESACTIVAR'], 'CONFIRMACION_COMPRAS' => ['VER', 'EDITAR'], 'TIPOS_COMPROBANTE_COMPRA' => self::VER,
+            // Compras y gastos (docs/compras-gastos.md): carga y edita borradores, confirma las que cargó otra persona y anula o descarta
+            // (DESACTIVAR). Ve los tipos de comprobante.
+            'COMPRAS' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'], 'CONFIRMACION_COMPRAS' => ['VER', 'EDITAR'], 'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],
         // TURNOS: solo VER. "No se presentó", "Pasar a ausente" y "Cerrar jornada" de la pantalla Consulta se
         // autorizan con CREAR sobre HISTORIA_CLINICA y solo para sus propios turnos (ConsultaPolicy); los botones
@@ -280,11 +280,11 @@ class PerfilesPredefinidos
 
     /**
      * Lo que la migración de compras (2026_11_02_100003) suma a los perfiles existentes. Lo mismo que la matriz para esos tres módulos:
-     * Compras y tesorería carga, Gerencia confirma y anula, y el catálogo de tipos de comprobante lo ven solo Gerencia y Compras y
+     * Compras y tesorería carga, Gerencia carga, confirma y anula (CREAR y EDITAR llegan a los perfiles ya existentes por 2026_11_08_100001), y el catálogo de tipos de comprobante lo ven solo Gerencia y Compras y
      * tesorería (lo administra el Administrador, que tiene todo).
      */
     public const PERMISOS_COMPRAS = [
-        'COMPRAS' => [self::COMPRAS_TESORERIA => self::VER_CREAR_EDITAR, self::GERENCIA => ['VER', 'DESACTIVAR']],
+        'COMPRAS' => [self::COMPRAS_TESORERIA => self::VER_CREAR_EDITAR, self::GERENCIA => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR']],
         'CONFIRMACION_COMPRAS' => [self::GERENCIA => ['VER', 'EDITAR']],
         'TIPOS_COMPROBANTE_COMPRA' => [self::GERENCIA => self::VER, self::COMPRAS_TESORERIA => self::VER],
     ];

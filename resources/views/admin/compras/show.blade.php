@@ -1,9 +1,13 @@
 @use('App\Support\Fecha')
+@use('App\Support\Compras\FlujoCompra')
 
 {{-- Detalle de una compra o gasto (CompraController::show, docs/compras-gastos.md). Sin nada clínico. Nada se borra. --}}
 <x-admin.page :title="'Compra N.º '.$compra->id">
     @php($dinero = fn (?int $monto) => $monto === null ? '—' : $compra->moneda->formatear($monto))
     <div class="space-y-6 p-6 text-sm">
+        @if (session('error'))
+            <div class="rounded-md bg-red-50 p-3 text-red-800 dark:bg-red-900/30 dark:text-red-200">{{ session('error') }}</div>
+        @endif
         <div class="flex flex-wrap items-start justify-between gap-4">
             <dl class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-3">
                 <div><dt class="text-gray-500 dark:text-gray-400">Estado</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $compra->etiquetaEstado() }}</dd></div>
@@ -37,9 +41,18 @@
                     <div class="sm:col-span-3"><dt class="text-gray-500 dark:text-gray-400">Observaciones</dt><dd class="whitespace-pre-line">{{ $compra->observaciones }}</dd></div>
                 @endif
             </dl>
-            @if ($puedeEditar)
-                <a href="{{ route('admin.compras.edit', $compra) }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Editar borrador</a>
-            @endif
+            <div class="flex flex-wrap items-center gap-4">
+                @if ($puedeEditar)
+                    <a href="{{ route('admin.compras.edit', $compra) }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Editar borrador</a>
+                @endif
+                @if ($puedeConfirmar)
+                    <form method="POST" action="{{ route('admin.compras.confirmar', $compra) }}" onsubmit="return confirm('¿Confirmar esta compra? Después no se podrá editar.')">
+                        @csrf
+                        @method('PATCH')
+                        <button type="submit" class="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-white hover:bg-indigo-500">Confirmar compra</button>
+                    </form>
+                @endif
+            </div>
         </div>
 
         @if ($compra->iva_10 !== null)
@@ -54,6 +67,22 @@
                     </tbody>
                 </table>
             </section>
+        @endif
+
+        @if ($puedeAnular)
+            <details class="max-w-xl rounded-md border border-red-200 p-3 dark:border-red-900" @if ($errors->has('motivo')) open @endif>
+                <summary class="cursor-pointer font-medium text-red-600 dark:text-red-400">{{ $compra->esBorrador() ? 'Descartar el borrador' : 'Anular la compra' }}</summary>
+                <form method="POST" action="{{ route('admin.compras.anular', $compra) }}" class="mt-3 space-y-2">
+                    @csrf
+                    @method('PATCH')
+                    <label for="motivo" class="block font-medium text-gray-700 dark:text-gray-300">Motivo (obligatorio)</label>
+                    <textarea id="motivo" name="motivo" rows="3" minlength="{{ FlujoCompra::MOTIVO_MINIMO }}" maxlength="{{ FlujoCompra::MOTIVO_MAXIMO }}" required
+                        class="block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">{{ old('motivo') }}</textarea>
+                    <x-input-error :messages="$errors->get('motivo')" />
+                    <p class="text-gray-600 dark:text-gray-400">La compra no se borra: queda como anulada, con su motivo, y no se puede deshacer.</p>
+                    <button type="submit" class="rounded-md border border-red-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/30">{{ $compra->esBorrador() ? 'Descartar' : 'Anular' }}</button>
+                </form>
+            </details>
         @endif
     </div>
 </x-admin.page>

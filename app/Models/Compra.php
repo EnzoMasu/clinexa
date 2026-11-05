@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AccionAuditoria;
 use App\Enums\CondicionCompra;
 use App\Exceptions\RegistroEconomicoInmutable;
 use App\Models\Concerns\Auditable;
@@ -77,6 +78,18 @@ class Compra extends Model
         });
 
         static::deleting(fn () => throw RegistroEconomicoInmutable::borrado());
+    }
+
+    /** En Auditoría: el motivo al anular o descartar, y la confirmación (que es un EDITAR del estado). */
+    public function detalleAuditoria(AccionAuditoria $accion): ?string
+    {
+        if ($accion === AccionAuditoria::ANULAR && $this->motivo_anulacion) {
+            $eraBorrador = Estado::find($this->getRawOriginal('estado_id'))?->codigo === Estado::PENDIENTE;
+
+            return ($eraBorrador ? 'Borrador descartado. ' : '')."Motivo: {$this->motivo_anulacion}";
+        }
+
+        return $accion === AccionAuditoria::EDITAR && $this->wasChanged('confirmada_en') ? 'Confirmación de la compra' : null;
     }
 
     public function etiquetaEstado(): string

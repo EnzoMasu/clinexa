@@ -247,7 +247,7 @@ test('la edición queda auditada', function () {
     expect(LogAuditoria::where('tabla_afectada', 'compras')->where('registro_afectado_id', $compra->id)->where('accion', AccionAuditoria::EDITAR)->exists())->toBeTrue();
 });
 
-test('quien no tiene permiso sobre Compras no entra; Gerencia ve pero no carga', function () {
+test('quien no tiene permiso sobre Compras no entra; Gerencia ve y carga', function () {
     $recepcion = altaCompraUsuario(PerfilesPredefinidos::RECEPCION);
     $this->actingAs($recepcion)->get(route('admin.compras.create'))->assertForbidden();
     $this->post(route('admin.compras.store'), altaCompraDatos())->assertForbidden();
@@ -258,9 +258,9 @@ test('quien no tiene permiso sobre Compras no entra; Gerencia ve pero no carga',
 
     $gerente = altaCompraUsuario(PerfilesPredefinidos::GERENCIA);
     $this->actingAs($gerente)->get(route('admin.compras.show', $compra))->assertOk();
-    $this->get(route('admin.compras.create'))->assertForbidden();
-    $this->get(route('admin.compras.edit', $compra))->assertForbidden();
-    $this->post(route('admin.compras.store'), altaCompraDatos(['numero_comprobante' => 'T-9']))->assertForbidden();
+    $this->get(route('admin.compras.create'))->assertOk();
+    $this->get(route('admin.compras.edit', $compra))->assertOk();
+    $this->post(route('admin.compras.store'), altaCompraDatos(['numero_comprobante' => 'T-9']))->assertSessionHasNoErrors();
 });
 
 test('los importes aceptan puntos de miles y los textos de error están en usted', function () {
