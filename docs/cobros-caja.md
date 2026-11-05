@@ -179,6 +179,12 @@ estado **REVERTIDO** (PENDIENTE, APROBADO, RECHAZADO y VIGENTE ya existían), el
 (`PerfilesPredefinidos::PERMISOS_REVERSIONES_COBRO`). Crea los estados que falten, no lee filas durante `--pretend`, no revierte
 nada y en una instalación nueva deja el módulo al seeder. El `down` solo vale sin cobros revertidos y deja módulo, permisos y estados.
 
+## Pendiente para la fase del arqueo
+
+La corrección de comprobante hoy permite corregir **solo el comprobante**, en cobros vigentes de cajas no aprobadas. En la fase del
+arqueo se va a limitar a arqueos en estado "Devuelto por diferencias" y se va a sumar el cambio del medio de pago, con auditoría
+del valor anterior y del nuevo.
+
 ## Tests
 
 Comprobante: `tests/Feature/Economico/ComprobanteCobrosTest.php` y `tests/Postgres/ComprobanteCobrosTest.php`. Migración `comprobante_de_cobros` (2026_11_04_100001): las dos columnas del medio, el CHECK, Depósito y Cheque, y EDITAR sobre COBROS para Caja; no toca ningún cobro.
