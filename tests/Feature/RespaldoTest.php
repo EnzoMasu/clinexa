@@ -4,6 +4,7 @@ use App\Support\Respaldos;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 
 // Grupo "lento" (docs/pruebas.md): Respaldo (herramientas de PostgreSQL simuladas, archivos de prueba). No corre en el comando rápido.
@@ -18,9 +19,10 @@ uses()->group('lento');
 
 const CONTRASENA_SIMULADA = 'Secreta#123 con espacios';
 
+// Carpeta propia de cada prueba: nombre aleatorio (no uniqid(), que son microsegundos y choca entre procesos en paralelo).
 beforeEach(function () {
     Carbon::setTestNow(Carbon::parse('2026-10-08 18:05:00', 'UTC')); // 15:05 en Paraguay
-    $this->carpeta = sys_get_temp_dir().DIRECTORY_SEPARATOR.'clinexa respaldos '.uniqid().DIRECTORY_SEPARATOR.'sub carpeta';
+    $this->carpeta = sys_get_temp_dir().DIRECTORY_SEPARATOR.'clinexa respaldos '.bin2hex(random_bytes(16)).DIRECTORY_SEPARATOR.'sub carpeta';
     config([
         'database.default' => 'pg_simulada',
         'database.connections.pg_simulada' => ['driver' => 'pgsql', 'host' => '127.0.0.1', 'port' => 1, 'database' => 'base_simulada',
@@ -129,6 +131,29 @@ test('solo respalda PostgreSQL', function () {
 
     $this->artisan('clinexa:respaldo')->assertFailed()->expectsOutputToContain('no es PostgreSQL');
     Process::assertNothingRan();
+});
+
+test('--probar: si dropdb no puede eliminar la base temporal, avisa y queda en el log', function () {
+    Log::spy();
+    Process::fake(function (PendingProcess $proceso) {
+        $herramienta = basename($proceso->command[0], '.exe');
+        if ($herramienta === 'pg_dump') {
+            File::put($proceso->command[array_search('-f', $proceso->command, true) + 1], 'PGDMP simulado');
+        }
+
+        return match ($herramienta) {
+            'pg_restore' => Process::result("; Archive\n201; 1259 16390 TABLE public personas postgres\n"),
+            'dropdb' => Process::result(errorOutput: 'la base está siendo utilizada', exitCode: 1),
+            default => Process::result(),
+        };
+    });
+
+    $this->artisan('clinexa:respaldo', ['--probar' => true])
+        ->expectsOutputToContain('No se pudo eliminar la base temporal clinexa_restore_test: la base está siendo utilizada');
+
+    Log::shouldHaveReceived('warning')->withArgs(fn (string $mensaje, array $contexto) => str_contains($mensaje, 'dropdb')
+        && $contexto['base'] === Respaldos::BASE_DE_PRUEBA && $contexto['codigo_de_salida'] === 1
+        && $contexto['error'] === 'la base está siendo utilizada')->atLeast()->once();
 });
 
 describe('guardas de la base temporal', function () {

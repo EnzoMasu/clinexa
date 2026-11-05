@@ -6,6 +6,7 @@ use App\Support\Respaldos;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
@@ -85,9 +86,16 @@ class Respaldo extends Command
             return self::FAILURE;
         } finally {
             $eliminada = $respaldos->eliminarBaseDePrueba();
-            $eliminada->successful()
-                ? $this->line("Base temporal {$base} eliminada.")
-                : $this->error("No se pudo eliminar la base temporal {$base}: ".trim($eliminada->errorOutput()).' Elimínela a mano.');
+            if ($eliminada->successful()) {
+                $this->line("Base temporal {$base} eliminada.");
+            } else {
+                // Además de avisar en pantalla, queda en el log (sin contraseñas: solo lo que dice dropdb).
+                Log::warning('clinexa:respaldo --probar: dropdb no pudo eliminar la base temporal.', [
+                    'base' => $base, 'codigo_de_salida' => $eliminada->exitCode(),
+                    'error' => trim($eliminada->errorOutput()), 'salida' => trim($eliminada->output()),
+                ]);
+                $this->error("No se pudo eliminar la base temporal {$base}: ".trim($eliminada->errorOutput()).' Elimínela a mano.');
+            }
         }
     }
 
