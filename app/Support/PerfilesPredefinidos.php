@@ -119,7 +119,7 @@ class PerfilesPredefinidos
             'TURNOS' => self::VER, 'DISPONIBILIDAD' => self::VER, 'CONSULTORIOS' => self::VER, 'ORIGENES_TURNO' => self::VER,
             'PROFESIONALES' => self::VER, 'PROVEEDORES' => self::VER, 'CATEGORIAS_PROVEEDOR' => self::VER, 'TIPOS_RED_SOCIAL' => self::VER,
             'ESPECIALIDADES' => self::VER, 'SUCURSALES' => self::VER, 'TIPOS_DOCUMENTO' => self::VER, 'PROCEDIMIENTOS' => self::VER,
-            'MEDIOS_PAGO' => self::VER, 'CATEGORIAS_GASTO' => self::VER, 'CIE10' => self::VER, 'TIPOS_BLOQUE_ANAMNESIS' => self::VER,
+            'MEDIOS_PAGO' => self::VER, 'CATEGORIAS_GASTO' => self::TODO, 'CIE10' => self::VER, 'TIPOS_BLOQUE_ANAMNESIS' => self::VER,
             'TIPOS_INDICACION' => self::VER, 'AUDITORIA' => self::VER,
             // Geografía (2026-11-04): administra países, departamentos y ciudades (se desactivan, no se borran).
             'GEOGRAFIA' => self::TODO,
@@ -199,7 +199,7 @@ class PerfilesPredefinidos
             'FACTURAS' => self::VER_EXPORTAR,
         ],
         self::COMPRAS_TESORERIA => [
-            'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::VER,
+            'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::TODO,
             // Compras y gastos (docs/compras-gastos.md): carga y edita borradores y descarta los propios; no confirma ni anula.
             'COMPRAS' => self::VER_CREAR_EDITAR, 'TIPOS_COMPROBANTE_COMPRA' => self::VER,
         ],

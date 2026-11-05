@@ -25,7 +25,20 @@
 
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
         <x-admin.select name="proveedor_id" label="Proveedor" :options="$proveedores" :value="$compra->proveedor_id" required />
-        <x-admin.select name="categoria_gasto_id" label="Categoría de gasto" :options="$categorias" :value="$compra->categoria_gasto_id" required />
+        @if (count($categorias) === 0)
+            <div id="sin-categorias-gasto" class="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+                <p class="font-medium">Categoría de gasto</p>
+                <p>No hay ninguna categoría de gasto activa: hay que cargar una antes de registrar la compra.
+                    @if ($urlAltaCategoria = \App\Support\Permisos::url('admin.categorias-gasto.create'))
+                        <a href="{{ $urlAltaCategoria }}" class="font-medium underline">Cargar una categoría de gasto</a>.
+                    @else
+                        Pídaselo a quien administra las categorías de gasto.
+                    @endif
+                </p>
+            </div>
+        @else
+            <x-admin.select name="categoria_gasto_id" label="Categoría de gasto" :options="$categorias" :value="$compra->categoria_gasto_id" required />
+        @endif
         <x-admin.fecha name="fecha" label="Fecha de la compra" :value="$compra->fecha" hasta-hoy required />
     </div>
 

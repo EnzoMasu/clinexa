@@ -20,6 +20,13 @@ listado e imagen pendientes).
 | `CONFIRMACION_COMPRAS` | VER, EDITAR | Gerencia. Nadie confirma lo que cargó, tampoco el Administrador. |
 | `TIPOS_COMPROBANTE_COMPRA` | VER, CREAR, EDITAR, DESACTIVAR | Administrador todo; Gerencia y Compras y tesorería, VER. Los demás, nada. |
 
+### Categorías de gasto (`CATEGORIAS_GASTO`)
+
+Las crean, editan y desactivan Compras y tesorería (`COMPRAS_TESORERIA`), Gerencia (`GERENCIA`) y el Administrador (VER, CREAR, EDITAR y
+DESACTIVAR). **El sistema no trae categorías base**: cada clínica carga las suyas (ni seeders ni migraciones las crean). Sin ninguna
+categoría activa, el formulario de la compra lo avisa y, con permiso, enlaza al alta. Los perfiles existentes reciben los permisos por la
+migración `2026_11_07_100001_categorias_gasto_permisos` (solo suma, repetible).
+
 Los perfiles existentes los reciben por la migración `2026_11_02_100003_create_compras` (`PerfilesPredefinidos::PERMISOS_COMPRAS`).
 
 ## Estados
