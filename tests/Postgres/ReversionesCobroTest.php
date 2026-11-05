@@ -52,7 +52,7 @@ function pgReversionesCobroCobro(): Cobro
 }
 
 /** El código y la restricción con que la base rechaza la sentencia (en su propio savepoint). */
-function pgReversionesCobroRechazo(\Closure $sentencia): array
+function pgReversionesCobroRechazo(Closure $sentencia): array
 {
     try {
         DB::transaction($sentencia);
@@ -131,7 +131,7 @@ test('el cierre: lo esperado y lo contado negativos solo fuera del efectivo; la 
         ->and(pgReversionesCobroRechazo(fn () => $fila($transferencia)->update(['diferencia' => 5])))->toBe(['23514', 'cierre_caja_medios_valores_validos'])
         // La marca no se separa de la del medio de pago, y hay a lo sumo un medio efectivo.
         ->and(pgReversionesCobroRechazo(fn () => $fila($this->efectivo)->update(['es_efectivo' => false])))->toBe(['23503', 'cierre_caja_medios_es_efectivo_del_medio'])
-        ->and(pgReversionesCobroRechazo(fn () => DB::table('medios_pago')->where('id', $transferencia->id)->update(['es_efectivo' => true])))->toBe(['23505', 'medios_pago_un_efectivo'])
+        ->and(pgReversionesCobroRechazo(fn () => DB::table('medios_pago')->where('id', $transferencia->id)->update(['es_efectivo' => true, 'requiere_comprobante' => false])))->toBe(['23505', 'medios_pago_un_efectivo'])
         ->and(pgReversionesCobroRechazo(fn () => DB::table('medios_pago')->where('id', $this->efectivo->id)->update(['es_efectivo' => false])))->toBe(['23503', 'cierre_caja_medios_es_efectivo_del_medio']);
 });
 

@@ -29,6 +29,24 @@ Sin comisiones. `medios_pago.codigo` identifica los de referencia: **Efectivo** 
 `MediosPagoSeeder` los carga si faltan; si ya hay uno **sin código** con ese nombre o un alias ("efectivo"; "transferencia",
 "transferencia bancaria"; "tarjeta (pos)", "tarjeta", "pos"), lo **adopta**: le pone el código sin cambiar su nombre ni su estado.
 
+## Comprobante del pago
+
+- Los medios que **piden comprobante** exigen su número al cobrar: Transferencia (código), Tarjeta (POS: voucher), **Depósito** (boleta) y
+  **Cheque** (número). El efectivo no lo pide (en PostgreSQL, `medios_pago_efectivo_sin_comprobante`). No hay que repetirlo ni es único:
+  distintos bancos repiten números.
+- Se define en el **catálogo** (Catálogos → Medios de pago): `medios_pago.requiere_comprobante` y `nombre_comprobante` ("Voucher del POS");
+  no hay nombres fijos en el código. `MedioPago::exigeComprobante()` es la única pregunta. Un medio nuevo que lo pida lo define ahí.
+  `MediosPagoSeeder` carga Depósito (`DEPOSITO`) y Cheque (`CHEQUE`) y marca los cuatro (solo los que aún no se configuraron).
+- Se guarda en la `referencia` de la línea: sin migrar datos. **Rige solo para cobros nuevos** (`Cobrar` y el formulario): los cobros
+  anteriores quedan como están ("Sin comprobante cargado" en el detalle).
+- El formulario de cobro marca el campo como obligatorio según el medio elegido y muestra el error en esa fila ("Indique el comprobante
+  del pago con Cheque (Número del cheque)."); el servidor lo verifica igual.
+- Se ve en el detalle del cobro, en la grilla de Cobros (columna "Comprobantes", con filtro) y en los cobros de la caja, para el arqueo.
+- **Corregirlo** (`Cobros\CorregirComprobante`, permiso EDITAR sobre COBROS: Caja y Administrador): solo el comprobante, nunca el
+  medio ni el monto; motivo obligatorio (5 a 300); en cobros vigentes y de cajas no aprobadas; si el medio lo exige, no puede quedar vacío.
+  Auditoría: EDITAR de la línea con el valor anterior y el nuevo, quién, cuándo y "Corrección del comprobante del cobro N. Motivo: …".
+  Para cambiar el medio, se revierte el cobro y se cobra de nuevo.
+
 ## Caja (`cajas`, modelo `Caja`)
 
 - Cajero (el usuario que la abre), fecha (el día de la apertura, hora local), apertura, monto inicial en efectivo (guaraníes
@@ -56,7 +74,7 @@ Sin comisiones. `medios_pago.codigo` identifica los de referencia: **Efectivo** 
 
 - Caja, paciente, fecha (`cobrado_en`), total en guaraníes enteros, moneda, cajero y estado **VIGENTE** o **REVERTIDO**.
 - `cobro_prestaciones`: cada prestación cubierta con su monto. `revertido_en` vacío = vigente (lo pone la reversión).
-- `lineas_cobro`: medio, monto (> 0) y referencia opcional (hasta 100 caracteres: número de transferencia o del POS).
+- `lineas_cobro`: medio, monto (> 0) y referencia (hasta 100 caracteres): el **comprobante** del pago (ver abajo).
 - `Cobros\Cobrar` bloquea las prestaciones mientras cobra (también frente a una anulación simultánea) y verifica todo; el índice
   único parcial frena un segundo cobro aunque algo se saltee la verificación.
 - Solo PostgreSQL: `cobros_total_positivo`, `cobro_prestaciones_monto_positivo`, `lineas_cobro_monto_positivo`,
@@ -107,7 +125,7 @@ detalle (con el enlace al cobro para quien ve los cobros) y en las demás presta
   "Rechazar" para Gerencia; las solicitudes ya revisadas). Pestaña **"Reversiones pendientes (N)"** (`admin.cobros.reversiones`,
   solo para quien las revisa): "Aprobar" en la misma fila y "Ver el cobro" para rechazar. Sin entradas nuevas en el menú. **"Cobrar"**,
   en un solo flujo: buscar la paciente (la pantalla ya lista las que tienen prestaciones sin cobrar, con la cantidad y el total),
-  elegirla, tildar sus prestaciones sin cobrar (vienen todas tildadas), cargar hasta tres pagos (medio, monto, referencia; el
+  elegirla, tildar sus prestaciones sin cobrar (vienen todas tildadas), cargar hasta tres pagos (medio, monto, comprobante; el
   primero ya trae Efectivo y el total) y confirmar. Con JavaScript (`resources/js/pantalla-cobro.js`) suma en vivo y avisa cuánto
   falta o sobra; sin JavaScript funciona igual (el servidor verifica todo). No guarda nada en el navegador.
 - **Cajas** (`admin.cajas.*`): "Mi caja" (abrir con el monto inicial, ir a cobrar, ver y cerrar), aviso de las devueltas y el
@@ -121,9 +139,9 @@ Módulos nuevos (en la matriz, grupo Económico):
 
 | | CAJAS | CIERRES_CAJA | COBROS | REVERSIONES_COBRO |
 |---|---|---|---|---|
-| Acciones | VER (las propias), CREAR (abrir), EDITAR (cerrar la propia) | VER (todas las cajas), EDITAR (aprobar o devolver) | VER, CREAR (cobrar), DESACTIVAR (revertir o solicitar la reversión) | VER (las solicitudes), EDITAR (aprobar o rechazar) |
+| Acciones | VER (las propias), CREAR (abrir), EDITAR (cerrar la propia) | VER (todas las cajas), EDITAR (aprobar o devolver) | VER, CREAR (cobrar), EDITAR (corregir el comprobante), DESACTIVAR (revertir o solicitar la reversión) | VER (las solicitudes), EDITAR (aprobar o rechazar) |
 | Administrador | todo (solo) | todo (solo) | todo (solo) | todo (solo) |
-| Caja | VER, CREAR, EDITAR | nada | VER, CREAR, DESACTIVAR | nada |
+| Caja | VER, CREAR, EDITAR | nada | VER, CREAR, EDITAR, DESACTIVAR | nada |
 | Gerencia | VER | VER, EDITAR | VER | VER, EDITAR |
 | Facturación y convenios | nada | nada | VER | nada |
 | Recepción, Médico, Enfermería y los demás | nada | nada | nada | nada |
@@ -162,6 +180,8 @@ estado **REVERTIDO** (PENDIENTE, APROBADO, RECHAZADO y VIGENTE ya existían), el
 nada y en una instalación nueva deja el módulo al seeder. El `down` solo vale sin cobros revertidos y deja módulo, permisos y estados.
 
 ## Tests
+
+Comprobante: `tests/Feature/Economico/ComprobanteCobrosTest.php` y `tests/Postgres/ComprobanteCobrosTest.php`. Migración `comprobante_de_cobros` (2026_11_04_100001): las dos columnas del medio, el CHECK, Depósito y Cheque, y EDITAR sobre COBROS para Caja; no toca ningún cobro.
 
 `tests/Feature/Economico/CobrosCajaTest.php`, `MigracionCobrosTest.php` y `tests/Postgres/CobrosCajaTest.php` (los dos índices únicos
 parciales, los CHECK y la migración con prestaciones existentes). Reversión: `tests/Feature/Economico/ReversionesCobroTest.php`,

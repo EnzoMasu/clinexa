@@ -177,7 +177,7 @@ class PerfilesPredefinidos
         self::CAJA => [
             'PACIENTES' => self::VER, 'MEDIOS_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER,
             'TARIFAS' => self::VER, 'PRESTACIONES' => self::VER,
-            'CAJAS' => self::VER_CREAR_EDITAR, 'COBROS' => ['VER', 'CREAR', 'DESACTIVAR'],
+            'CAJAS' => self::VER_CREAR_EDITAR, 'COBROS' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
             // Facturación (docs/facturacion.md): emite al cobrar, saca el PDF, anula las suyas en el plazo y solicita las demás.
             'FACTURAS' => self::FACTURAS_CAJA,
         ],
@@ -232,6 +232,11 @@ class PerfilesPredefinidos
     public const PERMISOS_REVERSIONES_COBRO = [
         'COBROS' => [self::CAJA => ['DESACTIVAR']],
         'REVERSIONES_COBRO' => [self::GERENCIA => ['VER', 'EDITAR']],
+    ];
+
+    /** Lo que suma la migración del comprobante de cobros (2026_11_04_100001): Caja corrige el comprobante (EDITAR sobre COBROS). Lo mismo que la matriz. */
+    public const PERMISOS_COMPROBANTE_COBRO = [
+        'COBROS' => [self::CAJA => ['EDITAR']],
     ];
 
     /**
