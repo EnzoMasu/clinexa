@@ -18,9 +18,10 @@ uses()->group('lento');
 
 const CONTRASENA_SIMULADA = 'Secreta#123 con espacios';
 
+// Carpeta propia de cada prueba: nombre aleatorio (no uniqid(), que son microsegundos y choca entre procesos en paralelo).
 beforeEach(function () {
     Carbon::setTestNow(Carbon::parse('2026-10-08 18:05:00', 'UTC')); // 15:05 en Paraguay
-    $this->carpeta = sys_get_temp_dir().DIRECTORY_SEPARATOR.'clinexa respaldos '.uniqid().DIRECTORY_SEPARATOR.'sub carpeta';
+    $this->carpeta = sys_get_temp_dir().DIRECTORY_SEPARATOR.'clinexa respaldos '.bin2hex(random_bytes(16)).DIRECTORY_SEPARATOR.'sub carpeta';
     config([
         'database.default' => 'pg_simulada',
         'database.connections.pg_simulada' => ['driver' => 'pgsql', 'host' => '127.0.0.1', 'port' => 1, 'database' => 'base_simulada',
