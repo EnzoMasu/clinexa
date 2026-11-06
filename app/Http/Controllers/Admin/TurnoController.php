@@ -16,6 +16,7 @@ use App\Support\Atencion\RegistrarSalida;
 use App\Support\Auditoria;
 use App\Support\BuscadorPersonas;
 use App\Support\Convenios\EstadoVisacionTurnos;
+use App\Support\Convenios\PlanillaTurnos;
 use App\Support\Fecha;
 use App\Support\Convenios\ColumnasVisacionTurnos;
 use App\Support\Grilla\Grilla;
@@ -79,7 +80,9 @@ class TurnoController extends Controller
 
         $visacionesTurnos = EstadoVisacionTurnos::para($turnos->getCollection());
 
-        return $this->listado($request, 'admin.turnos', compact('turnos', 'busqueda', 'visacionesTurnos', 'grilla') + ['conVisacion' => EstadoVisacionTurnos::puedeVer()]);
+        $planillasTurnos = PlanillaTurnos::para($turnos->getCollection());
+
+        return $this->listado($request, 'admin.turnos', compact('turnos', 'busqueda', 'visacionesTurnos', 'planillasTurnos', 'grilla') + ['conVisacion' => EstadoVisacionTurnos::puedeVer()]);
     }
 
     public function create(): View

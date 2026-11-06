@@ -18,5 +18,8 @@
                 'text-amber-700 dark:text-amber-300' => ! $seguro['visada'],
             ])>{{ $seguro['visada'] ? 'Visación cargada' : 'Falta visación' }}</span>
         @endif
+        @if ($planilla = ($planillasTurnos ?? [])[$turno->id] ?? null)
+            @include('admin.coberturas._planilla-aceptacion', ['planilla' => $planilla, 'url' => route('admin.visaciones.aceptacion-turno', $turno)])
+        @endif
     </div>
 @endif

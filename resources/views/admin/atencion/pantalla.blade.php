@@ -35,6 +35,9 @@
                 <span class="flex flex-wrap items-center gap-2">
                     <button type="submit" form="form-consulta" class="{{ $botonPrincipal }}">Finalizar consulta</button>
                     <button type="submit" form="form-deshacer" class="{{ $boton }}">Deshacer atención</button>
+                    @if ($planilla)
+                        @include('admin.coberturas._planilla-aceptacion', ['planilla' => $planilla, 'url' => route('admin.visaciones.ticket', $consulta)])
+                    @endif
                     <a href="{{ route('admin.atencion.index') }}" class="{{ $boton }}">Volver a la lista</a>
                 </span>
             </div>

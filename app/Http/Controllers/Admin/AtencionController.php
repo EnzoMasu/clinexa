@@ -341,6 +341,7 @@ class AtencionController extends Controller
 
         return view('admin.atencion.pantalla', [
             'consulta' => $consulta,
+            'planilla' => \App\Support\Convenios\PlanillaTurnos::paraConsulta($consulta),
             'datos' => DatosFormulario::de($consulta),
             'historial' => $historial,
             'verRecetas' => $verRecetas,

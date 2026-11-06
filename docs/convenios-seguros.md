@@ -76,10 +76,18 @@ Una **visación anulada** deja a la prestación ya aplicada como está, con un a
 
 - **Firma recibida** (`Convenios\FirmaRecibida`): marca por prestación de aseguradora, con fecha y usuario. Se desmarca con motivo
   mientras no esté en una liquidación no anulada (ni se marca ni se desmarca en una liquidada).
-- **Ticket** (`Convenios\TicketVisacion`): la planilla que firma la paciente, PDF con dompdf, al vuelo (sin guardarse, `no-store`),
-  cada generación en Auditoría (EXPORTAR sobre `visaciones`). Con todas las prestaciones de aseguradora de la consulta: clínica y
-  logotipo, profesional, fecha y hora, nombre y cédula de la paciente, aseguradora, plan, número de asegurado, número de visación,
-  procedimientos o estudios realizados y la línea de firma. **Sin montos ni nada clínico.**
+- **Planilla de aceptación de consulta** (`Convenios\TicketVisacion`, antes "ticket"): la que firma la paciente, PDF A5 con dompdf, al vuelo
+  (sin guardarse, `no-store`), una por consulta o turno. Lleva clínica y logotipo, paciente y cédula, aseguradora, plan, N.º de asegurado y
+  tipo, **vencimiento de la cobertura**, profesional, fecha y hora, procedimientos con su N.º de visación, el texto de conformidad ("Declaro
+  haber sido atendido/a en …, en la fecha indicada y por el profesional mencionado, por los procedimientos detallados arriba, y que los datos
+  de mi cobertura son correctos."), firma, aclaración y espacio para el sello de la clínica. **Sin montos ni nada clínico.**
+  - Procedimientos: las prestaciones de aseguradora de la consulta; si todavía no las hay (antes de finalizar), las líneas **aprobadas** de
+    la visación del turno o de la consulta; sin visación, el procedimiento del turno.
+  - **Nunca bloquea**: con la cobertura vencida a la fecha de la atención, o sin visación, sale con la leyenda ("Cobertura vencida el
+    dd/mm/aaaa", "Sin visación") y el botón muestra el mismo aviso. Solo se rechaza si la paciente no tiene ninguna cobertura abierta.
+  - Se imprime desde el turno (Agenda general, Turnos, Urgencias de hoy: `PlanillaTurnos`), la pantalla de atención y la ficha de cobertura
+    (rutas `visaciones.aceptacion-turno` y `visaciones.ticket`). Permiso: EXPORTAR sobre VISACIONES (Médico no lo tiene: no ve el botón).
+    Sin cobertura abierta, el botón no aparece. Cada impresión queda solo en Auditoría (EXPORTAR sobre `visaciones`, con las leyendas).
 
 ## Pantallas
 

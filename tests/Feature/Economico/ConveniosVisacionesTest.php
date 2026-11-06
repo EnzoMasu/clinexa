@@ -40,6 +40,7 @@ use App\Support\Convenios\AplicarVisacion;
 use App\Support\Convenios\CalcularCobertura;
 use App\Support\Convenios\GestionConvenios;
 use App\Support\Convenios\GestionCoberturas;
+use App\Support\Convenios\PlanillaTurnos;
 use App\Support\Convenios\TicketVisacion;
 use App\Support\PerfilesPredefinidos;
 use App\Support\Prestaciones\GenerarPrestacion;
@@ -407,9 +408,9 @@ test('ticket: con todas las prestaciones de aseguradora de la consulta, sin mont
     $base = conveniosVisacionesAtender($turno, [$this->rx]);
     $consulta = $base->consulta;
 
-    $html = TicketVisacion::html($consulta, TicketVisacion::prestaciones($consulta));
+    $html = TicketVisacion::html(TicketVisacion::datos($consulta, null));
     expect($html)->toContain('Carmen')->toContain('Seguros de Prueba')->toContain('Plan Oro')->toContain('AS-0001')->toContain('V-1001')
-        ->toContain('Ecografía de prueba')->toContain('Radiografía de prueba')->toContain('Firma de la paciente')->toContain('Benítez')
+        ->toContain('Ecografía de prueba')->toContain('Radiografía de prueba')->toContain('Firma de la paciente')->toContain('Benítez')->toContain('Declaro haber sido atendido/a')->toContain('Sello de la clínica')->toContain('Vencimiento de la cobertura')->toContain('Sin vencimiento')->not->toContain('Sin visación')
         ->not->toContain('₲')->not->toContain('Rinofaringitis')->not->toContain('J06.9')->not->toContain('Informe inventado');
 
     foreach ([$this->recepcion, $this->facturacion, $this->gerente] as $usuario) {
@@ -421,10 +422,73 @@ test('ticket: con todas las prestaciones de aseguradora de la consulta, sin mont
     foreach ([$this->cajero, $this->medico] as $usuario) {
         $this->actingAs($usuario)->get(route('admin.visaciones.ticket', $consulta))->assertForbidden();
     }
-    // Una consulta sin prestaciones de aseguradora no tiene ticket.
+    // Una consulta de una paciente sin ninguna cobertura abierta no tiene planilla.
+    $this->actingAs($this->recepcion)->post(route('admin.coberturas.baja', CoberturaPaciente::sole()), ['ultimo_dia' => '06/10/2026']);
     $particular = conveniosVisacionesAtender(null);
     $this->actingAs($this->recepcion)->from(route('admin.coberturas.show', $this->paciente))->get(route('admin.visaciones.ticket', $particular->consulta_id))
-        ->assertSessionHas('error', TicketVisacion::SIN_PRESTACIONES);
+        ->assertSessionHas('error', TicketVisacion::SIN_COBERTURA);
+});
+
+test('planilla de aceptación desde el turno: antes de atender toma las líneas aprobadas de la visación, con vencimiento, sin montos y en Auditoría', function () {
+    conveniosVisacionesCobertura(['vigente_hasta' => '31/12/2026']);
+    $turno = conveniosVisacionesTurnoEco();
+    conveniosVisacionesVisacion($turno, [[$this->eco, LineaVisacion::APROBADO, LineaVisacion::PORCENTAJE, '10'], [$this->rx, LineaVisacion::NO_CUBIERTO]]);
+
+    $html = TicketVisacion::html(TicketVisacion::datos(null, $turno));
+    expect($html)->toContain('Seguros de Prueba')->toContain('Plan Oro')->toContain('AS-0001')->toContain('31/12/2026')->toContain('V-1001')
+        ->toContain('Ecografía de prueba')->not->toContain('Radiografía de prueba')->not->toContain('Sin visación')->not->toContain('vencida')->not->toContain('₲');
+
+    $respuesta = $this->actingAs($this->recepcion)->get(route('admin.visaciones.aceptacion-turno', $turno))->assertOk();
+    expect($respuesta->headers->get('Content-Type'))->toBe('application/pdf')->and($respuesta->headers->get('Cache-Control'))->toContain('no-store');
+    $log = LogAuditoria::where('accion', AccionAuditoria::EXPORTAR->value)->where('tabla_afectada', 'visaciones')->sole();
+    expect($log->detalle)->toContain("Planilla de aceptación de la turno {$turno->id}")->toContain('V-1001');
+
+    foreach ([$this->cajero, $this->medico] as $usuario) {
+        $this->actingAs($usuario)->get(route('admin.visaciones.aceptacion-turno', $turno))->assertForbidden();
+    }
+});
+
+test('planilla de aceptación: sin visación sale igual con el procedimiento del turno y la leyenda; con cobertura vencida, la leyenda con la fecha', function () {
+    conveniosVisacionesCobertura(['vigente_hasta' => '05/10/2026']);
+    $turno = conveniosVisacionesTurnoEco();
+
+    $html = TicketVisacion::html(TicketVisacion::datos(null, $turno));
+    expect($html)->toContain('Sin visación')->toContain('Cobertura vencida el 05/10/2026')->toContain('Ecografía de prueba');
+    $this->actingAs($this->recepcion)->get(route('admin.visaciones.aceptacion-turno', $turno))->assertOk();
+    expect(LogAuditoria::where('tabla_afectada', 'visaciones')->where('accion', AccionAuditoria::EXPORTAR->value)->sole()->detalle)
+        ->toContain('Sin visación')->toContain('Cobertura vencida el 05/10/2026');
+});
+
+test('planilla de aceptación: sin cobertura abierta no hay planilla ni botón; con ella, el botón y los avisos en el turno y la atención', function () {
+    $turno = conveniosVisacionesTurnoEco();
+    $this->actingAs($this->recepcion)->from(route('admin.turnos.index'))->get(route('admin.visaciones.aceptacion-turno', $turno))->assertSessionHas('error', TicketVisacion::SIN_COBERTURA);
+    $this->get(route('admin.turnos.index'))->assertOk()->assertDontSee('Planilla de aceptación');
+    $this->get(route('admin.agenda-general.index', ['fecha' => '06/10/2026']))->assertOk()->assertDontSee('Planilla de aceptación');
+
+    // Cobertura vencida y sin visar: el botón está, con los dos avisos; no frena nada.
+    conveniosVisacionesCobertura(['vigente_desde' => '01/09/2026', 'vigente_hasta' => '05/10/2026']);
+    $this->get(route('admin.turnos.index'))->assertOk()->assertSee('Planilla de aceptación')->assertSee('Cobertura vencida el 05/10/2026')->assertSee('Sin visación');
+    $this->get(route('admin.agenda-general.index', ['fecha' => '06/10/2026']))->assertOk()->assertSee('Planilla de aceptación')->assertSee('Cobertura vencida el 05/10/2026');
+
+    // Cobertura vigente y visada: solo el botón.
+    conveniosVisacionesCobertura(['vigente_desde' => '06/10/2026']);
+    conveniosVisacionesVisacion($turno, [[$this->eco, LineaVisacion::APROBADO, LineaVisacion::NINGUNO]]);
+    $this->get(route('admin.turnos.index'))->assertOk()->assertSee('Planilla de aceptación')->assertDontSee('Cobertura vencida')->assertDontSee('Sin visación');
+
+    // Caja y Médico no ven el botón (sin EXPORTAR sobre VISACIONES).
+    $this->actingAs($this->cajero)->get(route('admin.turnos.index'))->assertDontSee('Planilla de aceptación');
+});
+
+test('planilla de aceptación en la atención: el aviso y el botón de la consulta para quien tiene permiso; Médico no (sin VISACIONES)', function () {
+    conveniosVisacionesCobertura(['vigente_hasta' => '05/10/2026']);
+    $base = conveniosVisacionesAtender(null);
+    $consulta = Consulta::findOrFail($base->consulta_id);
+    $this->actingAs($this->medico);
+    expect(PlanillaTurnos::paraConsulta($consulta))->toBeNull();
+    $this->get(route('admin.visaciones.ticket', $consulta))->assertForbidden();
+    $this->actingAs($this->recepcion);
+    expect(PlanillaTurnos::paraConsulta($consulta))->toBe(['vencida' => '05/10/2026', 'visada' => false]);
+    $this->get(route('admin.visaciones.ticket', $consulta))->assertOk();
 });
 
 test('permisos: Facturación administra convenios; Recepción carga cobertura y visaciones; Médico y Caja no ven visaciones', function () {
