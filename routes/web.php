@@ -456,6 +456,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     // El ticket de la aseguradora: PDF al vuelo, sin montos ni nada clínico; no se guarda en la caché.
     Route::get('consultas/{consulta}/ticket-aseguradora', [CoberturaController::class, 'ticket'])->name('visaciones.ticket')->whereNumber('consulta')
         ->middleware(['permiso:VISACIONES,EXPORTAR', SinAlmacenar::class]);
+    // La misma planilla de aceptación desde un turno (antes de atender o de finalizar).
+    Route::get('turnos/{turno}/aceptacion-consulta', [CoberturaController::class, 'aceptacionDelTurno'])->name('visaciones.aceptacion-turno')->whereNumber('turno')
+        ->middleware(['permiso:VISACIONES,EXPORTAR', SinAlmacenar::class]);
 
     // Compras y gastos (docs/compras-gastos.md): listado, carga y edición del borrador, detalle, confirmar y anular. La imagen del comprobante queda para después.
     Route::get('compras', [CompraController::class, 'index'])->name('compras.index')->middleware('permiso:COMPRAS,VER');

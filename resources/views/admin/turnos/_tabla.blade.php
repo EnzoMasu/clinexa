@@ -15,7 +15,11 @@
             <td class="px-6 py-4 font-medium">{{ $turno->paciente->persona->nombre_completo }}</td>
             @if ($conVisacion)
                 @php($seguro = $visacionesTurnos[$turno->id] ?? null)
-                <td class="px-6 py-4">{{ $seguro['seguro'] ?? '-' }}</td>
+                <td class="px-6 py-4">{{ $seguro['seguro'] ?? '-' }}
+                    @if ($planilla = ($planillasTurnos[$turno->id] ?? null))
+                        <div class="mt-1">@include('admin.coberturas._planilla-aceptacion', ['planilla' => $planilla, 'url' => route('admin.visaciones.aceptacion-turno', $turno)])</div>
+                    @endif
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap" data-visacion-turno="{{ $turno->id }}">
                     @if ($seguro)
                         <a href="{{ route('admin.coberturas.show', ['paciente' => $turno->paciente_id, 'turno' => $turno->id, 'volver' => request()->getRequestUri()]) }}"

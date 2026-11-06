@@ -13,6 +13,7 @@ use App\Models\Profesional;
 use App\Models\Turno;
 use App\Support\Agenda;
 use App\Support\Convenios\EstadoVisacionTurnos;
+use App\Support\Convenios\PlanillaTurnos;
 use App\Support\Fecha;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -111,6 +112,7 @@ class AgendaGeneralController extends Controller
             'puedeAgendar' => $request->user()->tienePermiso('TURNOS', 'CREAR'),
             'puedeCambiarEstado' => $request->user()->tienePermiso('TURNOS', 'EDITAR'),
             'visacionesTurnos' => EstadoVisacionTurnos::para($turnos),
+            'planillasTurnos' => PlanillaTurnos::para($turnos),
         ];
 
         if (! $request->ajax()) {

@@ -267,11 +267,21 @@ class CoberturaController extends Controller
         return back()->with('status', 'Firma desmarcada.');
     }
 
-    /** El ticket de la aseguradora de una consulta (PDF al vuelo, sin montos ni nada clínico). */
-    public function ticket(Consulta $consulta): Response
+    /** El ticket de la aseguradora de una consulta (PDF al vuelo, sin montos ni nada clínico): la planilla de aceptación. */
+    public function ticket(Request $request, Consulta $consulta): Response
     {
         try {
-            return TicketVisacion::ejecutar($consulta);
+            return TicketVisacion::ejecutar($consulta, null, (string) $request->query('formato'));
+        } catch (AccionRechazada $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /** La planilla de aceptación de un turno (con su consulta, si ya la hay). */
+    public function aceptacionDelTurno(Request $request, Turno $turno): Response
+    {
+        try {
+            return TicketVisacion::ejecutar(null, $turno, (string) $request->query('formato'));
         } catch (AccionRechazada $e) {
             return back()->with('error', $e->getMessage());
         }
