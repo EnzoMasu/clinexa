@@ -79,7 +79,7 @@ test('una caja abierta por cajero: la base rechaza la segunda abierta; cerrada, 
     expect(pgCobrosCajaRechazo(fn () => $caja->replicate()->save()))->toBe(['23505', 'cajas_una_abierta_por_cajero'])
         ->and(Caja::count())->toBe(1);
 
-    $this->post(route('admin.cajas.cerrar', $caja), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => '0'])->all()])->assertSessionHas('status');
+    $this->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => '0'])->all()])->assertSessionHas('status');
     $this->post(route('admin.cajas.abrir'), ['monto_inicial' => '0'])->assertSessionHas('status');
     expect(Caja::count())->toBe(2)->and(Caja::whereNull('cerrada_en')->count())->toBe(1);
 });

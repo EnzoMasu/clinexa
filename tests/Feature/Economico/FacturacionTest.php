@@ -150,7 +150,7 @@ function facturacionSolicitar(User $usuario, Factura $factura, ?string $detalle 
 function facturacionCerrar(User $cajero, Caja $caja): void
 {
     $contado = MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => (string) ($caja->esperadoPorMedio()[$id] ?? 0)])->all();
-    test()->actingAs($cajero)->post(route('admin.cajas.cerrar', $caja), ['contado' => $contado])->assertSessionHas('status');
+    test()->actingAs($cajero)->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => $contado])->assertSessionHas('status');
 }
 
 test('cobrar emite la factura contado y el cobro en la misma operación, con el snapshot del emisor y del cliente', function () {

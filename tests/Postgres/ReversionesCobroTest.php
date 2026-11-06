@@ -119,7 +119,7 @@ test('la reversión por la pantalla y los CHECK: egreso negativo, una devolució
 test('el cierre: lo esperado y lo contado negativos solo fuera del efectivo; la marca del efectivo es la de su medio', function () {
     pgReversionesCobroCobro();
     $caja = Caja::sole();
-    $this->post(route('admin.cajas.cerrar', $caja), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === $this->efectivo->id ? '100000' : '0'])->all()])
+    $this->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === $this->efectivo->id ? '100000' : '0'])->all()])
         ->assertSessionHas('status');
     $transferencia = MedioPago::where('codigo', MedioPago::TRANSFERENCIA)->sole();
     $fila = fn (MedioPago $medio) => DB::table('cierre_caja_medios')->where('medio_pago_id', $medio->id);

@@ -397,6 +397,8 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::get('cajas', [CajaController::class, 'index'])->name('cajas.index')->middleware('permiso:CAJAS,VER');
     Route::post('cajas', [CajaController::class, 'abrir'])->name('cajas.abrir')->middleware('permiso:CAJAS,CREAR');
     Route::get('cajas/{caja}', [CajaController::class, 'show'])->name('cajas.show')->whereNumber('caja')->middleware('permiso:CAJAS,VER');
+    Route::get('cajas/{caja}/cierre', [CajaController::class, 'cierre'])->name('cajas.cierre')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
+    Route::post('cajas/{caja}/cierre', [CajaController::class, 'revisarCierre'])->name('cajas.cierre.revisar')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
     Route::post('cajas/{caja}/cerrar', [CajaController::class, 'cerrar'])->name('cajas.cerrar')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
     Route::post('cajas/{caja}/aprobar', [CajaController::class, 'aprobar'])->name('cajas.aprobar')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     Route::post('cajas/{caja}/devolver', [CajaController::class, 'devolver'])->name('cajas.devolver')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');

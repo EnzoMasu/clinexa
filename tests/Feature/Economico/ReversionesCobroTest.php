@@ -97,7 +97,7 @@ function reversionesCobroCobrar(User $cajero, array $prestaciones, array $lineas
 function reversionesCobroCerrar(User $cajero, Caja $caja): void
 {
     $contado = MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => (string) ($caja->esperadoPorMedio()[$id] ?? 0)])->all();
-    test()->actingAs($cajero)->post(route('admin.cajas.cerrar', $caja), ['contado' => $contado])->assertSessionHas('status');
+    test()->actingAs($cajero)->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => $contado])->assertSessionHas('status');
 }
 
 function reversionesCobroRevertir(User $usuario, Cobro $cobro, ?string $motivo = 'Cobro cargado por error, motivo inventado.')
@@ -242,11 +242,11 @@ test('transferencia y tarjeta devueltas desde una caja recién abierta: lo esper
     $this->actingAs($this->gerente)->post(route('admin.cobros.reversiones.aprobar', SolicitudReversionCobro::sole()))->assertSessionHas('status');
 
     expect($nueva->esperadoPorMedio())->toBe([$this->efectivo->id => 20000, $this->transferencia->id => -150000, $this->tarjeta->id => -100000]);
-    $this->actingAs($this->cajero)->get(route('admin.cajas.show', $nueva))->assertOk()
+    $this->actingAs($this->cajero)->get(route('admin.cajas.cierre', $nueva))->assertOk()
         ->assertSee('₲ -150.000')->assertSee('₲ -100.000')->assertSee('value="-150.000"', false)->assertSee('value="-100.000"', false)->assertSee('declare el neto con el signo menos');
 
     $declarar = fn (array $contado, ?string $motivo = null) => $this->actingAs($this->cajero)->from(route('admin.cajas.show', $nueva))->post(route('admin.cajas.cerrar', $nueva), [
-        'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $contado[$id] ?? '0'])->all(), 'motivo' => $motivo,
+        'confirmar' => '1', 'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $contado[$id] ?? '0'])->all(), 'motivo' => $motivo,
     ]);
     // El efectivo no se declara negativo; los demás medios sí.
     $declarar([$this->efectivo->id => '-1', $this->transferencia->id => '-150.000', $this->tarjeta->id => '-100.000'])

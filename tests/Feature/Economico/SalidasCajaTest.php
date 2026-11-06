@@ -69,7 +69,7 @@ function salidasCajaRegistrar(User $cajero, Caja $caja, array $datos = [])
 function salidasCajaCerrar(User $cajero, Caja $caja): void
 {
     $contado = MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => (string) ($caja->esperadoPorMedio()[$id] ?? 0)])->all();
-    test()->actingAs($cajero)->post(route('admin.cajas.cerrar', $caja), ['contado' => $contado])->assertSessionHas('status');
+    test()->actingAs($cajero)->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => $contado])->assertSessionHas('status');
 }
 
 function salidasCajaMovimientos(Caja $caja): array
@@ -266,7 +266,7 @@ test('lo esperado, el cierre, la pantalla y la impresión del arqueo con salidas
     expect($caja->esperadoPorMedio()[$this->efectivo->id])->toBe(155000);
 
     // El formulario de cierre trae lo esperado ya descontado; el cierre lo guarda.
-    $this->get(route('admin.cajas.show', $caja))->assertOk()->assertSee('data-esperado="155000"', false);
+    $this->get(route('admin.cajas.cierre', $caja))->assertOk()->assertSee('data-esperado="155000"', false);
     salidasCajaCerrar($this->cajero, $caja);
     expect(CierreCajaMedio::where('medio_pago_id', $this->efectivo->id)->sole()->only(['esperado', 'contado', 'diferencia']))
         ->toEqual(['esperado' => 155000, 'contado' => 155000, 'diferencia' => 0]);

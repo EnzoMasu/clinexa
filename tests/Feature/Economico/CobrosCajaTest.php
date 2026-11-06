@@ -108,7 +108,7 @@ function cobrosCajaCerrar(Caja $caja, array $contado, ?string $motivo = null)
     }
 
     return test()->actingAs(test()->cajero)->from(route('admin.cajas.show', $caja))
-        ->post(route('admin.cajas.cerrar', $caja), ['contado' => $declarado, 'motivo' => $motivo]);
+        ->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => $declarado, 'motivo' => $motivo]);
 }
 
 test('cobro de una prestación en efectivo: queda Cobrada y es un movimiento de la caja', function () {
@@ -311,7 +311,7 @@ test('nadie acepta ni rechaza el cierre de su propia caja', function () {
     $gerenteCajero = User::factory()->conPerfiles([PerfilAcceso::where('codigo', PerfilesPredefinidos::GERENCIA)->sole(), PerfilAcceso::where('codigo', PerfilesPredefinidos::CAJA)->sole()])->create();
     cobrosCajaAbrir($gerenteCajero, '0');
     $caja = cobrosCajaMia($gerenteCajero);
-    $this->actingAs($gerenteCajero)->post(route('admin.cajas.cerrar', $caja), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => '0'])->all()])->assertSessionHas('status');
+    $this->actingAs($gerenteCajero)->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => '0'])->all()])->assertSessionHas('status');
 
     $this->post(route('admin.cajas.aprobar', $caja))->assertSessionHas('error', RevisarCierre::PROPIA);
     $this->post(route('admin.cajas.devolver', $caja), ['nota_devolucion' => 'Nota inventada.'])->assertSessionHas('error', RevisarCierre::PROPIA);

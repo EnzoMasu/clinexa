@@ -125,7 +125,7 @@ test('la migración sobre datos existentes: cajas, cobros, cierres, movimientos 
     $this->post(route('admin.cobros.store'), ['paciente_id' => $this->paciente->id, 'prestaciones' => [$prestacion->id],
         'lineas' => [['medio_pago_id' => $this->efectivo->id, 'monto' => '100000']]])->assertSessionHas('status');
     $caja = Caja::sole();
-    $this->post(route('admin.cajas.cerrar', $caja), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === $this->efectivo->id ? '150000' : '0'])->all()])
+    $this->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === $this->efectivo->id ? '150000' : '0'])->all()])
         ->assertSessionHas('status');
     DB::table('solicitudes_reversion_cobro')->insert(['cobro_id' => Cobro::sole()->id, 'usuario_id' => $this->cajero->id, 'solicitada_en' => now(),
         'motivo' => 'Motivo inventado.', 'estado_id' => Estado::idDe(Estado::PENDIENTE), 'created_at' => now(), 'updated_at' => now()]);

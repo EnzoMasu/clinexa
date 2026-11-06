@@ -122,20 +122,74 @@ class CajaController extends Controller
         return redirect()->route('admin.cajas.index')->with('status', "Caja abierta con {$caja->montoInicialTexto()} en efectivo.");
     }
 
-    public function cerrar(Request $request, Caja $caja): RedirectResponse
+    /** La pantalla propia del cierre (o del reenvío del arqueo devuelto): lo declarado se revisa y recién después se confirma. */
+    public function cierre(Request $request, Caja $caja): View|RedirectResponse
     {
-        $datos = $request->validate([
+        if ($redirigir = $this->cierreNoDisponible($request, $caja)) {
+            return $redirigir;
+        }
+        $caja->load(['cajero.persona', 'moneda', 'estado', 'cierres' => fn ($query) => $query->orderByDesc('id')]);
+
+        return view('admin.cajas.cierre', ['caja' => $caja, 'esperado' => $caja->esperadoPorMedio(), 'mediosADeclarar' => CerrarCaja::mediosADeclarar($caja)]);
+    }
+
+    /** Paso previo a cerrar: valida lo declarado con las reglas del cierre y pide la confirmación final. No cierra nada. */
+    public function revisarCierre(Request $request, Caja $caja): View|RedirectResponse
+    {
+        if ($redirigir = $this->cierreNoDisponible($request, $caja)) {
+            return $redirigir;
+        }
+        $datos = $this->validarCierre($request);
+        $contado = collect($datos['contado'])->mapWithKeys(fn ($valor, $medio) => [(int) $medio => Guaranies::entero($valor)])->all();
+
+        try {
+            $verificado = CerrarCaja::verificar($request->user(), $caja, $contado, $datos['motivo'] ?? null);
+        } catch (AccionRechazada $e) {
+            return redirect()->route('admin.cajas.cierre', $caja)->withInput()->with('error', $e->getMessage());
+        }
+        $caja->load(['moneda', 'cierres' => fn ($query) => $query->orderByDesc('id')]);
+
+        return view('admin.cajas.confirmar-cierre', [
+            'caja' => $caja, 'filas' => $verificado['filas'], 'motivo' => $verificado['motivo'], 'conDiferencia' => $verificado['conDiferencia'],
+            'medios' => CerrarCaja::mediosADeclarar($caja)->keyBy('id'), 'contado' => $datos['contado'],
+        ]);
+    }
+
+    /** Solo su cajero, con la caja abierta o devuelta; si no, vuelve al detalle con el motivo. */
+    private function cierreNoDisponible(Request $request, Caja $caja): ?RedirectResponse
+    {
+        abort_unless($caja->usuario_id === $request->user()->id, 403);
+        if (! $caja->abierta() && ! $caja->devuelta()) {
+            return redirect()->route('admin.cajas.show', $caja)->with('error', 'Esta caja ya está cerrada.');
+        }
+
+        return null;
+    }
+
+    /** @return array<string, mixed> */
+    private function validarCierre(Request $request): array
+    {
+        return $request->validate([
             'contado' => ['required', 'array'],
             // Con signo: en los medios que no son efectivo lo esperado puede ser negativo (CerrarCaja rechaza el efectivo negativo).
             'contado.*' => Guaranies::regla(admiteCero: true, conSigno: true),
             'motivo' => ['nullable', 'string', 'max:'.CerrarCaja::MOTIVO_MAXIMO],
         ], ['contado.*.regex' => Guaranies::MENSAJE, 'contado.*.required' => 'Declare lo contado (cero si no hay nada).'], ['contado.*' => 'lo contado', 'motivo' => 'motivo de la diferencia']);
+    }
+
+    public function cerrar(Request $request, Caja $caja): RedirectResponse
+    {
+        $datos = $this->validarCierre($request);
+        // Sin la confirmación final no se cierra nada: vuelve a la pantalla de cierre.
+        if (! $request->boolean('confirmar')) {
+            return redirect()->route('admin.cajas.cierre', $caja)->withInput()->with('error', 'Confirme el cierre para continuar: no se cerró la caja.');
+        }
 
         try {
             CerrarCaja::ejecutar($request->user(), $caja,
                 collect($datos['contado'])->mapWithKeys(fn ($valor, $medio) => [(int) $medio => Guaranies::entero($valor)])->all(), $datos['motivo'] ?? null);
         } catch (AccionRechazada $e) {
-            return back()->withInput()->with('error', $e->getMessage());
+            return redirect()->route('admin.cajas.cierre', $caja)->withInput()->with('error', $e->getMessage());
         }
 
         return redirect()->route('admin.cajas.show', $caja)->with('status', 'Caja cerrada: queda pendiente de recepción.');

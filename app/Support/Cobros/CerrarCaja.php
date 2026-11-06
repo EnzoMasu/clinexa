@@ -46,43 +46,55 @@ final class CerrarCaja
             ->sortBy(fn (MedioPago $medio) => [$medio->esEfectivo() ? 0 : 1, $medio->nombre])->values();
     }
 
+    /**
+     * Las reglas del cierre sin cerrar nada (para mostrar la confirmación): lanza AccionRechazada si no corresponde cerrar con esto.
+     *
+     * @param  array<int, int>  $contado  medio de pago => lo contado, en guaraníes enteros
+     * @return array{filas: array<int, array{esperado: int, contado: int, es_efectivo: bool}>, motivo: string, conDiferencia: bool}
+     */
+    public static function verificar(User $cajero, Caja $actual, array $contado, ?string $motivo): array
+    {
+        $motivo = trim((string) $motivo);
+        if ($actual->usuario_id !== $cajero->id) {
+            throw new AccionRechazada('Solo el cajero de la caja puede cerrarla.');
+        }
+        if (! $actual->abierta() && ! $actual->devuelta()) {
+            throw new AccionRechazada('Esta caja ya está cerrada.');
+        }
+
+        $esperado = $actual->esperadoPorMedio();
+        $medios = self::mediosADeclarar($actual);
+        $filas = [];
+        foreach ($medios as $medio) {
+            if (! array_key_exists($medio->id, $contado)) {
+                throw new AccionRechazada('Declare lo contado en todos los medios de pago (cero si no hay nada).');
+            }
+            if ($medio->esEfectivo() && (int) $contado[$medio->id] < 0) {
+                throw new AccionRechazada(self::EFECTIVO_NEGATIVO);
+            }
+            $filas[$medio->id] = ['esperado' => $esperado[$medio->id] ?? 0, 'contado' => (int) $contado[$medio->id], 'es_efectivo' => $medio->esEfectivo()];
+        }
+        if (array_diff(array_keys($contado), $medios->modelKeys()) !== []) {
+            throw new AccionRechazada('Uno de los medios de pago declarados no corresponde a esta caja.');
+        }
+        $conDiferencia = collect($filas)->contains(fn (array $fila) => $fila['contado'] !== $fila['esperado']);
+        if ($conDiferencia && mb_strlen($motivo) < self::MOTIVO_MINIMO) {
+            throw new AccionRechazada(self::FALTA_MOTIVO);
+        }
+        // Sin diferencia la observación queda vacía: lo que venga se descarta, sin error.
+        if (! $conDiferencia) {
+            $motivo = '';
+        }
+
+        return ['filas' => $filas, 'motivo' => $motivo, 'conDiferencia' => $conDiferencia];
+    }
+
     /** @param  array<int, int>  $contado  medio de pago => lo contado, en guaraníes enteros */
     public static function ejecutar(User $cajero, Caja $caja, array $contado, ?string $motivo): CierreCaja
     {
-        $motivo = trim((string) $motivo);
-
         return DB::transaction(function () use ($cajero, $caja, $contado, $motivo) {
             $actual = Caja::query()->whereKey($caja->getKey())->lockForUpdate()->firstOrFail();
-            if ($actual->usuario_id !== $cajero->id) {
-                throw new AccionRechazada('Solo el cajero de la caja puede cerrarla.');
-            }
-            if (! $actual->abierta() && ! $actual->devuelta()) {
-                throw new AccionRechazada('Esta caja ya está cerrada.');
-            }
-
-            $esperado = $actual->esperadoPorMedio();
-            $medios = self::mediosADeclarar($actual);
-            $filas = [];
-            foreach ($medios as $medio) {
-                if (! array_key_exists($medio->id, $contado)) {
-                    throw new AccionRechazada('Declare lo contado en todos los medios de pago (cero si no hay nada).');
-                }
-                if ($medio->esEfectivo() && (int) $contado[$medio->id] < 0) {
-                    throw new AccionRechazada(self::EFECTIVO_NEGATIVO);
-                }
-                $filas[$medio->id] = ['esperado' => $esperado[$medio->id] ?? 0, 'contado' => (int) $contado[$medio->id], 'es_efectivo' => $medio->esEfectivo()];
-            }
-            if (array_diff(array_keys($contado), $medios->modelKeys()) !== []) {
-                throw new AccionRechazada('Uno de los medios de pago declarados no corresponde a esta caja.');
-            }
-            $conDiferencia = collect($filas)->contains(fn (array $fila) => $fila['contado'] !== $fila['esperado']);
-            if ($conDiferencia && mb_strlen($motivo) < self::MOTIVO_MINIMO) {
-                throw new AccionRechazada(self::FALTA_MOTIVO);
-            }
-            // Sin diferencia la observación queda vacía: lo que venga se descarta, sin error.
-            if (! $conDiferencia) {
-                $motivo = '';
-            }
+            ['filas' => $filas, 'motivo' => $motivo] = self::verificar($cajero, $actual, $contado, $motivo);
 
             return Auditoria::conDetalle("Cierre de la caja {$actual->id}", function () use ($cajero, $actual, $filas, $motivo) {
                 $cierre = new CierreCaja([

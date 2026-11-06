@@ -104,7 +104,7 @@ function arqueoCajaCerrar(Caja $caja, array $distinto = [], ?string $motivo = nu
         $contado[(test()->medio)($codigo)->id] = $monto;
     }
 
-    return test()->actingAs($cajero ?? test()->cajero)->from(route('admin.cajas.show', $caja))->post(route('admin.cajas.cerrar', $caja), ['contado' => $contado, 'motivo' => $motivo]);
+    return test()->actingAs($cajero ?? test()->cajero)->from(route('admin.cajas.show', $caja))->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => $contado, 'motivo' => $motivo]);
 }
 
 function arqueoCajaCorregir(LineaCobro $linea, array $datos, ?User $usuario = null)
@@ -174,7 +174,7 @@ test('observación: obligatoria solo con diferencia; sin diferencia se descarta 
     arqueoCajaCobrar(MedioPago::TRANSFERENCIA, 'TRF-1')->assertSessionHas('status');
 
     // El formulario viene precargado con lo esperado, la diferencia y el total.
-    $this->actingAs($this->cajero)->get(route('admin.cajas.show', $caja))->assertOk()
+    $this->actingAs($this->cajero)->get(route('admin.cajas.cierre', $caja))->assertOk()
         ->assertSee('value="50.000"', false)->assertSee('value="100.000"', false)->assertSee('Observación (obligatoria solo si hay diferencia)')
         ->assertSee('x-data="arqueoCaja"', false);
 
@@ -255,7 +255,7 @@ test('corrección en un arqueo devuelto: medio y comprobante, lo esperado se rec
         ->and(Cobro::sole()->revertido())->toBeFalse()
         ->and(MovimientoCaja::where('linea_cobro_id', $linea->id)->sole()->medio_pago_id)->toBe($transferencia->id)
         ->and($caja->fresh()->esperadoPorMedio())->toBe([$transferencia->id => 100000]);
-    $this->get(route('admin.cajas.show', $caja))->assertOk()->assertSee('value="100.000"', false);
+    $this->get(route('admin.cajas.cierre', $caja))->assertOk()->assertSee('value="100.000"', false);
 
     $log = LogAuditoria::where('tabla_afectada', 'lineas_cobro')->where('registro_afectado_id', (string) $linea->id)->where('accion', AccionAuditoria::EDITAR->value)->sole();
     expect($log->usuario_id)->toBe($this->cajero->id)->and($log->fecha_hora)->not->toBeNull()
@@ -393,4 +393,74 @@ test('la impresión del arqueo: datos, facturas, cada transacción con su compro
     $this->actingAs($this->gerente)->get(route('admin.cajas.arqueo', $caja))->assertOk();
     $this->actingAs($this->otroCajero)->get(route('admin.cajas.arqueo', $caja))->assertForbidden();
     expect(LogAuditoria::where('tabla_afectada', 'cajas')->where('accion', AccionAuditoria::EXPORTAR->value)->count())->toBe(2);
+});
+
+test('cierre: el detalle ya no trae el formulario, solo el acceso a la pantalla de cierre', function () {
+    arqueoCajaAbrir();
+    $caja = arqueoCajaMia();
+
+    $this->actingAs($this->cajero)->get(route('admin.cajas.show', $caja))->assertOk()
+        ->assertDontSee('x-data="arqueoCaja"', false)->assertDontSee(route('admin.cajas.cerrar', $caja), false)
+        ->assertDontSee('name="contado[', false)->assertSee(route('admin.cajas.cierre', $caja), false);
+    // Gerencia (que no es su cajero) no ve el acceso y no entra a la pantalla.
+    $this->actingAs($this->gerente)->get(route('admin.cajas.show', $caja))->assertDontSee(route('admin.cajas.cierre', $caja), false);
+    $this->actingAs($this->gerente)->get(route('admin.cajas.cierre', $caja))->assertForbidden();
+    $this->actingAs($this->otroCajero)->get(route('admin.cajas.cierre', $caja))->assertForbidden();
+});
+
+test('cierre: la pantalla pide confirmación y sin confirmar no se cierra', function () {
+    arqueoCajaAbrir();
+    $caja = arqueoCajaMia();
+    $contado = CerrarCaja::mediosADeclarar($caja)->mapWithKeys(fn (MedioPago $medio) => [$medio->id => (string) ($caja->esperadoPorMedio()[$medio->id] ?? 0)])->all();
+
+    // Paso previo: muestra el aviso y los botones, y no cierra nada.
+    $this->actingAs($this->cajero)->post(route('admin.cajas.cierre.revisar', $caja), ['contado' => $contado])->assertOk()
+        ->assertSee('la caja deja de recibir cobros y queda pendiente de recepción del gerente')->assertSee('Cancelar')->assertSee('Cerrar la caja')
+        ->assertSee('name="confirmar"', false);
+    expect($caja->fresh()->abierta())->toBeTrue()->and(CierreCaja::count())->toBe(0);
+
+    // Enviar el cierre sin la confirmación: vuelve a la pantalla de cierre y no cierra.
+    $this->actingAs($this->cajero)->post(route('admin.cajas.cerrar', $caja), ['contado' => $contado])
+        ->assertRedirect(route('admin.cajas.cierre', $caja))->assertSessionHas('error');
+    expect($caja->fresh()->abierta())->toBeTrue()->and(CierreCaja::count())->toBe(0);
+
+    // Con la confirmación, cierra.
+    $this->post(route('admin.cajas.cerrar', $caja), ['contado' => $contado, 'confirmar' => '1'])->assertRedirect(route('admin.cajas.show', $caja))->assertSessionHas('status');
+    expect($caja->fresh()->cerrada())->toBeTrue()->and(CierreCaja::count())->toBe(1);
+});
+
+test('cierre: las reglas del cierre se ven en el paso previo (diferencia sin observación no avanza)', function () {
+    arqueoCajaAbrir();
+    $caja = arqueoCajaMia();
+    $contado = CerrarCaja::mediosADeclarar($caja)->mapWithKeys(fn (MedioPago $medio) => [$medio->id => (string) ($caja->esperadoPorMedio()[$medio->id] ?? 0)])->all();
+    $contado[($this->medio)(MedioPago::EFECTIVO)->id] = '40.000';
+
+    $this->actingAs($this->cajero)->post(route('admin.cajas.cierre.revisar', $caja), ['contado' => $contado])
+        ->assertRedirect(route('admin.cajas.cierre', $caja))->assertSessionHas('error', CerrarCaja::FALTA_MOTIVO);
+    $this->post(route('admin.cajas.cierre.revisar', $caja), ['contado' => $contado, 'motivo' => 'Faltan diez mil.'])->assertOk()->assertSee('Faltan diez mil.');
+    expect($caja->fresh()->abierta())->toBeTrue();
+});
+
+test('cierre: el reenvío de un arqueo devuelto usa la misma pantalla, con la observación de Gerencia', function () {
+    arqueoCajaAbrir();
+    $caja = arqueoCajaMia();
+    arqueoCajaCerrar($caja)->assertSessionHas('status');
+    $this->actingAs($this->gerente)->post(route('admin.cajas.devolver', $caja), ['nota_devolucion' => 'Revise el efectivo.'])->assertSessionHas('status');
+
+    $this->actingAs($this->cajero)->get(route('admin.cajas.cierre', $caja))->assertOk()->assertSee('Observación de Gerencia: Revise el efectivo.')->assertSee('x-data="arqueoCaja"', false);
+    $this->get(route('admin.cajas.show', $caja))->assertSee('Reenviar el arqueo')->assertDontSee('x-data="arqueoCaja"', false);
+    arqueoCajaCerrar($caja)->assertSessionHas('status');
+    expect($caja->fresh()->cerrada())->toBeTrue()->and(CierreCaja::count())->toBe(2);
+});
+
+test('cierre: los permisos no cambian (sin EDITAR sobre CAJAS no hay pantalla ni cierre)', function () {
+    arqueoCajaAbrir();
+    $caja = arqueoCajaMia();
+    $ruta = fn (string $nombre) => route($nombre, $caja);
+    $sinPermiso = arqueoCajaUsuario(PerfilesPredefinidos::RECEPCION);
+
+    $this->actingAs($sinPermiso)->get($ruta('admin.cajas.cierre'))->assertForbidden();
+    $this->actingAs($sinPermiso)->post($ruta('admin.cajas.cierre.revisar'), [])->assertForbidden();
+    $this->actingAs($sinPermiso)->post($ruta('admin.cajas.cerrar'), ['confirmar' => '1'])->assertForbidden();
+    expect($caja->fresh()->abierta())->toBeTrue();
 });

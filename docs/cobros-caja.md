@@ -68,7 +68,10 @@ Sin comisiones. `medios_pago.codigo` identifica los de referencia: **Efectivo** 
 
 ## Arqueo (cierre, recepción y corrección)
 
-1. **El cajero cierra** (`Cobros\CerrarCaja`): el formulario trae **precargado lo esperado** de cada medio (los activos y los que
+1. **El cajero cierra** (`Cobros\CerrarCaja`) desde una **pantalla propia** (`cajas.cierre`; el detalle solo tiene el botón, para no cerrar por error):
+   al continuar (`cajas.cierre.revisar`, que aplica las reglas sin cerrar) ve una **confirmación** con el aviso de que la caja deja de
+   recibir cobros y queda pendiente de recepción del gerente; recién ahí `cajas.cerrar` (exige `confirmar`; sin él no cierra). El reenvío del
+   arqueo devuelto usa la misma pantalla. El formulario trae **precargado lo esperado** de cada medio (los activos y los que
    tienen movimientos); el cajero lo cambia si contó otra cosa. Muestra en vivo la diferencia por medio y el total
    (`resources/js/arqueo-caja.js`; sin JavaScript funciona igual). La **observación** es obligatoria (5 a 300) **solo si hay
    diferencia**; sin diferencia el campo queda bloqueado y vacío, y el servidor descarta lo que llegue, sin error. Se guarda un
