@@ -29,6 +29,19 @@ use Symfony\Component\HttpFoundation\Response;
  */
 final class TicketVisacion
 {
+    public const A5 = 'a5';
+
+    public const TICKET = 'ticket';
+
+    /** 80 mm en puntos; el alto mínimo y el máximo de la hoja de prueba. */
+    private const ANCHO_TICKET_PT = 226.77;
+
+    private const MARGEN_TICKET_PT = 8.5;
+
+    private const ALTO_MINIMO_PT = 280;
+
+    private const ALTO_MAXIMO_PT = 3000;
+
     public const SIN_COBERTURA = 'La paciente no tiene una cobertura cargada: no hay planilla de aceptación para imprimir.';
 
     /** Las prestaciones de aseguradora (no anuladas) de la consulta, en orden. */
@@ -131,30 +144,52 @@ final class TicketVisacion
     }
 
     /** El HTML que dompdf convierte. Separado para poder verificar el contenido. */
-    public static function html(array $datos): string
+    public static function html(array $datos, string $formato = self::A5): string
     {
-        return view('pdf-ticket-visacion.hoja', $datos['vista'])->render();
+        return view($formato === self::TICKET ? 'pdf-ticket-visacion.hoja-80mm' : 'pdf-ticket-visacion.hoja', $datos['vista'])->render();
     }
 
-    public static function ejecutar(?Consulta $consulta, ?Turno $turno = null): Response
+    /** El PDF del formato pedido (A5 o ticket de 80 mm), armado en memoria. */
+    private static function pdf(string $vista, string $formato): string
     {
+        $opciones = ['isRemoteEnabled' => false, 'isPhpEnabled' => false, 'isHtml5ParserEnabled' => true, 'isFontSubsettingEnabled' => true];
+        if ($formato !== self::TICKET) {
+            return Pdf::setOption($opciones)->loadHTML($vista)->setPaper('a5', 'portrait')->output();
+        }
+        // 80 mm de ancho; el largo se ajusta al contenido: se arma una vez en una hoja muy alta, se mide dónde termina el cuerpo y se arma de nuevo.
+        $ancho = self::ANCHO_TICKET_PT;
+        $fondo = 0.0;
+        $prueba = Pdf::setOption($opciones)->loadHTML($vista)->setPaper([0, 0, $ancho, self::ALTO_MAXIMO_PT]);
+        $prueba->getDomPDF()->setCallbacks([['event' => 'end_frame', 'f' => function ($marco) use (&$fondo) {
+            if (! $marco instanceof \Dompdf\FrameDecorator\Page) {
+                $fondo = max($fondo, (float) $marco->get_position('y') + (float) $marco->get_margin_height());
+            }
+        }]]);
+        $prueba->output();
+
+        return Pdf::setOption($opciones)->loadHTML($vista)
+            ->setPaper([0, 0, $ancho, min(self::ALTO_MAXIMO_PT, max(self::ALTO_MINIMO_PT, $fondo + 2 * self::MARGEN_TICKET_PT))])->output();
+    }
+
+    public static function ejecutar(?Consulta $consulta, ?Turno $turno = null, string $formato = self::A5): Response
+    {
+        $formato = $formato === self::TICKET ? self::TICKET : self::A5;
         $datos = self::datos($consulta, $turno);
         $consulta = $datos['consulta'];
-        $vista = self::html($datos);
+        $vista = self::html($datos, $formato);
 
         // Primero la auditoría: si falla, no sale el PDF. El PDF se arma en memoria y no se escribe en disco.
         $origen = $consulta ? "consulta {$consulta->id}" : "turno {$turno->id}";
         $detalle = "Planilla de aceptación de la {$origen}".($datos['numeros'] !== '' ? " (visación N.º {$datos['numeros']}" : ' (sin visación')
             .($datos['prestaciones']->isNotEmpty() ? '; prestaciones '.$datos['prestaciones']->pluck('id')->join(', ') : '').')'
             .($datos['avisos'] ? '. '.implode('; ', $datos['avisos']) : '');
-        Auditoria::registrar(AccionAuditoria::EXPORTAR, 'visaciones', $datos['visacionId'], detalle: $detalle);
+        Auditoria::registrar(AccionAuditoria::EXPORTAR, 'visaciones', $datos['visacionId'], detalle: $detalle.($formato === self::TICKET ? ' [ticket 80 mm]' : ''));
 
-        $contenido = Pdf::setOption(['isRemoteEnabled' => false, 'isPhpEnabled' => false, 'isHtml5ParserEnabled' => true, 'isFontSubsettingEnabled' => true])
-            ->loadHTML($vista)->setPaper('a5', 'portrait')->output();
+        $contenido = self::pdf($vista, $formato);
 
         return response($contenido, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="aceptacion-consulta-'.($consulta ? 'consulta-'.$consulta->id : 'turno-'.$turno->id).'.pdf"',
+            'Content-Disposition' => 'inline; filename="aceptacion-consulta-'.($formato === self::TICKET ? '80mm-' : '').($consulta ? 'consulta-'.$consulta->id : 'turno-'.$turno->id).'.pdf"',
             'Cache-Control' => 'no-store, private',
             'Pragma' => 'no-cache',
             'X-Content-Type-Options' => 'nosniff',

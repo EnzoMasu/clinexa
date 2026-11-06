@@ -83,6 +83,9 @@ Una **visación anulada** deja a la prestación ya aplicada como está, con un a
   de mi cobertura son correctos."), firma, aclaración y espacio para el sello de la clínica. **Sin montos ni nada clínico.**
   - Procedimientos: las prestaciones de aseguradora de la consulta; si todavía no las hay (antes de finalizar), las líneas **aprobadas** de
     la visación del turno o de la consulta; sin visación, el procedimiento del turno.
+  - **Dos formatos, la misma lógica** (`datos()`, avisos, permiso y Auditoría): A5 (por defecto) y **ticket de 80 mm** (`?formato=ticket`, botón
+    "80 mm" junto al de la planilla; una columna, procedimientos en lista, hoja de una sola página con el largo del contenido; la Auditoría
+    agrega "[ticket 80 mm]"). Se elige al imprimir; un formato desconocido cae en A5. Arqueo y factura son solo A4.
   - **Nunca bloquea**: con la cobertura vencida a la fecha de la atención, o sin visación, sale con la leyenda ("Cobertura vencida el
     dd/mm/aaaa", "Sin visación") y el botón muestra el mismo aviso. Solo se rechaza si la paciente no tiene ninguna cobertura abierta.
   - Se imprime desde el turno (Agenda general, Turnos, Urgencias de hoy: `PlanillaTurnos`), la pantalla de atención y la ficha de cobertura

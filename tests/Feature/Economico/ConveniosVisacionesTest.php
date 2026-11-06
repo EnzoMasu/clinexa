@@ -661,3 +661,27 @@ test('con cobertura vigente la página la muestra resumida y la vuelta solo acep
     conveniosVisacionesEnvioUnico($turno, ['numero' => 'V-2002', 'volver' => 'https://sitio-ajeno.example/x'], conCobertura: false)
         ->assertRedirect(route('admin.coberturas.show', $this->paciente));
 });
+
+test('planilla de aceptación en ticket de 80 mm: mismos datos, leyendas, permiso y Auditoría; el A5 sigue por defecto', function () {
+    conveniosVisacionesCobertura(['vigente_hasta' => '05/10/2026']);
+    $turno = conveniosVisacionesTurnoEco();
+    $datos = TicketVisacion::datos(null, $turno);
+
+    $html = TicketVisacion::html($datos, TicketVisacion::TICKET);
+    expect($html)->toContain('Seguros de Prueba')->toContain('AS-0001')->toContain('05/10/2026')->toContain('Ecografía de prueba')->toContain('<li>')
+        ->toContain('Sin visación')->toContain('Cobertura vencida el 05/10/2026')->toContain('Sello de la clínica')->toContain('Aclaración')->not->toContain('₲');
+    expect(TicketVisacion::html($datos))->not->toContain('<li>');
+
+    $ruta = route('admin.visaciones.aceptacion-turno', $turno);
+    $a5 = $this->actingAs($this->recepcion)->get($ruta)->assertOk();
+    $ticket = $this->get($ruta.'?formato=ticket')->assertOk();
+    expect($ticket->headers->get('Content-Type'))->toBe('application/pdf')->and($ticket->headers->get('Content-Disposition'))->toContain('80mm');
+    preg_match('/MediaBox\s*\[\s*0(?:\.0+)?\s+0(?:\.0+)?\s+([\d.]+)\s+([\d.]+)\s*\]/', $ticket->getContent(), $caja);
+    expect(preg_match_all('/\/Type\s*\/Page(?!s)/', $ticket->getContent()))->toBe(1); // una sola hoja, del largo del contenido
+    expect((float) $caja[1])->toBeGreaterThan(225)->toBeLessThan(228)->and((float) $caja[2])->toBeGreaterThan(280)->toBeLessThan(1500);
+    $this->get($ruta.'?formato=cualquiera')->assertOk(); // un formato desconocido cae en A5
+    $detalles = LogAuditoria::where('accion', AccionAuditoria::EXPORTAR->value)->where('tabla_afectada', 'visaciones')->pluck('detalle');
+    expect($detalles)->toHaveCount(3)->and($detalles->filter(fn ($d) => str_contains($d, '[ticket 80 mm]')))->toHaveCount(1);
+    $this->actingAs($this->cajero)->get($ruta.'?formato=ticket')->assertForbidden();
+    $this->actingAs($this->recepcion)->get(route('admin.turnos.index'))->assertSee('formato=ticket', false);
+});
