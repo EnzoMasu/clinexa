@@ -146,7 +146,7 @@ class PrestacionController extends Controller
     public function show(Request $request, Prestacion $prestacion): View
     {
         $prestacion->load(['paciente.persona', 'profesional.persona', 'procedimiento', 'moneda', 'tarifa', 'turno', 'tarifadaPor.persona', 'anuladaPor.persona',
-            'cobroVigente.cobro', 'detalleFactura.factura', 'detallesFactura', 'lineaLiquidacion.liquidacion', 'tarifaConvenio', 'responsablePago.persona', 'convenio', 'plan', 'visacion', 'firmaRecibidaPor.persona', 'visacionAplicadaPor.persona']);
+            'cobroVigente.cobro', 'detalleFactura.factura', 'detalleFacturaAseguradora.factura', 'detallesFactura', 'lineaLiquidacion.liquidacion', 'tarifaConvenio', 'responsablePago.persona', 'convenio', 'plan', 'visacion', 'firmaRecibidaPor.persona', 'visacionAplicadaPor.persona']);
         // El detalle del reparto, solo con VER sobre REPARTOS (Administrador y Gerencia).
         $veRepartos = $request->user()->tienePermiso('REPARTOS', 'VER');
         if ($veRepartos) {

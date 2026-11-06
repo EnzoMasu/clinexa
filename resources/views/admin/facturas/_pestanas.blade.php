@@ -1,7 +1,6 @@
 @use('App\Support\Permisos')
-@use('App\Support\Facturacion\EmisorSimulado')
 
-{{-- Pestañas de Facturas (docs/facturacion.md): cada una para quien tiene su permiso. Con la simulación activa, la marca. --}}
+{{-- Pestañas de Facturas (docs/facturacion.md): cada una para quien tiene su permiso. La marca de la simulación va solo en el PDF (marca de agua). --}}
 @php
     $pestanas = array_filter([
         'facturas' => Permisos::puedeRuta('admin.facturas.index') ? ['Facturas', route('admin.facturas.index')] : null,
@@ -22,4 +21,3 @@
             ])>{{ $texto }}</a>
     @endforeach
 </nav>
-@include('admin.facturas._simulacion')

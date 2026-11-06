@@ -447,14 +447,14 @@ test('los cobros anteriores a la facturación no tienen factura, no se facturan 
         ->assertSee('Este cobro tiene factura: se revierte anulando la factura');
 });
 
-test('el PDF de la factura: con permiso sale al vuelo con la marca de simulación y queda en Auditoría; sin permiso, no', function () {
+test('el PDF de la factura: con permiso sale al vuelo con la marca de agua de la simulación y queda en Auditoría; sin permiso, no', function () {
     facturacionTimbrado();
     facturacionAbrir($this->cajero);
     facturacionCobrar($this->cajero, [facturacionPrestacion()])->assertSessionHasNoErrors();
     $factura = Factura::sole();
 
     $html = PdfFactura::html($factura);
-    expect($html)->toContain('SIMULACIÓN, SIN VALIDEZ FISCAL')->toContain('001-001-0000001')->toContain('Timbrado N.º 12345678')
+    expect($html)->toContain('<div class="marca-agua">SIMULACIÓN, SIN VALIDEZ FISCAL</div>')->toContain('001-001-0000001')->toContain('Timbrado N.º 12345678')
         ->toContain('Vigencia: 01/10/2026 al 30/09/2027')->toContain('CONTADO')->toContain('Carmen Duarte')->toContain('RUC: '.Ruc::conDigito('80999001'))
         ->toContain('₲ 9.091')->not->toContain('Rinofaringitis');
 
@@ -539,7 +539,8 @@ test('permisos: Caja emite, anula y solicita; Gerencia aprueba y administra timb
     $this->get(route('admin.facturas.timbrados.create'))->assertOk()
         ->assertSee('<form method="POST" action="'.route('admin.facturas.timbrados.store').'" novalidate', false);
     foreach (['admin.facturas.index', 'admin.facturas.solicitudes', 'admin.facturas.timbrados', 'admin.facturas.tasas-iva', 'admin.facturas.motivos'] as $pestana) {
-        $this->get(route($pestana))->assertOk()->assertSee('Solicitudes de anulación (0)')->assertSee('Tasas de IVA')->assertSee('SIMULACIÓN, SIN VALIDEZ FISCAL');
+        // Sin cartel de la simulación en las pantallas: la marca va solo en el PDF (marca de agua).
+        $this->get(route($pestana))->assertOk()->assertSee('Solicitudes de anulación (0)')->assertSee('Tasas de IVA')->assertDontSee('SIN VALIDEZ FISCAL');
     }
     $this->get(route('admin.facturas.motivos.create'))->assertOk()
         ->assertSee('<form method="POST" action="'.route('admin.facturas.motivos.store').'" novalidate', false);
@@ -659,22 +660,21 @@ test('los datos de la clínica: Gerencia los carga con el RUC validado y las suc
         ->toThrow(QueryException::class);
 });
 
-test('mostrar_marca controla solo la marca: apagada no aparece en pantalla ni en el PDF y se emite y anula; encendida aparece', function () {
+test('mostrar_marca controla solo la marca de agua del PDF: apagada no aparece y se emite y anula; encendida aparece; las pantallas nunca la muestran', function () {
     facturacionTimbrado();
     facturacionAbrir($this->cajero);
     config(['clinexa.facturacion.mostrar_marca' => false]);
     facturacionCobrar($this->cajero, [facturacionPrestacion()])->assertSessionHasNoErrors();
     $factura = Factura::sole();
-    expect($factura->simulada)->toBeTrue()->and(PdfFactura::html($factura))->not->toContain('SIN VALIDEZ FISCAL');
-    $this->actingAs($this->cajero)->get(route('admin.facturas.index'))->assertOk()->assertDontSee('SIN VALIDEZ FISCAL');
-    $this->get(route('admin.facturas.show', $factura))->assertOk()->assertDontSee('SIN VALIDEZ FISCAL');
-    $this->get(route('admin.cobros.create'))->assertDontSee('SIN VALIDEZ FISCAL');
+    expect($factura->simulada)->toBeTrue()->and(PdfFactura::html($factura))->not->toContain('SIN VALIDEZ FISCAL')->not->toContain('marca-agua">');
     $this->get(route('admin.facturas.pdf', $factura))->assertOk();
 
     facturacionAnular($this->cajero, $factura)->assertSessionHasNoErrors();
     expect($factura->fresh()->anulada())->toBeTrue();
 
     config(['clinexa.facturacion.mostrar_marca' => true]);
-    expect(PdfFactura::html($factura))->toContain('SIMULACIÓN, SIN VALIDEZ FISCAL');
-    $this->get(route('admin.facturas.show', $factura))->assertSee('SIN VALIDEZ FISCAL');
+    expect(PdfFactura::html($factura->fresh()))->toContain('<div class="marca-agua">SIMULACIÓN, SIN VALIDEZ FISCAL</div>')->toContain('FACTURA ANULADA');
+    foreach ([route('admin.facturas.index'), route('admin.facturas.show', $factura), route('admin.facturas.imprimir', $factura), route('admin.cobros.create')] as $pantalla) {
+        $this->actingAs($this->cajero)->get($pantalla)->assertOk()->assertDontSee('SIN VALIDEZ FISCAL');
+    }
 });

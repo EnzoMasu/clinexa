@@ -220,6 +220,12 @@ class Prestacion extends Model
         return $this->hasOne(DetalleFactura::class)->where('detalles_factura.parte', DetalleFactura::PACIENTE)->whereNull('detalles_factura.liberada_en');
     }
 
+    /** La línea de la parte de la aseguradora en una factura no anulada (la de su liquidación), si tiene: a lo sumo una. */
+    public function detalleFacturaAseguradora(): HasOne
+    {
+        return $this->hasOne(DetalleFactura::class)->where('detalles_factura.parte', DetalleFactura::ASEGURADORA)->whereNull('detalles_factura.liberada_en');
+    }
+
     /** Sus líneas en facturas no anuladas, de cualquier parte (a lo sumo una por parte). Con alguna, la prestación queda bloqueada. */
     public function detallesFactura(): HasMany
     {

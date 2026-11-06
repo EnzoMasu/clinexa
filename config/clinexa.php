@@ -32,10 +32,11 @@ return [
     | Facturación (docs/facturacion.md).
     |
     | - simulada: la emisión es una SIMULACIÓN (Facturacion\EmisorSimulado): funciona como la factura electrónica, pero no se envía a
-    |   ningún lado ni tiene validez fiscal; la factura, su PDF y la pantalla lo dicen. Apagada, hace falta un emisor real (todavía no
-    |   hay: no se emite).
-    | - mostrar_marca: SOLO muestra u oculta el cartel de pantalla y la marca del PDF; no cambia el modo de emisión. Sin marca, una
-    |   factura simulada puede confundirse con una válida: no apagarla en un uso real.
+    |   ningún lado ni tiene validez fiscal; el PDF de la factura lo dice con una marca de agua. Apagada, hace falta un emisor real
+    |   (todavía no hay: no se emite).
+    | - mostrar_marca: SOLO muestra u oculta la marca de agua "SIMULACIÓN, SIN VALIDEZ FISCAL" del PDF de las facturas simuladas (las
+    |   pantallas no llevan cartel); no cambia el modo de emisión. Sin marca, una factura simulada impresa puede confundirse con una
+    |   válida: no apagarla en un uso real.
     | - plazo_anulacion_minutos: desde la EMISIÓN, el cajero anula una factura suya, de su caja abierta, sin pedir aprobación.
     */
     'facturacion' => [

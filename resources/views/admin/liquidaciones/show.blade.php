@@ -2,7 +2,8 @@
 
 {{--
     Detalle de una liquidación (LiquidacionController::show, docs/liquidaciones-aseguradoras.md): sus líneas (con "Quitar" en preparación),
-    el flujo (enviar, aprobar o devolver, anular), la planilla y los pagos de la aseguradora con el saldo. Sin nada clínico. Nada se borra.
+    el flujo (enviar, aprobar o devolver, anular), la planilla, su factura CRÉDITO (emitirla; la vigente y las anuladas) y los pagos de
+    la aseguradora con el saldo. Sin nada clínico. Nada se borra.
 --}}
 <x-admin.page :title="'Liquidación N.º '.$liquidacion->id">
     <div class="space-y-8 p-6 text-sm">
@@ -15,8 +16,8 @@
                     <dt class="text-gray-500 dark:text-gray-400">Estado</dt>
                     <dd class="font-medium text-gray-900 dark:text-gray-100">
                         {{ $liquidacion->etiquetaEstado() }}
-                        @if ($liquidacion->facturacion === App\Models\Liquidacion::PENDIENTE_DE_FACTURAR)
-                            <div class="font-normal text-gray-600 dark:text-gray-400">Pendiente de facturar</div>
+                        @if ($liquidacion->facturacionTexto())
+                            <div class="font-normal text-gray-600 dark:text-gray-400">{{ $liquidacion->facturacionTexto() }}</div>
                         @endif
                     </dd>
                 </div>
@@ -69,6 +70,50 @@
                 @endif
                 @if ($esPropia)
                     <p class="text-gray-600 dark:text-gray-400">Usted armó esta liquidación: la aprueba o la devuelve otra persona.</p>
+                @endif
+            </section>
+        @endif
+
+        @if ($liquidacion->aprobada() || $liquidacion->facturas->isNotEmpty())
+            <section aria-labelledby="factura" class="space-y-3 rounded-md border border-gray-200 p-4 dark:border-gray-700">
+                <h3 id="factura" class="font-semibold text-gray-900 dark:text-gray-100">Factura a la aseguradora</h3>
+                @if ($facturaVigente)
+                    <p class="text-gray-700 dark:text-gray-300">
+                        @if ($veFacturas)
+                            <a href="{{ route('admin.facturas.show', $facturaVigente) }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Factura {{ $facturaVigente->numero_completo }}</a>
+                        @else
+                            <span class="font-medium">Factura {{ $facturaVigente->numero_completo }}</span>
+                        @endif
+                        · crédito · {{ Fecha::mostrar($facturaVigente->emitida_en, conHora: true) }} · {{ $facturaVigente->totalTexto() }}
+                        · {{ $facturaVigente->etiquetaEstado() }} ({{ $facturaVigente->estadoCobroTexto() }})
+                    </p>
+                @elseif ($liquidacion->aprobada() && $liquidacion->pendienteDeFacturar())
+                    <p class="text-gray-600 dark:text-gray-400">Pendiente de facturar: una sola factura crédito a nombre de {{ $liquidacion->aseguradoraTexto() }}, con una línea por prestación (lo que paga la aseguradora) y el IVA de cada procedimiento. El copago de la paciente se factura aparte, en Caja.</p>
+                    @if ($puedeFacturar)
+                        @if ($avisoFactura)
+                            <p role="status" class="rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">{{ $avisoFactura }}</p>
+                        @else
+                            <form method="POST" action="{{ route('admin.liquidaciones.facturar', $liquidacion) }}"
+                                x-data x-on:submit="if (! confirm({{ Illuminate\Support\Js::from('¿Emitir la factura crédito por '.$liquidacion->formatear($liquidacion->totalEntero()).' a nombre de '.$liquidacion->aseguradoraTexto().'? Toma el número siguiente del timbrado.') }})) $event.preventDefault()">
+                                @csrf
+                                <x-primary-button>Emitir la factura</x-primary-button>
+                            </form>
+                        @endif
+                    @endif
+                @endif
+                @if ($facturasAnuladas->isNotEmpty())
+                    <ul class="list-disc space-y-1 pl-5 text-gray-600 dark:text-gray-400">
+                        @foreach ($facturasAnuladas as $anulada)
+                            <li>
+                                @if ($veFacturas)
+                                    <a href="{{ route('admin.facturas.show', $anulada) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">Factura {{ $anulada->numero_completo }}</a>
+                                @else
+                                    Factura {{ $anulada->numero_completo }}
+                                @endif
+                                · anulada el {{ Fecha::mostrar($anulada->anulada_en, conHora: true) }}
+                            </li>
+                        @endforeach
+                    </ul>
                 @endif
             </section>
         @endif

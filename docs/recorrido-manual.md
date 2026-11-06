@@ -380,7 +380,7 @@ La línea de tiempo (con inicio a las 08:00). El detalle de cada historia está 
 - [ ] **H5.4** (`caja1`) Cobrar a Escobar con **C1a** (Tarjeta 250.000, el error). → Factura emitida y cobrada (la primera del día, `001-001-0000001`); IVA 22.727.
 - [ ] **H5.5** (`caja1`) **Dentro de los 10 minutos**: Facturas → la factura → "Anular la factura", motivo "Otro (detallar)" con el detalle de 2.7. → ANULADA; cobro revertido (un egreso de tarjeta en su caja); el número no se reutiliza (`R2-3`).
 - [ ] **H5.6** (`caja1`) Desde la factura anulada: "Cobrar de nuevo con una factura que reemplace a esta" con **C1b** (Efectivo 250.000). → Factura `…0002`, COBRADA; la anulada la muestra como reemplazada (`R2-4`).
-- [ ] **H5.7** (`caja1`) Facturas → PDF de la nueva. → "FACTURA", con la marca de simulación. Abrirlo otra vez → "FACTURA (COPIA)" (`R2-2`).
+- [ ] **H5.7** (`caja1`) Facturas → PDF de la nueva. → "FACTURA", con la marca de agua "SIMULACIÓN, SIN VALIDEZ FISCAL" (diagonal y clara; los datos se leen). Abrirlo otra vez → "FACTURA (COPIA)" (`R2-2`).
 - [ ] **H5.8** (`medica1`) En la consulta cerrada de Escobar: cualquier modificación → NIEGA ("La consulta está cerrada…").
 - [ ] **H5.9** (`supervision`, el único perfil que desbloquea; nunca quien atendió) Desbloquear esa consulta (motivo de 2.6, 20 a 500 caracteres). → Ventana VIGENTE por 24 horas. Corregir la anamnesis. → "Corregida 1 vez"; versión guardada; la consulta sigue cerrada (`CO-6`, `CO-9`). Un segundo desbloqueo con la ventana vigente → NIEGA (`CO-8`).
 - [ ] **H5.10** (`medica1`) Intentar desbloquear su propia consulta → NIEGA (no tiene el módulo).

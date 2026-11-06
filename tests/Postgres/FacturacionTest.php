@@ -94,7 +94,7 @@ test('corre de verdad contra PostgreSQL, con las restricciones y los índices cr
 
     expect(DB::getDriverName())->toBe('pgsql')->and(DB::connection()->getDatabaseName())->toBe('clinexa_test')
         ->and($restricciones('timbrados'))->toBe(['timbrados_historico_completo', 'timbrados_numeracion_valida', 'timbrados_vigencia_valida'])
-        ->and($restricciones('facturas'))->toBe(['facturas_anulacion_completa', 'facturas_condicion_valida', 'facturas_no_se_reemplaza_a_si_misma', 'facturas_numeracion_valida', 'facturas_totales_validos'])
+        ->and($restricciones('facturas'))->toBe(['facturas_anulacion_completa', 'facturas_cliente_segun_condicion', 'facturas_condicion_valida', 'facturas_no_se_reemplaza_a_si_misma', 'facturas_numeracion_valida', 'facturas_totales_validos'])
         ->and($restricciones('detalles_factura'))->toBe(['detalles_factura_montos_validos', 'detalles_factura_parte_valida'])
         ->and($restricciones('solicitudes_anulacion_factura'))->toBe(['solicitudes_anulacion_revision_completa'])
         ->and($restricciones('clinicas'))->toBe(['clinicas_instalacion_unica', 'clinicas_ruc_formato', 'clinicas_tipo_valido'])

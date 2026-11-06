@@ -1,6 +1,5 @@
 {{-- Cargar un timbrado (TimbradoController::create, docs/facturacion.md). Si ya hay uno vigente para ese punto, pasa a histórico. --}}
 <x-admin.page title="Cargar timbrado">
-    @include('admin.facturas._simulacion')
     @if ($clinica === null)
         <p role="alert" class="m-6 rounded-md bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">
             Cargue primero los <a href="{{ route('admin.clinica.edit') }}" class="font-medium underline">datos de la clínica</a>: el timbrado es de la clínica y de una sucursal suya.

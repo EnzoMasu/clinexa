@@ -1,7 +1,8 @@
 # Liquidaciones a aseguradoras (fase 4b económica)
 
 La **liquidación mensual** a cada aseguradora (la planilla que se le presenta), su **aprobación** y los **pagos parciales** de la
-aseguradora: una cuenta por cobrar aparte de la Caja. Sin facturas, timbrado ni IVA (la factura es de la fase siguiente), notas de
+aseguradora: una cuenta por cobrar aparte de la Caja. La factura CRÉDITO de la liquidación aprobada está en `docs/facturacion.md`
+("Factura de la liquidación"). Sin notas de
 crédito, glosas (rechazo de líneas), liquidaciones a profesionales ni al dueño del equipo, ni cuentas por pagar. Nada se borra. Ver
 también `docs/convenios-seguros.md`, `docs/tarifas-prestaciones.md` y `docs/cobros-caja.md`.
 
@@ -47,8 +48,10 @@ demás ya existían en el catálogo de estados. La devuelta vuelve a EN_PREPARAC
   menos una línea).
 - Gerencia (o el Administrador) la **aprueba** o la **devuelve** con nota (5 a 300). **Nadie aprueba ni devuelve una liquidación que armó
   él mismo** (también en PostgreSQL: `liquidaciones_aprobacion_completa`).
-- **Aprobada, queda bloqueada** y marcada **pendiente de facturar** (`facturacion` = PENDIENTE; la factura es otra fase).
-- **Anular** exige motivo y que no tenga pagos vigentes ("anule los pagos antes de anularla"); sus líneas quedan ANULADA y sus
+- **Aprobada, queda bloqueada** y marcada **pendiente de facturar** (`facturacion` = PENDIENTE). Con su factura emitida, **FACTURADA**;
+  si se anula la factura, vuelve a PENDIENTE (`docs/facturacion.md`).
+- **Anular** exige motivo, que no tenga pagos vigentes ("anule los pagos antes de anularla") ni factura vigente ("primero se anula la
+  factura"); sus líneas quedan ANULADA y sus
   prestaciones, libres. La que no está aprobada la anula Facturación o Gerencia; la aprobada, solo quien aprueba (Gerencia o el
   Administrador).
 

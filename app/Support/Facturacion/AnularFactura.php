@@ -6,6 +6,7 @@ use App\Exceptions\AccionRechazada;
 use App\Models\Caja;
 use App\Models\Estado;
 use App\Models\Factura;
+use App\Models\Liquidacion;
 use App\Models\MotivoAnulacionFactura;
 use App\Models\SolicitudAnulacionFactura;
 use App\Models\User;
@@ -27,9 +28,14 @@ use Illuminate\Support\Facades\DB;
  *   la aprueba (`aprobar`: ahí se revierte el cobro, desde la caja abierta de hoy del solicitante, y se anula) o la rechaza con nota.
  *   Nadie revisa una solicitud propia. Una sola pendiente por factura (`solicitudes_anulacion_una_pendiente`).
  *
+ * - La de CRÉDITO (de una liquidación): solo con la solicitud que aprueba Gerencia, sin plazo directo y sin tocar ninguna caja (no tiene
+ *   cobro). Con pagos vigentes de la aseguradora en su liquidación no se pide ni se aprueba: primero se anulan los pagos. Al aprobarse,
+ *   sus líneas se liberan y la liquidación vuelve a "pendiente de facturar"; el reparto de las prestaciones no cambia.
+ *
  * Queda en Auditoría: ANULAR de la factura (con el motivo), EDITAR de cada línea liberada, REVERTIR del cobro; CREAR de la solicitud y
- * EDITAR al aprobarla o rechazarla. Los permisos (DESACTIVAR sobre FACTURAS para anular y solicitar; EDITAR sobre ANULACIONES_FACTURA
- * para revisar) los controla la ruta.
+ * EDITAR al aprobarla o rechazarla; en la de crédito, EDITAR de la liquidación ("Vuelve a pendiente de facturar …"). Los permisos
+ * (DESACTIVAR sobre FACTURAS para anular y solicitar la contado; DESACTIVAR sobre FACTURAS_LIQUIDACION para solicitar la de crédito;
+ * EDITAR sobre ANULACIONES_FACTURA para revisar) los controla la ruta.
  */
 final class AnularFactura
 {
@@ -46,6 +52,10 @@ final class AnularFactura
     public const ES_DIRECTA = 'Esta factura es suya, de su caja abierta y está dentro del plazo: anúlela directamente.';
 
     public const CON_DOCUMENTOS = 'Esta factura tiene documentos vinculados: no se puede anular.';
+
+    public const CREDITO_CON_APROBACION = 'La factura de una liquidación se anula solo con la aprobación de Gerencia: solicite la anulación.';
+
+    public const CREDITO_CON_PAGOS = 'La liquidación de esta factura tiene pagos vigentes de la aseguradora: primero se anulan los pagos.';
 
     public static function plazoMinutos(): int
     {
@@ -71,6 +81,9 @@ final class AnularFactura
     /** Si el usuario la anula sin aprobación: suya, de su caja abierta de hoy, en el plazo y sin documentos vinculados. */
     public static function esDirecta(User $usuario, Factura $factura): bool
     {
+        if ($factura->esCredito()) {
+            return false;
+        }
         $caja = $factura->caja;
 
         return ! $factura->anulada() && (int) $factura->usuario_id === (int) $usuario->id && (int) $caja->usuario_id === (int) $usuario->id
@@ -84,6 +97,9 @@ final class AnularFactura
 
         return DB::transaction(function () use ($cajero, $factura, $motivo, $detalle) {
             $actual = self::bloquearNoAnulada($factura);
+            if ($actual->esCredito()) {
+                throw new AccionRechazada(self::CREDITO_CON_APROBACION);
+            }
             if ($actual->solicitudPendiente()->exists()) {
                 throw new AccionRechazada(self::YA_SOLICITADA);
             }
@@ -110,6 +126,9 @@ final class AnularFactura
                 }
                 if (self::esDirecta($usuario, $actual)) {
                     throw new AccionRechazada(self::ES_DIRECTA);
+                }
+                if ($actual->esCredito() && $actual->liquidacion->pagosVigentes()->exists()) {
+                    throw new AccionRechazada(self::CREDITO_CON_PAGOS);
                 }
                 if ($actual->solicitudPendiente()->exists()) {
                     throw new AccionRechazada(self::YA_SOLICITADA);
@@ -139,9 +158,15 @@ final class AnularFactura
         $nota = trim((string) $nota);
 
         return DB::transaction(function () use ($revisor, $solicitud, $nota) {
-            // La factura primero (el mismo orden que la anulación directa y la solicitud).
+            // La de crédito: su liquidación primero (el mismo orden que la emisión y los pagos), y sin pagos vigentes.
+            $liquidacion = $solicitud->factura->liquidacion_id === null ? null
+                : Liquidacion::query()->whereKey($solicitud->factura->liquidacion_id)->lockForUpdate()->firstOrFail();
+            // La factura después (el mismo orden que la anulación directa y la solicitud).
             $factura = self::bloquearNoAnulada($solicitud->factura);
             $actual = self::bloquearPendiente($revisor, $solicitud);
+            if ($liquidacion !== null && $liquidacion->pagosVigentes()->exists()) {
+                throw new AccionRechazada(self::CREDITO_CON_PAGOS);
+            }
             $solicitante = $actual->solicitante;
             $caja = null;
             if ($factura->cobro !== null && ! $factura->cobro->revertido()) {
@@ -151,6 +176,11 @@ final class AnularFactura
                 }
             }
             self::ejecutar($factura, $caja, $solicitante, $revisor, $actual->motivo, $actual->detalle);
+            if ($liquidacion !== null) {
+                // La liquidación vuelve a quedar pendiente de facturar: se puede emitir otra (con otro número).
+                Auditoria::conDetalle("Vuelve a pendiente de facturar: factura {$factura->numero_completo} anulada",
+                    fn () => $liquidacion->forceFill(['facturacion' => Liquidacion::PENDIENTE_DE_FACTURAR])->save());
+            }
 
             return self::revisar($revisor, $actual, Estado::APROBADO, $nota);
         });

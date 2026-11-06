@@ -85,7 +85,7 @@ Paciente con cobertura vigente (por ejemplo "Barrios Colmán, Liz Marlene") y un
 - [ ] **R1-9** (`caja1`) Abrir la caja (Cajas → "Mi caja") con un monto inicial. Cobrar → la paciente. → Se ofrece la prestación con la columna
   "A cobrar" = **solo la parte de la paciente**.
 - [ ] **R1-10** (`caja1`) "Facturar y cobrar" con efectivo por el total exacto. → Una factura `001-001-NNNNNNN` por la parte de la paciente (la de la aseguradora **no entra**), cobro
-  registrado, factura COBRADA, marcada "SIMULACIÓN, SIN VALIDEZ FISCAL".
+  registrado, factura COBRADA; su PDF lleva la marca de agua "SIMULACIÓN, SIN VALIDEZ FISCAL" (las pantallas, sin cartel).
 - [ ] **R1-11** (`caja1`) Volver a Cobrar con la misma paciente. → La prestación ya no se ofrece (cobrada).
 - [ ] **R1-12** (`caja1`) Una prestación cuya parte de la paciente es cero (visación con cobertura total) → NIEGA: no se ofrece; se muestra "A cargo de aseguradora".
 - [ ] **R1-13** (`medica1`) NIEGA: la pantalla de atención y el informe de estudio no muestran montos; no hay menú Económico.
@@ -93,7 +93,7 @@ Paciente con cobertura vigente (por ejemplo "Barrios Colmán, Liz Marlene") y un
 ### Recorrido 2. Factura y cobro, anulación en 10 minutos y por solicitud
 
 - [ ] **R2-1** (`caja1`) Cobrar una prestación particular (paciente sin visación) en efectivo. → Factura emitida y cobrada; en el detalle del cobro y de la prestación se ve la factura.
-- [ ] **R2-2** (`caja1`) Facturas → detalle → **PDF**. → Primera vez "FACTURA"; la segunda vez "FACTURA (COPIA)". Con RUC, timbrado y vigencia, líneas por tasa, total del IVA, CONTADO y la marca de simulación.
+- [ ] **R2-2** (`caja1`) Facturas → detalle → **PDF**. → Primera vez "FACTURA"; la segunda vez "FACTURA (COPIA)". Con RUC, timbrado y vigencia, líneas por tasa, total del IVA, CONTADO y la marca de agua de la simulación (diagonal, clara, en cada página; legible impresa en blanco y negro).
 - [ ] **R2-3** (`caja1`) Dentro de los 10 minutos de la emisión: "Anular la factura" con un motivo del catálogo. → La factura queda ANULADA, el cobro revertido (un egreso por línea en su caja) y el número **no se reutiliza**.
 - [ ] **R2-4** (`caja1`) Desde el detalle de la anulada: "Cobrar de nuevo con una factura que reemplace a esta". → Nueva factura con el número siguiente; la anulada la muestra como reemplazada.
 - [ ] **R2-5** (`caja1`) Emitir otra factura y esperar **más de 10 minutos** (`CLINEXA_PLAZO_ANULACION_FACTURA`). Intentar anular. → Ya no hay anulación directa: solo "Solicitar la anulación".
@@ -171,6 +171,19 @@ limpia todos los cobros llevan factura: el equivalente es el recorrido 2.
 - [ ] **R6-14** (`facturacion`) "Planilla (PDF)". → A4 apaisada con aseguradora y convenio, corte y período, una fila por línea, total y espacio de firma; sin diagnóstico. En Auditoría, EXPORTAR sobre `liquidaciones`.
 - [ ] **R6-15** (`gerencia`) Pestaña "Por cobrar por aseguradora". → Aprobado, pagado, saldo y cuántas están pendientes de facturar.
 - [ ] **R6-16** (`caja1`) NIEGA: Liquidaciones no aparece en el menú de Caja y la URL da 403. Los pagos de la aseguradora **no** tocan cajas, cierres ni cobros.
+
+### Recorrido 6b. Factura de la liquidación (CRÉDITO, a la aseguradora)
+
+- [ ] **R6b-1** (`facturacion`) Detalle de una liquidación aprobada, pendiente de facturar → "Factura a la aseguradora" → **Emitir la factura** (confirmar). → Factura `001-001-…` CRÉDITO a nombre de la aseguradora con su RUC, una línea por prestación (lo de la aseguradora, con su IVA); la liquidación queda "Facturada". El número sigue al de las facturas de Caja, sin saltos.
+- [ ] **R6b-2** (`facturacion`) Volver a emitir sobre la misma liquidación. → No se ofrece; por la URL, NIEGA ("Esta liquidación ya tiene su factura.").
+- [ ] **R6b-3** (`facturacion`) Una liquidación en preparación o pendiente de aprobación. → No se ofrece "Emitir la factura". (La aseguradora sin RUC no se puede armar en pantalla, porque una persona jurídica no se guarda sin RUC: lo cubre `FacturaLiquidacionTest`, con el aviso "no tiene RUC".)
+- [ ] **R6b-4** (`facturacion`) Desde la factura: "Liquidación N.º X" (enlace), cada línea con "Prestación"; desde la prestación: sus dos facturas (paciente y aseguradora). PDF: "CRÉDITO", "Liquidación N.º X (prestaciones del … al …)" y la marca de agua.
+- [ ] **R6b-5** (`facturacion`) Registrar pagos: en parte → la factura sigue "Emitida" y dice "Pagada en parte (saldo ₲ X)"; por el saldo → "Cobrada". Anular un pago → vuelve a "Emitida".
+- [ ] **R6b-6** (`facturacion`) Con pagos vigentes: "Solicitar la anulación" → NIEGA ("primero se anulan los pagos"). Anular los pagos y solicitarla. → Pendiente de aprobación.
+- [ ] **R6b-7** (`gerencia`) "Anular la liquidación" con la factura vigente → NIEGA ("primero se anula la factura"). Aprobar la anulación de la factura. → Anulada, sin movimientos de caja; la liquidación vuelve a "Pendiente de facturar" y se puede emitir otra (con otro número).
+- [ ] **R6b-8** (`admin`) Solicitar y tratar de aprobar su propia solicitud. → NIEGA ("No puede aprobar ni rechazar su propia solicitud.").
+- [ ] **R6b-9** (`caja1`) NIEGA: no puede emitir la factura de una liquidación ni solicitar su anulación. (`gerencia`) NIEGA emitir; ve la factura, el PDF y la liquidación.
+- [ ] **R6b-10** (`auditor`) Auditoría de `facturas` y `liquidaciones`: "Liquidación facturada: factura …", "Factura … cobrada", "… vuelve a pendiente de cobro", "Vuelve a pendiente de facturar …". → Montos ocultos.
 
 ## Módulos
 
@@ -664,18 +677,18 @@ planilla en PDF. El recorrido 6 cubre el flujo.
 ### 16. Facturación y timbrado (`FT`)
 
 **Qué hace.** La **clínica** como emisor (datos fiscales), el **timbrado**, la **factura individual CONTADO** con **IVA** (10 %, 5 % o exenta) y
-el cobro de Caja **contra factura**. La emisión es **simulada** ("SIMULACIÓN, SIN VALIDEZ FISCAL"). Anulación directa dentro de los
-10 minutos o con solicitud aprobada por Gerencia.
+el cobro de Caja **contra factura**, y la **factura CRÉDITO de la liquidación** (recorrido 6b). La emisión es **simulada** (marca de agua
+"SIMULACIÓN, SIN VALIDEZ FISCAL" en el PDF). Anulación directa dentro de los 10 minutos o con solicitud aprobada por Gerencia.
 
 **Quién puede.**
 
-| Perfil | `FACTURAS` | `ANULACIONES_FACTURA` | `TIMBRADOS` | `DATOS_FISCALES` | `MOTIVOS_ANULACION` |
-|---|---|---|---|---|---|
-| Caja | V C D X | nada | nada | nada | nada |
-| Gerencia | V X | V E | V C E | V E | V C E D |
-| Facturación y convenios | V X | nada | nada | nada | nada |
-| Administrador | todo | todo | todo | todo | todo |
-| Recepción, Médico y los demás | nada | nada | nada | nada | nada |
+| Perfil | `FACTURAS` | `FACTURAS_LIQUIDACION` | `ANULACIONES_FACTURA` | `TIMBRADOS` | `DATOS_FISCALES` | `MOTIVOS_ANULACION` |
+|---|---|---|---|---|---|---|
+| Caja | V C D X | nada | nada | nada | nada | nada |
+| Gerencia | V X | nada | V E | V C E | V E | V C E D |
+| Facturación y convenios | V X | V C D | nada | nada | nada | nada |
+| Administrador | todo | todo | todo | todo | todo | todo |
+| Recepción, Médico y los demás | nada | nada | nada | nada | nada | nada |
 
 **Pasos.**
 
@@ -694,7 +707,7 @@ el cobro de Caja **contra factura**. La emisión es **simulada** ("SIMULACIÓN, 
 - **FT-13** Anulación directa y por solicitud, reemplazo y bloqueos: son los pasos **R2-3 a R2-13** (recorrido 2); se marcan allá.
 - [ ] **FT-14** (`gerencia`) Motivos de anulación: agregar uno y desactivar otro. → Se desactiva (no se borra); los tres de referencia existen ("Error en los datos del cliente", "Error en el procedimiento o el monto", "Otro (detallar)").
 - [ ] **FT-15** (`caja1`) Pasos de pantalla: Facturas → búsqueda por número, cliente o documento y filtro de fechas y estado. → Listado correcto; el detalle muestra líneas, totales, su cobro, PDF y anulación o solicitud.
-- [ ] **FT-16** (`facturacion`) Facturas. → Ve y saca el PDF; NIEGA anular o solicitar la anulación (sin DESACTIVAR).
+- [ ] **FT-16** (`facturacion`) Facturas. → Ve y saca el PDF; NIEGA anular o solicitar la anulación de una factura de Caja (sin DESACTIVAR sobre FACTURAS). La de una liquidación sí la solicita (recorrido 6b).
 - [ ] **FT-17** (`recepcion`) En la prestación ve el número de factura **sin enlace**. NIEGA abrir Facturas.
 - [ ] **FT-18** (`caja1`) NIEGA: Timbrados, Datos de la clínica, Tasas de IVA y Motivos de anulación (403).
 - [ ] **FT-19** (`admin`) Con `CLINEXA_FACTURACION_SIMULADA=false` (solo en una instalación de prueba). → No hay emisor real: no se emite ni se anula, con el aviso.

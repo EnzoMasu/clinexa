@@ -17,7 +17,7 @@ interface EmisorDocumentos
     /** Código que queda en la factura (`facturas.emisor_documentos`), p. ej. SIMULADO. */
     public function codigo(): string;
 
-    /** Si sus documentos son una simulación sin validez fiscal (la factura, su PDF y la pantalla lo muestran). */
+    /** Si sus documentos son una simulación sin validez fiscal (queda en la factura; su PDF lleva la marca de agua). */
     public function simulado(): bool;
 
     /** Entrega la factura ya armada (con su número y sus líneas). */
