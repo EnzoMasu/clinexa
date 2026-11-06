@@ -61,7 +61,7 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             'PAGOS_ASEGURADORAS' => [['ANULADO', 'VIGENTE'], 'VIGENTE'],
             // Facturas: emitida (inicial), cobrada o anulada; la aprobación de sus anulaciones: pendiente (inicial), aprobada o
             // rechazada; los timbrados: el vigente (inicial) y los históricos.
-            'FACTURAS' => [['ANULADO', 'COBRADO', 'EMITIDO'], 'EMITIDO'],
+            'FACTURAS', 'FACTURAS_LIQUIDACION' => [['ANULADO', 'COBRADO', 'EMITIDO'], 'EMITIDO'],
             'ANULACIONES_FACTURA' => [['APROBADO', 'PENDIENTE', 'RECHAZADO'], 'PENDIENTE'],
             'TIMBRADOS' => [['HISTORICO', 'VIGENTE'], 'VIGENTE'],
             // Compras: borrador (PENDIENTE, inicial), confirmada o anulada; su confirmación: pendiente (inicial) o confirmada.

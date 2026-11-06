@@ -176,7 +176,7 @@ limpia todos los cobros llevan factura: el equivalente es el recorrido 2.
 
 - [ ] **R6b-1** (`facturacion`) Detalle de una liquidación aprobada, pendiente de facturar → "Factura a la aseguradora" → **Emitir la factura** (confirmar). → Factura `001-001-…` CRÉDITO a nombre de la aseguradora con su RUC, una línea por prestación (lo de la aseguradora, con su IVA); la liquidación queda "Facturada". El número sigue al de las facturas de Caja, sin saltos.
 - [ ] **R6b-2** (`facturacion`) Volver a emitir sobre la misma liquidación. → No se ofrece; por la URL, NIEGA ("Esta liquidación ya tiene su factura.").
-- [ ] **R6b-3** (`facturacion`) Aseguradora sin RUC (quitarlo en Personas, solo en la base de prueba). → Aviso "no tiene RUC" y no se emite. En preparación o pendiente de aprobación: no se ofrece.
+- [ ] **R6b-3** (`facturacion`) Una liquidación en preparación o pendiente de aprobación. → No se ofrece "Emitir la factura". (La aseguradora sin RUC no se puede armar en pantalla, porque una persona jurídica no se guarda sin RUC: lo cubre `FacturaLiquidacionTest`, con el aviso "no tiene RUC".)
 - [ ] **R6b-4** (`facturacion`) Desde la factura: "Liquidación N.º X" (enlace), cada línea con "Prestación"; desde la prestación: sus dos facturas (paciente y aseguradora). PDF: "CRÉDITO", "Liquidación N.º X (prestaciones del … al …)" y la marca de agua.
 - [ ] **R6b-5** (`facturacion`) Registrar pagos: en parte → la factura sigue "Emitida" y dice "Pagada en parte (saldo ₲ X)"; por el saldo → "Cobrada". Anular un pago → vuelve a "Emitida".
 - [ ] **R6b-6** (`facturacion`) Con pagos vigentes: "Solicitar la anulación" → NIEGA ("primero se anulan los pagos"). Anular los pagos y solicitarla. → Pendiente de aprobación.

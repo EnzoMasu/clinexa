@@ -461,3 +461,13 @@ test('la marca de agua "SIMULACIÓN, SIN VALIDEZ FISCAL" está en el PDF de una 
     // Las pantallas ya no llevan el cartel.
     $this->actingAs($this->facturacion)->get(route('admin.facturas.show', $nueva))->assertOk()->assertDontSee('SIN VALIDEZ FISCAL');
 });
+
+test('el copago se cobra también después de emitir la factura de la liquidación: dos facturas de partes distintas, números seguidos', function () {
+    $prestacion = facturaLiquidacionPrestacion(LineaVisacion::PORCENTAJE, '20');
+    facturaLiquidacionEmitir(facturaLiquidacionLiquidacion())->assertSessionHas('status');   // 0000001, CREDITO
+    facturaLiquidacionCobrarCopago($prestacion)->assertSessionHas('status');                 // 0000002, CONTADO
+
+    expect(Factura::orderBy('id')->get()->map(fn (Factura $factura) => [$factura->numero_completo, $factura->condicion, $factura->entero('total')])->all())
+        ->toBe([['001-001-0000001', Factura::CREDITO, 80000], ['001-001-0000002', Factura::CONTADO, 20000]])
+        ->and($prestacion->fresh()->detallesFactura->pluck('parte')->sort()->values()->all())->toBe([DetalleFactura::ASEGURADORA, DetalleFactura::PACIENTE]);
+});
