@@ -1,6 +1,6 @@
 # Cobertura de los objetivos específicos
 
-Auditoría del 05/11/2026, rama `cobertura-objetivos` (desde `main`, commit 038f964). **Solo lectura**: se revisaron rutas
+Auditoría del 05/11/2026, rama `cobertura-objetivos`; revisada contra `main` en el commit 78bafdc (planilla de aceptación), con una segunda pasada a fondo sobre los objetivos 3, 7, 8, 9 y 10. **Solo lectura**: se revisaron rutas
 (`php artisan route:list`), migraciones, modelos, `app/Support`, vistas, `docs/` y los nombres de los tests. No se tocó ninguna base ni
 funcionalidad, y **no se corrieron los tests** en esta auditoría: "Tests: sí" significa que existen archivos de test del tema, no que hoy pasen.
 
@@ -12,8 +12,8 @@ Los objetivos se tomaron del pedido (el repo no los trae en ningún documento); 
 
 | Estado | Objetivos | Cantidad |
 |---|---|---|
-| HECHO | 1, 4, 6, 11, 13 | 5 |
-| PARCIAL | 2, 3, 5, 7, 8, 9, 10 | 7 |
+| HECHO | 1, 3, 4, 6, 11, 13 | 6 |
+| PARCIAL | 2, 5, 7, 8, 9, 10 | 6 |
 | FALTA | 12, 14 | 2 |
 
 Informes del objetivo 14 (11 ítems): **PARCIAL 6**, **FALTA 5**, HECHO 0. No existe un módulo de informes: ni rutas, ni menú, ni totales;
@@ -25,7 +25,7 @@ Lo más importante que falta:
 2. **Cuentas por pagar (12)**: la compra a crédito guarda `vencimiento` y `anticipo`, pero no hay pagos a proveedores, saldos ni reversiones.
 3. **Liquidaciones a profesionales y a dueños de equipo (7)**: el reparto se calcula y se guarda por línea, pero solo se liquida a aseguradoras.
 4. **Factura posterior y agrupada (9)**: solo hay factura individual CONTADO, emitida junto con el cobro.
-5. **Aceptación de consulta imprimible (3)**: no existe (solo el ticket de visación). Caja sin salidas ni gastos (10); saldos y pagos parciales de pacientes (8).
+5. Caja sin salidas ni gastos (10); saldos y pagos parciales de pacientes (8).
 
 ## 1. Gestionar personas (pacientes, profesionales, usuarios, proveedores, beneficiarios, responsables de pago) — HECHO
 
@@ -54,7 +54,7 @@ quede registrado el titular cuando la paciente es beneficiaria.
 Falta: **ninguna referencia al instructivo del MSPyBS** en el código ni en `docs/`; no hay una tabla que contraste los campos del
 instructivo con los del sistema. **A VERIFICAR en pantalla**, con el instructivo en mano, que estén todos los campos y el orden exigidos.
 
-## 3. Seguro, plan, beneficiario y vencimiento; imprimir aceptación de consulta — PARCIAL
+## 3. Seguro, plan, beneficiario y vencimiento; imprimir aceptación de consulta — HECHO
 
 | Qué | Dónde | Permiso | Tests |
 |---|---|---|---|
@@ -62,9 +62,13 @@ instructivo con los del sistema. **A VERIFICAR en pantalla**, con el instructivo
 | Cobertura de la paciente: plan, número de asegurado, titular/beneficiario, vigente desde/hasta | `/admin/pacientes/{id}/cobertura` | `COBERTURAS` | sí |
 | Vencimiento: la cobertura vencida no cubre y la prestación guarda el aviso ("La cobertura de la paciente venció el …") | al finalizar la consulta | — | sí |
 | Visación y ticket firmable (PDF) | detalle de la prestación | `VISACIONES` (EXPORTAR del ticket) | sí |
+| **Planilla de aceptación de consulta** (evolución del ticket): A5 y ticket de 80 mm, con vencimiento, conformidad, aclaración y sello; cada generación queda en Auditoría | botón "Planilla de aceptación" en Turnos (`/admin/turnos/{id}/aceptacion-consulta`), en la pantalla de Atención y en la ficha de cobertura (`/admin/consultas/{id}/ticket-aseguradora`); código en `app/Support/Convenios/TicketVisacion.php` y `PlanillaTurnos.php`, vistas `pdf-ticket-visacion/hoja.blade.php` y `hoja-80mm.blade.php` | `VISACIONES` (EXPORTAR) en ambas rutas | sí (`ConveniosVisacionesTest`) |
 
-Falta: **imprimir la aceptación de consulta** — no hay ninguna pantalla, PDF ni texto de "aceptación" (`grep` sin resultados). El ticket de
-visación es otro documento. Tampoco hay aviso proactivo (alerta en agenda o recepción) de una cobertura próxima a vencer: solo el aviso al finalizar. A VERIFICAR en pantalla si la ficha de la paciente destaca la cobertura vencida.
+Nota: la aceptación se había dado por inexistente porque no se llama así en el código de la primera pasada; es la evolución del ticket de
+visación (commit 78bafdc). Avisos sin bloquear. A VERIFICAR en pantalla si la ficha de la paciente destaca la cobertura vencida.
+
+Mejora futura (no pendiente del objetivo): aviso proactivo (agenda o recepción) de una cobertura **próxima a vencer**; hoy solo hay aviso
+al finalizar la consulta y en la planilla.
 
 ## 4. Agendas, disponibilidades y estados de turnos por profesional — HECHO
 
@@ -104,6 +108,15 @@ Nota: los acuerdos son **solo porcentajes** (sin montos fijos ni otros criterios
 | Reparto automático por prestación en líneas (clínica, profesional, dueño del equipo), exacto al guaraní, inmutable | `POST /admin/prestaciones/{id}/repartir`; se ve en el detalle de la prestación | `ACUERDOS_REPARTO` (EDITAR) | sí |
 | Liquidación a **aseguradoras** (armar, enviar, aprobar, pagos parciales, planilla) | `/admin/liquidaciones` | `LIQUIDACIONES`, `APROBACION_LIQUIDACIONES`, `PAGOS_ASEGURADORAS` | sí (`LiquidacionesTest`) |
 
+Qué se hace hoy con el reparto: se calcula al finalizar y se guarda en `lineas_reparto` (beneficiario CLINICA, PROFESIONAL o EQUIPO con
+`profesional_id` o `proveedor_id`), y **solo se muestra** en el detalle de la prestación (`resources/views/admin/prestaciones/show.blade.php`).
+Se buscó con otros nombres (pago, estado del reparto, exportación, reporte): `LineaReparto` solo la usan `CalcularReparto`, `RepartirPrestacion`, esa
+vista y la auditoría; las rutas de reparto son únicamente acuerdos y `prestaciones/{id}/repartir`. La `Liquidacion` existente es solo de aseguradoras.
+`docs/reparto-economico.md` declara "sin pagos al profesional o al dueño, liquidaciones" como fase futura.
+
+Para dejarlo HECHO (mínimo): una pantalla de liquidación por beneficiario (profesional o dueño de equipo) y período, que agrupe sus `lineas_reparto`,
+con estados y bloqueo de las líneas liquidadas, registro del pago (con reversión) y planilla PDF con EXPORTAR.
+
 Falta: **liquidación a profesionales y a dueños de equipos** (lo que les corresponde, qué se les pagó, saldo). Las líneas de reparto existen,
 pero no hay ninguna pantalla que las agrupe por beneficiario, las liquide ni registre su pago (`docs/facturacion.md` y
 `docs/liquidaciones-aseguradoras.md` lo dejan fuera). A VERIFICAR en pantalla si el reparto queda como "pendiente" cuando falta un acuerdo y cómo se avisa.
@@ -117,6 +130,13 @@ pero no hay ninguna pantalla que las agrupe por beneficiario, las liquide ni reg
 | Reversión del cobro directa (Gerencia) o por solicitud y aprobación | `/admin/cobros/{id}`, `/admin/cobros/reversiones` | `COBROS` (DESACTIVAR), `REVERSIONES_COBRO` | sí (`ReversionesCobroTest`) |
 | Responsable de pago / aseguradora: lo que debe pagar y sus pagos | `/admin/liquidaciones/por-cobrar`, pagos de la liquidación | `LIQUIDACIONES`, `PAGOS_ASEGURADORAS` | sí |
 
+Si la paciente paga menos: no se puede. `Cobrar` exige que la suma de las líneas sea igual al total (la suma exacta de su parte), sin vuelto ni
+saldo (`app/Support/Cobros/Cobrar.php`: "pagos parciales, saldos ni vuelto"); la prestación queda pendiente de cobro hasta cobrarse completa. El único
+saldo que existe es el de la **aseguradora** (liquidaciones, por cobrar y pagos parciales); con visación se cobra solo la parte de la paciente.
+
+Para dejarlo HECHO (mínimo): permitir cobros parciales sobre la prestación (varios cobros hasta completar), con saldo de la paciente visible en
+la prestación y en un listado de deudores, y reversión que recalcule el saldo; recibo imprimible.
+
 Falta: **saldos** de la paciente y **pagos parciales o a crédito**: el cobro es siempre completo y posterior a la consulta, sin crédito
 (`docs/cobros-caja.md`). No hay cuenta corriente de la paciente. Sin recibo imprimible.
 
@@ -128,6 +148,13 @@ Falta: **saldos** de la paciente y **pagos parciales o a crédito**: el cobro es
 | Anulación directa o por solicitud, con motivo | `/admin/facturas/solicitudes`, motivos | `FACTURAS` (DESACTIVAR), `ANULACIONES_FACTURA`, `MOTIVOS_ANULACION` | sí |
 | La prestación facturada se bloquea; la liquidación marca "pendiente de facturar" | detalle de prestación y de liquidación | — | sí |
 
+Se buscó también una agrupación en otra forma: la **liquidación a la aseguradora** agrupa prestaciones por aseguradora y fecha de corte y, al aprobarse,
+queda "pendiente de facturar" (`facturacion = PENDIENTE`), pero **no emite factura**: no hay ruta ni acción de facturar la liquidación (`routes/web.php`
+solo trae `facturas.*` individuales). `detalles_factura` admite varias prestaciones, pero `cobros.store` emite una factura por cobro y CONTADO.
+
+Para dejarlo HECHO (mínimo): emitir una factura (CRÉDITO) desde una liquidación aprobada, con una línea por prestación y su timbrado, que cambie
+`facturacion` a FACTURADA y bloquee las prestaciones; la factura posterior individual (de una prestación ya cobrada o sin factura) puede ser la segunda etapa.
+
 Falta: **factura posterior** (emitir después del cobro o de la consulta) y **factura agrupada** (varias prestaciones, o la liquidación a la aseguradora).
 Hoy la factura se emite solo junto con el cobro, como CONTADO (`docs/facturacion.md`: "Sin factura agrupada a aseguradoras"). Tampoco notas de crédito.
 
@@ -138,6 +165,12 @@ Hoy la factura se emite solo junto con el cobro, como CONTADO (`docs/facturacion
 | Apertura de caja por cajero y sucursal | `/admin/cajas` | `CAJAS` (CREAR) | sí (`ArqueoCajaTest`, Postgres) |
 | Movimientos: apertura, cobro, reversión (por medio de pago) | detalle de la caja | `CAJAS` (VER) | sí |
 | Arqueo y cierre: esperado vs declarado por medio, diferencia con observación obligatoria, recepción o devolución por Gerencia, reenvío corregido, PDF | `/admin/cajas/{id}/arqueo` | `CAJAS`, `CIERRES_CAJA` | sí |
+
+Solo hay tres tipos de movimiento (`MovimientoCaja`: APERTURA, COBRO, REVERSION). El único egreso es la **reversión** de un cobro (devolución de dinero
+a la paciente); no hay retiros, gastos, pagos a proveedores ni depósitos.
+
+Para dejarlo HECHO (mínimo): un tipo de movimiento SALIDA (retiro o gasto, con medio, motivo y comprobante, y opcionalmente vinculado a una compra),
+que entre en el esperado del arqueo; sin eso la conciliación cubre solo ingresos.
 
 Falta: **salidas de caja** (gastos, pagos a proveedores): las compras de contado y los anticipos "no tocan la caja" (`docs/compras-gastos.md`),
 así que la conciliación cubre solo ingresos. Sin conciliación con extractos bancarios, ni depósitos de lo recaudado.
