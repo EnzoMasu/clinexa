@@ -28,7 +28,9 @@ use App\Http\Controllers\Admin\EspecialidadController;
 use App\Http\Controllers\Admin\EstudioController;
 use App\Http\Controllers\Admin\FacturaController;
 use App\Http\Controllers\Admin\HistoriaClinicaController;
+use App\Http\Controllers\Admin\LiquidacionBeneficiarioController;
 use App\Http\Controllers\Admin\LiquidacionController;
+use App\Http\Controllers\Admin\MisLiquidacionesController;
 use App\Http\Controllers\Admin\MatrizPermisosController;
 use App\Http\Controllers\Admin\MedioPagoController;
 use App\Http\Controllers\Admin\MotivoAnulacionController;
@@ -503,6 +505,34 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     // La factura de la liquidación (CRÉDITO, a la aseguradora; docs/facturacion.md): Facturación y convenios la emite. Caja no.
     Route::post('liquidaciones/{liquidacion}/facturar', [LiquidacionController::class, 'facturar'])->name('liquidaciones.facturar')->whereNumber('liquidacion')
         ->middleware(['permiso:FACTURAS_LIQUIDACION,CREAR', 'permiso:LIQUIDACIONES,VER']);
+
+    // Liquidaciones a beneficiarios del reparto (docs/liquidacion-beneficiarios.md): profesionales y dueños de equipos. Pestañas:
+    // liquidaciones, por pagar por beneficiario, pendientes de liquidar y resumen por período. Facturación (o Gerencia) arma, quita y
+    // envía; Gerencia aprueba o devuelve (nunca lo propio); Tesorería registra los pagos. Nada se borra: se quita o se anula.
+    Route::get('beneficiarios/liquidaciones', [LiquidacionBeneficiarioController::class, 'index'])->name('liquidaciones-beneficiarios.index')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,VER');
+    Route::get('beneficiarios/liquidaciones/por-pagar', [LiquidacionBeneficiarioController::class, 'porPagar'])->name('liquidaciones-beneficiarios.por-pagar')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,VER');
+    Route::get('beneficiarios/liquidaciones/pendientes', [LiquidacionBeneficiarioController::class, 'pendientes'])->name('liquidaciones-beneficiarios.pendientes')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,VER');
+    Route::get('beneficiarios/liquidaciones/create', [LiquidacionBeneficiarioController::class, 'create'])->name('liquidaciones-beneficiarios.create')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,CREAR');
+    Route::post('beneficiarios/liquidaciones', [LiquidacionBeneficiarioController::class, 'store'])->name('liquidaciones-beneficiarios.store')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,CREAR');
+    Route::get('beneficiarios/liquidaciones/{liquidacion}', [LiquidacionBeneficiarioController::class, 'show'])->name('liquidaciones-beneficiarios.show')->whereNumber('liquidacion')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,VER');
+    Route::post('beneficiarios/liquidaciones/lineas/{linea}/quitar', [LiquidacionBeneficiarioController::class, 'quitarLinea'])->name('liquidaciones-beneficiarios.lineas.quitar')->whereNumber('linea')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,EDITAR');
+    Route::post('beneficiarios/liquidaciones/{liquidacion}/enviar', [LiquidacionBeneficiarioController::class, 'enviar'])->name('liquidaciones-beneficiarios.enviar')->whereNumber('liquidacion')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,EDITAR');
+    Route::post('beneficiarios/liquidaciones/{liquidacion}/aprobar', [LiquidacionBeneficiarioController::class, 'aprobar'])->name('liquidaciones-beneficiarios.aprobar')->whereNumber('liquidacion')->middleware('permiso:APROBACION_LIQ_BENEFICIARIOS,EDITAR');
+    Route::post('beneficiarios/liquidaciones/{liquidacion}/devolver', [LiquidacionBeneficiarioController::class, 'devolver'])->name('liquidaciones-beneficiarios.devolver')->whereNumber('liquidacion')->middleware('permiso:APROBACION_LIQ_BENEFICIARIOS,EDITAR');
+    Route::post('beneficiarios/liquidaciones/{liquidacion}/anular', [LiquidacionBeneficiarioController::class, 'anular'])->name('liquidaciones-beneficiarios.anular')->whereNumber('liquidacion')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,DESACTIVAR');
+    // Los pagos: siempre aparte de la caja de cobros; en efectivo, opcionalmente desde la caja abierta de hoy de quien paga (como una salida).
+    Route::post('beneficiarios/liquidaciones/{liquidacion}/pagos', [LiquidacionBeneficiarioController::class, 'registrarPago'])->name('liquidaciones-beneficiarios.pagos.store')->whereNumber('liquidacion')->middleware('permiso:PAGOS_BENEFICIARIOS,CREAR');
+    Route::post('beneficiarios/liquidaciones/pagos/{pago}/anular', [LiquidacionBeneficiarioController::class, 'anularPago'])->name('liquidaciones-beneficiarios.pagos.anular')->whereNumber('pago')->middleware('permiso:PAGOS_BENEFICIARIOS,DESACTIVAR');
+    // Resumen por período: el servicio de consulta del objetivo 14 (por beneficiario, también la clínica).
+    Route::get('beneficiarios/liquidaciones/resumen', [LiquidacionBeneficiarioController::class, 'resumen'])->name('liquidaciones-beneficiarios.resumen')->middleware('permiso:LIQUIDACIONES_BENEFICIARIOS,VER');
+    // La planilla: PDF al vuelo, sin nada clínico; no se guarda en la caché.
+    Route::get('beneficiarios/liquidaciones/{liquidacion}/planilla', [LiquidacionBeneficiarioController::class, 'planilla'])->name('liquidaciones-beneficiarios.planilla')->whereNumber('liquidacion')
+        ->middleware(['permiso:LIQUIDACIONES_BENEFICIARIOS,EXPORTAR', SinAlmacenar::class]);
+    // Mis liquidaciones: el profesional, solo las suyas aprobadas y de solo lectura (las demás dan 404).
+    Route::get('mis-liquidaciones', [MisLiquidacionesController::class, 'index'])->name('mis-liquidaciones.index')->middleware('permiso:MIS_LIQUIDACIONES,VER');
+    Route::get('mis-liquidaciones/{liquidacion}', [MisLiquidacionesController::class, 'show'])->name('mis-liquidaciones.show')->whereNumber('liquidacion')->middleware('permiso:MIS_LIQUIDACIONES,VER');
+    Route::get('mis-liquidaciones/{liquidacion}/planilla', [MisLiquidacionesController::class, 'planilla'])->name('mis-liquidaciones.planilla')->whereNumber('liquidacion')
+        ->middleware(['permiso:MIS_LIQUIDACIONES,EXPORTAR', SinAlmacenar::class]);
 
     // Facturación (docs/facturacion.md): un solo módulo con pestañas (facturas, solicitudes de anulación, timbrados, tasas de IVA y
     // motivos). La factura se emite al cobrar (cobros.store). Nada se borra: la factura se anula (directa en el plazo o con solicitud que

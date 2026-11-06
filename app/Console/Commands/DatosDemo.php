@@ -11,6 +11,7 @@ use Database\Seeders\Demo\EconomiaDemo;
 use Database\Seeders\Demo\EtapaDemo;
 use Database\Seeders\Demo\FacturacionDemo;
 use Database\Seeders\Demo\IvaRecorrido;
+use Database\Seeders\Demo\BeneficiariosDemo;
 use Database\Seeders\Demo\LiquidacionesDemo;
 use Database\Seeders\Demo\PacientesDemo;
 use Database\Seeders\Demo\SegurosDemo;
@@ -92,6 +93,7 @@ class DatosDemo extends Command
             'Facturación' => app(FacturacionDemo::class),
             'Días simulados' => app(DiasDemo::class),
             'Liquidaciones' => app(LiquidacionesDemo::class),
+            'Liquidación a beneficiarios' => app(BeneficiariosDemo::class),
         ];
         // El recorrido vive en la fecha real de hoy: nada se adelanta a la víspera ni se simula.
         $vispera = $recorrido ? null : DiasDemo::vispera();

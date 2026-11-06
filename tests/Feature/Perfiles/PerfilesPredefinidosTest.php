@@ -166,7 +166,7 @@ test('la matriz usa módulos reales y solo acciones con efecto (EXPORTAR solo do
         foreach ($matriz as $modulo => $acciones) {
             expect($modulos)->toContain($modulo)
                 ->and(array_diff($acciones, Permiso::accionesDe($modulo)))->toBe([], "{$codigo} / {$modulo}")
-                ->and(in_array($modulo, ['PDF_CLINICO', 'VISACIONES', 'LIQUIDACIONES', 'FACTURAS'], true) || ! in_array('EXPORTAR', $acciones, true))->toBeTrue("{$codigo} / {$modulo}");
+                ->and(in_array($modulo, ['PDF_CLINICO', 'VISACIONES', 'LIQUIDACIONES', 'FACTURAS', 'LIQUIDACIONES_BENEFICIARIOS', 'MIS_LIQUIDACIONES'], true) || ! in_array('EXPORTAR', $acciones, true))->toBeTrue("{$codigo} / {$modulo}");
         }
     }
     // TURNOS no tiene baja (un turno se cancela); MODULOS_SISTEMA no tiene pantalla.

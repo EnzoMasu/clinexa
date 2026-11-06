@@ -1,8 +1,8 @@
 # Reparto económico (fase 2 económica)
 
 Los **acuerdos de reparto** (clínica, profesional, dueño del equipo), un **equipo** mínimo y el **reparto** de cada prestación,
-fijado al crearse. Sin cobros, pagos al profesional o al dueño, liquidaciones, descuentos, montos fijos, uso de equipo por
-paciente ni reserva en la agenda: son fases futuras. Nada se borra. Ver también `docs/tarifas-prestaciones.md`.
+fijado al crearse. La liquidación y el pago a cada profesional y dueño de equipo están en `docs/liquidacion-beneficiarios.md`. Sin
+descuentos, montos fijos, uso de equipo por paciente ni reserva en la agenda: son fases futuras. Nada se borra. Ver también `docs/tarifas-prestaciones.md`.
 
 ## Reglas del cálculo
 
@@ -15,6 +15,9 @@ paciente ni reserva en la agenda: son fases futuras. Nada se borra. Ver también
 - **Redondeo**: profesional y equipo al guaraní más cercano (la mitad, hacia arriba); la clínica recibe el resto, así la suma es
   exacta. Con los porcentajes en 100 justo, si los dos redondeos se pasaran por un guaraní, se ajusta el del equipo.
 - Si el profesional es también el dueño del equipo, son **dos líneas** separadas.
+- **Funcionario con sueldo** (no cobra porcentaje): se le carga un **acuerdo general de 0 %**. Su línea queda en 0 y su parte, en la
+  clínica; la liquidación ignora las líneas en 0. **Sin acuerdo**, el reparto queda pendiente (el aviso de "falta el acuerdo" se conserva
+  para los olvidos).
 - Los acuerdos se eligen por la **fecha de servicio** de la prestación y por su rango (no por el estado), como las tarifas. El equipo
   es el que el procedimiento usa al calcular (la asignación de equipos no está versionada en esta fase).
 

@@ -64,7 +64,8 @@ function migracionLiquidacionesAcciones(string $codigoPerfil, string $modulo): a
 function migracionLiquidacionesSinNada(): void
 {
     migracionLiquidacionesArchivo()->down();
-    foreach (ModuloSistema::whereIn('codigo', MIGRACION_LIQUIDACIONES_MODULOS)->get() as $modulo) {
+    // Los módulos posteriores que usan el estado nuevo (la liquidación a beneficiarios) tampoco existían.
+    foreach (ModuloSistema::whereIn('codigo', [...MIGRACION_LIQUIDACIONES_MODULOS, ...array_keys(PerfilesPredefinidos::MODULOS_LIQUIDACION_BENEFICIARIOS)])->get() as $modulo) {
         DB::table('perfil_permiso')->whereIn('permiso_id', Permiso::where('modulo_sistema_id', $modulo->id)->pluck('id'))->delete();
         Permiso::where('modulo_sistema_id', $modulo->id)->delete();
         DB::table('estado_modulo')->where('modulo_sistema_id', $modulo->id)->delete();

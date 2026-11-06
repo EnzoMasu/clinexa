@@ -12,18 +12,19 @@ Los objetivos se tomaron del pedido (el repo no los trae en ningún documento); 
 
 | Estado | Objetivos | Cantidad |
 |---|---|---|
-| HECHO | 1, 3, 4, 6, 9, 11, 13 | 7 |
-| PARCIAL | 2, 5, 7, 8, 10 | 5 |
+| HECHO | 1, 3, 4, 6, 7, 9, 11, 13 | 8 |
+| PARCIAL | 2, 5, 8, 10 | 4 |
 | FALTA | 12, 14 | 2 |
 
-Informes del objetivo 14 (11 ítems): **PARCIAL 6**, **FALTA 5**, HECHO 0. No existe un módulo de informes: ni rutas, ni menú, ni totales;
+Informes del objetivo 14 (11 ítems): **PARCIAL 7**, **FALTA 4**, HECHO 0. No existe un módulo de informes: ni rutas, ni menú, ni totales;
 el Dashboard es el de Laravel por defecto.
 
 Lo más importante que falta:
 
 1. **Informes (14)**: ninguno consolidado (ventas/cobrado/pendiente, procedimientos, por equipo, comparativos, reparto por beneficiario).
 2. **Cuentas por pagar (12)**: la compra a crédito guarda `vencimiento` y `anticipo`, pero no hay pagos a proveedores, saldos ni reversiones.
-3. **Liquidaciones a profesionales y a dueños de equipo (7)**: el reparto se calcula y se guarda por línea, pero solo se liquida a aseguradoras.
+3. ~~Liquidaciones a profesionales y a dueños de equipo (7)~~: hecho (`docs/liquidacion-beneficiarios.md`); el objetivo 14 debe usar su
+   servicio de consulta (`ResumenBeneficiarios`) y necesitará la sucursal de la prestación (hoy no la tiene).
 4. Caja sin salidas ni gastos (10); saldos y pagos parciales de pacientes (8).
 
 ## 1. Gestionar personas (pacientes, profesionales, usuarios, proveedores, beneficiarios, responsables de pago) — HECHO
@@ -100,25 +101,18 @@ qué equipo se usó en cada turno o consulta, ni se reserva en la agenda (`turno
 
 Nota: los acuerdos son **solo porcentajes** (sin montos fijos ni otros criterios); es el alcance declarado.
 
-## 7. Cálculo y control automático de distribuciones y liquidaciones por beneficiario — PARCIAL
+## 7. Cálculo y control automático de distribuciones y liquidaciones por beneficiario — HECHO
 
 | Qué | Dónde | Permiso | Tests |
 |---|---|---|---|
 | Reparto automático por prestación en líneas (clínica, profesional, dueño del equipo), exacto al guaraní, inmutable | `POST /admin/prestaciones/{id}/repartir`; se ve en el detalle de la prestación | `ACUERDOS_REPARTO` (EDITAR) | sí |
 | Liquidación a **aseguradoras** (armar, enviar, aprobar, pagos parciales, planilla) | `/admin/liquidaciones` | `LIQUIDACIONES`, `APROBACION_LIQUIDACIONES`, `PAGOS_ASEGURADORAS` | sí (`LiquidacionesTest`) |
+| Liquidación a **profesionales y dueños de equipos** de punta a punta: lo percibido (cobrado a la paciente; la aseguradora con su liquidación pagada), armar por beneficiario y corte con vista previa, postergar (quitar), enviar, aprobar o devolver (nadie lo propio), pagos totales o parciales (con comprobante; en efectivo como salida de la caja de Tesorería), anular pagos y la liquidación, ajustes en contra automáticos y saldo negativo trasladado, planilla PDF, auditoría con montos ocultos y trazabilidad hasta la prestación | `/admin/liquidaciones-beneficiarios` (pestañas: liquidaciones, por pagar, pendientes de liquidar, resumen por período) | `LIQUIDACIONES_BENEFICIARIOS`, `APROBACION_LIQ_BENEFICIARIOS`, `PAGOS_BENEFICIARIOS` | sí (`LiquidacionBeneficiariosTest`, `...PantallasTest`, `...ConsultaTest`, `MigracionLiquidacionBeneficiariosTest`, `Postgres/LiquidacionBeneficiariosTest`) |
+| "Mis liquidaciones" del profesional (solo las propias aprobadas, de solo lectura, con su planilla) | `/admin/mis-liquidaciones` | `MIS_LIQUIDACIONES` | sí |
 
-Qué se hace hoy con el reparto: se calcula al finalizar y se guarda en `lineas_reparto` (beneficiario CLINICA, PROFESIONAL o EQUIPO con
-`profesional_id` o `proveedor_id`), y **solo se muestra** en el detalle de la prestación (`resources/views/admin/prestaciones/show.blade.php`).
-Se buscó con otros nombres (pago, estado del reparto, exportación, reporte): `LineaReparto` solo la usan `CalcularReparto`, `RepartirPrestacion`, esa
-vista y la auditoría; las rutas de reparto son únicamente acuerdos y `prestaciones/{id}/repartir`. La `Liquidacion` existente es solo de aseguradoras.
-`docs/reparto-economico.md` declara "sin pagos al profesional o al dueño, liquidaciones" como fase futura.
-
-Para dejarlo HECHO (mínimo): una pantalla de liquidación por beneficiario (profesional o dueño de equipo) y período, que agrupe sus `lineas_reparto`,
-con estados y bloqueo de las líneas liquidadas, registro del pago (con reversión) y planilla PDF con EXPORTAR.
-
-Falta: **liquidación a profesionales y a dueños de equipos** (lo que les corresponde, qué se les pagó, saldo). Las líneas de reparto existen,
-pero no hay ninguna pantalla que las agrupe por beneficiario, las liquide ni registre su pago (`docs/facturacion.md` y
-`docs/liquidaciones-aseguradoras.md` lo dejan fuera). A VERIFICAR en pantalla si el reparto queda como "pendiente" cuando falta un acuerdo y cómo se avisa.
+Detalle en `docs/liquidacion-beneficiarios.md`. El funcionario con sueldo lleva un acuerdo general de 0 % (su parte queda en la clínica);
+sin acuerdo el reparto sigue pendiente. A VERIFICAR en pantalla con datos reales: el recorrido completo (`docs/liquidacion-beneficiarios.md`,
+"Qué probar en el navegador").
 
 ## 8. Responsables de pago, cobros, medios de pago, saldos y reversiones — PARCIAL
 
@@ -212,8 +206,8 @@ estudio** clínicos, que son otro tema). Lo que hay son listados con grilla (ord
 | 14.2 | Procedimientos más realizados, con cantidades e ingresos | FALTA | Ninguna agrupación ni ranking. Los datos están en `prestaciones`. |
 | 14.3 | Total vendido, cobrado y pendiente | FALTA | El listado de Prestaciones muestra "Cobrada/Pendiente" por fila, sin totales ni períodos. |
 | 14.4 | Facturas individuales y agrupadas | PARCIAL | Listado de Facturas (`FACTURAS`) con PDF y estados; las **agrupadas no existen** (ver 9). Sin totales por período. |
-| 14.5 | Lo que corresponde a clínica, profesionales y propietarios de equipos | FALTA | Solo el reparto de cada prestación en su detalle (A VERIFICAR); sin informe por beneficiario ni período. |
-| 14.6 | Liquidaciones generadas, pagadas, parciales y pendientes | PARCIAL | Listado de Liquidaciones a aseguradoras con estados (EN_PREPARACION a PAGADO) y "por cobrar". No hay liquidaciones a profesionales ni a dueños de equipo (ver 7). |
+| 14.5 | Lo que corresponde a clínica, profesionales y propietarios de equipos | PARCIAL | Servicio de consulta único `LiquidacionesBeneficiarios\ResumenBeneficiarios` (devengado, percibido, liquidable, liquidado, pagado y saldo por beneficiario y período, con la clínica) y su pestaña "Resumen por período". Falta el informe del objetivo 14 (exportación, comparativos). La parte de la clínica no es ganancia (faltan gastos y sueldos); la prestación no tiene sucursal propia. |
+| 14.6 | Liquidaciones generadas, pagadas, parciales y pendientes | PARCIAL | Listados de liquidaciones a aseguradoras y a beneficiarios con estados (EN_PREPARACION a PAGADO), "por cobrar" y "por pagar por beneficiario". Falta el informe consolidado del objetivo 14 (usar `ResumenBeneficiarios`). |
 | 14.7 | Comparativo por profesional, procedimiento, equipo y sucursal | FALTA | Nada. |
 | 14.8 | Compras, gastos y saldos con proveedores | PARCIAL | Listado de Compras con filtros (proveedor, categoría, condición, estado). Sin totales por período ni **saldos** (ver 12). |
 | 14.9 | Usos e importes por equipo | FALTA | Nada; además el uso del equipo no se registra por atención (ver 5). |

@@ -77,6 +77,7 @@ function grillasDesplegablesEtiquetas(string $ruta, string $clave, Model $fila):
         'auditoria.modulo' => [ModuloSistema::where('codigo', Auditoria::modulosPorTabla()[$fila->tabla_afectada] ?? '')->value('nombre')],
         'acuerdos-reparto.tipo' => [AcuerdoReparto::TIPOS[$fila->tipo]],
         'compras.categoria' => [$fila->categoriaGasto->nombre],
+        'liquidaciones-beneficiarios.tipo' => [App\Models\LiquidacionBeneficiario::BENEFICIARIOS[$fila->beneficiario]],
         'compras.condicion' => [$fila->condicion->etiqueta()],
         'cobros.medios' => $fila->lineas->map(fn ($linea) => $linea->medioPago->nombre)->all(),
         'disponibilidades.dia' => [Disponibilidad::DIAS[$fila->dia_semana]],

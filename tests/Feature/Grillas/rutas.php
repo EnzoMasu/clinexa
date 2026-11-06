@@ -10,7 +10,7 @@ function grillasTodasRutas(): array
         'categorias-proveedor.index', 'cie10.index', 'ciudades.index', 'cobros.index', 'compras.index', 'consultorios.index',
         'convenios.index', 'convenios.tarifas', 'departamentos.index', 'dietas.index', 'disponibilidades.index',
         'equipos.index', 'especialidades.index', 'estudios.index', 'facturas.index', 'facturas.timbrados',
-        'facturas.tasas-iva', 'historias-clinicas.index', 'liquidaciones.index', 'medios-pago.index',
+        'facturas.tasas-iva', 'historias-clinicas.index', 'liquidaciones.index', 'liquidaciones-beneficiarios.index', 'medios-pago.index',
         'facturas.motivos', 'origenes-turno.index', 'pacientes.index', 'paises.index', 'perfiles-acceso.index',
         'personal-salud.index', 'personas.index', 'prestaciones.index', 'procedimientos.index', 'profesionales.index',
         'proveedores.index', 'responsables-pago.index', 'sucursales.index', 'tarifas.index', 'tipos-bloque-anamnesis.index',

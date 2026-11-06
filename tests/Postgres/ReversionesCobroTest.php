@@ -139,6 +139,8 @@ test('la migración con cobros ya existentes: no los revierte; en simulación no
     $migracion = require base_path('database/migrations/2026_10_29_100001_reversiones_de_cobro.php');
     $cobro = pgReversionesCobroCobro();
     // La de salidas de caja depende de sus tablas y de la marca del efectivo: se baja antes.
+    // La liquidación a beneficiarios (posterior) depende de cajas y salidas: se baja antes.
+    (require base_path('database/migrations/2026_11_11_100001_create_liquidacion_beneficiarios.php'))->down();
     (require base_path('database/migrations/2026_11_09_100001_salidas_de_caja.php'))->down();
     $migracion->down();
     $antes = DB::table('cobros')->orderBy('id')->get()->map(fn ($fila) => (array) $fila)->all();

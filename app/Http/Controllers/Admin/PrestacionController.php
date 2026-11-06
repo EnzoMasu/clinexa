@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Consulta;
 use App\Models\Estado;
 use App\Models\InformeEstudio;
+use App\Models\LineaLiquidacionBeneficiario;
 use App\Models\Prestacion;
 use App\Models\Profesional;
 use App\Support\Convenios\CalcularCobertura;
@@ -167,6 +168,12 @@ class PrestacionController extends Controller
             // La liquidación a la que pertenece (docs/liquidaciones-aseguradoras.md), solo para quien ve las liquidaciones.
             'veLiquidaciones' => Permisos::puedeRuta('admin.liquidaciones.show'),
             'veRepartos' => $veRepartos,
+            // Sus líneas en liquidaciones a beneficiarios (docs/liquidacion-beneficiarios.md), también las quitadas y los ajustes, para
+            // quien ve esas liquidaciones.
+            'lineasBeneficiarios' => Permisos::puedeRuta('admin.liquidaciones-beneficiarios.show')
+                ? LineaLiquidacionBeneficiario::where('prestacion_id', $prestacion->id)->with(['liquidacion.profesional.persona', 'liquidacion.proveedor.persona', 'liquidacion.moneda'])
+                    ->orderBy('id')->get()
+                : collect(),
             // Cobertura y visaciones (docs/convenios-seguros.md): la página de la paciente y el ticket de la aseguradora.
             'veCobertura' => CoberturaController::puedeVer(),
             'puedeTicket' => $prestacion->deAseguradora() && ! $prestacion->anulada() && Permisos::puedeRuta('admin.visaciones.ticket'),
