@@ -45,6 +45,14 @@ return [
     ],
 
     /*
+    | Caja (docs/cobros-caja.md): plazo, desde que se registra, para que quien registró una salida de caja la anule sin aprobación.
+    | Pasado ese plazo, solo por solicitud aprobada por Gerencia.
+    */
+    'caja' => [
+        'plazo_anulacion_salida_minutos' => (int) env('CLINEXA_PLAZO_ANULACION_SALIDA', 10),
+    ],
+
+    /*
     | Respaldos de la base (php artisan clinexa:respaldo). Ver docs/respaldo.md.
     |
     | - carpeta: dónde se guardan. FUERA del repositorio: los respaldos tienen datos de salud.

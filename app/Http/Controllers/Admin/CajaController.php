@@ -8,12 +8,15 @@ use App\Models\Caja;
 use App\Models\Estado;
 use App\Models\MedioPago;
 use App\Models\MovimientoCaja;
+use App\Models\SalidaCaja;
 use App\Models\User;
 use App\Support\Cobros\AbrirCaja;
+use App\Support\Cobros\AnularSalida;
 use App\Support\Cobros\CerrarCaja;
 use App\Support\Cobros\Cobrar;
 use App\Support\Cobros\Guaranies;
 use App\Support\Cobros\PdfArqueo;
+use App\Support\Cobros\RegistrarSalida;
 use App\Support\Cobros\RevisarCierre;
 use App\Support\Fecha;
 use App\Support\Grilla\Grilla;
@@ -55,6 +58,7 @@ class CajaController extends Controller
             'puedeAbrir' => $miCaja === null && Permisos::puedeRuta('admin.cajas.abrir'),
             'sucursales' => AbrirCaja::sucursales(),
             'puedeCobrar' => $miCaja !== null && Permisos::puedeRuta('admin.cobros.create'),
+            'puedeSalida' => $miCaja !== null && Permisos::puedeRuta('admin.cajas.salidas.store'),
             'veTodas' => $veTodas,
             'cantidadPendientes' => $veTodas ? Caja::where('estado_id', Estado::idDe(Estado::CERRADO))->count() : 0,
             'filtroEstado' => $estado,
@@ -87,6 +91,13 @@ class CajaController extends Controller
             'cobros' => $caja->cobros()->with(['paciente.persona', 'lineas.medioPago', 'moneda', 'estado'])->orderBy('id')->get(),
             // Los egresos de los cobros revertidos que se devolvieron desde esta caja (el cobro puede ser de otra).
             'devoluciones' => $caja->movimientos()->where('tipo', MovimientoCaja::REVERSION)->with(['cobro.paciente.persona', 'medioPago'])->orderBy('id')->get(),
+            // Las salidas de dinero de esta caja (vigentes y anuladas) y el formulario para registrar otra (su cajero, con la caja abierta de hoy).
+            'salidas' => $salidas = $caja->salidas()->with(['categoria', 'registradaPor.persona', 'anuladaPor.persona', 'solicitudPendiente', 'caja'])->orderBy('id')->get(),
+            'puedeRegistrarSalida' => $puedeSalida = $propia && AnularSalida::cajaAbiertaDeHoy($caja) && Permisos::puedeRuta('admin.cajas.salidas.store'),
+            'categoriasSalida' => $puedeSalida ? RegistrarSalida::categorias() : collect(),
+            'anulablesDirecto' => $salidas->filter(fn (SalidaCaja $salida) => AnularSalida::esDirecta($usuario, $salida))->modelKeys(),
+            'puedeAnularSalidas' => Permisos::puedeRuta('admin.salidas-caja.anular'),
+            'plazoAnulacionSalida' => AnularSalida::plazoMinutos(),
             'puedeCerrar' => $puedeCerrar,
             'puedeRevisar' => ! $propia && $caja->cerrada() && Permisos::puedeRuta('admin.cajas.aprobar'),
             // En un arqueo devuelto, su cajero corrige el medio y el comprobante de los cobros desde el detalle de cada uno.

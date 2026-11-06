@@ -9,6 +9,7 @@ use App\Models\CierreCajaMedio;
 use App\Models\Cobro;
 use App\Models\LineaCobro;
 use App\Models\MovimientoCaja;
+use App\Models\SalidaCaja;
 use App\Support\Auditoria;
 use App\Support\Fecha;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -17,7 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * La impresión del arqueo de una caja (docs/cobros-caja.md): clínica, fecha, cajero, sucursal (la de la caja), apertura y cierre, las
  * facturas cobradas, cada transacción con su medio y su comprobante (los cobros revertidos, marcados), las devoluciones hechas desde
- * esta caja, los totales por medio de pago del último arqueo (esperado, declarado, diferencia), la observación (en blanco si no hay)
+ * esta caja, las salidas de caja (las anuladas, marcadas y fuera del total), los totales por medio de pago del último arqueo (esperado, declarado, diferencia), la observación (en blanco si no hay)
  * y el espacio para la firma del cajero y del gerente. Sin nada clínico.
  *
  * Al vuelo, como los demás PDF: nada se guarda (no-store) y cada generación queda en Auditoría (EXPORTAR sobre `cajas`). Solo con
@@ -76,6 +77,17 @@ final class PdfArqueo
                     'medio' => $movimiento->medioPago->nombre,
                     'monto' => $moneda->formatear($movimiento->monto),
                 ])->all(),
+            'salidas' => ($salidas = $caja->salidas()->with('categoria')->orderBy('id')->get())->map(fn (SalidaCaja $salida) => [
+                'hora' => Fecha::mostrar($salida->registrada_en, conHora: true),
+                'categoria' => $salida->categoria->nombre,
+                'beneficiario' => $salida->beneficiario,
+                'comprobante' => $salida->comprobante ?? '—',
+                'concepto' => $salida->concepto,
+                'monto' => $moneda->formatear(-1 * $salida->monto),
+                'anulada' => $salida->anulada(),
+                'motivoAnulacion' => (string) $salida->motivo_anulacion,
+            ])->all(),
+            'totalSalidas' => $moneda->formatear(-1 * $salidas->reject(fn (SalidaCaja $salida) => $salida->anulada())->sum('monto')),
             'totales' => $medios->map(fn (CierreCajaMedio $fila) => [
                 'medio' => $fila->medioPago->nombre,
                 'esperado' => $moneda->formatear($fila->esperado),

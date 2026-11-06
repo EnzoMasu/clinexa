@@ -103,6 +103,23 @@
         </table>
     @endif
 
+    @if ($salidas !== [])
+        <h2>Salidas de caja ({{ count($salidas) }})</h2>
+        <table class="lineas">
+            <thead><tr><th>Fecha y hora</th><th>Categoría</th><th>Beneficiario</th><th>Comprobante</th><th>Concepto</th><th class="monto">Monto</th></tr></thead>
+            <tbody>
+                @foreach ($salidas as $fila)
+                    <tr>
+                        <td>{{ $fila['hora'] }}</td><td>{{ $fila['categoria'] }}</td><td>{{ $fila['beneficiario'] }}</td><td>{{ $fila['comprobante'] }}</td>
+                        <td>{{ $fila['concepto'] }}@if ($fila['anulada'])<br><span class="marca">Anulada: {{ $fila['motivoAnulacion'] }}</span>@endif</td>
+                        <td class="monto">{{ $fila['monto'] }}@if ($fila['anulada']) <span class="marca">(anulada)</span>@endif</td>
+                    </tr>
+                @endforeach
+                <tr class="total"><td colspan="5">Total de salidas vigentes (en efectivo)</td><td class="monto">{{ $totalSalidas }}</td></tr>
+            </tbody>
+        </table>
+    @endif
+
     <h2>Totales por medio de pago</h2>
     <table class="lineas">
         <thead><tr><th>Medio de pago</th><th class="monto">Esperado</th><th class="monto">Declarado</th><th class="monto">Diferencia</th></tr></thead>

@@ -44,6 +44,8 @@ class Permiso extends Model
         'CIERRES_CAJA' => ['VER', 'EDITAR'],
         'COBROS' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
         'REVERSIONES_COBRO' => ['VER', 'EDITAR'],
+        // Salidas de caja: ver, registrar (CREAR) y anular o solicitar la anulación (DESACTIVAR); una salida no se edita.
+        'SALIDAS_CAJA' => ['VER', 'CREAR', 'DESACTIVAR'],
         // Convenios (docs/convenios-seguros.md): convenios, planes y tarifas del convenio (alta, cambio y baja; nada se borra).
         // Coberturas: ver, cargar (CREAR, también la que reemplaza a la vigente) y dar de baja (EDITAR). Visaciones: todas (EDITAR =
         // aplicar una visación y la firma recibida; DESACTIVAR = anular; EXPORTAR = el ticket).

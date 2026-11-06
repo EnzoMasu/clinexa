@@ -106,6 +106,9 @@ class PerfilesPredefinidos
 
     private const VER_EXPORTAR = ['VER', 'EXPORTAR'];
 
+    /** Salidas de caja: VER, CREAR (registrar) y DESACTIVAR (anular en el plazo o solicitar la anulación). */
+    private const SALIDAS_CAJA_TODO = ['VER', 'CREAR', 'DESACTIVAR'];
+
     /**
      * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO, en VISACIONES, el ticket, en LIQUIDACIONES, la planilla, y en FACTURAS, el PDF; TURNOS no tiene
      * DESACTIVAR: un turno se cancela, con EDITAR). Ningún perfil, salvo ADMINISTRADOR, escribe en USUARIOS
@@ -133,6 +136,8 @@ class PerfilesPredefinidos
             'COBROS' => self::VER, 'CAJAS' => self::VER, 'CIERRES_CAJA' => ['VER', 'EDITAR'],
             // Reversiones de cobro: aprueba o rechaza las solicitudes. No revierte (no tiene caja).
             'REVERSIONES_COBRO' => ['VER', 'EDITAR'],
+            // Salidas de caja: las ve; registra y anula (o solicita anular) las de su propia caja, si abre una.
+            'SALIDAS_CAJA' => self::SALIDAS_CAJA_TODO,
             // Convenios (docs/convenios-seguros.md): administra convenios, planes y sus tarifas; ve coberturas y visaciones y genera el ticket.
             'CONVENIOS' => self::TODO, 'COBERTURAS' => self::VER, 'VISACIONES' => ['VER', 'EXPORTAR'],
             // Liquidaciones (docs/liquidaciones-aseguradoras.md): las ve todas, saca la planilla, aprueba o devuelve y anula; ve los
@@ -185,6 +190,8 @@ class PerfilesPredefinidos
             'CAJAS' => self::VER_CREAR_EDITAR, 'COBROS' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],
             // Facturación (docs/facturacion.md): emite al cobrar, saca el PDF, anula las suyas en el plazo y solicita las demás.
             'FACTURAS' => self::FACTURAS_CAJA,
+            // Salidas de caja: registra las de su caja abierta de hoy y las anula en el plazo (o solicita la anulación).
+            'SALIDAS_CAJA' => self::SALIDAS_CAJA_TODO,
         ],
         self::FACTURACION => [
             'RESPONSABLES_PAGO' => self::VER, 'PROCEDIMIENTOS' => self::VER, 'MEDIOS_PAGO' => self::VER,
@@ -287,6 +294,12 @@ class PerfilesPredefinidos
         'COMPRAS' => [self::COMPRAS_TESORERIA => self::VER_CREAR_EDITAR, self::GERENCIA => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR']],
         'CONFIRMACION_COMPRAS' => [self::GERENCIA => ['VER', 'EDITAR']],
         'TIPOS_COMPROBANTE_COMPRA' => [self::GERENCIA => self::VER, self::COMPRAS_TESORERIA => self::VER],
+    ];
+
+    /** Lo que suma la migración de salidas de caja (2026_11_09_100002, repetible): Caja y Gerencia. Lo mismo que la matriz. */
+    public const PERMISOS_SALIDAS_CAJA = [
+        self::CAJA => self::SALIDAS_CAJA_TODO,
+        self::GERENCIA => self::SALIDAS_CAJA_TODO,
     ];
 
     /**

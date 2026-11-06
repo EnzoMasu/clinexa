@@ -13,8 +13,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * Una solicitud de reversión de un cobro (docs/cobros-caja.md): la pide Caja, con motivo, cuando el cobro es de una caja cerrada,
  * devuelta o aprobada, o de otro cajero. PENDIENTE -> APROBADO (se revierte el cobro, con el egreso en la caja abierta del
- * solicitante) o -> RECHAZADO con la nota de Gerencia. Una sola pendiente por cobro (`solicitudes_reversion_una_pendiente`). El
- * modelo rechaza cualquier otro cambio, y el borrado.
+ * solicitante) o -> RECHAZADO con la nota de Gerencia. Una sola pendiente por cobro (`solicitudes_reversion_una_pendiente`).
+ *
+ * La misma solicitud sirve para anular una salida de caja pasado el plazo (`salida_caja_id`, sin cobro; Cobros\AnularSalida): la
+ * revisa Gerencia con las mismas reglas, y una sola pendiente por salida (`solicitudes_anulacion_salida_una_pendiente`). El modelo
+ * rechaza cualquier otro cambio, y el borrado.
  */
 class SolicitudReversionCobro extends Model
 {
@@ -26,7 +29,7 @@ class SolicitudReversionCobro extends Model
 
     private const CAMPOS_DE_REVISION = ['estado_id', 'revisado_por', 'revisado_en', 'nota_revision', 'updated_at'];
 
-    protected $fillable = ['cobro_id', 'usuario_id', 'solicitada_en', 'motivo'];
+    protected $fillable = ['cobro_id', 'salida_caja_id', 'usuario_id', 'solicitada_en', 'motivo'];
 
     public static function moduloEstado(): string
     {
@@ -57,9 +60,10 @@ class SolicitudReversionCobro extends Model
 
     public function detalleAuditoria(AccionAuditoria $accion): ?string
     {
+        $salida = $this->salida_caja_id !== null;
         $texto = match (Estado::find($this->estado_id)?->codigo) {
-            Estado::APROBADO => 'Reversión aprobada',
-            Estado::RECHAZADO => 'Reversión rechazada',
+            Estado::APROBADO => $salida ? 'Anulación de la salida de caja aprobada' : 'Reversión aprobada',
+            Estado::RECHAZADO => $salida ? 'Anulación de la salida de caja rechazada' : 'Reversión rechazada',
             default => null,
         };
 
@@ -74,6 +78,17 @@ class SolicitudReversionCobro extends Model
     public function cobro(): BelongsTo
     {
         return $this->belongsTo(Cobro::class);
+    }
+
+    public function salida(): BelongsTo
+    {
+        return $this->belongsTo(SalidaCaja::class, 'salida_caja_id');
+    }
+
+    /** Si es la anulación de una salida de caja (y no la reversión de un cobro). */
+    public function esDeSalida(): bool
+    {
+        return $this->salida_caja_id !== null;
     }
 
     public function solicitante(): BelongsTo

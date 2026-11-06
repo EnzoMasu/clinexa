@@ -17,6 +17,9 @@
                         <a href="{{ route('admin.cobros.create') }}" class="inline-flex items-center rounded-md bg-gray-800 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-800 dark:hover:bg-white">Cobrar</a>
                     @endif
                     <a href="{{ route('admin.cajas.show', $miCaja) }}" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Ver la caja y cerrarla</a>
+                    @if ($puedeSalida && ! $miCajaDeOtroDia)
+                        <a href="{{ route('admin.cajas.show', $miCaja) }}#salidas-caja" class="font-medium text-indigo-600 hover:underline dark:text-indigo-400">Registrar una salida</a>
+                    @endif
                 </div>
             </section>
         @elseif ($puedeAbrir && $devueltas->isNotEmpty())

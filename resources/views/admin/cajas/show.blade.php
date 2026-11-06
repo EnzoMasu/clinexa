@@ -27,7 +27,7 @@
 
         <section aria-labelledby="esperado" class="max-w-3xl space-y-3">
             <h3 id="esperado" class="font-semibold text-gray-900 dark:text-gray-100">Lo esperado por medio de pago</h3>
-            <p class="text-gray-600 dark:text-gray-400">El monto inicial (solo en efectivo) más los cobros, menos lo devuelto por cobros revertidos.</p>
+            <p class="text-gray-600 dark:text-gray-400">El monto inicial (solo en efectivo) más los cobros, menos lo devuelto por cobros revertidos y las salidas de caja vigentes (en efectivo).</p>
             <x-admin.table :headers="['Medio de pago', 'Esperado']">
                 @forelse ($mediosConMovimientos as $medio)
                     <tr>
@@ -82,6 +82,81 @@
                         </tr>
                     @endforeach
                 </x-admin.table>
+            </section>
+        @endif
+
+        {{-- Salidas de dinero (Cobros\RegistrarSalida y Cobros\AnularSalida): siempre en efectivo, restan de lo esperado; la anulada se
+             muestra tachada y su monto vuelve al efectivo. --}}
+        @if ($salidas->isNotEmpty() || $puedeRegistrarSalida)
+            <section id="salidas-caja" aria-labelledby="salidas-caja-titulo" class="max-w-5xl space-y-3">
+                <h3 id="salidas-caja-titulo" class="font-semibold text-gray-900 dark:text-gray-100">Salidas de caja ({{ $salidas->count() }})</h3>
+                <x-admin.table :headers="['Hora', 'Categoría', 'Beneficiario', 'Comprobante', 'Concepto', 'Monto']">
+                    @forelse ($salidas as $salida)
+                        <tr>
+                            <td class="px-6 py-3 whitespace-nowrap">{{ Fecha::mostrar($salida->registrada_en, conHora: true) }}</td>
+                            <td class="px-6 py-3">{{ $salida->categoria->nombre }}</td>
+                            <td class="px-6 py-3">{{ $salida->beneficiario }}</td>
+                            <td class="px-6 py-3">{{ $salida->comprobante ?? '—' }}</td>
+                            <td class="px-6 py-3">
+                                {{ $salida->concepto }}
+                                @if ($salida->anulada())
+                                    <p class="mt-1 text-xs text-red-700 dark:text-red-300">Anulada el {{ Fecha::mostrar($salida->anulada_en, conHora: true) }}{{ $salida->anuladaPor ? ' por '.($salida->anuladaPor->persona?->nombre_completo ?? $salida->anuladaPor->email) : '' }}. Motivo: {{ $salida->motivo_anulacion }}</p>
+                                @elseif ($salida->solicitudPendiente)
+                                    <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">Anulación pedida a Gerencia el {{ Fecha::mostrar($salida->solicitudPendiente->solicitada_en, conHora: true) }}: pendiente de aprobación.</p>
+                                @endif
+                            </td>
+                            <td @class(['px-6 py-3 whitespace-nowrap tabular-nums', 'line-through text-gray-500 dark:text-gray-400' => $salida->anulada()])>{{ $caja->moneda->formatear(-1 * $salida->monto) }}@if ($salida->anulada()) <span class="no-underline font-semibold text-red-700 dark:text-red-300">(anulada)</span>@endif</td>
+                            <td class="px-6 py-3 text-right">
+                                @if ($puedeAnularSalidas && ! $salida->anulada() && ! $salida->solicitudPendiente && $salida->usuario_id === auth()->id() && \App\Support\Cobros\AnularSalida::cajaAbiertaDeHoy($caja))
+                                    @php($directa = in_array($salida->id, $anulablesDirecto, true))
+                                    @php($bolsa = $errors->getBag('salida'.$salida->id))
+                                    <details class="text-left" @if ($bolsa->any()) open @endif>
+                                        <summary class="cursor-pointer font-medium text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">{{ $directa ? 'Anular' : 'Solicitar la anulación' }}</summary>
+                                        <form method="POST" action="{{ route($directa ? 'admin.salidas-caja.anular' : 'admin.salidas-caja.solicitar-anulacion', $salida) }}" novalidate class="mt-2 w-64 space-y-2">
+                                            @csrf
+                                            <label for="motivo_salida_{{ $salida->id }}" class="block text-xs text-gray-600 dark:text-gray-400">Motivo (obligatorio)</label>
+                                            <textarea id="motivo_salida_{{ $salida->id }}" name="motivo" rows="2" required minlength="{{ \App\Support\Cobros\AnularSalida::MOTIVO_MINIMO }}" maxlength="{{ \App\Support\Cobros\AnularSalida::MOTIVO_MAXIMO }}"
+                                                class="block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"></textarea>
+                                            <x-input-error :messages="$bolsa->get('motivo')" />
+                                            <x-secondary-button type="submit">{{ $directa ? 'Anular la salida' : 'Enviar la solicitud' }}</x-secondary-button>
+                                        </form>
+                                    </details>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" class="px-6 py-6 text-center text-gray-500 dark:text-gray-400">Todavía no hay salidas en esta caja.</td></tr>
+                    @endforelse
+                    @if ($salidas->isNotEmpty())
+                        <tr class="font-semibold">
+                            <td class="px-6 py-3" colspan="5">Total de salidas vigentes</td>
+                            <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $caja->moneda->formatear(-1 * $salidas->reject(fn ($salida) => $salida->anulada())->sum('monto')) }}</td>
+                            <td></td>
+                        </tr>
+                    @endif
+                </x-admin.table>
+
+                @if ($puedeRegistrarSalida)
+                    <div class="max-w-3xl space-y-3 rounded-md border border-gray-200 p-4 dark:border-gray-700">
+                        <h4 class="font-semibold text-gray-900 dark:text-gray-100">Registrar una salida</h4>
+                        <p class="text-gray-600 dark:text-gray-400">Sale en efectivo y resta de lo esperado en efectivo. Si no alcanza, no se registra. Quien la registra puede anularla dentro de los {{ $plazoAnulacionSalida }} minutos; después, solo con la aprobación de Gerencia. No se edita: para corregirla, anúlela y registre otra.</p>
+                        @if ($categoriasSalida->isEmpty())
+                            <p role="status" class="rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">No hay categorías de gasto activas: pida a Compras y tesorería o a Gerencia que carguen una.</p>
+                        @else
+                            <form method="POST" action="{{ route('admin.cajas.salidas.store', $caja) }}" novalidate class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                @csrf
+                                <x-admin.select name="categoria_gasto_id" label="Categoría de gasto" :options="$categoriasSalida->pluck('nombre', 'id')->all()" required />
+                                <x-admin.input name="monto" label="Monto en efectivo (₲)" inputmode="numeric" maxlength="18" autocomplete="off" required />
+                                <x-admin.input name="beneficiario" label="Beneficiario" maxlength="{{ \App\Support\Cobros\RegistrarSalida::BENEFICIARIO_MAXIMO }}" required />
+                                <x-admin.input name="comprobante" label="Comprobante o recibo (opcional)" maxlength="{{ \App\Support\Cobros\RegistrarSalida::COMPROBANTE_MAXIMO }}" />
+                                <div class="sm:col-span-2">
+                                    <x-admin.textarea name="concepto" label="Concepto (obligatorio)" rows="2" minlength="{{ \App\Support\Cobros\RegistrarSalida::CONCEPTO_MINIMO }}" maxlength="{{ \App\Support\Cobros\RegistrarSalida::CONCEPTO_MAXIMO }}" required />
+                                </div>
+                                <div class="sm:col-span-2"><x-primary-button>Registrar la salida</x-primary-button></div>
+                            </form>
+                        @endif
+                    </div>
+                @endif
             </section>
         @endif
 

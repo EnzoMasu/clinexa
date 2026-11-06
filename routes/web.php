@@ -49,6 +49,7 @@ use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\RecetaController;
 use App\Http\Controllers\Admin\ReposoMedicoController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
+use App\Http\Controllers\Admin\SalidaCajaController;
 use App\Http\Controllers\Admin\SalidaController;
 use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TarifaController;
@@ -402,6 +403,11 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     // La impresión del arqueo: PDF al vuelo, auditado, sin nada clínico; no se guarda en la caché.
     Route::get('cajas/{caja}/arqueo', [CajaController::class, 'arqueo'])->name('cajas.arqueo')->whereNumber('caja')
         ->middleware(['permiso:CAJAS,VER', SinAlmacenar::class]);
+    // Salidas de caja (retiros, gastos y pagos menores, en efectivo): el cajero las registra en su caja abierta de hoy (CREAR) y las
+    // anula en el plazo o solicita la anulación (DESACTIVAR); Gerencia revisa las solicitudes en la pestaña de reversiones de Cobros.
+    Route::post('cajas/{caja}/salidas', [SalidaCajaController::class, 'store'])->name('cajas.salidas.store')->whereNumber('caja')->middleware(['permiso:CAJAS,VER', 'permiso:SALIDAS_CAJA,CREAR']);
+    Route::post('salidas-caja/{salida}/anular', [SalidaCajaController::class, 'anular'])->name('salidas-caja.anular')->whereNumber('salida')->middleware(['permiso:CAJAS,VER', 'permiso:SALIDAS_CAJA,DESACTIVAR']);
+    Route::post('salidas-caja/{salida}/solicitar-anulacion', [SalidaCajaController::class, 'solicitarAnulacion'])->name('salidas-caja.solicitar-anulacion')->whereNumber('salida')->middleware(['permiso:CAJAS,VER', 'permiso:SALIDAS_CAJA,DESACTIVAR']);
     Route::get('cobros', [CobroController::class, 'index'])->name('cobros.index')->middleware('permiso:COBROS,VER');
     // Cobrar emite la factura (docs/facturacion.md): hacen falta los dos permisos.
     Route::get('cobros/create', [CobroController::class, 'create'])->name('cobros.create')->middleware(['permiso:COBROS,CREAR', 'permiso:FACTURAS,CREAR']);

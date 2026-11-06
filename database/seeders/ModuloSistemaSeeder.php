@@ -92,6 +92,8 @@ class ModuloSistemaSeeder extends Seeder
             'CIERRES_CAJA' => ['Aprobación de cierres de caja', [Estado::PENDIENTE, Estado::APROBADO, Estado::DEVUELTO]],
             'COBROS' => ['Cobros', [Estado::VIGENTE, Estado::REVERTIDO]],
             'REVERSIONES_COBRO' => ['Aprobación de reversiones de cobro', [Estado::PENDIENTE, Estado::APROBADO, Estado::RECHAZADO]],
+            // Salidas de caja (retiros, gastos y pagos menores en efectivo): vigentes o anuladas.
+            'SALIDAS_CAJA' => ['Salidas de caja', [Estado::VIGENTE, Estado::ANULADO]],
             // Convenios (docs/convenios-seguros.md): convenios con su vigencia (y sus planes y tarifas), la cobertura de cada paciente
             // (la abierta es VIGENTE) y las visaciones (vigentes o anuladas).
             'CONVENIOS' => ['Convenios', [Estado::VIGENTE, Estado::HISTORICO]],
