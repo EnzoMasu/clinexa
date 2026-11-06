@@ -163,7 +163,7 @@ test('con cobros y cierres ya existentes: no revierte ninguno, quedan vigentes y
     $this->actingAs($cajero)->post(route('admin.cajas.abrir'), ['monto_inicial' => '0'])->assertSessionHas('status');
     $this->post(route('admin.cobros.store'), ['paciente_id' => $this->paciente->id, 'prestaciones' => [$prestacion->id],
         'lineas' => [['medio_pago_id' => MedioPago::efectivo()->id, 'monto' => '100000']]])->assertSessionHas('status');
-    $this->post(route('admin.cajas.cerrar', Caja::sole()), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === MedioPago::efectivo()->id ? '100000' : '0'])->all()])
+    $this->post(route('admin.cajas.cerrar', Caja::sole()), ['confirmar' => '1', 'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === MedioPago::efectivo()->id ? '100000' : '0'])->all()])
         ->assertSessionHas('status');
     $efectivoId = MedioPago::efectivo()->id;
     migracionReversionesSinNada();

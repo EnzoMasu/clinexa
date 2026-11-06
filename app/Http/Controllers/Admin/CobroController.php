@@ -14,6 +14,7 @@ use App\Models\Moneda;
 use App\Models\Paciente;
 use App\Models\Prestacion;
 use App\Models\SolicitudReversionCobro;
+use App\Support\Cobros\AnularSalida;
 use App\Support\Cobros\Cobrar;
 use App\Support\Cobros\CorregirComprobante;
 use App\Support\Cobros\Guaranies;
@@ -86,8 +87,12 @@ class CobroController extends Controller
     public function reversiones(): View
     {
         return view('admin.cobros.reversiones', [
-            'solicitudes' => SolicitudReversionCobro::query()->pendientes()
+            'solicitudes' => SolicitudReversionCobro::query()->pendientes()->whereNotNull('cobro_id')
                 ->with(['solicitante.persona', 'cobro.paciente.persona', 'cobro.moneda', 'cobro.lineas.medioPago', 'cobro.cajero.persona'])
+                ->orderBy('solicitada_en')->orderBy('id')->get(),
+            // Las anulaciones de salidas de caja pasado el plazo (Cobros\AnularSalida): la misma solicitud y la misma revisión.
+            'solicitudesSalida' => SolicitudReversionCobro::query()->pendientes()->whereNotNull('salida_caja_id')
+                ->with(['solicitante.persona', 'salida.categoria', 'salida.caja.moneda', 'salida.caja.estado'])
                 ->orderBy('solicitada_en')->orderBy('id')->get(),
             'puedeRevisar' => Permisos::puedeRuta('admin.cobros.reversiones.aprobar'),
             ...$this->pestanas(),
@@ -181,6 +186,11 @@ class CobroController extends Controller
         $nota = $request->validate(['nota' => ['nullable', 'string', 'max:'.RevertirCobro::MOTIVO_MAXIMO]], [], ['nota' => 'nota'])['nota'] ?? null;
 
         try {
+            if ($solicitud->esDeSalida()) {
+                AnularSalida::aprobar($request->user(), $solicitud, $nota);
+
+                return back()->with('status', "Anulación aprobada: la salida de caja N.º {$solicitud->salida_caja_id} quedó anulada y su monto volvió al efectivo de la caja.");
+            }
             RevertirCobro::aprobar($request->user(), $solicitud, $nota);
         } catch (AccionRechazada $e) {
             return back()->with('error', $e->getMessage());
@@ -198,6 +208,11 @@ class CobroController extends Controller
         )['nota_rechazo'];
 
         try {
+            if ($solicitud->esDeSalida()) {
+                AnularSalida::rechazar($request->user(), $solicitud, $nota);
+
+                return back()->with('status', 'Solicitud de anulación de la salida rechazada.');
+            }
             RevertirCobro::rechazar($request->user(), $solicitud, $nota);
         } catch (AccionRechazada $e) {
             return back()->with('error', $e->getMessage());

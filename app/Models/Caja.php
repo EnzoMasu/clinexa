@@ -117,6 +117,12 @@ class Caja extends Model
         return $this->hasMany(Cobro::class);
     }
 
+    /** Las salidas de dinero (retiros, gastos y pagos menores) registradas en esta caja. */
+    public function salidas(): HasMany
+    {
+        return $this->hasMany(SalidaCaja::class);
+    }
+
     public function cierres(): HasMany
     {
         return $this->hasMany(CierreCaja::class);
@@ -165,7 +171,8 @@ class Caja extends Model
     }
 
     /**
-     * Lo esperado por medio de pago: la suma de los movimientos (el monto inicial solo en efectivo, más los cobros), medio => monto
+     * Lo esperado por medio de pago: la suma de los movimientos (el monto inicial solo en efectivo, más los cobros, menos las
+     * devoluciones y las salidas vigentes), medio => monto
      * en guaraníes enteros.
      *
      * @return array<int, int>

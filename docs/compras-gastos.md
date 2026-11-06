@@ -10,7 +10,9 @@ listado, confirmar y anular). Imagen del comprobante y lo de «Trabajo futuro» 
 - Todo en guaraníes enteros (`moneda_id` PYG fija).
 - Fuera de alcance: pagos a proveedores, saldos, reversiones, Cuentas por Pagar (solo se dejan los datos listos), stock, notas de
   crédito y débito (a definir después).
-- Contado y anticipo **no tocan la caja** (pendiente para una fase posterior).
+- Contado y anticipo **no tocan la caja** (pendiente para una fase posterior). Las salidas de caja (docs/cobros-caja.md) usan las
+  mismas categorías de gasto, pero son independientes de las compras por ahora: `salidas_caja.compra_id` queda vacío, previsto para
+  vincular el contado y el anticipo de una compra con su salida de caja.
 
 ## Módulos y permisos
 
@@ -69,7 +71,7 @@ nombre ni el id. Siembra inicial: factura legal (todo sí), ticket y recibo (nú
 ## Trabajo futuro
 
 Anotado, no hecho en esta fase:
-- Contado y anticipo con la caja (egreso al confirmar; reversión al anular).
+- Contado y anticipo con la caja (egreso al confirmar; reversión al anular), como salida de caja con `salidas_caja.compra_id`.
 - Imagen del comprobante (carga, almacenamiento y vista).
 - Vencimiento para cuentas por pagar (alertas y listado de vencidos).
 - Pagos a proveedores y saldos.

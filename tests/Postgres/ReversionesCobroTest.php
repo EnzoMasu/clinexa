@@ -119,7 +119,7 @@ test('la reversión por la pantalla y los CHECK: egreso negativo, una devolució
 test('el cierre: lo esperado y lo contado negativos solo fuera del efectivo; la marca del efectivo es la de su medio', function () {
     pgReversionesCobroCobro();
     $caja = Caja::sole();
-    $this->post(route('admin.cajas.cerrar', $caja), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === $this->efectivo->id ? '100000' : '0'])->all()])
+    $this->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => $id === $this->efectivo->id ? '100000' : '0'])->all()])
         ->assertSessionHas('status');
     $transferencia = MedioPago::where('codigo', MedioPago::TRANSFERENCIA)->sole();
     $fila = fn (MedioPago $medio) => DB::table('cierre_caja_medios')->where('medio_pago_id', $medio->id);
@@ -138,6 +138,8 @@ test('el cierre: lo esperado y lo contado negativos solo fuera del efectivo; la 
 test('la migración con cobros ya existentes: no los revierte; en simulación no cambia nada', function () {
     $migracion = require base_path('database/migrations/2026_10_29_100001_reversiones_de_cobro.php');
     $cobro = pgReversionesCobroCobro();
+    // La de salidas de caja depende de sus tablas y de la marca del efectivo: se baja antes.
+    (require base_path('database/migrations/2026_11_09_100001_salidas_de_caja.php'))->down();
     $migracion->down();
     $antes = DB::table('cobros')->orderBy('id')->get()->map(fn ($fila) => (array) $fila)->all();
     expect($antes)->toHaveCount(1);

@@ -60,21 +60,25 @@ Sin comisiones. `medios_pago.codigo` identifica los de referencia: **Efectivo** 
 - Se cobra **solo con la caja abierta propia y del día de hoy**. Una abierta de un día anterior no recibe cobros: "Su caja está
   abierta desde el dd/mm/aaaa: ciérrela y abra la de hoy para cobrar." Sin caja: "Abra su caja antes de cobrar."
 - **Movimientos** (`movimientos_caja`, `MovimientoCaja`): cada ingreso a la caja por medio de pago, con signo: APERTURA (el monto
-  inicial, en Efectivo, si no es cero), COBRO (una por línea de cobro) y REVERSION (el egreso, en negativo, de cada línea de un
-  cobro revertido). **Lo esperado** de cada medio es la suma de sus movimientos (`Caja::esperadoPorMedio`): al cerrar, descuenta lo
+  inicial, en Efectivo, si no es cero), COBRO (una por línea de cobro), REVERSION (el egreso, en negativo, de cada línea de un
+  cobro revertido), SALIDA (el egreso en efectivo de una salida de caja) y ANULACION_SALIDA (su reingreso al anularla). **Lo esperado** de cada medio es la suma de sus movimientos (`Caja::esperadoPorMedio`): al cerrar, descuenta lo
   devuelto. Por línea, una entrada y a lo sumo una devolución (`movimientos_caja_linea_por_tipo`).
 - **Cierre** (`Cobros\CerrarCaja`): ver "Arqueo".
 - Los modelos rechazan cualquier otro cambio y el borrado (`RegistroEconomicoInmutable`).
 
 ## Arqueo (cierre, recepción y corrección)
 
-1. **El cajero cierra** (`Cobros\CerrarCaja`): el formulario trae **precargado lo esperado** de cada medio (los activos y los que
+1. **El cajero cierra** (`Cobros\CerrarCaja`) desde una **pantalla propia** (`cajas.cierre`; el detalle solo tiene el botón, para no cerrar por error):
+   al continuar (`cajas.cierre.revisar`, que aplica las reglas sin cerrar) ve una **confirmación** con el aviso de que la caja deja de
+   recibir cobros y queda pendiente de recepción del gerente; recién ahí `cajas.cerrar` (exige `confirmar`; sin él no cierra). El reenvío del
+   arqueo devuelto usa la misma pantalla. El formulario trae **precargado lo esperado** de cada medio (los activos y los que
    tienen movimientos); el cajero lo cambia si contó otra cosa. Muestra en vivo la diferencia por medio y el total
    (`resources/js/arqueo-caja.js`; sin JavaScript funciona igual). La **observación** es obligatoria (5 a 300) **solo si hay
    diferencia**; sin diferencia el campo queda bloqueado y vacío, y el servidor descarta lo que llegue, sin error. Se guarda un
    `cierres_caja` (PENDIENTE) con `cierre_caja_medios` (esperado, declarado = `contado`, diferencia = declarado − esperado). La caja
    queda **Pendiente de recepción** y ya no recibe cobros.
-2. **Gerencia acepta o rechaza** (`Cobros\RevisarCierre`, EDITAR sobre CIERRES_CAJA): aceptar (nota opcional) la deja **Recibido**;
+2. **Gerencia acepta o rechaza** (`Cobros\RevisarCierre`, EDITAR sobre CIERRES_CAJA): aceptar (nota opcional; antes, una pantalla de
+   confirmación `cajas.recibir`, y `cajas.aprobar` exige `confirmar`) la deja **Recibido**;
    rechazar exige la **observación con el inconveniente** (5 a 300; "Indique la observación con el inconveniente…") y la deja
    **Devuelto por diferencias**. Nadie revisa su propia caja.
 3. **El cajero corrige y reenvía**: otro cierre (el anterior se conserva) con el **nuevo esperado** precargado; vuelve a Pendiente.
@@ -142,6 +146,38 @@ Sin comisiones. `medios_pago.codigo` identifica los de referencia: **Efectivo** 
 - Solo PostgreSQL: `cobros_reversion_completa` (los cuatro datos de la reversión van juntos), `solicitudes_reversion_revision_completa`
   y `movimientos_caja_tipo_valido` (ahora con REVERSION: monto negativo, con cobro y línea).
 
+## Salidas de caja (`salidas_caja`, `Cobros\RegistrarSalida` y `Cobros\AnularSalida`)
+
+Retiros, gastos y pagos menores que salen de la caja, además de la apertura, los cobros y las devoluciones.
+
+- **Quién y dónde:** el cajero, en **su caja abierta de hoy** (CREAR sobre SALIDAS_CAJA: Caja, Gerencia y el Administrador). Sin
+  aprobación previa ni tope por monto. Una caja pendiente de recepción, devuelta o recibida, o abierta de otro día, **no admite
+  salidas ni anulaciones**.
+- **Datos:** categoría de gasto (el catálogo de Compras, solo las activas; el formulario las lista sin pedir permiso sobre
+  CATEGORIAS_GASTO, así que Caja las elige pero no las administra), beneficiario (texto libre), comprobante o recibo (opcional),
+  concepto (5 a 300 caracteres) y monto (guaraníes enteros, mayor que cero). **Siempre en efectivo.**
+- **Lo esperado:** el egreso es un movimiento SALIDA, en negativo y en efectivo: baja lo esperado en efectivo del cierre. **El
+  efectivo no puede quedar negativo:** "No alcanza el efectivo de la caja para esta salida de ₲ X (hay ₲ Y): la caja no puede quedar
+  con efectivo negativo."
+- **Anulación** (el esquema de la factura): **dentro de los 10 minutos** desde el registro (`config('clinexa.caja.plazo_anulacion_salida_minutos')`,
+  `CLINEXA_PLAZO_ANULACION_SALIDA`) la anula quien la registró, con motivo obligatorio. **Pasado el plazo**, quien la registró la
+  pide con motivo y **Gerencia** la aprueba o la rechaza con nota; nadie revisa la propia; una sola pendiente por salida. La solicitud
+  es la misma de las reversiones de cobro (`solicitudes_reversion_cobro` con `salida_caja_id` y sin `cobro_id`), con el mismo
+  permiso (EDITAR sobre REVERSIONES_COBRO) y en la misma pestaña de Cobros. Solo mientras la caja de la salida siga abierta y sea la
+  de hoy: con la caja ya cerrada no se anula (una solicitud pendiente se rechaza). Nada se borra: la salida queda ANULADA con quién,
+  cuándo y el motivo, y un movimiento ANULACION_SALIDA (positivo) compensa su egreso en la misma caja. **No hay edición:** se
+  corrige anulando y registrando otra.
+- **Pantallas:** en el detalle de la caja ("Mi caja" y el arqueo), la sección **"Salidas de caja"** (hora, categoría, beneficiario,
+  comprobante, concepto, monto y el total de las vigentes; las anuladas, tachadas y con el motivo), el formulario "Registrar una
+  salida" y, por fila, "Anular" o "Solicitar la anulación". En "Mi caja" del listado, el enlace "Registrar una salida". La impresión
+  del arqueo trae la misma sección.
+- **Compras:** independiente por ahora. `salidas_caja.compra_id` queda **vacío**, previsto para vincular el contado y el anticipo de
+  una compra en una fase posterior (docs/compras-gastos.md).
+- Solo PostgreSQL: `salidas_caja_valida` (monto > 0, beneficiario y concepto), `salidas_caja_en_efectivo` (clave foránea al medio
+  efectivo), `salidas_caja_anulacion_completa`, `movimientos_caja_tipo_valido` (con SALIDA y ANULACION_SALIDA, ligadas a la salida
+  y sin cobro), `movimientos_caja_salida_por_tipo` (uno de cada tipo por salida), `solicitudes_reversion_objeto` (cobro o salida,
+  nunca los dos) y `solicitudes_anulacion_salida_una_pendiente` (también en SQLite).
+
 ## Estado de cobro de la prestación
 
 **Cobrada** o **Pendiente**, derivado de si tiene un cobro vigente (`Prestacion::estadoCobroTexto`); vacío en una anulada sin cobro.
@@ -167,14 +203,14 @@ detalle (con el enlace al cobro para quien ve los cobros) y en las demás presta
 
 Módulos nuevos (en la matriz, grupo Económico):
 
-| | CAJAS | CIERRES_CAJA | COBROS | REVERSIONES_COBRO |
-|---|---|---|---|---|
-| Acciones | VER (las propias; imprimir el arqueo), CREAR (abrir), EDITAR (cerrar la propia) | VER (todas las cajas), EDITAR (aceptar o rechazar el arqueo) | VER, CREAR (cobrar), EDITAR (corregir medio y comprobante en un arqueo devuelto propio), DESACTIVAR (revertir o solicitar la reversión) | VER (las solicitudes), EDITAR (aprobar o rechazar) |
-| Administrador | todo (solo) | todo (solo) | todo (solo) | todo (solo) |
-| Caja | VER, CREAR, EDITAR | nada | VER, CREAR, EDITAR, DESACTIVAR | nada |
-| Gerencia | VER | VER, EDITAR | VER | VER, EDITAR |
-| Facturación y convenios | nada | nada | VER | nada |
-| Recepción, Médico, Enfermería y los demás | nada | nada | nada | nada |
+| | CAJAS | CIERRES_CAJA | COBROS | REVERSIONES_COBRO | SALIDAS_CAJA |
+|---|---|---|---|---|---|
+| Acciones | VER (las propias; imprimir el arqueo), CREAR (abrir), EDITAR (cerrar la propia) | VER (todas las cajas), EDITAR (aceptar o rechazar el arqueo) | VER, CREAR (cobrar), EDITAR (corregir medio y comprobante en un arqueo devuelto propio), DESACTIVAR (revertir o solicitar la reversión) | VER (las solicitudes, también las de anulación de salidas), EDITAR (aprobar o rechazar) | VER, CREAR (registrar en la caja propia), DESACTIVAR (anular en el plazo o solicitar la anulación) |
+| Administrador | todo (solo) | todo (solo) | todo (solo) | todo (solo) | todo (solo) |
+| Caja | VER, CREAR, EDITAR | nada | VER, CREAR, EDITAR, DESACTIVAR | nada | VER, CREAR, DESACTIVAR |
+| Gerencia | VER | VER, EDITAR | VER | VER, EDITAR | VER, CREAR, DESACTIVAR (solo sirve si además abre una caja) |
+| Facturación y convenios | nada | nada | VER | nada | nada |
+| Recepción, Médico, Enfermería y los demás | nada | nada | nada | nada | nada |
 
 Recepción ve el estado de cobro de las prestaciones (tiene VER sobre PRESTACIONES), pero no cobra ni ve cajas ni cobros. Médico y
 Enfermería no ven montos: no tienen los módulos económicos. No existía una aprobación genérica para reutilizar (la de parámetros
@@ -191,7 +227,11 @@ se auditan aparte. Los montos se ocultan ("Contenido económico", `Auditoria::TA
 COBROS. Reversión: REVERTIR del cobro ("Reversión del cobro. Motivo: …"; el usuario es quien revierte o quien aprueba) y EDITAR de
 cada prestación cubierta ("Reversión del cobro N"); CREAR de la solicitud ("Solicitud de reversión del cobro N") y EDITAR al
 revisarla ("Reversión aprobada" o "Reversión rechazada", con la nota). Los egresos se derivan del cobro revertido: no se auditan
-aparte. `solicitudes_reversion_cobro` se oculta a quien no tiene VER sobre COBROS. Al finalizar la consulta no se agrega ningún evento.
+aparte. `solicitudes_reversion_cobro` se oculta a quien no tiene VER sobre COBROS. Salidas: CREAR de la salida ("Salida de caja:
+categoría, a beneficiario", con quién, cuándo, monto, categoría, beneficiario, comprobante y concepto); ANULAR ("Anulación de la
+salida de caja. Motivo: …"; el usuario es quien la anula o quien aprueba); CREAR de la solicitud ("Solicitud de anulación de la salida
+de caja N") y EDITAR al revisarla ("Anulación de la salida de caja aprobada" o "… rechazada", con la nota). `salidas_caja` se oculta
+a quien no tiene VER sobre CAJAS; sus movimientos se derivan de la salida y no se auditan aparte. Al finalizar la consulta no se agrega ningún evento.
 
 ## Migración
 
@@ -215,6 +255,14 @@ y no hay exactamente una sucursal, se detiene sin cambiar nada. En PostgreSQL qu
 migración restaura el índice único parcial, que SQLite perdería al reconstruir la tabla). No toca cobros ni importes. El `down`
 quita la columna.
 
+`salidas_de_caja` (2026_11_09_100001): la tabla `salidas_caja`, `movimientos_caja.salida_caja_id` con su único por tipo, los tipos
+SALIDA y ANULACION_SALIDA en el CHECK de PostgreSQL (las filas existentes lo cumplen sin cambios), `solicitudes_reversion_cobro.cobro_id`
+pasa a admitir vacío (en PostgreSQL solo se quita el NOT NULL; en SQLite se reconstruye la tabla y se restaura el índice único
+parcial) y suma `salida_caja_id`, y el módulo SALIDAS_CAJA (VIGENTE y ANULADO) en una instalación existente. Aditiva: no cambia
+cajas, cobros, cierres, movimientos ni solicitudes ya cargados (lo verifica `tests/Postgres/SalidasCajaTest.php`). El `down` solo
+vale sin salidas cargadas. `permisos_salidas_caja` (2026_11_09_100002): suma VER, CREAR y DESACTIVAR sobre SALIDAS_CAJA a Caja y
+Gerencia (`PerfilesPredefinidos::PERMISOS_SALIDAS_CAJA`); solo suma y se puede repetir.
+
 ## Tests
 
 Arqueo: `tests/Feature/Economico/ArqueoCajaTest.php` (transiciones, rechazo sin observación, observación solo con diferencia,
@@ -227,3 +275,8 @@ Comprobante: `tests/Feature/Economico/ComprobanteCobrosTest.php` y `tests/Postgr
 parciales, los CHECK y la migración con prestaciones existentes). Reversión: `tests/Feature/Economico/ReversionesCobroTest.php`,
 `MigracionReversionesTest.php` y `tests/Postgres/ReversionesCobroTest.php` (el único parcial de solicitudes, el de devoluciones por
 línea, los CHECK y la migración con cobros existentes).
+
+Salidas de caja: `tests/Feature/Economico/SalidasCajaTest.php` (salida válida, efectivo insuficiente, caja cerrada, devuelta o de
+otro día, anulación dentro y fuera de los 10 minutos, nadie revisa la propia, lo esperado, el cierre y la impresión con salidas,
+permisos, migración de permisos y auditoría) y `tests/Postgres/SalidasCajaTest.php` (los CHECK, los únicos y la migración sobre datos
+existentes).

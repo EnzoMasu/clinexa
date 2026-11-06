@@ -79,7 +79,7 @@ test('una caja abierta por cajero: la base rechaza la segunda abierta; cerrada, 
     expect(pgCobrosCajaRechazo(fn () => $caja->replicate()->save()))->toBe(['23505', 'cajas_una_abierta_por_cajero'])
         ->and(Caja::count())->toBe(1);
 
-    $this->post(route('admin.cajas.cerrar', $caja), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => '0'])->all()])->assertSessionHas('status');
+    $this->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => '0'])->all()])->assertSessionHas('status');
     $this->post(route('admin.cajas.abrir'), ['monto_inicial' => '0'])->assertSessionHas('status');
     expect(Caja::count())->toBe(2)->and(Caja::whereNull('cerrada_en')->count())->toBe(1);
 });
@@ -120,7 +120,8 @@ test('los CHECK de montos', function () {
 test('la migración con prestaciones ya existentes: no las cobra; en simulación no cambia nada', function () {
     $migracion = require base_path('database/migrations/2026_10_28_100001_create_cobros_y_caja.php');
     hcConsulta(); // una prestación tarifada existente
-    // La de facturación (fase 5a) y la de reversiones (fase 3b) dependen de sus tablas: se bajan antes.
+    // La de salidas de caja, la de facturación (fase 5a) y la de reversiones (fase 3b) dependen de sus tablas: se bajan antes.
+    (require base_path('database/migrations/2026_11_09_100001_salidas_de_caja.php'))->down();
     (require base_path('database/migrations/2026_11_02_100001_create_facturacion_individual.php'))->down();
     (require base_path('database/migrations/2026_10_29_100001_reversiones_de_cobro.php'))->down();
     $migracion->down();

@@ -71,6 +71,7 @@ use App\Models\Receta;
 use App\Models\RepartoPrestacion;
 use App\Models\ReposoMedico;
 use App\Models\ResponsablePago;
+use App\Models\SalidaCaja;
 use App\Models\SalidaSinAtencion;
 use App\Models\SolicitudReversionCobro;
 use App\Models\Sucursal;
@@ -145,6 +146,8 @@ final class Auditoria
         Caja::class, CierreCaja::class, CierreCajaMedio::class, Cobro::class, CobroPrestacion::class, LineaCobro::class,
         // Solicitudes de reversión de un cobro (módulo REVERSIONES_COBRO); su contenido, para quien ve los cobros.
         SolicitudReversionCobro::class,
+        // Salidas de caja (módulo SALIDAS_CAJA): montos, beneficiario y concepto, para quien ve las cajas.
+        SalidaCaja::class,
         // Convenios y visaciones (docs/convenios-seguros.md): el convenio antes que sus planes y tarifas, la visación antes que sus
         // líneas (son las tablas de cada módulo). Montos y copagos solo para quien tiene VER sobre su módulo.
         Convenio::class, PlanConvenio::class, TarifaConvenio::class, CoberturaPaciente::class, Visacion::class, LineaVisacion::class,
@@ -177,6 +180,8 @@ final class Auditoria
         // Las cajas y sus cierres los ve quien ve las cajas (Caja y Gerencia); los cobros, quien ve los cobros (también Facturación).
         'cajas' => 'CAJAS', 'cierres_caja' => 'CAJAS', 'cierre_caja_medios' => 'CAJAS',
         'cobros' => 'COBROS', 'cobro_prestaciones' => 'COBROS', 'lineas_cobro' => 'COBROS', 'solicitudes_reversion_cobro' => 'COBROS',
+        // Las salidas de caja, para quien ve las cajas (Caja y Gerencia).
+        'salidas_caja' => 'CAJAS',
         // Convenios y visaciones (docs/convenios-seguros.md): tarifas del convenio, afiliación y copagos.
         'convenios' => 'CONVENIOS', 'planes_convenio' => 'CONVENIOS', 'tarifas_convenio' => 'CONVENIOS',
         'coberturas_paciente' => 'COBERTURAS', 'visaciones' => 'VISACIONES', 'lineas_visacion' => 'VISACIONES',

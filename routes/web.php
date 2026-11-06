@@ -49,6 +49,7 @@ use App\Http\Controllers\Admin\ProveedorController;
 use App\Http\Controllers\Admin\RecetaController;
 use App\Http\Controllers\Admin\ReposoMedicoController;
 use App\Http\Controllers\Admin\ResponsablePagoController;
+use App\Http\Controllers\Admin\SalidaCajaController;
 use App\Http\Controllers\Admin\SalidaController;
 use App\Http\Controllers\Admin\SucursalController;
 use App\Http\Controllers\Admin\TarifaController;
@@ -396,12 +397,20 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::get('cajas', [CajaController::class, 'index'])->name('cajas.index')->middleware('permiso:CAJAS,VER');
     Route::post('cajas', [CajaController::class, 'abrir'])->name('cajas.abrir')->middleware('permiso:CAJAS,CREAR');
     Route::get('cajas/{caja}', [CajaController::class, 'show'])->name('cajas.show')->whereNumber('caja')->middleware('permiso:CAJAS,VER');
+    Route::get('cajas/{caja}/cierre', [CajaController::class, 'cierre'])->name('cajas.cierre')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
+    Route::post('cajas/{caja}/cierre', [CajaController::class, 'revisarCierre'])->name('cajas.cierre.revisar')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
     Route::post('cajas/{caja}/cerrar', [CajaController::class, 'cerrar'])->name('cajas.cerrar')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
+    Route::post('cajas/{caja}/recibir', [CajaController::class, 'confirmarRecepcion'])->name('cajas.recibir')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     Route::post('cajas/{caja}/aprobar', [CajaController::class, 'aprobar'])->name('cajas.aprobar')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     Route::post('cajas/{caja}/devolver', [CajaController::class, 'devolver'])->name('cajas.devolver')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     // La impresión del arqueo: PDF al vuelo, auditado, sin nada clínico; no se guarda en la caché.
     Route::get('cajas/{caja}/arqueo', [CajaController::class, 'arqueo'])->name('cajas.arqueo')->whereNumber('caja')
         ->middleware(['permiso:CAJAS,VER', SinAlmacenar::class]);
+    // Salidas de caja (retiros, gastos y pagos menores, en efectivo): el cajero las registra en su caja abierta de hoy (CREAR) y las
+    // anula en el plazo o solicita la anulación (DESACTIVAR); Gerencia revisa las solicitudes en la pestaña de reversiones de Cobros.
+    Route::post('cajas/{caja}/salidas', [SalidaCajaController::class, 'store'])->name('cajas.salidas.store')->whereNumber('caja')->middleware(['permiso:CAJAS,VER', 'permiso:SALIDAS_CAJA,CREAR']);
+    Route::post('salidas-caja/{salida}/anular', [SalidaCajaController::class, 'anular'])->name('salidas-caja.anular')->whereNumber('salida')->middleware(['permiso:CAJAS,VER', 'permiso:SALIDAS_CAJA,DESACTIVAR']);
+    Route::post('salidas-caja/{salida}/solicitar-anulacion', [SalidaCajaController::class, 'solicitarAnulacion'])->name('salidas-caja.solicitar-anulacion')->whereNumber('salida')->middleware(['permiso:CAJAS,VER', 'permiso:SALIDAS_CAJA,DESACTIVAR']);
     Route::get('cobros', [CobroController::class, 'index'])->name('cobros.index')->middleware('permiso:COBROS,VER');
     // Cobrar emite la factura (docs/facturacion.md): hacen falta los dos permisos.
     Route::get('cobros/create', [CobroController::class, 'create'])->name('cobros.create')->middleware(['permiso:COBROS,CREAR', 'permiso:FACTURAS,CREAR']);

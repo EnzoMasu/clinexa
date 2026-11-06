@@ -131,6 +131,10 @@ final class RevertirCobro
     {
         $nota = trim((string) $nota);
 
+        if ($solicitud->esDeSalida()) {
+            throw new \LogicException('La solicitud es de una salida de caja: se revisa con AnularSalida.');
+        }
+
         return DB::transaction(function () use ($revisor, $solicitud, $nota) {
             // El cobro primero (el mismo orden que la reversión directa y la solicitud).
             $cobro = self::bloquearSinFactura($solicitud->cobro);
@@ -202,6 +206,10 @@ final class RevertirCobro
 
     private static function bloquearPendiente(User $revisor, SolicitudReversionCobro $solicitud): SolicitudReversionCobro
     {
+        // La anulación de una salida de caja usa la misma solicitud, pero se revisa con Cobros\AnularSalida.
+        if ($solicitud->esDeSalida()) {
+            throw new \LogicException('La solicitud es de una salida de caja: se revisa con AnularSalida.');
+        }
         $actual = SolicitudReversionCobro::query()->whereKey($solicitud->getKey())->lockForUpdate()->firstOrFail();
         if (! $actual->pendiente()) {
             throw new AccionRechazada('Esta solicitud ya fue revisada.');

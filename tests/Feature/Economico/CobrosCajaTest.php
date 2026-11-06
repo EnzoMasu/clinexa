@@ -108,7 +108,7 @@ function cobrosCajaCerrar(Caja $caja, array $contado, ?string $motivo = null)
     }
 
     return test()->actingAs(test()->cajero)->from(route('admin.cajas.show', $caja))
-        ->post(route('admin.cajas.cerrar', $caja), ['contado' => $declarado, 'motivo' => $motivo]);
+        ->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => $declarado, 'motivo' => $motivo]);
 }
 
 test('cobro de una prestación en efectivo: queda Cobrada y es un movimiento de la caja', function () {
@@ -276,7 +276,7 @@ test('Gerencia acepta o devuelve con observación; la devuelta se corrige y se r
 
     // Gerencia la ve entre las pendientes; el cajero no puede revisar (ni tiene el permiso).
     $this->actingAs($this->gerente)->get(route('admin.cajas.index'))->assertOk()->assertSee('Hay 1 caja pendiente de recepción.')->assertSee('Todas las cajas');
-    $this->actingAs($this->cajero)->post(route('admin.cajas.aprobar', $caja))->assertForbidden();
+    $this->actingAs($this->cajero)->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1'])->assertForbidden();
 
     $this->actingAs($this->gerente)->post(route('admin.cajas.devolver', $caja), ['nota_devolucion' => 'x'])->assertSessionHasErrors('nota_devolucion');
     $this->post(route('admin.cajas.devolver', $caja), ['nota_devolucion' => 'Recuente el efectivo, falta un comprobante.'])->assertSessionHas('status');
@@ -298,12 +298,12 @@ test('Gerencia acepta o devuelve con observación; la devuelta se corrige y se r
     cobrosCajaAbrir(monto: '0')->assertSessionHas('status');
     expect(cobrosCajaMia()->id)->not->toBe($caja->id);
 
-    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja))->assertSessionHas('status', 'Arqueo recibido.');
+    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1'])->assertSessionHas('status', 'Arqueo recibido.');
     expect($caja->fresh()->tieneEstado(Estado::APROBADO))->toBeTrue()
         ->and(CierreCaja::where('caja_id', $caja->id)->latest('id')->first()->tieneEstado(Estado::APROBADO))->toBeTrue()
         ->and(CierreCaja::where('caja_id', $caja->id)->oldest('id')->first()->tieneEstado(Estado::DEVUELTO))->toBeTrue();
     // Aprobada, ya no se revisa ni se cierra.
-    $this->post(route('admin.cajas.aprobar', $caja))->assertSessionHas('error', 'Esta caja no está pendiente de recepción.');
+    $this->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1'])->assertSessionHas('error', 'Esta caja no está pendiente de recepción.');
     cobrosCajaCerrar($caja, [[$this->efectivo, '150.000']])->assertSessionHas('error', 'Esta caja ya está cerrada.');
 });
 
@@ -311,9 +311,9 @@ test('nadie acepta ni rechaza el cierre de su propia caja', function () {
     $gerenteCajero = User::factory()->conPerfiles([PerfilAcceso::where('codigo', PerfilesPredefinidos::GERENCIA)->sole(), PerfilAcceso::where('codigo', PerfilesPredefinidos::CAJA)->sole()])->create();
     cobrosCajaAbrir($gerenteCajero, '0');
     $caja = cobrosCajaMia($gerenteCajero);
-    $this->actingAs($gerenteCajero)->post(route('admin.cajas.cerrar', $caja), ['contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => '0'])->all()])->assertSessionHas('status');
+    $this->actingAs($gerenteCajero)->post(route('admin.cajas.cerrar', $caja), ['confirmar' => '1', 'contado' => MedioPago::pluck('id')->mapWithKeys(fn ($id) => [$id => '0'])->all()])->assertSessionHas('status');
 
-    $this->post(route('admin.cajas.aprobar', $caja))->assertSessionHas('error', RevisarCierre::PROPIA);
+    $this->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1'])->assertSessionHas('error', RevisarCierre::PROPIA);
     $this->post(route('admin.cajas.devolver', $caja), ['nota_devolucion' => 'Nota inventada.'])->assertSessionHas('error', RevisarCierre::PROPIA);
     expect($caja->fresh()->cerrada())->toBeTrue();
 });
@@ -401,7 +401,7 @@ test('auditoría de la apertura, el cobro, el cierre y la aprobación; sin el m�
     cobrosCajaCobrar([$prestacion], [[$this->efectivo, '100.000']]);
     $cobro = Cobro::with(['lineas', 'prestaciones'])->sole();
     cobrosCajaCerrar($caja, [[$this->efectivo, '112.345']]);
-    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja), ['nota' => 'Todo en orden.']);
+    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1', 'nota' => 'Todo en orden.']);
     $cierre = CierreCaja::sole();
 
     $log = fn (string $tabla, int $id, AccionAuditoria $accion = AccionAuditoria::CREAR) => LogAuditoria::where('tabla_afectada', $tabla)

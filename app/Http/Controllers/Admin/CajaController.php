@@ -8,12 +8,15 @@ use App\Models\Caja;
 use App\Models\Estado;
 use App\Models\MedioPago;
 use App\Models\MovimientoCaja;
+use App\Models\SalidaCaja;
 use App\Models\User;
 use App\Support\Cobros\AbrirCaja;
+use App\Support\Cobros\AnularSalida;
 use App\Support\Cobros\CerrarCaja;
 use App\Support\Cobros\Cobrar;
 use App\Support\Cobros\Guaranies;
 use App\Support\Cobros\PdfArqueo;
+use App\Support\Cobros\RegistrarSalida;
 use App\Support\Cobros\RevisarCierre;
 use App\Support\Fecha;
 use App\Support\Grilla\Grilla;
@@ -55,6 +58,7 @@ class CajaController extends Controller
             'puedeAbrir' => $miCaja === null && Permisos::puedeRuta('admin.cajas.abrir'),
             'sucursales' => AbrirCaja::sucursales(),
             'puedeCobrar' => $miCaja !== null && Permisos::puedeRuta('admin.cobros.create'),
+            'puedeSalida' => $miCaja !== null && Permisos::puedeRuta('admin.cajas.salidas.store'),
             'veTodas' => $veTodas,
             'cantidadPendientes' => $veTodas ? Caja::where('estado_id', Estado::idDe(Estado::CERRADO))->count() : 0,
             'filtroEstado' => $estado,
@@ -87,6 +91,13 @@ class CajaController extends Controller
             'cobros' => $caja->cobros()->with(['paciente.persona', 'lineas.medioPago', 'moneda', 'estado'])->orderBy('id')->get(),
             // Los egresos de los cobros revertidos que se devolvieron desde esta caja (el cobro puede ser de otra).
             'devoluciones' => $caja->movimientos()->where('tipo', MovimientoCaja::REVERSION)->with(['cobro.paciente.persona', 'medioPago'])->orderBy('id')->get(),
+            // Las salidas de dinero de esta caja (vigentes y anuladas) y el formulario para registrar otra (su cajero, con la caja abierta de hoy).
+            'salidas' => $salidas = $caja->salidas()->with(['categoria', 'registradaPor.persona', 'anuladaPor.persona', 'solicitudPendiente', 'caja'])->orderBy('id')->get(),
+            'puedeRegistrarSalida' => $puedeSalida = $propia && AnularSalida::cajaAbiertaDeHoy($caja) && Permisos::puedeRuta('admin.cajas.salidas.store'),
+            'categoriasSalida' => $puedeSalida ? RegistrarSalida::categorias() : collect(),
+            'anulablesDirecto' => $salidas->filter(fn (SalidaCaja $salida) => AnularSalida::esDirecta($usuario, $salida))->modelKeys(),
+            'puedeAnularSalidas' => Permisos::puedeRuta('admin.salidas-caja.anular'),
+            'plazoAnulacionSalida' => AnularSalida::plazoMinutos(),
             'puedeCerrar' => $puedeCerrar,
             'puedeRevisar' => ! $propia && $caja->cerrada() && Permisos::puedeRuta('admin.cajas.aprobar'),
             // En un arqueo devuelto, su cajero corrige el medio y el comprobante de los cobros desde el detalle de cada uno.
@@ -111,28 +122,101 @@ class CajaController extends Controller
         return redirect()->route('admin.cajas.index')->with('status', "Caja abierta con {$caja->montoInicialTexto()} en efectivo.");
     }
 
-    public function cerrar(Request $request, Caja $caja): RedirectResponse
+    /** La pantalla propia del cierre (o del reenvío del arqueo devuelto): lo declarado se revisa y recién después se confirma. */
+    public function cierre(Request $request, Caja $caja): View|RedirectResponse
     {
-        $datos = $request->validate([
+        if ($redirigir = $this->cierreNoDisponible($request, $caja)) {
+            return $redirigir;
+        }
+        $caja->load(['cajero.persona', 'moneda', 'estado', 'cierres' => fn ($query) => $query->orderByDesc('id')]);
+
+        return view('admin.cajas.cierre', ['caja' => $caja, 'esperado' => $caja->esperadoPorMedio(), 'mediosADeclarar' => CerrarCaja::mediosADeclarar($caja)]);
+    }
+
+    /** Paso previo a cerrar: valida lo declarado con las reglas del cierre y pide la confirmación final. No cierra nada. */
+    public function revisarCierre(Request $request, Caja $caja): View|RedirectResponse
+    {
+        if ($redirigir = $this->cierreNoDisponible($request, $caja)) {
+            return $redirigir;
+        }
+        $datos = $this->validarCierre($request);
+        $contado = collect($datos['contado'])->mapWithKeys(fn ($valor, $medio) => [(int) $medio => Guaranies::entero($valor)])->all();
+
+        try {
+            $verificado = CerrarCaja::verificar($request->user(), $caja, $contado, $datos['motivo'] ?? null);
+        } catch (AccionRechazada $e) {
+            return redirect()->route('admin.cajas.cierre', $caja)->withInput()->with('error', $e->getMessage());
+        }
+        $caja->load(['moneda', 'cierres' => fn ($query) => $query->orderByDesc('id')]);
+
+        return view('admin.cajas.confirmar-cierre', [
+            'caja' => $caja, 'filas' => $verificado['filas'], 'motivo' => $verificado['motivo'], 'conDiferencia' => $verificado['conDiferencia'],
+            'medios' => CerrarCaja::mediosADeclarar($caja)->keyBy('id'), 'contado' => $datos['contado'],
+        ]);
+    }
+
+    /** Solo su cajero, con la caja abierta o devuelta; si no, vuelve al detalle con el motivo. */
+    private function cierreNoDisponible(Request $request, Caja $caja): ?RedirectResponse
+    {
+        abort_unless($caja->usuario_id === $request->user()->id, 403);
+        if (! $caja->abierta() && ! $caja->devuelta()) {
+            return redirect()->route('admin.cajas.show', $caja)->with('error', 'Esta caja ya está cerrada.');
+        }
+
+        return null;
+    }
+
+    /** @return array<string, mixed> */
+    private function validarCierre(Request $request): array
+    {
+        return $request->validate([
             'contado' => ['required', 'array'],
             // Con signo: en los medios que no son efectivo lo esperado puede ser negativo (CerrarCaja rechaza el efectivo negativo).
             'contado.*' => Guaranies::regla(admiteCero: true, conSigno: true),
             'motivo' => ['nullable', 'string', 'max:'.CerrarCaja::MOTIVO_MAXIMO],
         ], ['contado.*.regex' => Guaranies::MENSAJE, 'contado.*.required' => 'Declare lo contado (cero si no hay nada).'], ['contado.*' => 'lo contado', 'motivo' => 'motivo de la diferencia']);
+    }
+
+    public function cerrar(Request $request, Caja $caja): RedirectResponse
+    {
+        $datos = $this->validarCierre($request);
+        // Sin la confirmación final no se cierra nada: vuelve a la pantalla de cierre.
+        if (! $request->boolean('confirmar')) {
+            return redirect()->route('admin.cajas.cierre', $caja)->withInput()->with('error', 'Confirme el cierre para continuar: no se cerró la caja.');
+        }
 
         try {
             CerrarCaja::ejecutar($request->user(), $caja,
                 collect($datos['contado'])->mapWithKeys(fn ($valor, $medio) => [(int) $medio => Guaranies::entero($valor)])->all(), $datos['motivo'] ?? null);
         } catch (AccionRechazada $e) {
-            return back()->withInput()->with('error', $e->getMessage());
+            return redirect()->route('admin.cajas.cierre', $caja)->withInput()->with('error', $e->getMessage());
         }
 
         return redirect()->route('admin.cajas.show', $caja)->with('status', 'Caja cerrada: queda pendiente de recepción.');
     }
 
+    /** Paso previo a recibir el arqueo: pide la confirmación final y no cambia nada. */
+    public function confirmarRecepcion(Request $request, Caja $caja): View|RedirectResponse
+    {
+        $nota = $request->validate(['nota' => ['nullable', 'string', 'max:'.RevisarCierre::NOTA_MAXIMA]], [], ['nota' => 'nota'])['nota'] ?? null;
+        if ($caja->usuario_id === $request->user()->id) {
+            return redirect()->route('admin.cajas.show', $caja)->with('error', RevisarCierre::PROPIA);
+        }
+        if (! $caja->cerrada()) {
+            return redirect()->route('admin.cajas.show', $caja)->with('error', 'Esta caja no está pendiente de recepción.');
+        }
+        $caja->load('cajero.persona');
+
+        return view('admin.cajas.confirmar-recepcion', ['caja' => $caja, 'nota' => $nota]);
+    }
+
     public function aprobar(Request $request, Caja $caja): RedirectResponse
     {
         $nota = $request->validate(['nota' => ['nullable', 'string', 'max:'.RevisarCierre::NOTA_MAXIMA]], [], ['nota' => 'nota'])['nota'] ?? null;
+        // Sin la confirmación final no se recibe nada.
+        if (! $request->boolean('confirmar')) {
+            return redirect()->route('admin.cajas.show', $caja)->with('error', 'Confirme la recepción del arqueo: no se recibió la caja.');
+        }
 
         try {
             RevisarCierre::aprobar($request->user(), $caja, $nota);
