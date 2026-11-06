@@ -1,17 +1,20 @@
 @use('App\Support\Fecha')
 @use('App\Support\Facturacion\AnularFactura')
 
-{{-- Detalle de una factura (FacturaController::show, docs/facturacion.md): datos, líneas, totales por tasa, su cobro, el PDF y la
-     anulación ("Anular la factura" dentro del plazo en la caja abierta propia; si no, "Solicitar la anulación", que Gerencia aprueba o
-     rechaza). No se edita. Sin contenido clínico. --}}
+{{-- Detalle de una factura (FacturaController::show, docs/facturacion.md): datos, líneas, totales por tasa, su cobro (o su liquidación,
+     en la de crédito), el PDF y la anulación ("Anular la factura" dentro del plazo en la caja abierta propia; si no, "Solicitar la
+     anulación", que Gerencia aprueba o rechaza; la de crédito, siempre con la solicitud). No se edita. Sin contenido clínico. --}}
 <x-admin.page title="Factura {{ $factura->numero_completo }}">
-    @include('admin.facturas._simulacion')
     <div class="space-y-6 p-6 text-sm">
         @if ($factura->anulada())
             <div role="status" class="max-w-3xl space-y-1 rounded-md bg-red-50 p-4 text-red-800 dark:bg-red-900/30 dark:text-red-200">
                 <p class="font-semibold">Anulada el {{ Fecha::mostrar($factura->anulada_en, conHora: true) }} por {{ $factura->anuladaPor->persona?->nombre_completo ?? $factura->anuladaPor->email }}</p>
                 <p>Motivo: {{ $factura->motivoAnulacion->nombre }}@if ($factura->detalle_anulacion) ({{ $factura->detalle_anulacion }})@endif</p>
-                <p>Su número no se vuelve a usar. Las prestaciones volvieron a quedar sin facturar ni cobrar.</p>
+                @if ($factura->esCredito())
+                    <p>Su número no se vuelve a usar. La liquidación volvió a quedar pendiente de facturar; sus pagos y el reparto de las prestaciones no cambiaron.</p>
+                @else
+                    <p>Su número no se vuelve a usar. Las prestaciones volvieron a quedar sin facturar ni cobrar.</p>
+                @endif
                 @if ($factura->reemplazadaPor)
                     <p>La reemplaza la factura <a href="{{ route('admin.facturas.show', $factura->reemplazadaPor) }}" class="underline">{{ $factura->reemplazadaPor->numero_completo }}</a>.</p>
                 @elseif ($puedeReemplazar)
@@ -22,7 +25,7 @@
 
         <dl class="grid max-w-4xl grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-3">
             <div><dt class="text-gray-500 dark:text-gray-400">Fecha y hora</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ Fecha::mostrar($factura->emitida_en, conHora: true) }}</dd></div>
-            <div><dt class="text-gray-500 dark:text-gray-400">Condición</dt><dd class="font-medium text-gray-900 dark:text-gray-100">Contado</dd></div>
+            <div><dt class="text-gray-500 dark:text-gray-400">Condición</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $factura->condicionTexto() }}</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Estado</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $factura->etiquetaEstado() }} · {{ $factura->estadoCobroTexto() }}</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Timbrado</dt><dd class="font-medium text-gray-900 dark:text-gray-100">N.º {{ $factura->numero_timbrado }} (vigencia {{ Fecha::mostrar($factura->timbrado_desde) }} al {{ Fecha::mostrar($factura->timbrado_hasta) }})</dd></div>
             <div><dt class="text-gray-500 dark:text-gray-400">Emisor</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $factura->emisor_razon_social }} · RUC {{ $factura->emisor_ruc }}</dd></div>
@@ -36,6 +39,19 @@
                     @endif
                 </dd>
             </div>
+            @if ($factura->liquidacion)
+                <div>
+                    <dt class="text-gray-500 dark:text-gray-400">Liquidación</dt>
+                    <dd class="font-medium text-gray-900 dark:text-gray-100">
+                        @if ($veLiquidacion)
+                            <a href="{{ route('admin.liquidaciones.show', $factura->liquidacion) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">Liquidación N.º {{ $factura->liquidacion->id }}</a>
+                        @else
+                            Liquidación N.º {{ $factura->liquidacion->id }}
+                        @endif
+                        <span class="font-normal text-gray-600 dark:text-gray-400">({{ $factura->liquidacion->etiquetaEstado() }})</span>
+                    </dd>
+                </div>
+            @endif
             @if ($factura->reemplazaA)
                 <div><dt class="text-gray-500 dark:text-gray-400">Reemplaza a</dt><dd class="font-medium"><a href="{{ route('admin.facturas.show', $factura->reemplazaA) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">{{ $factura->reemplazaA->numero_completo }}</a> (anulada)</dd></div>
             @endif
@@ -78,8 +94,10 @@
         @foreach ([[$puedeAnular, 'admin.facturas.anular', 'Anular la factura', 'red',
                     'Dentro de los '.AnularFactura::plazoMinutos().' minutos desde la emisión (hasta el '.Fecha::mostrar($limite, conHora: true).'): en una sola acción se revierte el cobro (se devuelven '.$factura->totalTexto().' desde su caja) y se anula la factura. No se puede deshacer.',
                     'Anular'],
-                   [$puedeSolicitar, 'admin.facturas.solicitar-anulacion', 'Solicitar la anulación', 'amber',
-                    'Pasó el plazo, la caja está cerrada o la factura es de otro cajero: la anulación la aprueba Gerencia. Al aprobarse, usted devuelve '.$factura->totalTexto().' desde su caja abierta de hoy.',
+                   [$puedeSolicitar && ! $conPagos, $rutaSolicitud, 'Solicitar la anulación', 'amber',
+                    $factura->esCredito()
+                        ? 'La factura de una liquidación se anula solo con la aprobación de Gerencia. No pasa por ninguna caja: al aprobarse, la liquidación vuelve a quedar pendiente de facturar y se puede emitir otra factura.'
+                        : 'Pasó el plazo, la caja está cerrada o la factura es de otro cajero: la anulación la aprueba Gerencia. Al aprobarse, usted devuelve '.$factura->totalTexto().' desde su caja abierta de hoy.',
                     'Solicitar la anulación']] as [$corresponde, $ruta, $titulo, $color, $explicacion, $boton])
             @if ($corresponde)
                 <details @class(['max-w-3xl rounded-md border p-4', 'border-red-200 dark:border-red-900' => $color === 'red', 'border-amber-200 dark:border-amber-900' => $color === 'amber'])
@@ -100,6 +118,10 @@
             @endif
         @endforeach
 
+        @if ($puedeSolicitar && $conPagos)
+            <p role="status" class="max-w-3xl rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">{{ AnularFactura::CREDITO_CON_PAGOS }}</p>
+        @endif
+
         @if ($pendiente)
             <section aria-labelledby="solicitud-pendiente" class="max-w-3xl space-y-3 rounded-md border border-amber-200 p-4 dark:border-amber-900">
                 <h3 id="solicitud-pendiente" class="font-semibold text-gray-900 dark:text-gray-100">Anulación pendiente de aprobación</h3>
@@ -107,6 +129,9 @@
                     Pedida el {{ Fecha::mostrar($pendiente->solicitada_en, conHora: true) }} por {{ $pendiente->solicitante->persona?->nombre_completo ?? $pendiente->solicitante->email }}.
                     Motivo: {{ $pendiente->motivoTexto() }}
                 </p>
+                @if ($conPagos)
+                    <p role="status" class="rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">{{ AnularFactura::CREDITO_CON_PAGOS }}</p>
+                @endif
                 @if ($sinCajaSolicitante)
                     <p role="status" class="rounded-md bg-amber-50 p-3 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">{{ AnularFactura::sinCajaDelSolicitante($pendiente->solicitante->persona?->nombre_completo ?? $pendiente->solicitante->email) }}</p>
                 @endif

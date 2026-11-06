@@ -12,8 +12,8 @@ Los objetivos se tomaron del pedido (el repo no los trae en ningún documento); 
 
 | Estado | Objetivos | Cantidad |
 |---|---|---|
-| HECHO | 1, 3, 4, 6, 11, 13 | 6 |
-| PARCIAL | 2, 5, 7, 8, 9, 10 | 6 |
+| HECHO | 1, 3, 4, 6, 9, 11, 13 | 7 |
+| PARCIAL | 2, 5, 7, 8, 10 | 5 |
 | FALTA | 12, 14 | 2 |
 
 Informes del objetivo 14 (11 ítems): **PARCIAL 6**, **FALTA 5**, HECHO 0. No existe un módulo de informes: ni rutas, ni menú, ni totales;
@@ -24,8 +24,7 @@ Lo más importante que falta:
 1. **Informes (14)**: ninguno consolidado (ventas/cobrado/pendiente, procedimientos, por equipo, comparativos, reparto por beneficiario).
 2. **Cuentas por pagar (12)**: la compra a crédito guarda `vencimiento` y `anticipo`, pero no hay pagos a proveedores, saldos ni reversiones.
 3. **Liquidaciones a profesionales y a dueños de equipo (7)**: el reparto se calcula y se guarda por línea, pero solo se liquida a aseguradoras.
-4. **Factura posterior y agrupada (9)**: solo hay factura individual CONTADO, emitida junto con el cobro.
-5. Caja sin salidas ni gastos (10); saldos y pagos parciales de pacientes (8).
+4. Caja sin salidas ni gastos (10); saldos y pagos parciales de pacientes (8).
 
 ## 1. Gestionar personas (pacientes, profesionales, usuarios, proveedores, beneficiarios, responsables de pago) — HECHO
 
@@ -140,23 +139,18 @@ la prestación y en un listado de deudores, y reversión que recalcule el saldo;
 Falta: **saldos** de la paciente y **pagos parciales o a crédito**: el cobro es siempre completo y posterior a la consulta, sin crédito
 (`docs/cobros-caja.md`). No hay cuenta corriente de la paciente. Sin recibo imprimible.
 
-## 9. Trazabilidad entre servicios prestados y facturación individual, posterior o agrupada — PARCIAL
+## 9. Trazabilidad entre servicios prestados y facturación individual, posterior o agrupada — HECHO
 
 | Qué | Dónde | Permiso | Tests |
 |---|---|---|---|
 | Factura individual simulada con detalle por prestación (`detalles_factura.prestacion_id`), timbrado, numeración, IVA, PDF | `/admin/facturas`, `/admin/facturas/{id}`, `/admin/facturas/timbrados` | `FACTURAS`, `TIMBRADOS`, `DATOS_FISCALES` | sí (`FacturacionTest`, Postgres) |
 | Anulación directa o por solicitud, con motivo | `/admin/facturas/solicitudes`, motivos | `FACTURAS` (DESACTIVAR), `ANULACIONES_FACTURA`, `MOTIVOS_ANULACION` | sí |
 | La prestación facturada se bloquea; la liquidación marca "pendiente de facturar" | detalle de prestación y de liquidación | — | sí |
+| Factura CRÉDITO agrupada y posterior de la liquidación aprobada, a la aseguradora: una línea por prestación (parte ASEGURADORA), IVA, mismo timbrado; sigue a los pagos; anulación por solicitud; enlaces factura ↔ liquidación ↔ prestaciones | detalle de la liquidación ("Emitir la factura"), `/admin/facturas/{id}` | `FACTURAS_LIQUIDACION`, `ANULACIONES_FACTURA` | sí (`FacturaLiquidacionTest`, Postgres) |
 
-Se buscó también una agrupación en otra forma: la **liquidación a la aseguradora** agrupa prestaciones por aseguradora y fecha de corte y, al aprobarse,
-queda "pendiente de facturar" (`facturacion = PENDIENTE`), pero **no emite factura**: no hay ruta ni acción de facturar la liquidación (`routes/web.php`
-solo trae `facturas.*` individuales). `detalles_factura` admite varias prestaciones, pero `cobros.store` emite una factura por cobro y CONTADO.
-
-Para dejarlo HECHO (mínimo): emitir una factura (CRÉDITO) desde una liquidación aprobada, con una línea por prestación y su timbrado, que cambie
-`facturacion` a FACTURADA y bloquee las prestaciones; la factura posterior individual (de una prestación ya cobrada o sin factura) puede ser la segunda etapa.
-
-Falta: **factura posterior** (emitir después del cobro o de la consulta) y **factura agrupada** (varias prestaciones, o la liquidación a la aseguradora).
-Hoy la factura se emite solo junto con el cobro, como CONTADO (`docs/facturacion.md`: "Sin factura agrupada a aseguradoras"). Tampoco notas de crédito.
+Hecho en la rama `factura-liquidacion` (`docs/facturacion.md`, "Factura de la liquidación"): la liquidación aprobada se factura con una
+factura CRÉDITO a la aseguradora (una por liquidación), que la deja FACTURADA. Queda como mejora la **factura posterior individual** (de
+una prestación ya cobrada o sin factura) y las notas de crédito.
 
 ## 10. Apertura, movimientos, conciliación y cierre diario de caja — PARCIAL
 

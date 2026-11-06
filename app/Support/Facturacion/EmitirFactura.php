@@ -22,7 +22,8 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * La emisión de la factura individual CONTADO (docs/facturacion.md). La llama Cobros\Cobrar, en su transacción y ANTES de registrar el
- * cobro: si algo falla después, no queda ni la factura ni el número usado.
+ * cobro: si algo falla después, no queda ni la factura ni el número usado. La numeración y el guardado (`registrar`) los comparte con
+ * la factura CRÉDITO de la liquidación (Facturacion\FacturarLiquidacion).
  *
  * - Emisor: la clínica (Clinica::actual, con su RUC) y la sucursal principal (un solo punto: el timbrado vigente de esa sucursal).
  * - Timbrado: vigente, dentro de su vigencia y con números disponibles. La numeración avanza de a uno con el timbrado bloqueado: sin
@@ -100,8 +101,6 @@ final class EmitirFactura
         if ($timbrado === null) {
             throw new AccionRechazada($aviso);
         }
-        $clinica = $timbrado->clinica;
-        $sucursal = $timbrado->sucursal;
         $persona = Paciente::with('persona.tipoDocumento')->findOrFail($pacienteId)->persona;
         $documento = $persona->documentoPrincipal();
         if ($documento === '') {
@@ -116,6 +115,32 @@ final class EmitirFactura
             self::verificarReemplazo($reemplazaA, $pacienteId);
         }
 
+        $lineas = array_map(function (Prestacion $prestacion) {
+            $prestacion->loadMissing('procedimiento');
+
+            return ['prestacion' => $prestacion, 'monto' => $prestacion->montoPaciente(), 'tasa' => (int) ($prestacion->procedimiento?->tasa_iva ?? 10),
+                'descripcion' => $prestacion->procedimiento?->nombre ?? 'Prestación'];
+        }, $prestaciones);
+
+        return self::registrar($timbrado, $cajero, [
+            'condicion' => Factura::CONTADO, 'paciente_id' => $pacienteId, 'caja_id' => $caja->id, 'reemplaza_a_id' => $reemplazaA?->id,
+            'cliente_nombre' => mb_substr(HojaReceta::nombreNatural($persona), 0, 200), 'cliente_documento' => $documento,
+        ], DetalleFactura::PACIENTE, $lineas);
+    }
+
+    /**
+     * Numera y guarda la factura con el timbrado ya bloqueado (lo comparten la contado y la de crédito, Facturacion\FacturarLiquidacion):
+     * el número siguiente sin saltos ni repetidos, el snapshot del emisor, una línea por prestación de esa parte con su IVA, los totales
+     * y el emisor de documentos. Debe correr dentro de una transacción. Queda en Auditoría: CREAR de la factura y de cada línea.
+     *
+     * @param  array<string, mixed>  $cliente  condición, cliente y lo propio de cada una (paciente y caja, o liquidación)
+     * @param  list<array{prestacion: Prestacion, monto: int, tasa: int, descripcion: string}>  $lineas
+     */
+    public static function registrar(Timbrado $timbrado, User $usuario, array $cliente, string $parte, array $lineas): Factura
+    {
+        $clinica = $timbrado->clinica;
+        $sucursal = $timbrado->sucursal;
+
         // El número siguiente, con el timbrado bloqueado. Sin evento propio en Auditoría: queda en la factura.
         $numero = $timbrado->numero_actual + 1;
         $avanzo = DB::table('timbrados')->where('id', $timbrado->id)->where('numero_actual', $timbrado->numero_actual)
@@ -124,37 +149,30 @@ final class EmitirFactura
             throw new AccionRechazada('Otra factura tomó el mismo número: vuelva a intentar.');
         }
 
-        $lineas = array_map(function (Prestacion $prestacion) {
-            $prestacion->loadMissing('procedimiento');
-            $monto = $prestacion->montoPaciente();
-            $tasa = (int) ($prestacion->procedimiento?->tasa_iva ?? 10);
-
-            return ['prestacion' => $prestacion, 'monto' => $monto, 'tasa' => $tasa, ...Iva::desglose($monto, $tasa)];
-        }, $prestaciones);
+        $lineas = array_map(fn (array $linea) => [...$linea, ...Iva::desglose($linea['monto'], $linea['tasa'])], $lineas);
         $totales = Iva::totales($lineas);
         $emisor = app(EmisorDocumentos::class);
         $numeroCompleto = Timbrado::numeroCompleto($timbrado->establecimiento, $timbrado->punto_expedicion, $numero);
 
-        return Auditoria::conDetalle("Factura {$numeroCompleto}", function () use ($cajero, $caja, $pacienteId, $timbrado, $clinica, $sucursal, $persona, $documento, $numero, $numeroCompleto, $lineas, $totales, $emisor, $reemplazaA) {
+        return Auditoria::conDetalle("Factura {$numeroCompleto}", function () use ($usuario, $timbrado, $clinica, $sucursal, $cliente, $parte, $numero, $numeroCompleto, $lineas, $totales, $emisor) {
             $factura = new Factura([
                 'timbrado_id' => $timbrado->id, 'sucursal_id' => $sucursal->id, 'numero_timbrado' => $timbrado->numero,
                 'timbrado_desde' => $timbrado->vigente_desde, 'timbrado_hasta' => $timbrado->vigente_hasta,
                 'establecimiento' => $timbrado->establecimiento, 'punto_expedicion' => $timbrado->punto_expedicion,
-                'numero' => $numero, 'numero_completo' => $numeroCompleto, 'emitida_en' => now(), 'condicion' => Factura::CONTADO,
+                'numero' => $numero, 'numero_completo' => $numeroCompleto, 'emitida_en' => now(),
                 'emisor_razon_social' => $clinica->razon_social, 'emisor_nombre_fantasia' => $clinica->nombre_fantasia, 'emisor_ruc' => $clinica->ruc,
                 'emisor_actividad' => $clinica->actividad_economica, 'emisor_direccion' => $clinica->direccion_fiscal,
                 'emisor_telefono' => $sucursal->telefono ?: $clinica->telefono,
-                'paciente_id' => $pacienteId, 'cliente_nombre' => mb_substr(HojaReceta::nombreNatural($persona), 0, 200), 'cliente_documento' => $documento,
                 'moneda_id' => Moneda::guarani()->id, ...$totales,
-                'usuario_id' => $cajero->id, 'caja_id' => $caja->id, 'simulada' => $emisor->simulado(), 'emisor_documentos' => $emisor->codigo(),
-                'reemplaza_a_id' => $reemplazaA?->id,
+                'usuario_id' => $usuario->id, 'simulada' => $emisor->simulado(), 'emisor_documentos' => $emisor->codigo(),
+                ...$cliente,
             ]);
             $factura->estado_id = Estado::idDe(Estado::EMITIDO);
             $factura->save();
             foreach ($lineas as $linea) {
                 DetalleFactura::create([
-                    'factura_id' => $factura->id, 'prestacion_id' => $linea['prestacion']->id, 'parte' => DetalleFactura::PACIENTE,
-                    'descripcion' => mb_substr($linea['prestacion']->procedimiento?->nombre ?? 'Prestación', 0, 150),
+                    'factura_id' => $factura->id, 'prestacion_id' => $linea['prestacion']->id, 'parte' => $parte,
+                    'descripcion' => mb_substr($linea['descripcion'], 0, 150),
                     'cantidad' => 1, 'precio_unitario' => $linea['monto'], 'monto' => $linea['monto'], 'tasa_iva' => $linea['tasa'],
                     'gravado' => $linea['gravado'], 'iva' => $linea['iva'],
                 ]);

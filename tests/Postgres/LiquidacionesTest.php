@@ -45,7 +45,7 @@ function pgLiquidacionesResponsable(): ResponsablePago
 }
 
 /** El código y la restricción con que la base rechaza la sentencia (en su propio savepoint), o null si la acepta. */
-function pgLiquidacionesRechazo(\Closure $sentencia): ?array
+function pgLiquidacionesRechazo(Closure $sentencia): ?array
 {
     try {
         DB::transaction($sentencia);
@@ -161,10 +161,14 @@ test('la migración, con prestaciones ya existentes: no las liquida ni las cambi
     hcConsulta();
     $prestacion = Prestacion::where('consulta_id', Consulta::latest('id')->value('id'))->sole();
     $migracion = require base_path('database/migrations/2026_10_31_100001_create_liquidaciones_aseguradoras.php');
+    // La factura de la liquidación (una migración posterior) depende de las liquidaciones: se baja antes y se sube después, en orden.
+    $facturaLiquidacion = require base_path('database/migrations/2026_11_10_100001_factura_de_liquidacion.php');
+    $facturaLiquidacion->down();
     $migracion->down();
     $antes = (array) DB::table('prestaciones')->where('id', $prestacion->id)->first();
 
     $migracion->up();
+    $facturaLiquidacion->up();
 
     expect((array) DB::table('prestaciones')->where('id', $prestacion->id)->first())->toBe($antes)
         ->and(DB::table('liquidaciones')->count())->toBe(0)->and(DB::table('lineas_liquidacion')->count())->toBe(0);

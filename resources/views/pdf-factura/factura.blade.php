@@ -1,6 +1,8 @@
 {{--
-    Factura individual CONTADO (App\Support\Facturacion\PdfFactura, docs/facturacion.md). A4. Todo sale del snapshot de la factura;
-    sin CDC ni QR; con la marca de simulación si la factura es simulada. Sin nada clínico. Todo escapado.
+    Factura CONTADO o CRÉDITO (App\Support\Facturacion\PdfFactura, docs/facturacion.md). A4. Todo sale del snapshot de la factura;
+    sin CDC ni QR. Si es simulada, la MARCA DE AGUA "SIMULACIÓN, SIN VALIDEZ FISCAL": diagonal, gris claro y transparente, detrás del
+    texto (va primero en el body) y en cada página (position: fixed), para que se vea también impresa en blanco y negro sin tapar los
+    datos. Sin nada clínico. Todo escapado.
 --}}
 <!doctype html>
 <html lang="es">
@@ -17,7 +19,8 @@
         .clinica { font-size: 11.5pt; font-weight: bold; }
         .tipo { font-size: 12pt; font-weight: bold; text-align: center; margin: 1mm 0; }
         .numero { font-size: 11pt; font-weight: bold; text-align: center; }
-        .simulacion { margin: 0 0 3mm; padding: 2mm; border: 1.5pt solid #b91c1c; color: #b91c1c; font-weight: bold; font-size: 11pt; text-align: center; }
+        .marca-agua { position: fixed; top: 125mm; left: -20mm; width: 222mm; text-align: center; white-space: nowrap; font-size: 28pt;
+            font-weight: bold; letter-spacing: 1pt; color: #9ca3af; opacity: 0.3; transform: rotate(-38deg); }
         .anulada { margin: 0 0 3mm; padding: 2mm; border: 1.5pt solid #111; font-weight: bold; font-size: 11pt; text-align: center; }
         table.datos { margin-top: 3mm; }
         table.datos td { padding: 0.6mm 2mm 0.6mm 0; vertical-align: top; }
@@ -36,7 +39,7 @@
 </head>
 <body>
     @if ($marcaSimulacion)
-        <div class="simulacion">{{ $marcaSimulacion }}</div>
+        <div class="marca-agua">{{ $marcaSimulacion }}</div>
     @endif
     @if ($anulada)
         <div class="anulada">FACTURA ANULADA</div>
@@ -69,9 +72,12 @@
     </table>
 
     <table class="datos">
-        <tr><td class="etiqueta">Fecha y hora</td><td>{{ $fecha }}</td><td class="etiqueta">Condición</td><td>CONTADO</td></tr>
+        <tr><td class="etiqueta">Fecha y hora</td><td>{{ $fecha }}</td><td class="etiqueta">Condición</td><td>{{ $condicion }}</td></tr>
         <tr><td class="etiqueta">Nombre o razón social</td><td>{{ $factura->cliente_nombre }}</td><td class="etiqueta">Documento</td><td>{{ $factura->cliente_documento }}</td></tr>
         <tr><td class="etiqueta">Moneda</td><td colspan="3">{{ $factura->moneda->nombre }}</td></tr>
+        @if ($liquidacion)
+            <tr><td class="etiqueta">Liquidación</td><td colspan="3">{{ $liquidacion }}</td></tr>
+        @endif
     </table>
 
     <table class="lineas">
@@ -104,9 +110,6 @@
     </table>
 
     <div class="pie">
-        @if ($marcaSimulacion)
-            {{ $marcaSimulacion }}: documento de prueba, no enviado a la administración tributaria. ·
-        @endif
         Generado el {{ $generadoEn }}
     </div>
 </body>

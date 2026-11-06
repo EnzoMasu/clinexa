@@ -9,6 +9,7 @@ use App\Models\MedioPago;
 use App\Models\PagoAseguradora;
 use App\Models\User;
 use App\Support\Auditoria;
+use App\Support\Facturacion\FacturarLiquidacion;
 use App\Support\Fecha;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -87,7 +88,10 @@ final class PagosAseguradora
         });
     }
 
-    /** El estado según el saldo: sin pagos, APROBADO; con saldo, PARCIAL; sin saldo, PAGADO. */
+    /**
+     * El estado según el saldo: sin pagos, APROBADO; con saldo, PARCIAL; sin saldo, PAGADO. Su factura de crédito, si tiene, lo sigue en
+     * la misma transacción (Facturacion\FacturarLiquidacion::sincronizarCobro): COBRADA con la liquidación pagada; si no, EMITIDA.
+     */
     private static function recalcular(Liquidacion $liquidacion): void
     {
         $liquidacion->unsetRelation('estado');
@@ -101,5 +105,6 @@ final class PagosAseguradora
             $liquidacion->forceFill(['estado_id' => Estado::idDe($estado)])->save();
             $liquidacion->unsetRelation('estado');
         }
+        FacturarLiquidacion::sincronizarCobro($liquidacion);
     }
 }

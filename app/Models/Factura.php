@@ -12,12 +12,16 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
- * Una factura individual CONTADO (docs/facturacion.md), emitida en Caja antes de registrar su cobro, en la misma transacción. Lleva
- * el timbrado y su número (001-001-0000001), la fecha y hora, el snapshot del emisor (la clínica y la sucursal) y del cliente (la
- * paciente), la moneda, una línea por prestación (DetalleFactura: solo lo que paga la paciente) y los totales por tasa de IVA.
+ * Una factura (docs/facturacion.md). Lleva el timbrado y su número (001-001-0000001), la fecha y hora, el snapshot del emisor (la
+ * clínica y la sucursal) y del cliente, la moneda, una línea por prestación (DetalleFactura) y los totales por tasa de IVA.
  *
- * EMITIDO -> COBRADO (la contado, en la misma operación) -> ANULADO (con motivo, quién y cuándo; su número se conserva y no se
- * reutiliza). El estado de cobro sale del cobro vigente. El modelo rechaza cualquier otro cambio, y el borrado.
+ * - CONTADO: la individual, emitida en Caja antes de registrar su cobro, en la misma transacción. Cliente: la paciente; solo lo que
+ *   paga ella (parte PACIENTE). EMITIDO -> COBRADO en la misma operación. El estado de cobro sale del cobro vigente.
+ * - CREDITO: la de una liquidación aprobada (`liquidacion_id`), a nombre de la aseguradora, sin paciente ni caja; lo que paga la
+ *   aseguradora (parte ASEGURADORA). Sigue a la liquidación: COBRADO cuando queda PAGADA y, si se anula un pago, de vuelta a EMITIDO
+ *   (el único paso hacia atrás, solo en la de crédito y solo con el estado).
+ *
+ * -> ANULADO con motivo, quién y cuándo; su número se conserva y no se reutiliza. El modelo rechaza cualquier otro cambio, y el borrado.
  */
 class Factura extends Model
 {
@@ -26,6 +30,11 @@ class Factura extends Model
     protected $table = 'facturas';
 
     public const CONTADO = 'CONTADO';
+
+    /** La factura de la liquidación a la aseguradora. */
+    public const CREDITO = 'CREDITO';
+
+    public const CONDICIONES = [self::CONTADO => 'Contado', self::CREDITO => 'Crédito'];
 
     public const ETIQUETAS = [Estado::EMITIDO => 'Emitida (pendiente de cobro)', Estado::COBRADO => 'Cobrada', Estado::ANULADO => 'Anulada'];
 
@@ -39,7 +48,8 @@ class Factura extends Model
     protected $fillable = ['timbrado_id', 'sucursal_id', 'numero_timbrado', 'timbrado_desde', 'timbrado_hasta', 'establecimiento', 'punto_expedicion',
         'numero', 'numero_completo', 'emitida_en', 'condicion', 'emisor_razon_social', 'emisor_nombre_fantasia', 'emisor_ruc', 'emisor_actividad',
         'emisor_direccion', 'emisor_telefono', 'paciente_id', 'cliente_nombre', 'cliente_documento', 'moneda_id', 'gravado_10', 'iva_10',
-        'gravado_5', 'iva_5', 'exento', 'total', 'usuario_id', 'caja_id', 'simulada', 'emisor_documentos', 'reemplaza_a_id'];
+        'gravado_5', 'iva_5', 'exento', 'total', 'usuario_id', 'caja_id', 'simulada', 'emisor_documentos', 'reemplaza_a_id',
+        'liquidacion_id'];
 
     public static function moduloEstado(): string
     {
@@ -60,6 +70,9 @@ class Factura extends Model
             $cambios = array_keys($factura->getDirty());
             $permitido = match (true) {
                 $desde === Estado::EMITIDO && $hacia === Estado::COBRADO => array_diff($cambios, self::CAMPOS_DE_COBRO) === [],
+                // Solo la de crédito vuelve a pendiente de cobro: cuando se anula un pago y la liquidación deja de estar pagada.
+                $desde === Estado::COBRADO && $hacia === Estado::EMITIDO => $factura->getOriginal('condicion') === self::CREDITO
+                    && array_diff($cambios, self::CAMPOS_DE_COBRO) === [],
                 in_array($desde, [Estado::EMITIDO, Estado::COBRADO], true) && $hacia === Estado::ANULADO => $factura->anulada_en !== null
                     && $factura->anulada_por !== null && $factura->motivo_anulacion_id !== null && array_diff($cambios, self::CAMPOS_DE_ANULACION) === [],
                 default => false,
@@ -75,6 +88,7 @@ class Factura extends Model
     {
         return match (Estado::find($this->estado_id)?->codigo) {
             Estado::COBRADO => "Factura {$this->numero_completo} cobrada",
+            Estado::EMITIDO => $accion === AccionAuditoria::CREAR ? null : "Factura {$this->numero_completo} vuelve a pendiente de cobro",
             Estado::ANULADO => "Factura {$this->numero_completo} anulada. Motivo: ".MotivoAnulacionFactura::find($this->motivo_anulacion_id)?->nombre
                 .($this->detalle_anulacion ? " ({$this->detalle_anulacion})" : ''),
             default => null,
@@ -109,6 +123,12 @@ class Factura extends Model
     public function caja(): BelongsTo
     {
         return $this->belongsTo(Caja::class);
+    }
+
+    /** La liquidación que factura (solo la de crédito). */
+    public function liquidacion(): BelongsTo
+    {
+        return $this->belongsTo(Liquidacion::class);
     }
 
     public function detalles(): HasMany
@@ -164,9 +184,32 @@ class Factura extends Model
         return self::ETIQUETAS[$this->estado?->codigo] ?? (string) $this->estado?->nombre;
     }
 
-    /** "Cobrada", "Pendiente de cobro" o "Cobro revertido": sale del cobro registrado contra ella. */
+    public function esCredito(): bool
+    {
+        return $this->condicion === self::CREDITO;
+    }
+
+    public function condicionTexto(): string
+    {
+        return self::CONDICIONES[$this->condicion] ?? (string) $this->condicion;
+    }
+
+    /**
+     * "Cobrada", "Pendiente de cobro" o "Cobro revertido": en la contado sale del cobro registrado contra ella; en la de crédito, de
+     * los pagos de la aseguradora a la liquidación ("Pagada en parte (saldo ₲ X)").
+     */
     public function estadoCobroTexto(): string
     {
+        if ($this->esCredito()) {
+            $liquidacion = $this->liquidacion;
+
+            return match (true) {
+                $this->anulada() => 'Sin cobro (anulada)',
+                $liquidacion?->tieneEstado(Estado::PAGADO) => 'Cobrada (la liquidación está pagada)',
+                $liquidacion?->tieneEstado(Estado::PARCIAL) => 'Pagada en parte (saldo '.$liquidacion->formatear($liquidacion->saldo()).')',
+                default => 'Pendiente de cobro',
+            };
+        }
         $cobro = $this->cobro;
 
         return match (true) {

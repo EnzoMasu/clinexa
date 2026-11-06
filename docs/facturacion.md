@@ -1,10 +1,17 @@
-# Facturación individual (fase 5a económica)
+# Facturación (fases 5a y 5b económicas)
 
-La **clínica** como contribuyente emisor, el **timbrado**, la **factura individual CONTADO**, el **IVA** de cada procedimiento y el cobro
-de Caja **contra factura**. Para la facultad la emisión es **SIMULADA**: funciona como la factura electrónica, pero no se envía a ningún
-lado ni tiene validez fiscal. Sin factura agrupada a aseguradoras, recibos, notas de crédito ni de débito, intereses, autofactura,
-retenciones, liquidación a profesionales ni al dueño del equipo, CDC ni QR reales, ni el paquete mensual en Excel. Nada se borra. Ver
-también `docs/cobros-caja.md`, `docs/tarifas-prestaciones.md`, `docs/convenios-seguros.md` y `docs/liquidaciones-aseguradoras.md`.
+La **clínica** como contribuyente emisor, el **timbrado**, la **factura individual CONTADO**, el **IVA** de cada procedimiento, el cobro
+de Caja **contra factura** y la **factura CRÉDITO de la liquidación** a la aseguradora (ver "Factura de la liquidación"). Para la
+facultad la emisión es **SIMULADA**: funciona como la factura electrónica, pero no se envía a ningún lado ni tiene validez fiscal. Sin
+recibos, notas de crédito ni de débito, intereses, autofactura, retenciones, liquidación a profesionales ni al dueño del equipo, CDC ni QR
+reales, ni el paquete mensual en Excel. Nada se borra. Ver también `docs/cobros-caja.md`, `docs/tarifas-prestaciones.md`,
+`docs/convenios-seguros.md` y `docs/liquidaciones-aseguradoras.md`.
+
+> **Sin conexión con la facturación electrónica real.** El sistema **no se conecta** al SIFEN ni a ningún proveedor de facturación
+> electrónica: no envía documentos a la administración tributaria, no recibe CDC ni QR y ninguna factura tiene validez fiscal. Es
+> **trabajo futuro**: un emisor real implementaría `EmisorDocumentos` sin tocar la numeración, el IVA, el cobro ni la anulación. Mientras
+> tanto, el PDF de cada factura simulada lleva la **marca de agua** "SIMULACIÓN, SIN VALIDEZ FISCAL", para que una factura impresa no se
+> confunda con una válida.
 
 ## La factura va primero
 
@@ -44,14 +51,14 @@ vigente por sucursal, establecimiento y punto (`timbrados_uno_vigente`, único p
 
 ## Factura (`facturas`, `detalles_factura`)
 
-- Timbrado (con su número y vigencia copiados), número, fecha y hora, condición **CONTADO**, el **snapshot del emisor** (razón social,
+- Timbrado (con su número y vigencia copiados), número, fecha y hora, condición (**CONTADO**; **CREDITO** en la de la liquidación), el **snapshot del emisor** (razón social,
   nombre de fantasía, RUC, actividad, dirección fiscal, teléfono de la sucursal) y del **cliente** (la paciente: nombre en orden natural y
   `Persona::documentoPrincipal()`), moneda, totales por tasa, estado, quién la emitió, en qué caja, `simulada` y el emisor
   (`emisor_documentos`). Un cambio posterior de la clínica, la sucursal o la paciente no altera las emitidas. **Sin factura "sin nombre"**:
   sin documento, no se emite.
-- Una **línea por prestación y parte** (`parte`: **PACIENTE** o **ASEGURADORA**; en esta fase solo PACIENTE): la descripción del procedimiento, cantidad 1, precio con IVA incluido (lo que paga la paciente:
-  particular o copago), la tasa **copiada** del procedimiento, el gravado y el IVA. Lo de la **aseguradora nunca entra** (se liquida
-  aparte, `docs/liquidaciones-aseguradoras.md`).
+- Una **línea por prestación y parte** (`parte`: **PACIENTE** en la contado, **ASEGURADORA** en la de la liquidación): la descripción del
+  procedimiento, cantidad 1, precio con IVA incluido (en la contado, lo que paga la paciente: particular o copago), la tasa **copiada** del
+  procedimiento, el gravado y el IVA. Lo de la **aseguradora nunca entra en la contado**: va en la factura de su liquidación.
 - Estados: **EMITIDO** ("Emitida", pendiente de cobro; ya existía), **COBRADO** ("Cobrada", nuevo) y **ANULADO** ("Anulada"). La contado
   pasa de EMITIDA a COBRADA en la misma operación. El estado de cobro sale del cobro registrado contra ella.
 - **Cada parte de una prestación se factura una sola vez**: `detalles_factura_una_por_parte`, único parcial `(prestacion_id, parte) WHERE
@@ -60,7 +67,8 @@ vigente por sucursal, establecimiento y punto (`timbrados_uno_vigente`, único p
   parte. Al anular la factura sus líneas se **liberan**.
 - Una anulada puede tener otra que la **reemplaza** (`reemplaza_a_id`, a lo sumo una): "Cobrar de nuevo con una factura que reemplace a
   esta", desde su detalle.
-- Los modelos admiten solo EMITIDO → COBRADO y → ANULADO (con sus datos) y la liberación de las líneas; rechazan el resto y el borrado.
+- Los modelos admiten solo EMITIDO → COBRADO, COBRADO → EMITIDO (solo la de crédito y solo el estado: un pago anulado) y → ANULADO (con
+  sus datos), y la liberación de las líneas; rechazan el resto y el borrado.
 
 ## IVA (`Facturacion\Iva`)
 
@@ -73,14 +81,49 @@ gravado 5, IVA 5, exento y total, la suma exacta de las líneas.
 
 Una interfaz (`codigo`, `simulado`, `emitir`, `anular`) que corre dentro de la transacción. Hoy, `EmisorSimulado`; mañana, un proveedor o
 el SIFEN, sin tocar la numeración, el IVA, el cobro ni la anulación. `config('clinexa.facturacion.simulada')` (`CLINEXA_FACTURACION_SIMULADA`,
-activo) la elige; con la simulación, la factura, su PDF y las pantallas muestran **"SIMULACIÓN, SIN VALIDEZ FISCAL"**. Apagada, todavía no
-hay emisor real (`EmisorNoConfigurado`): no se emite ni se anula, con el aviso. Sin CDC ni QR.
+activo) la elige; cada factura guarda si fue simulada (`facturas.simulada`). Apagada, todavía no hay emisor real (`EmisorNoConfigurado`):
+no se emite ni se anula, con el aviso. Sin CDC ni QR.
+
+**Marca de agua.** El PDF de una factura simulada (las individuales y las de liquidación, también las emitidas antes de este cambio,
+porque el PDF se arma al vuelo) lleva la marca de agua **"SIMULACIÓN, SIN VALIDEZ FISCAL"**: en diagonal, gris claro y transparente,
+detrás del texto y en cada página, para que se vea también impresa en papel (y en blanco y negro) sin tapar ni dificultar la lectura de
+los datos. Las **pantallas** (Facturas, cobro, detalle, timbrados, imprimir) ya **no** llevan el recuadro rojo de aviso.
 
 **Marca aparte del modo:** `config('clinexa.facturacion.mostrar_marca')` (`CLINEXA_FACTURACION_MOSTRAR_MARCA`, por defecto activo) controla
-SOLO si se muestran el cartel de las pantallas (Facturas, cobro, detalle) y la marca del PDF; no cambia el modo de emisión. Con
-`mostrar_marca=false` y `simulada=true` se emite y se anula con normalidad, sin ninguna marca.
+SOLO si el PDF lleva la marca de agua; no cambia el modo de emisión. Con `mostrar_marca=false` y `simulada=true` se emite y se anula con
+normalidad, sin ninguna marca.
 
-> **Advertencia:** sin la marca, una factura simulada puede confundirse con una válida. No apagarla en un uso real.
+> **Advertencia:** sin la marca, una factura simulada impresa puede confundirse con una válida. No apagarla en un uso real.
+
+## Factura de la liquidación (`Facturacion\FacturarLiquidacion`)
+
+La factura **agrupada y posterior** de lo que paga la aseguradora: una factura **CRÉDITO** por liquidación (`docs/liquidaciones-aseguradoras.md`).
+
+- **Quién y cuándo.** Facturación y convenios (o el Administrador), con CREAR sobre **FACTURAS_LIQUIDACION**, desde el detalle de la
+  liquidación ("Emitir la factura", con confirmación). Solo de una liquidación **aprobada** (APROBADO, PARCIAL o PAGADO) que sigue
+  **pendiente de facturar**. En preparación, pendiente de aprobación o anulada: "Solo se factura una liquidación aprobada (con o sin pagos).".
+- **A nombre de la aseguradora** (el responsable de pago): el nombre (razón social) y el **RUC** de su persona, copiados. Sin RUC no se
+  emite: "La aseguradora X no tiene RUC: cárguelo en los datos de su persona (Personas) antes de emitir la factura." (también como aviso en
+  la pantalla, antes de intentar). Sin paciente ni caja (`paciente_id` y `caja_id` vacíos; `liquidacion_id`).
+- **Detalle:** una línea por prestación de la liquidación (parte **ASEGURADORA**), sin agrupar: "Consulta (06/10/2026, visación N.º V-1)",
+  cantidad 1, lo que paga la aseguradora (el monto de su línea de la liquidación) y la tasa de IVA del procedimiento. El total es el de la
+  liquidación (si no coincidiera, no se emite). Sin nombres de pacientes ni nada clínico (están en la planilla).
+- **El copago no cambia:** la parte de la paciente se factura en Caja (contado). El índice por parte impide facturar dos veces la misma.
+- **Una por liquidación** (no se agrupan varias ni se divide una): `facturas_una_por_liquidacion`, único parcial `(liquidacion_id) WHERE
+  anulada_en IS NULL` (SQLite y PostgreSQL). Emitida, la liquidación queda **FACTURADA** (`liquidaciones.facturacion`).
+- **Numeración:** el mismo timbrado y la misma numeración que la contado (`EmitirFactura::registrar`), con el timbrado bloqueado: dos
+  emisiones simultáneas no repiten ni saltean número (la segunda espera; `tests/Postgres/FacturaNumeracionConcurrenciaTest.php`).
+- **Cobro:** sigue a la liquidación (`sincronizarCobro`, desde `Liquidaciones\PagosAseguradora`, en la misma transacción): **COBRADA**
+  cuando la liquidación queda PAGADA; si se anula un pago y deja de estarlo, vuelve a **EMITIDA**. Pagada en parte sigue EMITIDA y se
+  muestra "Pagada en parte (saldo ₲ X)". Emitida sobre una liquidación ya pagada, nace COBRADA.
+- **Anulación:** solo con la **solicitud** (DESACTIVAR sobre FACTURAS_LIQUIDACION: Facturación y convenios) que aprueba Gerencia (o el
+  Administrador; nadie la propia), sin plazo directo y **sin tocar ninguna caja**. Con **pagos vigentes** de la aseguradora no se pide ni
+  se aprueba: "primero se anulan los pagos". Al aprobarse: la factura ANULADA (su número no se reutiliza), sus líneas liberadas y la
+  liquidación de vuelta a **pendiente de facturar** (se puede emitir otra, con otro número). El reparto de las prestaciones no cambia.
+  Mientras la factura esté vigente, **la liquidación no se anula** ("primero se anula la factura").
+- **Trazabilidad:** la factura muestra "Liquidación N.º X" (enlace) y cada línea enlaza su prestación; la liquidación muestra su factura
+  vigente y las anuladas; la prestación, sus dos facturas (la de la paciente y la de la aseguradora; esta, solo para quien ve las
+  facturas). El PDF dice CRÉDITO y "Liquidación N.º X (prestaciones del … al …)".
 
 ## Bloqueo de la prestación facturada (`Facturacion\BloqueoFactura`)
 
@@ -113,14 +156,15 @@ referencia por su código (`MotivosAnulacionFacturaSeeder`): "Error en los datos
 
 Con dompdf, A4, **al vuelo** (no se guarda; `Cache-Control: no-store`), cada generación en Auditoría (EXPORTAR sobre `facturas`, sin
 montos). Clínica y logotipo, RUC, timbrado y su vigencia, número, fecha y hora, cliente, líneas (exentas, 5 % y 10 %), subtotales, totales
-por tasa, total del IVA, condición CONTADO y la marca de simulación. Se genera de nuevo mientras la factura exista: desde la segunda,
+por tasa, total del IVA, la condición (CONTADO o CRÉDITO; la de crédito, con "Liquidación N.º X (prestaciones del … al …)") y la marca de
+agua de la simulación. Se genera de nuevo mientras la factura exista: desde la segunda,
 "FACTURA (COPIA)"; la anulada sale marcada "FACTURA ANULADA". Sin nada clínico.
 
 ## Pantallas
 
 Un solo módulo **Facturas** (`admin.facturas.*`, grupo Económico, una entrada en el menú) con pestañas: **Facturas** (listado con
 búsqueda por número, cliente o documento, filtro de fechas y estado; detalle con líneas, totales, su cobro, el PDF y la anulación o la
-solicitud), **Solicitudes de anulación (N)** (para quien las revisa: "Aprobar" en la fila y "Ver la factura" para rechazar),
+solicitud; en la de crédito, su liquidación), **Solicitudes de anulación (N)** (para quien las revisa: "Aprobar" en la fila y "Ver la factura" para rechazar),
 **Timbrados** (con el aviso si no se puede emitir, "Cargar timbrado" y "Pasar a histórico"), **Tasas de IVA** y **Motivos de anulación**.
 Cada pestaña, para quien tiene su permiso. **Cobrar** sigue siendo una sola pantalla: avisa antes si no se puede emitir y el botón dice
 "Facturar y cobrar". En el detalle del **cobro** y de la **prestación** se ve su factura (con el enlace para quien ve las facturas).
@@ -136,8 +180,13 @@ Cada pestaña, para quien tiene su permiso. **Cobrar** sigue siendo una sola pan
 | Facturación y convenios | VER, EXPORTAR | nada | nada | nada | nada |
 | Recepción, Médico, Enfermería, Compras y los demás | nada | nada | nada | nada | nada |
 
-Caja saca el PDF para entregárselo a la paciente. Recepción ve en la prestación el número de su factura (tiene VER sobre PRESTACIONES), sin
-el enlace.
+**FACTURAS_LIQUIDACION** (la factura de la liquidación): VER, CREAR (emitir), DESACTIVAR (solicitar la anulación). Solo Facturación y
+convenios (las tres) y el Administrador. Caja, Gerencia y los demás, nada: Gerencia aprueba la anulación con ANULACIONES_FACTURA y ve la
+factura y la liquidación con VER sobre FACTURAS y LIQUIDACIONES, que ya tenía. La migración `permisos_factura_liquidacion` solo suma esos
+permisos (repetible).
+
+Caja saca el PDF para entregárselo a la paciente. Recepción ve en la prestación el número de la factura de la paciente (tiene VER sobre
+PRESTACIONES), sin el enlace; la de la aseguradora, no.
 
 ## Auditoría
 
@@ -151,6 +200,10 @@ timbrado avanza sin evento propio (queda en cada factura). Los montos se ocultan
 `facturas`, `detalles_factura` y `solicitudes_anulacion_factura` a quien no tiene VER sobre FACTURAS. Al finalizar la consulta no se
 agrega ningún evento; al cobrar, los de la factura (solo desde el hito).
 
+La de la liquidación: CREAR de la factura y de cada línea; EDITAR de la liquidación ("Liquidación facturada: factura …"); EDITAR de la
+factura cuando la liquidación queda pagada ("Factura … cobrada") y cuando deja de estarlo ("Factura … vuelve a pendiente de cobro"); la
+solicitud y su revisión como las demás; ANULAR de la factura y EDITAR de la liquidación ("Vuelve a pendiente de facturar: factura … anulada").
+
 ## Migración
 
 `create_facturacion_individual`: cinco tablas nuevas y el catálogo de motivos, `sucursales.clinica_id`, `procedimientos.tasa_iva` (10 en
@@ -161,6 +214,13 @@ la línea al guaraní) y `_parte_valida`; `procedimientos_tasa_iva_valida`; `sol
 **COBRADO** (EMITIDO, ANULADO y los demás ya existían), los cinco módulos y los permisos (`PerfilesPredefinidos::PERMISOS_FACTURACION`, lo
 mismo que la matriz). Crea los estados que falten, no lee filas durante `--pretend`, **no factura** ni cambia cobros, cajas ni prestaciones,
 carga los tres motivos si faltan y en una instalación nueva deja los módulos al seeder. El `down` solo vale sin facturas.
+
+`factura_de_liquidacion` (aditiva): `facturas.paciente_id` y `facturas.caja_id` dejan de ser obligatorios (en PostgreSQL, `DROP NOT NULL`:
+las filas no se tocan), `facturas.liquidacion_id` (vacío en las existentes), `facturas_una_por_liquidacion`, y en PostgreSQL
+`facturas_condicion_valida` (CONTADO o CREDITO), `facturas_cliente_segun_condicion` (contado con paciente y caja; crédito con la
+liquidación, sin paciente, caja ni reemplazo; las existentes lo cumplen) y `liquidaciones_facturacion_valida` (PENDIENTE o FACTURADA). El
+módulo FACTURAS_LIQUIDACION en una instalación existente. No cambia facturas, cobros, cajas ni liquidaciones ya cargadas. El `down` solo
+vale sin facturas de liquidación. `permisos_factura_liquidacion`: solo suma los permisos (repetible).
 
 ## Datos demo
 
@@ -174,4 +234,7 @@ simulados no se repiten): solo se agregan la clínica y el timbrado.
 ## Tests
 
 `tests/Feature/Economico/FacturacionTest.php`, `MigracionFacturacionTest.php` y `tests/Postgres/FacturacionTest.php` (los tres únicos
-parciales, los CHECK de numeración y de totales, y la migración con cobros existentes). Datos demo: `tests/Feature/DatosDemoTest.php`.
+parciales, los CHECK de numeración y de totales, y la migración con cobros existentes). La de la liquidación:
+`tests/Feature/Economico/FacturaLiquidacionTest.php`, `MigracionFacturaLiquidacionTest.php`, `tests/Postgres/FacturaLiquidacionTest.php`
+(la migración con facturas, cobros y liquidaciones existentes, los CHECK y el índice) y `tests/Postgres/FacturaNumeracionConcurrenciaTest.php`
+(dos conexiones). Datos demo: `tests/Feature/DatosDemoTest.php`.

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * La liquidación mensual a una aseguradora (docs/liquidaciones-aseguradoras.md): sus prestaciones firmadas hasta la fecha de corte,
@@ -36,8 +37,11 @@ class Liquidacion extends Model
     /** Aprobadas (con o sin pagos): bloqueadas, reciben pagos y cuentan en lo que se le cobra a la aseguradora. */
     public const APROBADAS = [Estado::APROBADO, Estado::PARCIAL, Estado::PAGADO];
 
-    /** La marca de la aprobación: la factura es de la fase siguiente. */
+    /** La marca de la aprobación: falta emitir su factura (docs/facturacion.md). */
     public const PENDIENTE_DE_FACTURAR = 'PENDIENTE';
+
+    /** Con su factura emitida (no anulada). Al anularse la factura vuelve a PENDIENTE. */
+    public const FACTURADA = 'FACTURADA';
 
     /** Cada paso del flujo: desde => hacia => los campos que cambia. */
     private const PASOS = [
@@ -84,6 +88,12 @@ class Liquidacion extends Model
             $desde = Estado::find($liquidacion->getOriginal('estado_id'))?->codigo;
             $hacia = Estado::find($liquidacion->estado_id)?->codigo;
             $permitidos = self::PASOS[$desde][$hacia] ?? null;
+            // La aprobada (con o sin pagos) solo cambia, sin cambiar de estado, su marca de facturación: PENDIENTE <-> FACTURADA.
+            if ($desde === $hacia && in_array($desde, self::APROBADAS, true) && $liquidacion->isDirty('facturacion')) {
+                $marcas = [$liquidacion->getOriginal('facturacion'), $liquidacion->facturacion];
+                $permitidos = in_array($marcas, [[self::PENDIENTE_DE_FACTURAR, self::FACTURADA], [self::FACTURADA, self::PENDIENTE_DE_FACTURAR]], true)
+                    ? ['facturacion'] : null;
+            }
             if ($permitidos === null || array_diff(array_keys($liquidacion->getDirty()), [...$permitidos, 'updated_at']) !== []) {
                 throw RegistroEconomicoInmutable::liquidacion();
             }
@@ -138,6 +148,32 @@ class Liquidacion extends Model
     public function pagosVigentes(): HasMany
     {
         return $this->hasMany(PagoAseguradora::class)->whereNull('pagos_aseguradora.anulado_en');
+    }
+
+    /** Todas sus facturas (también las anuladas). */
+    public function facturas(): HasMany
+    {
+        return $this->hasMany(Factura::class);
+    }
+
+    /** Su factura no anulada, si tiene: a lo sumo una (`facturas_una_por_liquidacion`). */
+    public function facturaVigente(): HasOne
+    {
+        return $this->hasOne(Factura::class)->whereNull('facturas.anulada_en');
+    }
+
+    public function pendienteDeFacturar(): bool
+    {
+        return $this->facturacion === self::PENDIENTE_DE_FACTURAR;
+    }
+
+    public function facturacionTexto(): ?string
+    {
+        return match ($this->facturacion) {
+            self::PENDIENTE_DE_FACTURAR => 'Pendiente de facturar',
+            self::FACTURADA => 'Facturada',
+            default => null,
+        };
     }
 
     public function armadaPor(): BelongsTo

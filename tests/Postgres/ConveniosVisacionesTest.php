@@ -4,6 +4,7 @@ use App\Models\Consulta;
 use App\Models\Estado;
 use App\Models\LineaVisacion;
 use App\Models\Moneda;
+use App\Models\Paciente;
 use App\Models\PerfilAcceso;
 use App\Models\Persona;
 use App\Models\Prestacion;
@@ -46,7 +47,7 @@ function pgConveniosResponsable(): ResponsablePago
 }
 
 /** El código y la restricción con que la base rechaza la sentencia (en su propio savepoint), o null si la acepta. */
-function pgConveniosRechazo(\Closure $sentencia): ?array
+function pgConveniosRechazo(Closure $sentencia): ?array
 {
     try {
         DB::transaction($sentencia);
@@ -104,7 +105,7 @@ test('cobertura: los rangos de una misma paciente no se solapan y hay una sola a
         ->and(pgConveniosRechazo(fn () => pgConveniosCobertura(['vigente_desde' => '2026-11-01', 'cerrada_en' => null, 'cerrada_por' => null, 'estado_id' => Estado::idDe(Estado::VIGENTE)])))
         ->toBe(['23505', 'coberturas_una_vigente'])
         // Otra paciente, en las mismas fechas, no choca.
-        ->and(pgConveniosRechazo(fn () => pgConveniosCobertura(['paciente_id' => \App\Models\Paciente::create(['persona_id' => Persona::factory()->create()->id, 'nro_ficha' => 'FP-0000099'])->id])))->toBeNull()
+        ->and(pgConveniosRechazo(fn () => pgConveniosCobertura(['paciente_id' => Paciente::create(['persona_id' => Persona::factory()->create()->id, 'nro_ficha' => 'FP-0000099'])->id])))->toBeNull()
         ->and(DB::table('coberturas_paciente')->count())->toBe(3);
 });
 
@@ -165,12 +166,15 @@ test('la migración, con prestaciones ya existentes: no las recalcula (quedan si
     $migracion = require base_path('database/migrations/2026_10_30_100001_create_convenios_y_visaciones.php');
     // Las liquidaciones (la migración siguiente) dependen de los convenios: se bajan antes y se suben después, en orden.
     $liquidaciones = require base_path('database/migrations/2026_10_31_100001_create_liquidaciones_aseguradoras.php');
+    $facturaLiquidacion = require base_path('database/migrations/2026_11_10_100001_factura_de_liquidacion.php');
+    $facturaLiquidacion->down();
     $liquidaciones->down();
     $migracion->down();
     $antes = (array) DB::table('prestaciones')->where('id', $prestacion->id)->first(['id', 'monto', 'tarifa_id', 'estado_id', 'moneda_id']);
 
     $migracion->up();
     $liquidaciones->up();
+    $facturaLiquidacion->up();
 
     expect((array) DB::table('prestaciones')->where('id', $prestacion->id)->first(['id', 'monto', 'tarifa_id', 'estado_id', 'moneda_id']))->toBe($antes)
         ->and(DB::table('prestaciones')->where('id', $prestacion->id)->value('pagador'))->toBeNull()

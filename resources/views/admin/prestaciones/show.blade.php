@@ -88,20 +88,24 @@
                     </dd>
                 </div>
             @endif
-            {{-- Su factura (docs/facturacion.md): con el enlace para quien ve las facturas. --}}
-            @if ($prestacion->detalleFactura)
-                <div>
-                    <dt class="text-gray-500 dark:text-gray-400">Factura</dt>
-                    <dd class="font-medium text-gray-900 dark:text-gray-100">
-                        @if ($veFacturas)
-                            <a href="{{ route('admin.facturas.show', $prestacion->detalleFactura->factura_id) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">{{ $prestacion->detalleFactura->factura->numero_completo }}</a>
-                        @else
-                            {{ $prestacion->detalleFactura->factura->numero_completo }}
-                        @endif
-                        <span class="font-normal text-gray-600 dark:text-gray-400">({{ $prestacion->detalleFactura->tasaTexto() }})</span>
-                    </dd>
-                </div>
-            @endif
+            {{-- Sus facturas (docs/facturacion.md): la de la paciente (contado, en Caja) y la de la aseguradora (crédito, la de su liquidación),
+                 con el enlace para quien ve las facturas. La de la aseguradora, solo para quien ve las facturas (como los montos de la
+                 aseguradora: Recepción no la ve). --}}
+            @foreach ([['Factura', $prestacion->detalleFactura], ['Factura de la aseguradora', $veFacturas ? $prestacion->detalleFacturaAseguradora : null]] as [$titulo, $detalle])
+                @if ($detalle)
+                    <div>
+                        <dt class="text-gray-500 dark:text-gray-400">{{ $titulo }}</dt>
+                        <dd class="font-medium text-gray-900 dark:text-gray-100">
+                            @if ($veFacturas)
+                                <a href="{{ route('admin.facturas.show', $detalle->factura_id) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">{{ $detalle->factura->numero_completo }}</a>
+                            @else
+                                {{ $detalle->factura->numero_completo }}
+                            @endif
+                            <span class="font-normal text-gray-600 dark:text-gray-400">({{ $detalle->factura->condicionTexto() }}, {{ $detalle->tasaTexto() }})</span>
+                        </dd>
+                    </div>
+                @endif
+            @endforeach
             @if ($prestacion->tarifa || $prestacion->tarifaConvenio)
                 <div><dt class="text-gray-500 dark:text-gray-400">Tarifa usada</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ $prestacion->tarifa ? $prestacion->tarifa->profesionalTexto().' · '.$prestacion->tarifa->vigenciaTexto() : 'Del convenio · '.$prestacion->tarifaConvenio->vigenciaTexto() }}</dd></div>
                 <div><dt class="text-gray-500 dark:text-gray-400">Tarifada</dt><dd class="font-medium text-gray-900 dark:text-gray-100">{{ Fecha::mostrar($prestacion->tarifada_en, conHora: true) }}{{ $prestacion->tarifadaPor ? ' por '.$prestacion->tarifadaPor->persona?->nombre_completo : ' al finalizar la consulta' }}</dd></div>

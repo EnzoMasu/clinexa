@@ -109,6 +109,9 @@ class PerfilesPredefinidos
     /** Salidas de caja: VER, CREAR (registrar) y DESACTIVAR (anular en el plazo o solicitar la anulación). */
     private const SALIDAS_CAJA_TODO = ['VER', 'CREAR', 'DESACTIVAR'];
 
+    /** La factura de la liquidación: ver, emitir (CREAR) y solicitar la anulación (DESACTIVAR). */
+    private const FACTURAS_LIQUIDACION_TODO = ['VER', 'CREAR', 'DESACTIVAR'];
+
     /**
      * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO, en VISACIONES, el ticket, en LIQUIDACIONES, la planilla, y en FACTURAS, el PDF; TURNOS no tiene
      * DESACTIVAR: un turno se cancela, con EDITAR). Ningún perfil, salvo ADMINISTRADOR, escribe en USUARIOS
@@ -202,8 +205,8 @@ class PerfilesPredefinidos
             // Liquidaciones (docs/liquidaciones-aseguradoras.md): arma, quita líneas, envía a aprobación, anula la que no está aprobada,
             // saca la planilla y registra y anula los pagos de la aseguradora. No aprueba.
             'LIQUIDACIONES' => self::LIQUIDACIONES_TODO, 'PAGOS_ASEGURADORAS' => ['VER', 'CREAR', 'DESACTIVAR'],
-            // Facturas (docs/facturacion.md): las ve y saca el PDF.
-            'FACTURAS' => self::VER_EXPORTAR,
+            // Facturas (docs/facturacion.md): las ve y saca el PDF. La factura de la liquidación: la emite y solicita su anulación.
+            'FACTURAS' => self::VER_EXPORTAR, 'FACTURAS_LIQUIDACION' => self::FACTURAS_LIQUIDACION_TODO,
         ],
         self::COMPRAS_TESORERIA => [
             'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::TODO,
@@ -294,6 +297,14 @@ class PerfilesPredefinidos
         'COMPRAS' => [self::COMPRAS_TESORERIA => self::VER_CREAR_EDITAR, self::GERENCIA => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR']],
         'CONFIRMACION_COMPRAS' => [self::GERENCIA => ['VER', 'EDITAR']],
         'TIPOS_COMPROBANTE_COMPRA' => [self::GERENCIA => self::VER, self::COMPRAS_TESORERIA => self::VER],
+    ];
+
+    /**
+     * Lo que suma la migración de la factura de la liquidación (2026_11_10_100002, repetible): solo Facturación y convenios (el
+     * Administrador ya tiene todo). Lo mismo que la matriz. Gerencia aprueba la anulación con ANULACIONES_FACTURA, que ya tiene.
+     */
+    public const PERMISOS_FACTURAS_LIQUIDACION = [
+        self::FACTURACION => self::FACTURAS_LIQUIDACION_TODO,
     ];
 
     /** Lo que suma la migración de salidas de caja (2026_11_09_100002, repetible): Caja y Gerencia. Lo mismo que la matriz. */

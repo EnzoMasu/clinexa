@@ -8,7 +8,6 @@
      Desde la facturación (docs/facturacion.md), confirmar emite la factura contado y registra el cobro contra ella, en una sola acción. --}}
 <x-admin.page title="Cobrar">
     @if ($facturaActiva)
-        @include('admin.facturas._simulacion')
     @endif
     <div class="space-y-6 p-6 text-sm">
         @if ($sinFactura)

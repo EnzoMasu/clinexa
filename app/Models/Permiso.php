@@ -61,6 +61,9 @@ class Permiso extends Model
         // (ver, cargar = CREAR, pasar a histórico = EDITAR), los datos fiscales (la clínica y las tasas de IVA: ver y EDITAR) y el
         // catálogo de motivos.
         'FACTURAS' => ['VER', 'CREAR', 'DESACTIVAR', 'EXPORTAR'],
+        // La factura de la liquidación (docs/facturacion.md): ver, emitir (CREAR) y solicitar la anulación (DESACTIVAR); la aprueba
+        // ANULACIONES_FACTURA.
+        'FACTURAS_LIQUIDACION' => ['VER', 'CREAR', 'DESACTIVAR'],
         'ANULACIONES_FACTURA' => ['VER', 'EDITAR'],
         'TIMBRADOS' => ['VER', 'CREAR', 'EDITAR'],
         'DATOS_FISCALES' => ['VER', 'EDITAR'],

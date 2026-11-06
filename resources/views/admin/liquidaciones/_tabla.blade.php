@@ -13,8 +13,8 @@
             <td class="px-6 py-4 whitespace-nowrap">{{ Fecha::mostrar($liquidacion->fecha_corte) }}</td>
             <td class="px-6 py-4">
                 {{ $liquidacion->etiquetaEstado() }}
-                @if ($liquidacion->facturacion === App\Models\Liquidacion::PENDIENTE_DE_FACTURAR)
-                    <div class="text-xs text-gray-500 dark:text-gray-400">Pendiente de facturar</div>
+                @if ($liquidacion->facturacionTexto())
+                    <div class="text-xs text-gray-500 dark:text-gray-400">{{ $liquidacion->facturacionTexto() }}</div>
                 @endif
             </td>
             <td class="px-6 py-4 whitespace-nowrap tabular-nums">{{ $liquidacion->formatear($liquidacion->totalEntero()) }}</td>

@@ -65,7 +65,7 @@ class FacturaController extends Controller
     public function show(Factura $factura): View
     {
         $factura->load(['detalles.prestacion', 'moneda', 'emisor.persona', 'caja', 'cobro.estado', 'anuladaPor.persona', 'motivoAnulacion',
-            'reemplazaA', 'reemplazadaPor', 'timbrado', 'paciente',
+            'reemplazaA', 'reemplazadaPor', 'timbrado', 'paciente', 'liquidacion.estado', 'liquidacion.moneda',
             'solicitudesAnulacion' => fn ($query) => $query->orderByDesc('id'), 'solicitudesAnulacion.estado', 'solicitudesAnulacion.motivo',
             'solicitudesAnulacion.solicitante.persona', 'solicitudesAnulacion.revisadoPor.persona']);
         $usuario = auth()->user();
@@ -78,7 +78,11 @@ class FacturaController extends Controller
             'puedePdf' => Permisos::puedeRuta('admin.facturas.pdf'),
             'veCobro' => $factura->cobro !== null && Permisos::puedeRuta('admin.cobros.show'),
             'puedeAnular' => $libre && $directa && Permisos::puedeRuta('admin.facturas.anular'),
-            'puedeSolicitar' => $libre && ! $directa && Permisos::puedeRuta('admin.facturas.solicitar-anulacion'),
+            // La contado, para Caja; la de crédito (de una liquidación), para Facturación y convenios, sin pagos vigentes de la aseguradora.
+            'rutaSolicitud' => $factura->esCredito() ? 'admin.facturas.solicitar-anulacion-credito' : 'admin.facturas.solicitar-anulacion',
+            'puedeSolicitar' => $libre && ! $directa && Permisos::puedeRuta($factura->esCredito() ? 'admin.facturas.solicitar-anulacion-credito' : 'admin.facturas.solicitar-anulacion'),
+            'conPagos' => $factura->esCredito() && ! $factura->anulada() && $factura->liquidacion->pagosVigentes()->exists(),
+            'veLiquidacion' => $factura->liquidacion !== null && Permisos::puedeRuta('admin.liquidaciones.show'),
             'limite' => AnularFactura::limite($factura),
             'motivos' => MotivoAnulacionFactura::activos()->orderBy('id')->get(),
             'pendiente' => $pendiente,
@@ -86,7 +90,7 @@ class FacturaController extends Controller
             'sinCajaSolicitante' => $pendiente !== null && $factura->cobro !== null && ! $factura->cobro->revertido()
                 && ! Caja::query()->abiertaDe($pendiente->solicitante)->whereDate('fecha', Fecha::hoy()->format('Y-m-d'))->exists(),
             // "Cobrar de nuevo": la anulada sin reemplazo, para quien cobra (la nueva queda como "reemplaza a").
-            'puedeReemplazar' => $factura->anulada() && $factura->reemplazadaPor === null && Permisos::puedeRuta('admin.cobros.create'),
+            'puedeReemplazar' => ! $factura->esCredito() && $factura->anulada() && $factura->reemplazadaPor === null && Permisos::puedeRuta('admin.cobros.create'),
         ]);
     }
 
@@ -123,6 +127,25 @@ class FacturaController extends Controller
 
     public function solicitarAnulacion(Request $request, Factura $factura): RedirectResponse
     {
+        if ($factura->esCredito()) {
+            return back()->with('error', 'Esta factura es de una liquidación: su anulación la solicita Facturación y convenios.');
+        }
+
+        return $this->pedirAnulacion($request, $factura);
+    }
+
+    /** La de una liquidación (CRÉDITO): Facturación y convenios la solicita; la aprueba Gerencia. */
+    public function solicitarAnulacionCredito(Request $request, Factura $factura): RedirectResponse
+    {
+        if (! $factura->esCredito()) {
+            return back()->with('error', 'Esta factura no es de una liquidación.');
+        }
+
+        return $this->pedirAnulacion($request, $factura);
+    }
+
+    private function pedirAnulacion(Request $request, Factura $factura): RedirectResponse
+    {
         [$motivo, $detalle] = $this->motivo($request);
 
         try {
@@ -155,7 +178,11 @@ class FacturaController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        return back()->with('status', "Anulación aprobada: la factura {$solicitud->factura->numero_completo} quedó anulada y su cobro, revertido.");
+        $factura = $solicitud->factura->fresh();
+
+        return back()->with('status', $factura->esCredito()
+            ? "Anulación aprobada: la factura {$factura->numero_completo} quedó anulada y la liquidación N.º {$factura->liquidacion_id} vuelve a estar pendiente de facturar."
+            : "Anulación aprobada: la factura {$factura->numero_completo} quedó anulada y su cobro, revertido.");
     }
 
     public function rechazarAnulacion(Request $request, SolicitudAnulacionFactura $solicitud): RedirectResponse

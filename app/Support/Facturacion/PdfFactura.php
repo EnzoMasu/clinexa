@@ -9,13 +9,15 @@ use App\Models\Factura;
 use App\Support\Auditoria;
 use App\Support\Fecha;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * El PDF de la factura (docs/facturacion.md): clínica y logotipo, RUC, timbrado y su vigencia, número, fecha y hora, cliente, líneas,
- * totales por tasa, condición CONTADO y, si es simulada, "SIMULACIÓN, SIN VALIDEZ FISCAL". Todo sale del snapshot de la factura (el
- * logotipo, de la clínica actual). Sin CDC ni QR. Sin nada clínico (solo el nombre del procedimiento).
+ * totales por tasa, la condición (CONTADO o CRÉDITO; la de crédito, con "Liquidación N.º X" y su período) y, si es simulada (y
+ * `mostrar_marca` está activo), la marca de agua "SIMULACIÓN, SIN VALIDEZ FISCAL" en cada página. Todo sale del snapshot de la factura
+ * (el logotipo, de la clínica actual). Sin CDC ni QR. Sin nada clínico (solo el nombre del procedimiento).
  *
  * Al vuelo, como los demás PDF: nada se guarda (no-store) y cada generación queda en Auditoría (EXPORTAR sobre `facturas`, sin montos
  * en el detalle). Se genera de nuevo (copia) mientras la factura exista; la anulada sale marcada. El permiso (EXPORTAR sobre FACTURAS)
@@ -26,7 +28,7 @@ final class PdfFactura
     /** El HTML que dompdf convierte. Separado para poder verificar el contenido. */
     public static function html(Factura $factura, bool $copia = false): string
     {
-        $factura->loadMissing(['detalles', 'moneda', 'estado']);
+        $factura->loadMissing(['detalles', 'moneda', 'estado', 'liquidacion']);
         $clinica = Clinica::actual();
 
         return view('pdf-factura.factura', [
@@ -34,6 +36,8 @@ final class PdfFactura
             'logo' => Clinica::rutaLogotipo($clinica),
             'marcaSimulacion' => $factura->simulada && config('clinexa.facturacion.mostrar_marca') ? EmisorSimulado::MARCA : null,
             'anulada' => $factura->anulada(),
+            'condicion' => mb_strtoupper($factura->condicionTexto()),
+            'liquidacion' => self::liquidacionTexto($factura),
             'copia' => $copia,
             'fecha' => Fecha::mostrar($factura->emitida_en, conHora: true),
             'vigencia' => Fecha::mostrar($factura->timbrado_desde).' al '.Fecha::mostrar($factura->timbrado_hasta),
@@ -55,6 +59,19 @@ final class PdfFactura
             'total' => $factura->totalTexto(),
             'generadoEn' => Fecha::mostrar(Fecha::ahora(), conHora: true),
         ])->render();
+    }
+
+    /** "Liquidación N.º 3 (prestaciones del 01/10/2026 al 31/10/2026)", solo en la de crédito. */
+    private static function liquidacionTexto(Factura $factura): ?string
+    {
+        $liquidacion = $factura->liquidacion;
+        if ($liquidacion === null) {
+            return null;
+        }
+        $desde = $liquidacion->lineasVigentes()->min('fecha_servicio');
+
+        return "Liquidación N.º {$liquidacion->id}".($desde
+            ? ' (prestaciones del '.Fecha::mostrar(Carbon::parse($desde)).' al '.Fecha::mostrar($liquidacion->fecha_corte).')' : '');
     }
 
     public static function ejecutar(Factura $factura): Response

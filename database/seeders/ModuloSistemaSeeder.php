@@ -108,6 +108,8 @@ class ModuloSistemaSeeder extends Seeder
             // aprobada o rechazada), los timbrados (el vigente y los históricos), los datos fiscales (la clínica y las tasas de IVA) y el
             // catálogo de motivos de anulación.
             'FACTURAS' => ['Facturas', [Estado::EMITIDO, Estado::COBRADO, Estado::ANULADO]],
+            // La factura de la liquidación a la aseguradora (CRÉDITO): emitida, cobrada (la liquidación pagada) o anulada.
+            'FACTURAS_LIQUIDACION' => ['Facturas de liquidaciones', [Estado::EMITIDO, Estado::COBRADO, Estado::ANULADO]],
             'ANULACIONES_FACTURA' => ['Aprobación de anulaciones de factura', [Estado::PENDIENTE, Estado::APROBADO, Estado::RECHAZADO]],
             'TIMBRADOS' => ['Timbrados', [Estado::VIGENTE, Estado::HISTORICO]],
             'DATOS_FISCALES' => ['Datos fiscales (clínica y tasas de IVA)', self::ACTIVO_INACTIVO],

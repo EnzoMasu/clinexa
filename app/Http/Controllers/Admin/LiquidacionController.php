@@ -14,6 +14,7 @@ use App\Models\PagoAseguradora;
 use App\Models\Prestacion;
 use App\Models\ResponsablePago;
 use App\Support\Cobros\Guaranies;
+use App\Support\Facturacion\FacturarLiquidacion;
 use App\Support\Fecha;
 use App\Support\Grilla\Grilla;
 use App\Support\Liquidaciones\ArmarLiquidacion;
@@ -181,7 +182,8 @@ class LiquidacionController extends Controller
     public function show(Request $request, Liquidacion $liquidacion): View
     {
         $liquidacion->load(['responsablePago.persona', 'convenio', 'moneda', 'armadaPor.persona', 'enviadaPor.persona', 'aprobadaPor.persona',
-            'devueltaPor.persona', 'anuladaPor.persona', 'lineas.liberadaPor.persona', 'pagos.medioPago', 'pagos.usuario.persona', 'pagos.anuladoPor.persona']);
+            'devueltaPor.persona', 'anuladaPor.persona', 'lineas.liberadaPor.persona', 'pagos.medioPago', 'pagos.usuario.persona', 'pagos.anuladoPor.persona',
+            'facturas' => fn ($query) => $query->orderBy('id'), 'facturas.estado', 'facturas.moneda', 'facturas.liquidacion']);
         $usuario = $request->user();
         $revisa = Permisos::puedeRuta('admin.liquidaciones.aprobar');
         $propia = (int) $liquidacion->armada_por === (int) $usuario->id;
@@ -194,7 +196,14 @@ class LiquidacionController extends Controller
             'puedeRevisar' => $liquidacion->pendienteDeAprobacion() && $revisa && ! $propia,
             'esPropia' => $liquidacion->pendienteDeAprobacion() && $revisa && $propia,
             'puedeAnular' => ! $liquidacion->anulada() && $liquidacion->pagos->every(fn (PagoAseguradora $pago) => $pago->anulado())
+                && $liquidacion->facturas->every(fn ($factura) => $factura->anulada())
                 && Permisos::puedeRuta('admin.liquidaciones.anular') && (! $liquidacion->aprobada() || $revisa),
+            // Su factura (docs/facturacion.md): la vigente y las anuladas; "Emitir la factura" para Facturación y convenios.
+            'facturaVigente' => $liquidacion->facturas->first(fn ($factura) => ! $factura->anulada()),
+            'facturasAnuladas' => $liquidacion->facturas->filter(fn ($factura) => $factura->anulada())->values(),
+            'veFacturas' => Permisos::puedeRuta('admin.facturas.show'),
+            'puedeFacturar' => $liquidacion->aprobada() && $liquidacion->pendienteDeFacturar() && Permisos::puedeRuta('admin.liquidaciones.facturar'),
+            'avisoFactura' => $liquidacion->aprobada() && $liquidacion->pendienteDeFacturar() ? FacturarLiquidacion::faltaParaEmitir($liquidacion) : null,
             'puedePlanilla' => ! $liquidacion->anulada() && Permisos::puedeRuta('admin.liquidaciones.planilla'),
             'vePagos' => $usuario->tienePermiso('PAGOS_ASEGURADORAS', 'VER'),
             'puedePagar' => $liquidacion->aprobada() && $liquidacion->saldo() > 0 && Permisos::puedeRuta('admin.liquidaciones.pagos.store'),
@@ -251,6 +260,18 @@ class LiquidacionController extends Controller
         }
 
         return back()->with('status', 'Liquidación devuelta: vuelve a estar en preparación.');
+    }
+
+    /** Emite la factura CRÉDITO de la liquidación aprobada, a nombre de la aseguradora (docs/facturacion.md). */
+    public function facturar(Request $request, Liquidacion $liquidacion): RedirectResponse
+    {
+        try {
+            $factura = FacturarLiquidacion::emitir($request->user(), $liquidacion);
+        } catch (AccionRechazada $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', "Factura {$factura->numero_completo} emitida a nombre de {$factura->cliente_nombre} por {$factura->totalTexto()} (crédito).");
     }
 
     /** Anular: con motivo y sin pagos vigentes. Una aprobada, solo quien aprueba (Gerencia o el Administrador). */

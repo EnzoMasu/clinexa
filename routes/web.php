@@ -500,6 +500,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     // Los pagos de la aseguradora: una cuenta por cobrar aparte, no pasan por Caja.
     Route::post('liquidaciones/{liquidacion}/pagos', [LiquidacionController::class, 'registrarPago'])->name('liquidaciones.pagos.store')->whereNumber('liquidacion')->middleware('permiso:PAGOS_ASEGURADORAS,CREAR');
     Route::post('liquidaciones/pagos/{pago}/anular', [LiquidacionController::class, 'anularPago'])->name('liquidaciones.pagos.anular')->whereNumber('pago')->middleware('permiso:PAGOS_ASEGURADORAS,DESACTIVAR');
+    // La factura de la liquidación (CRÉDITO, a la aseguradora; docs/facturacion.md): Facturación y convenios la emite. Caja no.
+    Route::post('liquidaciones/{liquidacion}/facturar', [LiquidacionController::class, 'facturar'])->name('liquidaciones.facturar')->whereNumber('liquidacion')
+        ->middleware(['permiso:FACTURAS_LIQUIDACION,CREAR', 'permiso:LIQUIDACIONES,VER']);
 
     // Facturación (docs/facturacion.md): un solo módulo con pestañas (facturas, solicitudes de anulación, timbrados, tasas de IVA y
     // motivos). La factura se emite al cobrar (cobros.store). Nada se borra: la factura se anula (directa en el plazo o con solicitud que
@@ -514,6 +517,9 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
         ->middleware(['permiso:FACTURAS,EXPORTAR', SinAlmacenar::class]);
     Route::post('facturas/{factura}/anular', [FacturaController::class, 'anular'])->name('facturas.anular')->whereNumber('factura')->middleware('permiso:FACTURAS,DESACTIVAR');
     Route::post('facturas/{factura}/solicitar-anulacion', [FacturaController::class, 'solicitarAnulacion'])->name('facturas.solicitar-anulacion')->whereNumber('factura')->middleware('permiso:FACTURAS,DESACTIVAR');
+    // La de una liquidación (CRÉDITO): la solicita Facturación y convenios; la aprueba Gerencia, como las demás.
+    Route::post('facturas/{factura}/solicitar-anulacion-credito', [FacturaController::class, 'solicitarAnulacionCredito'])->name('facturas.solicitar-anulacion-credito')
+        ->whereNumber('factura')->middleware('permiso:FACTURAS_LIQUIDACION,DESACTIVAR');
     Route::get('facturas/solicitudes', [FacturaController::class, 'solicitudes'])->name('facturas.solicitudes')->middleware('permiso:ANULACIONES_FACTURA,VER');
     Route::post('facturas/solicitudes/{solicitud}/aprobar', [FacturaController::class, 'aprobarAnulacion'])->name('facturas.solicitudes.aprobar')->whereNumber('solicitud')->middleware('permiso:ANULACIONES_FACTURA,EDITAR');
     Route::post('facturas/solicitudes/{solicitud}/rechazar', [FacturaController::class, 'rechazarAnulacion'])->name('facturas.solicitudes.rechazar')->whereNumber('solicitud')->middleware('permiso:ANULACIONES_FACTURA,EDITAR');

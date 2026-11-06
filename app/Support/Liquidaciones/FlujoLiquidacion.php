@@ -32,6 +32,11 @@ final class FlujoLiquidacion
 
     public const CON_PAGOS = 'Esta liquidación tiene pagos vigentes: anule los pagos antes de anularla.';
 
+    public static function conFactura(string $numero): string
+    {
+        return "Esta liquidación tiene la factura {$numero} vigente: primero se anula la factura (con la solicitud que aprueba Gerencia).";
+    }
+
     public static function quitarLinea(User $usuario, LineaLiquidacion $linea, string $motivo): Liquidacion
     {
         $motivo = self::texto($motivo, 'Indique el motivo para quitar la prestación');
@@ -111,6 +116,9 @@ final class FlujoLiquidacion
             }
             if ($actual->pagosVigentes()->exists()) {
                 throw new AccionRechazada(self::CON_PAGOS);
+            }
+            if (($factura = $actual->facturaVigente()->first()) !== null) {
+                throw new AccionRechazada(self::conFactura($factura->numero_completo));
             }
             $ahora = now();
             Auditoria::conDetalle("Liquidación anulada. Motivo: {$motivo}", function () use ($usuario, $actual, $motivo, $ahora) {
