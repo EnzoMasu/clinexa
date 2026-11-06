@@ -174,7 +174,7 @@
         @if ($puedeRevisar)
             <section aria-labelledby="revisar-cierre" class="max-w-3xl space-y-4 rounded-md border border-gray-200 p-4 dark:border-gray-700">
                 <h3 id="revisar-cierre" class="font-semibold text-gray-900 dark:text-gray-100">Recibir el arqueo</h3>
-                <form method="POST" action="{{ route('admin.cajas.aprobar', $caja) }}" class="space-y-2">
+                <form method="POST" action="{{ route('admin.cajas.recibir', $caja) }}" class="space-y-2">
                     @csrf
                     <x-admin.textarea name="nota" label="Nota (opcional)" rows="2" maxlength="{{ RevisarCierre::NOTA_MAXIMA }}" />
                     <x-primary-button>Aceptar (recibido)</x-primary-button>

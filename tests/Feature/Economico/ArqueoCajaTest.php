@@ -120,7 +120,7 @@ test('transiciones: Abierta → Pendiente de recepción → Devuelto por diferen
     arqueoCajaCobrar(MedioPago::EFECTIVO)->assertSessionHas('status');
 
     // Abierta: no se acepta ni se rechaza.
-    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja))->assertSessionHas('error', 'Esta caja no está pendiente de recepción.');
+    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1'])->assertSessionHas('error', 'Esta caja no está pendiente de recepción.');
 
     arqueoCajaCerrar($caja, [MedioPago::EFECTIVO => '140.000'], 'Faltan diez mil.')->assertSessionHas('status', 'Caja cerrada: queda pendiente de recepción.');
     expect($caja->fresh()->etiquetaEstado())->toBe('Pendiente de recepción');
@@ -128,12 +128,12 @@ test('transiciones: Abierta → Pendiente de recepción → Devuelto por diferen
     $this->actingAs($this->gerente)->post(route('admin.cajas.devolver', $caja), ['nota_devolucion' => 'Recuente el efectivo, por favor.'])->assertSessionHas('status');
     expect($caja->fresh()->etiquetaEstado())->toBe('Devuelto por diferencias');
     // Devuelta: no se acepta hasta que se reenvíe.
-    $this->post(route('admin.cajas.aprobar', $caja))->assertSessionHas('error', 'Esta caja no está pendiente de recepción.');
+    $this->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1'])->assertSessionHas('error', 'Esta caja no está pendiente de recepción.');
 
     arqueoCajaCerrar($caja, [MedioPago::EFECTIVO => '150.000'])->assertSessionHas('status');
     expect($caja->fresh()->etiquetaEstado())->toBe('Pendiente de recepción');
 
-    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja))->assertSessionHas('status', 'Arqueo recibido.');
+    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1'])->assertSessionHas('status', 'Arqueo recibido.');
     expect($caja->fresh()->etiquetaEstado())->toBe('Recibido');
     // Recibida: ya no se reenvía, ni se rechaza.
     arqueoCajaCerrar($caja)->assertSessionHas('error', 'Esta caja ya está cerrada.');
@@ -164,7 +164,7 @@ test('rechazar sin observación falla (pantalla y servicio); aceptar no la pide'
     expect(fn () => RevisarCierre::devolver($this->gerente, $caja, '  x  '))->toThrow(AccionRechazada::class, RevisarCierre::FALTA_MOTIVO)
         ->and($caja->fresh()->cerrada())->toBeTrue()->and(CierreCaja::sole()->tieneEstado(Estado::PENDIENTE))->toBeTrue();
 
-    $this->post(route('admin.cajas.aprobar', $caja))->assertSessionHas('status');
+    $this->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1'])->assertSessionHas('status');
     expect($caja->fresh()->recibida())->toBeTrue()->and(CierreCaja::sole()->nota_revision)->toBeNull();
 });
 
@@ -305,7 +305,7 @@ test('la corrección: solo su cajero, solo a un medio activo, nunca el monto, ni
 
     // Recibida: ya no.
     arqueoCajaCerrar($caja);
-    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja));
+    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1']);
     arqueoCajaCorregir($linea, $datos)->assertSessionHas('error', CorregirComprobante::NO_DEVUELTA);
     expect($linea->fresh()->medio_pago_id)->toBe(($this->medio)(MedioPago::TARJETA)->id);
 });
@@ -463,4 +463,31 @@ test('cierre: los permisos no cambian (sin EDITAR sobre CAJAS no hay pantalla ni
     $this->actingAs($sinPermiso)->post($ruta('admin.cajas.cierre.revisar'), [])->assertForbidden();
     $this->actingAs($sinPermiso)->post($ruta('admin.cajas.cerrar'), ['confirmar' => '1'])->assertForbidden();
     expect($caja->fresh()->abierta())->toBeTrue();
+});
+
+test('recepción: pide confirmación y sin confirmar no se recibe', function () {
+    arqueoCajaAbrir();
+    $caja = arqueoCajaMia();
+    arqueoCajaCerrar($caja)->assertSessionHas('status');
+
+    $this->actingAs($this->gerente)->get(route('admin.cajas.show', $caja))->assertSee(route('admin.cajas.recibir', $caja), false)->assertDontSee('name="confirmar"', false);
+    $this->post(route('admin.cajas.recibir', $caja), ['nota' => 'Todo bien.'])->assertOk()
+        ->assertSee('queda cerrado y la caja se desbloquea')->assertSee('Cancelar')->assertSee('Recibir el arqueo')->assertSee('name="confirmar"', false);
+    expect($caja->fresh()->cerrada())->toBeTrue();
+
+    $this->post(route('admin.cajas.aprobar', $caja), ['nota' => 'Todo bien.'])->assertRedirect(route('admin.cajas.show', $caja))->assertSessionHas('error');
+    expect($caja->fresh()->cerrada())->toBeTrue()->and(CierreCaja::sole()->nota_revision)->toBeNull();
+
+    $this->post(route('admin.cajas.aprobar', $caja), ['nota' => 'Todo bien.', 'confirmar' => '1'])->assertSessionHas('status', 'Arqueo recibido.');
+    expect($caja->fresh()->recibida())->toBeTrue()->and(CierreCaja::sole()->nota_revision)->toBe('Todo bien.');
+});
+
+test('recepción: los permisos no cambian (el cajero y su propia caja quedan afuera)', function () {
+    arqueoCajaAbrir();
+    $caja = arqueoCajaMia();
+    arqueoCajaCerrar($caja);
+
+    $this->actingAs($this->cajero)->post(route('admin.cajas.recibir', $caja))->assertForbidden();
+    $this->actingAs($this->cajero)->post(route('admin.cajas.aprobar', $caja), ['confirmar' => '1'])->assertForbidden();
+    expect($caja->fresh()->cerrada())->toBeTrue();
 });

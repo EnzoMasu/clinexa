@@ -400,6 +400,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () us
     Route::get('cajas/{caja}/cierre', [CajaController::class, 'cierre'])->name('cajas.cierre')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
     Route::post('cajas/{caja}/cierre', [CajaController::class, 'revisarCierre'])->name('cajas.cierre.revisar')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
     Route::post('cajas/{caja}/cerrar', [CajaController::class, 'cerrar'])->name('cajas.cerrar')->whereNumber('caja')->middleware('permiso:CAJAS,EDITAR');
+    Route::post('cajas/{caja}/recibir', [CajaController::class, 'confirmarRecepcion'])->name('cajas.recibir')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     Route::post('cajas/{caja}/aprobar', [CajaController::class, 'aprobar'])->name('cajas.aprobar')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     Route::post('cajas/{caja}/devolver', [CajaController::class, 'devolver'])->name('cajas.devolver')->whereNumber('caja')->middleware('permiso:CIERRES_CAJA,EDITAR');
     // La impresión del arqueo: PDF al vuelo, auditado, sin nada clínico; no se guarda en la caché.

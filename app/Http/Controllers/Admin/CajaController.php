@@ -195,9 +195,28 @@ class CajaController extends Controller
         return redirect()->route('admin.cajas.show', $caja)->with('status', 'Caja cerrada: queda pendiente de recepción.');
     }
 
+    /** Paso previo a recibir el arqueo: pide la confirmación final y no cambia nada. */
+    public function confirmarRecepcion(Request $request, Caja $caja): View|RedirectResponse
+    {
+        $nota = $request->validate(['nota' => ['nullable', 'string', 'max:'.RevisarCierre::NOTA_MAXIMA]], [], ['nota' => 'nota'])['nota'] ?? null;
+        if ($caja->usuario_id === $request->user()->id) {
+            return redirect()->route('admin.cajas.show', $caja)->with('error', RevisarCierre::PROPIA);
+        }
+        if (! $caja->cerrada()) {
+            return redirect()->route('admin.cajas.show', $caja)->with('error', 'Esta caja no está pendiente de recepción.');
+        }
+        $caja->load('cajero.persona');
+
+        return view('admin.cajas.confirmar-recepcion', ['caja' => $caja, 'nota' => $nota]);
+    }
+
     public function aprobar(Request $request, Caja $caja): RedirectResponse
     {
         $nota = $request->validate(['nota' => ['nullable', 'string', 'max:'.RevisarCierre::NOTA_MAXIMA]], [], ['nota' => 'nota'])['nota'] ?? null;
+        // Sin la confirmación final no se recibe nada.
+        if (! $request->boolean('confirmar')) {
+            return redirect()->route('admin.cajas.show', $caja)->with('error', 'Confirme la recepción del arqueo: no se recibió la caja.');
+        }
 
         try {
             RevisarCierre::aprobar($request->user(), $caja, $nota);

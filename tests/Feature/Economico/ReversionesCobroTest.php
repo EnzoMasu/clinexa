@@ -184,7 +184,7 @@ test('solicitud y aprobación de un cobro mixto: se devuelve cada línea por su 
     $vieja = reversionesCobroAbrir($this->cajero, '0');
     $cobro = reversionesCobroCobrar($this->cajero, [$eco], [[$this->efectivo, '100.000'], [$this->transferencia, '150.000']]);
     reversionesCobroCerrar($this->cajero, $vieja);
-    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $vieja))->assertSessionHas('status');
+    $this->actingAs($this->gerente)->post(route('admin.cajas.aprobar', $vieja), ['confirmar' => '1'])->assertSessionHas('status');
     $antes = [reversionesCobroMovimientos($vieja), $vieja->fresh()->estado_id, CierreCaja::where('caja_id', $vieja->id)->get()->toArray()];
 
     reversionesCobroSolicitar($this->cajero, $cobro, '')->assertSessionHasErrors('motivo');
@@ -266,7 +266,7 @@ test('transferencia y tarjeta devueltas desde una caja recién abierta: lo esper
     // Gerencia ve el cierre con los negativos y lo aprueba.
     $this->actingAs($this->gerente)->get(route('admin.cajas.show', $nueva))->assertOk()->assertSee('₲ -150.000')->assertSee('₲ 10.000')
         ->assertSee('Falta un comprobante de la devolución por POS.')->assertSee('Aceptar (recibido)');
-    $this->post(route('admin.cajas.aprobar', $nueva))->assertSessionHas('status', 'Arqueo recibido.');
+    $this->post(route('admin.cajas.aprobar', $nueva), ['confirmar' => '1'])->assertSessionHas('status', 'Arqueo recibido.');
     expect($nueva->fresh()->tieneEstado(Estado::APROBADO))->toBeTrue();
 });
 

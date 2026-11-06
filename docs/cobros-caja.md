@@ -77,7 +77,8 @@ Sin comisiones. `medios_pago.codigo` identifica los de referencia: **Efectivo** 
    diferencia**; sin diferencia el campo queda bloqueado y vacío, y el servidor descarta lo que llegue, sin error. Se guarda un
    `cierres_caja` (PENDIENTE) con `cierre_caja_medios` (esperado, declarado = `contado`, diferencia = declarado − esperado). La caja
    queda **Pendiente de recepción** y ya no recibe cobros.
-2. **Gerencia acepta o rechaza** (`Cobros\RevisarCierre`, EDITAR sobre CIERRES_CAJA): aceptar (nota opcional) la deja **Recibido**;
+2. **Gerencia acepta o rechaza** (`Cobros\RevisarCierre`, EDITAR sobre CIERRES_CAJA): aceptar (nota opcional; antes, una pantalla de
+   confirmación `cajas.recibir`, y `cajas.aprobar` exige `confirmar`) la deja **Recibido**;
    rechazar exige la **observación con el inconveniente** (5 a 300; "Indique la observación con el inconveniente…") y la deja
    **Devuelto por diferencias**. Nadie revisa su propia caja.
 3. **El cajero corrige y reenvía**: otro cierre (el anterior se conserva) con el **nuevo esperado** precargado; vuelve a Pendiente.
