@@ -146,6 +146,39 @@ test('Mis liquidaciones: el profesional ve solo las suyas aprobadas, de solo lec
     $this->actingAs($this->tesoreria)->get(route('admin.mis-liquidaciones.index'))->assertForbidden();
 });
 
+test('Mis liquidaciones: quien es profesional y dueño de equipo ve las dos, cada una con su rol; la del dueño sin la paciente; la ajena y la no aprobada, no', function () {
+    // La Dra. Benítez es también la dueña del equipo.
+    $this->duenio->update(['persona_id' => $this->medico->persona_id]);
+    liqBenefConsultaPrestacion(eco: true);
+    $profesional = liqBenefConsultaAprobada('PROFESIONAL', $this->profesional->id);
+    $duenia = liqBenefConsultaAprobada('EQUIPO', $this->duenio->id);
+    PagosBeneficiario::registrar($this->tesoreria, $duenia, ['monto' => 10000, 'fecha' => Carbon::parse('2026-10-06'),
+        'medio_pago_id' => MedioPago::efectivo()->id, 'referencia' => null]);
+
+    $this->actingAs($this->medico)->get(route('admin.mis-liquidaciones.index'))->assertOk()
+        ->assertSeeInOrder(['Dueño de equipo', 'Profesional'])->assertSee('Pagada en parte');
+    $this->get(route('admin.mis-liquidaciones.show', $duenia))->assertOk()->assertSee('Dueño de equipo')->assertSee('Ecógrafo de prueba')
+        ->assertDontSee('Duarte')->assertDontSee('Carmen')->assertDontSee('Registrar el pago')->assertDontSee('Quitar (queda para la siguiente)');
+    $this->get(route('admin.mis-liquidaciones.show', $profesional))->assertOk()->assertSee('Profesional')->assertSee('Duarte, Carmen');
+    $this->get(route('admin.mis-liquidaciones.planilla', $duenia))->assertOk();
+    expect(PlanillaLiquidacionBeneficiario::html($duenia))->not->toContain('Carmen');
+
+    // Una nueva, sin aprobar, de la dueña: no aparece ni se abre.
+    liqBenefConsultaPrestacion(eco: true);
+    $abierta = ArmarLiquidacionBeneficiario::ejecutar($this->facturacion, 'EQUIPO', $this->duenio->id, Carbon::parse('2026-10-06'));
+    $this->get(route('admin.mis-liquidaciones.show', $abierta))->assertNotFound();
+    $this->get(route('admin.mis-liquidaciones.planilla', $abierta))->assertNotFound();
+    expect($this->get(route('admin.mis-liquidaciones.index'))->viewData('liquidaciones')->pluck('id')->all())
+        ->toEqualCanonicalizing([$profesional->id, $duenia->id]);
+
+    // Otra profesional (sin ser dueña) no ve la del dueño de equipo.
+    $this->otroMedico->perfiles()->attach(PerfilAcceso::where('codigo', PerfilesPredefinidos::MEDICO)->value('id'));
+    $this->otroMedico->olvidarPermisos();
+    $this->actingAs($this->otroMedico)->get(route('admin.mis-liquidaciones.show', $duenia))->assertNotFound();
+    $this->get(route('admin.mis-liquidaciones.planilla', $duenia))->assertNotFound();
+    expect($this->get(route('admin.mis-liquidaciones.index'))->viewData('liquidaciones')->count())->toBe(0);
+});
+
 test('el servicio de consulta del objetivo 14: devengado, percibido, liquidable, liquidado, pagado y saldo por beneficiario, con la clínica', function () {
     liqBenefConsultaPrestacion(eco: true);              // 250.000: profesional 100.000, dueño 50.000, clínica 100.000 (cobrada)
     liqBenefConsultaPrestacion(cobrar: false);          // 100.000: profesional 40.000, clínica 60.000 (sin cobrar)

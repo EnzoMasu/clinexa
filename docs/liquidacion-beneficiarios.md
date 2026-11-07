@@ -107,8 +107,10 @@ PARCIAL; sin saldo, PAGADO. Los registra **Compras y tesorería**.
 - **Pendientes de liquidar**: las listas para liquidar por beneficiario (con "Armar"), las que todavía no (con el motivo: sin cobrar, la
   aseguradora sin liquidar o sin pagar del todo) y las pendientes de reparto (falta un acuerdo).
 - **Resumen por período**: ver "Servicio de consulta".
-- **Mis liquidaciones** (`admin.mis-liquidaciones.*`, menú Económico): el profesional, con su usuario vinculado a su persona, ve solo las
-  suyas **aprobadas**, de solo lectura, con sus líneas, sus pagos y la planilla. Las demás (en preparación, de otros, anuladas): 404.
+- **Mis liquidaciones** (`admin.mis-liquidaciones.*`, menú Económico): quien tiene su usuario vinculado a su persona ve solo las
+  suyas **aprobadas**, como profesional y como dueño de equipo (si es ambas cosas, las dos, con la columna "Rol"), de solo lectura, con sus
+  líneas, sus pagos y la planilla (la del dueño, sin la paciente). Las demás (en preparación, de otros, anuladas): 404. Mismo permiso
+  `MIS_LIQUIDACIONES:VER`.
 - **Prestación**: la sección "Liquidaciones a beneficiarios" con cada línea suya (también ajustes, quitadas y anuladas), su liquidación
   (enlace), el beneficiario y el estado, para quien ve estas liquidaciones. En la **caja**, el pago en efectivo es una salida más.
 
