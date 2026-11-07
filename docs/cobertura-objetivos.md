@@ -108,9 +108,11 @@ Nota: los acuerdos son **solo porcentajes** (sin montos fijos ni otros criterios
 | Reparto automático por prestación en líneas (clínica, profesional, dueño del equipo), exacto al guaraní, inmutable | `POST /admin/prestaciones/{id}/repartir`; se ve en el detalle de la prestación | `ACUERDOS_REPARTO` (EDITAR) | sí |
 | Liquidación a **aseguradoras** (armar, enviar, aprobar, pagos parciales, planilla) | `/admin/liquidaciones` | `LIQUIDACIONES`, `APROBACION_LIQUIDACIONES`, `PAGOS_ASEGURADORAS` | sí (`LiquidacionesTest`) |
 | Liquidación a **profesionales y dueños de equipos** de punta a punta: lo percibido (cobrado a la paciente; la aseguradora con su liquidación pagada), armar por beneficiario y corte con vista previa, postergar (quitar), enviar, aprobar o devolver (nadie lo propio), pagos totales o parciales (con comprobante; en efectivo como salida de la caja de Tesorería), anular pagos y la liquidación, ajustes en contra automáticos y saldo negativo trasladado, planilla PDF, auditoría con montos ocultos y trazabilidad hasta la prestación | `/admin/liquidaciones-beneficiarios` (pestañas: liquidaciones, por pagar, pendientes de liquidar, resumen por período) | `LIQUIDACIONES_BENEFICIARIOS`, `APROBACION_LIQ_BENEFICIARIOS`, `PAGOS_BENEFICIARIOS` | sí (`LiquidacionBeneficiariosTest`, `...PantallasTest`, `...ConsultaTest`, `MigracionLiquidacionBeneficiariosTest`, `Postgres/LiquidacionBeneficiariosTest`) |
-| "Mis liquidaciones" del profesional (solo las propias aprobadas, de solo lectura, con su planilla) | `/admin/mis-liquidaciones` | `MIS_LIQUIDACIONES` | sí |
+| "Mis liquidaciones" del profesional y del dueño de equipo con usuario (solo las propias aprobadas, columna "Rol", de solo lectura, con su planilla; la del dueño sin la paciente). El dueño externo sin usuario recibe la planilla PDF desde Facturación | `/admin/mis-liquidaciones` | `MIS_LIQUIDACIONES` | sí (`LiquidacionBeneficiariosConsultaTest`) |
 
-Detalle en `docs/liquidacion-beneficiarios.md`. El funcionario con sueldo lleva un acuerdo general de 0 % (su parte queda en la clínica);
+Detalle en `docs/liquidacion-beneficiarios.md`. Revisado de punta a punta (pantallas, permisos, auditoría y tests; `composer test:completo`
+y `npm run test:js` en verde): HECHO. **Queda para el objetivo 14**: la **ganancia de la clínica** (lo que le queda tras el reparto es
+solo su parte, sin gastos ni sueldos) y el **corte por sucursal** (la prestación no tiene sucursal propia). El funcionario con sueldo lleva un acuerdo general de 0 % (su parte queda en la clínica);
 sin acuerdo el reparto sigue pendiente. A VERIFICAR en pantalla con datos reales: el recorrido completo (`docs/liquidacion-beneficiarios.md`,
 "Qué probar en el navegador").
 
