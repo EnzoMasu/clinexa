@@ -134,6 +134,8 @@ test('la migración sobre datos existentes: cajas, cobros, cierres, movimientos 
         ->mapWithKeys(fn (string $tabla) => [$tabla => DB::table($tabla)->orderBy('id')->get()
             ->map(fn ($fila) => collect((array) $fila)->except('salida_caja_id')->all())->all()])->all();
 
+    // La liquidación a beneficiarios (posterior) depende de cajas y salidas: se baja antes.
+    (require base_path('database/migrations/2026_11_11_100001_create_liquidacion_beneficiarios.php'))->down();
     $migracion->down();
     $antes = $foto();
     expect(DB::getSchemaBuilder()->hasTable('salidas_caja'))->toBeFalse()->and($antes['movimientos_caja'])->toHaveCount(2);

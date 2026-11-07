@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Models\Estado;
 use App\Models\ModuloSistema;
 use App\Models\PerfilAcceso;
 use App\Models\Permiso;
@@ -112,8 +113,11 @@ class PerfilesPredefinidos
     /** La factura de la liquidación: ver, emitir (CREAR) y solicitar la anulación (DESACTIVAR). */
     private const FACTURAS_LIQUIDACION_TODO = ['VER', 'CREAR', 'DESACTIVAR'];
 
+    /** Pagos a beneficiarios: ver, registrar (CREAR) y anular (DESACTIVAR). */
+    private const PAGOS_BENEFICIARIOS_TODO = ['VER', 'CREAR', 'DESACTIVAR'];
+
     /**
-     * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO, en VISACIONES, el ticket, en LIQUIDACIONES, la planilla, y en FACTURAS, el PDF; TURNOS no tiene
+     * La matriz: solo acciones que tienen efecto hoy (EXPORTAR solo en PDF_CLINICO, en VISACIONES, el ticket, en LIQUIDACIONES, LIQUIDACIONES_BENEFICIARIOS y MIS_LIQUIDACIONES, la planilla, y en FACTURAS, el PDF; TURNOS no tiene
      * DESACTIVAR: un turno se cancela, con EDITAR). Ningún perfil, salvo ADMINISTRADOR, escribe en USUARIOS
      * ni en PERFILES_ACCESO (lo verifica PerfilesPredefinidosTest).
      */
@@ -141,6 +145,10 @@ class PerfilesPredefinidos
             'REVERSIONES_COBRO' => ['VER', 'EDITAR'],
             // Salidas de caja: las ve; registra y anula (o solicita anular) las de su propia caja, si abre una.
             'SALIDAS_CAJA' => self::SALIDAS_CAJA_TODO,
+            // Liquidación a beneficiarios (docs/liquidacion-beneficiarios.md): arma (lo suyo lo aprueba el Administrador), aprueba o
+            // devuelve lo ajeno, anula, saca la planilla y anula pagos. No los registra (eso es de Tesorería).
+            'LIQUIDACIONES_BENEFICIARIOS' => self::LIQUIDACIONES_TODO, 'APROBACION_LIQ_BENEFICIARIOS' => ['VER', 'EDITAR'],
+            'PAGOS_BENEFICIARIOS' => ['VER', 'DESACTIVAR'],
             // Convenios (docs/convenios-seguros.md): administra convenios, planes y sus tarifas; ve coberturas y visaciones y genera el ticket.
             'CONVENIOS' => self::TODO, 'COBERTURAS' => self::VER, 'VISACIONES' => ['VER', 'EXPORTAR'],
             // Liquidaciones (docs/liquidaciones-aseguradoras.md): las ve todas, saca la planilla, aprueba o devuelve y anula; ve los
@@ -167,6 +175,8 @@ class PerfilesPredefinidos
             'DIETAS' => self::VER,
             // Órdenes de estudio: las emite y anula; el catálogo de estudios solo lo usa.
             'ORDENES_ESTUDIO' => self::VER_CREAR_EDITAR, 'ESTUDIOS' => self::VER,
+            // Mis liquidaciones (docs/liquidacion-beneficiarios.md): solo las suyas aprobadas, de solo lectura, y su planilla.
+            'MIS_LIQUIDACIONES' => self::VER_EXPORTAR,
         ],
         self::ENFERMERIA => [
             'PREPARACION' => self::VER_CREAR_EDITAR, 'PDF_CLINICO' => self::EXPORTAR,
@@ -207,11 +217,19 @@ class PerfilesPredefinidos
             'LIQUIDACIONES' => self::LIQUIDACIONES_TODO, 'PAGOS_ASEGURADORAS' => ['VER', 'CREAR', 'DESACTIVAR'],
             // Facturas (docs/facturacion.md): las ve y saca el PDF. La factura de la liquidación: la emite y solicita su anulación.
             'FACTURAS' => self::VER_EXPORTAR, 'FACTURAS_LIQUIDACION' => self::FACTURAS_LIQUIDACION_TODO,
+            // Liquidación a beneficiarios (docs/liquidacion-beneficiarios.md): arma, quita líneas, envía, anula la no aprobada y saca la
+            // planilla; ve los pagos. No aprueba ni paga.
+            'LIQUIDACIONES_BENEFICIARIOS' => self::LIQUIDACIONES_TODO, 'PAGOS_BENEFICIARIOS' => self::VER,
         ],
         self::COMPRAS_TESORERIA => [
             'PROVEEDORES' => self::TODO, 'CATEGORIAS_PROVEEDOR' => self::TODO, 'CATEGORIAS_GASTO' => self::TODO,
             // Compras y gastos (docs/compras-gastos.md): carga y edita borradores y descarta los propios; no confirma ni anula.
             'COMPRAS' => self::VER_CREAR_EDITAR, 'TIPOS_COMPROBANTE_COMPRA' => self::VER,
+            // Liquidación a beneficiarios (docs/liquidacion-beneficiarios.md): ve las liquidaciones y su planilla, y registra y anula los
+            // pagos. Para pagar en efectivo abre su propia caja (CAJAS) y el pago sale como una salida de ella (SALIDAS_CAJA). Sin COBROS
+            // ni CIERRES_CAJA: no cobra, no ve cajas ajenas ni recibe arqueos.
+            'LIQUIDACIONES_BENEFICIARIOS' => self::VER_EXPORTAR, 'PAGOS_BENEFICIARIOS' => self::PAGOS_BENEFICIARIOS_TODO,
+            'CAJAS' => self::VER_CREAR_EDITAR, 'SALIDAS_CAJA' => self::SALIDAS_CAJA_TODO,
         ],
         // Además, CORRECCIONES_HC (adendas y desbloqueo de consultas cerradas): se suma por la migración de las correcciones.
         self::SUPERVISION_MEDICA => [
@@ -305,6 +323,34 @@ class PerfilesPredefinidos
      */
     public const PERMISOS_FACTURAS_LIQUIDACION = [
         self::FACTURACION => self::FACTURAS_LIQUIDACION_TODO,
+    ];
+
+    /** Los módulos de la liquidación a beneficiarios: código => [nombre, estados]. Los usan la migración y ModuloSistemaSeeder. */
+    public const MODULOS_LIQUIDACION_BENEFICIARIOS = [
+        'LIQUIDACIONES_BENEFICIARIOS' => ['Liquidaciones a beneficiarios', [Estado::EN_PREPARACION, Estado::PENDIENTE_APROBACION, Estado::APROBADO,
+            Estado::PARCIAL, Estado::PAGADO, Estado::ANULADO]],
+        'APROBACION_LIQ_BENEFICIARIOS' => ['Aprobación de liquidaciones a beneficiarios', [Estado::PENDIENTE_APROBACION, Estado::APROBADO, Estado::EN_PREPARACION]],
+        'PAGOS_BENEFICIARIOS' => ['Pagos a beneficiarios', [Estado::VIGENTE, Estado::ANULADO]],
+        'MIS_LIQUIDACIONES' => ['Mis liquidaciones', [Estado::APROBADO, Estado::PARCIAL, Estado::PAGADO]],
+    ];
+
+    /**
+     * Lo que la migración de la liquidación a beneficiarios (2026_11_11_100001, repetible, solo suma) da a los perfiles existentes. Lo
+     * mismo que la matriz para esos cuatro módulos. Recepción, Caja, Enfermería, Supervisión médica, Auditor y los demás, nada.
+     */
+    public const PERMISOS_LIQUIDACION_BENEFICIARIOS = [
+        'LIQUIDACIONES_BENEFICIARIOS' => [self::GERENCIA => self::LIQUIDACIONES_TODO, self::FACTURACION => self::LIQUIDACIONES_TODO,
+            self::COMPRAS_TESORERIA => self::VER_EXPORTAR],
+        'APROBACION_LIQ_BENEFICIARIOS' => [self::GERENCIA => ['VER', 'EDITAR']],
+        'PAGOS_BENEFICIARIOS' => [self::GERENCIA => ['VER', 'DESACTIVAR'], self::FACTURACION => self::VER,
+            self::COMPRAS_TESORERIA => self::PAGOS_BENEFICIARIOS_TODO],
+        'MIS_LIQUIDACIONES' => [self::MEDICO => self::VER_EXPORTAR],
+    ];
+
+    /** Lo que suma la migración 2026_11_11_100002 (repetible): Compras y tesorería abre su caja y registra salidas. Lo mismo que la matriz. */
+    public const PERMISOS_TESORERIA_CAJA = [
+        'CAJAS' => [self::COMPRAS_TESORERIA => self::VER_CREAR_EDITAR],
+        'SALIDAS_CAJA' => [self::COMPRAS_TESORERIA => self::SALIDAS_CAJA_TODO],
     ];
 
     /** Lo que suma la migración de salidas de caja (2026_11_09_100002, repetible): Caja y Gerencia. Lo mismo que la matriz. */

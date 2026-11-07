@@ -43,6 +43,11 @@ Córralo siempre:
 - antes de cualquier merge;
 - antes de tocar la base real (migraciones, seeders, comandos de mantenimiento).
 
+**Memoria:** `composer test:completo` corre con `memory_limit=512M`, también para los workers de pest (`--passthru-php`). Con el
+límite por defecto de PHP (128M) un worker se quedaba sin memoria en `InformeEstudioTest` ("Allowed memory size ... exhausted"; el
+archivo pasa solo): los workers son procesos persistentes que acumulan memoria entre archivos y la suite creció (`main` todavía
+pasaba con 128M; la rama de liquidación a beneficiarios ya no). `test:rapido` sigue con el límite por defecto.
+
 Si hay que volver atrás o se sospecha del paralelo: `composer test:completo-serial` (todo en serie, un solo
 `pest`, unos 35 min).
 

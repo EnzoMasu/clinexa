@@ -121,6 +121,8 @@ test('la migración con prestaciones ya existentes: no las cobra; en simulación
     $migracion = require base_path('database/migrations/2026_10_28_100001_create_cobros_y_caja.php');
     hcConsulta(); // una prestación tarifada existente
     // La de salidas de caja, la de facturación (fase 5a) y la de reversiones (fase 3b) dependen de sus tablas: se bajan antes.
+    // La liquidación a beneficiarios (posterior) depende de cajas y salidas: se baja antes.
+    (require base_path('database/migrations/2026_11_11_100001_create_liquidacion_beneficiarios.php'))->down();
     (require base_path('database/migrations/2026_11_09_100001_salidas_de_caja.php'))->down();
     (require base_path('database/migrations/2026_11_02_100001_create_facturacion_individual.php'))->down();
     (require base_path('database/migrations/2026_10_29_100001_reversiones_de_cobro.php'))->down();

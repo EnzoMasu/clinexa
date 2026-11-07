@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Estado;
 use App\Models\ModuloSistema;
+use App\Support\PerfilesPredefinidos;
 use Illuminate\Database\Seeder;
 
 /**
@@ -104,6 +105,8 @@ class ModuloSistemaSeeder extends Seeder
             'LIQUIDACIONES' => ['Liquidaciones a aseguradoras', [Estado::EN_PREPARACION, Estado::PENDIENTE_APROBACION, Estado::APROBADO, Estado::PARCIAL, Estado::PAGADO, Estado::ANULADO]],
             'APROBACION_LIQUIDACIONES' => ['Aprobación de liquidaciones', [Estado::PENDIENTE_APROBACION, Estado::APROBADO, Estado::EN_PREPARACION]],
             'PAGOS_ASEGURADORAS' => ['Pagos de aseguradoras', [Estado::VIGENTE, Estado::ANULADO]],
+            // Liquidación a beneficiarios (docs/liquidacion-beneficiarios.md): los mismos nombres y estados que la migración.
+            ...PerfilesPredefinidos::MODULOS_LIQUIDACION_BENEFICIARIOS,
             // Facturación (docs/facturacion.md): la factura (emitida, cobrada o anulada), la aprobación de sus anulaciones (pendiente,
             // aprobada o rechazada), los timbrados (el vigente y los históricos), los datos fiscales (la clínica y las tasas de IVA) y el
             // catálogo de motivos de anulación.

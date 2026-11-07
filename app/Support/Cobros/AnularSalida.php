@@ -11,6 +11,7 @@ use App\Models\SolicitudReversionCobro;
 use App\Models\User;
 use App\Support\Auditoria;
 use App\Support\Fecha;
+use App\Support\LiquidacionesBeneficiarios\PagosBeneficiario;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -248,6 +249,8 @@ final class AnularSalida
             'caja_id' => $caja->id, 'tipo' => MovimientoCaja::ANULACION_SALIDA, 'medio_pago_id' => $salida->medio_pago_id, 'monto' => (int) $salida->monto,
             'salida_caja_id' => $salida->id, 'usuario_id' => $anula->id, 'registrado_en' => $ahora,
         ]);
+        // Si la salida es la de un pago a un beneficiario (docs/liquidacion-beneficiarios.md), el pago se anula con ella.
+        PagosBeneficiario::alAnularSalida($salida, $anula, $motivo);
 
         return $salida;
     }

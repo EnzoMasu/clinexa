@@ -59,6 +59,12 @@ test('estado_modulo: ACTIVO (inicial) e INACTIVO; Usuarios además BLOQUEADO; Tu
             'LIQUIDACIONES' => [['ANULADO', 'APROBADO', 'EN_PREPARACION', 'PAGADO', 'PARCIAL', 'PENDIENTE_APROBACION'], 'EN_PREPARACION'],
             'APROBACION_LIQUIDACIONES' => [['APROBADO', 'EN_PREPARACION', 'PENDIENTE_APROBACION'], 'PENDIENTE_APROBACION'],
             'PAGOS_ASEGURADORAS' => [['ANULADO', 'VIGENTE'], 'VIGENTE'],
+            // Liquidación a beneficiarios (docs/liquidacion-beneficiarios.md): los mismos estados; sus pagos, vigentes o anulados; "Mis
+            // liquidaciones" muestra solo las aprobadas (con o sin pagos).
+            'LIQUIDACIONES_BENEFICIARIOS' => [['ANULADO', 'APROBADO', 'EN_PREPARACION', 'PAGADO', 'PARCIAL', 'PENDIENTE_APROBACION'], 'EN_PREPARACION'],
+            'APROBACION_LIQ_BENEFICIARIOS' => [['APROBADO', 'EN_PREPARACION', 'PENDIENTE_APROBACION'], 'PENDIENTE_APROBACION'],
+            'PAGOS_BENEFICIARIOS' => [['ANULADO', 'VIGENTE'], 'VIGENTE'],
+            'MIS_LIQUIDACIONES' => [['APROBADO', 'PAGADO', 'PARCIAL'], 'APROBADO'],
             // Facturas: emitida (inicial), cobrada o anulada; la aprobación de sus anulaciones: pendiente (inicial), aprobada o
             // rechazada; los timbrados: el vigente (inicial) y los históricos.
             'FACTURAS', 'FACTURAS_LIQUIDACION' => [['ANULADO', 'COBRADO', 'EMITIDO'], 'EMITIDO'],

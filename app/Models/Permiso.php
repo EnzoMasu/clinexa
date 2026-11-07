@@ -65,6 +65,12 @@ class Permiso extends Model
         // ANULACIONES_FACTURA.
         'FACTURAS_LIQUIDACION' => ['VER', 'CREAR', 'DESACTIVAR'],
         'ANULACIONES_FACTURA' => ['VER', 'EDITAR'],
+        // Liquidación a beneficiarios (docs/liquidacion-beneficiarios.md): ver, armar (CREAR), quitar líneas y enviar (EDITAR), anular
+        // la no aprobada (DESACTIVAR) y la planilla (EXPORTAR). La aprobación: ver y aprobar, devolver o anular la aprobada (EDITAR). Los
+        // pagos: ver, registrar (CREAR) y anular (DESACTIVAR). Mis liquidaciones: ver las propias y su planilla.
+        'APROBACION_LIQ_BENEFICIARIOS' => ['VER', 'EDITAR'],
+        'PAGOS_BENEFICIARIOS' => ['VER', 'CREAR', 'DESACTIVAR'],
+        'MIS_LIQUIDACIONES' => ['VER', 'EXPORTAR'],
         'TIMBRADOS' => ['VER', 'CREAR', 'EDITAR'],
         'DATOS_FISCALES' => ['VER', 'EDITAR'],
         'MOTIVOS_ANULACION' => ['VER', 'CREAR', 'EDITAR', 'DESACTIVAR'],

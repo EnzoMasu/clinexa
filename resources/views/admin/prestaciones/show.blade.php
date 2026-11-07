@@ -196,6 +196,24 @@
             </section>
         @endif
 
+        @if ($lineasBeneficiarios->isNotEmpty())
+            <section aria-labelledby="liquidaciones-beneficiarios" class="max-w-3xl space-y-3">
+                <h3 id="liquidaciones-beneficiarios" class="font-semibold text-gray-900 dark:text-gray-100">Liquidaciones a beneficiarios</h3>
+                <x-admin.table :headers="['Liquidación', 'Beneficiario', 'Línea', 'Monto', 'Estado']">
+                    @foreach ($lineasBeneficiarios as $lineaBeneficiario)
+                        <tr @class(['text-gray-400 dark:text-gray-500' => $lineaBeneficiario->liberada()])>
+                            <td class="px-6 py-3 whitespace-nowrap"><a href="{{ route('admin.liquidaciones-beneficiarios.show', $lineaBeneficiario->liquidacion_beneficiario_id) }}" class="text-indigo-600 hover:underline dark:text-indigo-400">N.º {{ $lineaBeneficiario->liquidacion_beneficiario_id }}</a></td>
+                            <td class="px-6 py-3">{{ $lineaBeneficiario->liquidacion->tipoTexto() }} · {{ $lineaBeneficiario->liquidacion->beneficiarioTexto() }}</td>
+                            <td class="px-6 py-3">{{ $lineaBeneficiario->tipoTexto() }}{{ $lineaBeneficiario->liberada() ? ' ('.strtolower($lineaBeneficiario->liberacion === 'QUITADA' ? 'quitada' : 'anulada').')' : '' }}</td>
+                            <td class="px-6 py-3 whitespace-nowrap tabular-nums">{{ $lineaBeneficiario->liquidacion->formatear($lineaBeneficiario->montoEntero()) }}</td>
+                            <td class="px-6 py-3">{{ $lineaBeneficiario->liquidacion->etiquetaEstado() }}</td>
+                            <td></td>
+                        </tr>
+                    @endforeach
+                </x-admin.table>
+            </section>
+        @endif
+
         <div class="flex flex-wrap items-center gap-4">
             @if ($puedeTarifar)
                 <form method="POST" action="{{ route('admin.prestaciones.tarifar', $prestacion) }}">

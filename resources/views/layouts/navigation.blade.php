@@ -47,6 +47,10 @@
             // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): Administrador, Gerencia y Facturación y convenios. Un
             // solo módulo con pestañas (liquidaciones, por cobrar y prestaciones sin firma).
             'admin.liquidaciones' => 'Liquidaciones',
+            // Liquidaciones a beneficiarios (docs/liquidacion-beneficiarios.md): Administrador, Gerencia, Facturación y convenios y Compras y
+            // tesorería. "Mis liquidaciones": el profesional, solo las suyas aprobadas.
+            'admin.liquidaciones-beneficiarios' => 'Liquidaciones a beneficiarios',
+            'admin.mis-liquidaciones' => 'Mis liquidaciones',
             // Facturación (docs/facturacion.md): un solo módulo con pestañas (facturas, solicitudes de anulación, timbrados, tasas de IVA
             // y motivos). La factura se emite al cobrar, desde Cobros.
             'admin.facturas' => 'Facturas',

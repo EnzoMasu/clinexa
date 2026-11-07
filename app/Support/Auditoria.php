@@ -187,6 +187,9 @@ final class Auditoria
         'coberturas_paciente' => 'COBERTURAS', 'visaciones' => 'VISACIONES', 'lineas_visacion' => 'VISACIONES',
         // Liquidaciones a aseguradoras (docs/liquidaciones-aseguradoras.md): lo que paga cada aseguradora y sus pagos.
         'liquidaciones' => 'LIQUIDACIONES', 'lineas_liquidacion' => 'LIQUIDACIONES', 'pagos_aseguradora' => 'PAGOS_ASEGURADORAS',
+        // Liquidación a beneficiarios (docs/liquidacion-beneficiarios.md): lo que se le paga a cada profesional y dueño de equipo.
+        'liquidaciones_beneficiario' => 'LIQUIDACIONES_BENEFICIARIOS', 'lineas_liquidacion_beneficiario' => 'LIQUIDACIONES_BENEFICIARIOS',
+        'pagos_beneficiario' => 'PAGOS_BENEFICIARIOS',
         // Facturación (docs/facturacion.md): las facturas, sus líneas y las solicitudes de anulación, para quien ve las facturas.
         'facturas' => 'FACTURAS', 'detalles_factura' => 'FACTURAS', 'solicitudes_anulacion_factura' => 'FACTURAS'];
 

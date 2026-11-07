@@ -171,6 +171,9 @@ Retiros, gastos y pagos menores que salen de la caja, además de la apertura, lo
   comprobante, concepto, monto y el total de las vigentes; las anuladas, tachadas y con el motivo), el formulario "Registrar una
   salida" y, por fila, "Anular" o "Solicitar la anulación". En "Mi caja" del listado, el enlace "Registrar una salida". La impresión
   del arqueo trae la misma sección.
+- **Pagos a beneficiarios** (`docs/liquidacion-beneficiarios.md`): el pago en efectivo de una liquidación a un profesional o dueño de
+  equipo, desde la caja abierta de hoy de quien paga (Compras y tesorería abre la suya), es una salida de esa caja vinculada al pago
+  (`pagos_beneficiario.salida_caja_id`). Anular la salida, con estas mismas reglas, anula el pago.
 - **Compras:** independiente por ahora. `salidas_caja.compra_id` queda **vacío**, previsto para vincular el contado y el anticipo de
   una compra en una fase posterior (docs/compras-gastos.md).
 - Solo PostgreSQL: `salidas_caja_valida` (monto > 0, beneficiario y concepto), `salidas_caja_en_efectivo` (clave foránea al medio

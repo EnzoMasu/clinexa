@@ -110,7 +110,9 @@ test('es idempotente: correrlo dos veces no duplica nada', function () use ($cor
 
 test('el RUC de lo demo va en su campo: aseguradoras sin documento, la Dra. Benítez con su dígito; sobre una base ya cargada se completa sin duplicar', function () use ($correr) {
     $correr()->assertSuccessful();
-    $aseguradoras = fn () => Persona::where('tipo_persona', 'JURIDICA')->orderBy('ruc')->get();
+    // Las aseguradoras: las jurídicas demo menos el dueño de equipo externo (BeneficiariosDemo).
+    $aseguradoras = fn () => Persona::where('tipo_persona', 'JURIDICA')
+        ->where(fn ($q) => $q->whereNull('ruc')->orWhere('ruc', '!=', Ruc::conDigito(Database\Seeders\Demo\BeneficiariosDemo::DUENIO_RUC)))->orderBy('ruc')->get();
     expect($aseguradoras()->pluck('ruc')->all())->toBe([Ruc::conDigito('80900001'), Ruc::conDigito('80900002')])
         ->and($aseguradoras()->every(fn ($p) => $p->tipo_documento_id === null && $p->nro_documento === null))->toBeTrue()
         ->and(Ruc::conDigito('9000007'))->toBe('9000007-2')
@@ -185,7 +187,9 @@ test('la etapa 2 simula los días pasados con todos los casos económicos y clí
         ->leftJoin('lineas_visacion', 'lineas_visacion.id', '=', 'prestaciones.linea_visacion_id')
         ->select('prestaciones.*', 'procedimientos.codigo', 'lineas_visacion.resultado', 'lineas_visacion.copago')->get();
     expect($prestaciones->pluck('fecha_servicio')->unique()->count())->toBe(10)
-        ->and($prestaciones->where('codigo', 'PAP-COLPO')->every(fn ($p) => $p->monto === null))->toBeTrue()
+        // PAP-COLPO sin tarifa, salvo UNA que BeneficiariosDemo tarifa (con el colposcopio del dueño externo).
+        ->and($prestaciones->where('codigo', 'PAP-COLPO')->whereNotNull('monto')->count())->toBe(1)
+        ->and($prestaciones->where('codigo', 'PAP-COLPO')->whereNull('monto')->count())->toBeGreaterThan(0)
         ->and($prestaciones->where('pagador', 'ASEGURADORA')->pluck('copago')->unique()->sort()->values()->all())->toBe(['MONTO_FIJO', 'NINGUNO', 'PORCENTAJE'])
         ->and($prestaciones->where('resultado', 'NO_CUBIERTO')->sole()->pagador)->toBe('PACIENTE')
         ->and($prestaciones->filter(fn ($p) => str_contains((string) $p->aviso_cobertura, 'no incluye este procedimiento')))->toHaveCount(1)
@@ -193,11 +197,13 @@ test('la etapa 2 simula los días pasados con todos los casos económicos y clí
         ->and($prestaciones->whereNotNull('informe_estudio_id')->count())->toBeGreaterThan(0)
         ->and($prestaciones->where('pagador', 'ASEGURADORA')->every(fn ($p) => $p->firma_recibida_en !== null))->toBeTrue();
 
-    // Reparto: el ecógrafo cobra su parte; el Dr. Duarte, sin acuerdo, queda pendiente.
+    // Reparto: el ecógrafo cobra su parte; el Dr. Duarte, funcionario (0 %, BeneficiariosDemo), repartido salvo su prestación más reciente.
     $duarte = DB::table('profesionales')->join('personas', 'personas.id', '=', 'profesionales.persona_id')->where('personas.email', 'medico2@prueba.test')->value('profesionales.id');
     $repartos = DB::table('repartos_prestacion')->join('prestaciones', 'prestaciones.id', '=', 'repartos_prestacion.prestacion_id')
         ->join('estados', 'estados.id', '=', 'repartos_prestacion.estado_id')->select('estados.codigo', 'prestaciones.profesional_id')->get();
-    expect($repartos->where('profesional_id', $duarte)->pluck('codigo')->unique()->all())->toBe(['PENDIENTE'])
+    expect($repartos->where('profesional_id', $duarte)->where('codigo', 'PENDIENTE')->count())->toBe(1)
+        ->and($repartos->where('profesional_id', $duarte)->where('codigo', 'REPARTIDO')->count())->toBeGreaterThan(0)
+        ->and(DB::table('lineas_reparto')->where('beneficiario', 'PROFESIONAL')->where('profesional_id', $duarte)->sum('monto'))->toEqual(0)
         ->and($repartos->where('profesional_id', '!=', $duarte)->pluck('codigo')->unique()->all())->toBe(['REPARTIDO'])
         ->and(DB::table('lineas_reparto')->where('beneficiario', 'EQUIPO')->count())->toBeGreaterThan(0);
 
@@ -285,6 +291,26 @@ test('las liquidaciones: la primera aseguradora aprobada con un pago parcial, la
     DB::table('liquidaciones')->delete();
     $correr()->assertSuccessful();
     $verificar();
+})->group('lento'); // corre el comando completo (docs/pruebas.md)
+
+test('la liquidación a beneficiarios: Duarte funcionario al 0 %, el dueño externo con su colposcopio, Benítez profesional aprobada y pagada en parte y como dueña en preparación; idempotente', function () use ($correr) {
+    $correr()->assertSuccessful();
+    $foto = fn () => collect(['liquidaciones_beneficiario', 'lineas_liquidacion_beneficiario', 'pagos_beneficiario', 'acuerdos_reparto', 'equipos', 'tarifas'])
+        ->mapWithKeys(fn (string $tabla) => [$tabla => DB::table($tabla)->count()])->all();
+    $liquidaciones = DB::table('liquidaciones_beneficiario')->join('estados', 'estados.id', '=', 'liquidaciones_beneficiario.estado_id')
+        ->orderBy('liquidaciones_beneficiario.id')->get(['liquidaciones_beneficiario.*', 'estados.codigo']);
+    $duarte = DB::table('profesionales')->join('personas', 'personas.id', '=', 'profesionales.persona_id')->where('personas.email', 'medico2@prueba.test')->value('profesionales.id');
+
+    expect($liquidaciones->pluck('codigo', 'beneficiario')->all())->toBe(['PROFESIONAL' => 'PARCIAL', 'EQUIPO' => 'EN_PREPARACION'])
+        ->and(DB::table('pagos_beneficiario')->count())->toBe(1)
+        ->and((int) DB::table('pagos_beneficiario')->value('monto'))->toBeLessThan((int) $liquidaciones->firstWhere('beneficiario', 'PROFESIONAL')->total)
+        ->and(DB::table('acuerdos_reparto')->where('profesional_id', $duarte)->value('porcentaje'))->toEqual(0)
+        ->and(DB::table('equipos')->where('nombre', Database\Seeders\Demo\BeneficiariosDemo::EQUIPO)->exists())->toBeTrue()
+        ->and(DB::table('lineas_reparto')->where('beneficiario', 'EQUIPO')->whereNot('proveedor_id', DB::table('liquidaciones_beneficiario')->where('beneficiario', 'EQUIPO')->value('proveedor_id'))->count())->toBe(1);
+
+    $antes = $foto();
+    $correr()->assertSuccessful();
+    expect($foto())->toBe($antes);
 })->group('lento'); // corre el comando completo (docs/pruebas.md)
 
 test('--recorrido carga solo el estado inicial de un día de trabajo, sin movimientos, con la fecha de hoy y de forma idempotente', function () {

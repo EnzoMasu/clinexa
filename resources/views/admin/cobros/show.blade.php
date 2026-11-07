@@ -85,18 +85,22 @@
                                 {{-- Arqueo devuelto: el cajero corrige el medio y el comprobante (nunca el monto); el servidor verifica todo. --}}
                                 <details @if (old('linea_id') == $linea->id) open @endif>
                                     <summary class="cursor-pointer font-medium text-indigo-600 dark:text-indigo-400">Corregir</summary>
-                                    <form method="POST" action="{{ route('admin.cobros.corregir-comprobante', [$cobro, $linea]) }}" novalidate class="mt-2 space-y-2 text-left">
+                                    <form method="POST" action="{{ route('admin.cobros.corregir-comprobante', [$cobro, $linea]) }}" novalidate class="mt-2 space-y-2 text-left" x-data="medioComprobante()">
                                         @csrf
                                         <input type="hidden" name="linea_id" value="{{ $linea->id }}">
                                         <div>
                                             <x-input-label for="medio_{{ $linea->id }}" value="Medio de pago" />
-                                            <select id="medio_{{ $linea->id }}" name="medio_pago_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                                            <select id="medio_{{ $linea->id }}" name="medio_pago_id" data-medio x-on:change="actualizar()" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                                 @foreach ($mediosActivos->concat([$linea->medioPago])->unique('id')->sortBy('nombre') as $medio)
-                                                    <option value="{{ $medio->id }}" @selected((int) (old('linea_id') == $linea->id ? old('medio_pago_id') : $linea->medio_pago_id) === $medio->id)>{{ $medio->nombre }}{{ $medio->exigeComprobante() ? ' ('.$medio->etiquetaComprobante().' obligatorio)' : '' }}</option>
+                                                    <option value="{{ $medio->id }}" @if ($medio->exigeComprobante()) data-comprobante="{{ $medio->etiquetaComprobante() }}" @endif @selected((int) (old('linea_id') == $linea->id ? old('medio_pago_id') : $linea->medio_pago_id) === $medio->id)>{{ $medio->nombre }}</option>
                                                 @endforeach
                                             </select>
                                         </div>
-                                        <x-admin.input name="comprobante" label="Comprobante (obligatorio según el medio; en efectivo queda vacío)" :value="old('linea_id') == $linea->id ? old('comprobante') : $linea->referencia" maxlength="{{ Cobrar::REFERENCIA_MAXIMA }}" />
+                                        <div>
+                                            <label for="comprobante_{{ $linea->id }}" data-etiqueta-comprobante class="block font-medium text-sm text-gray-700 dark:text-gray-300">Comprobante (obligatorio según el medio; en efectivo queda vacío)</label>
+                                            <input id="comprobante_{{ $linea->id }}" name="comprobante" type="text" value="{{ old('linea_id') == $linea->id ? old('comprobante') : $linea->referencia }}" maxlength="{{ Cobrar::REFERENCIA_MAXIMA }}" data-comprobante class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                                            <x-input-error class="mt-2" :messages="old('linea_id') == $linea->id ? $errors->get('comprobante') : []" />
+                                        </div>
                                         <x-admin.textarea name="motivo" label="Motivo de la corrección (obligatorio)" rows="2" minlength="{{ RevertirCobro::MOTIVO_MINIMO }}" maxlength="{{ RevertirCobro::MOTIVO_MAXIMO }}" required />
                                         <x-primary-button>Guardar la corrección</x-primary-button>
                                     </form>
