@@ -148,7 +148,8 @@ test('Tesorería paga por la pantalla (sin caja con comprobante, y en efectivo d
     $this->actingAs($this->tesoreria);
 
     $this->get(route('admin.liquidaciones-beneficiarios.create'))->assertForbidden();
-    $this->get(route('admin.liquidaciones-beneficiarios.show', $liquidacion))->assertOk()->assertSee('Registrar el pago')->assertSee('abra la suya en Cajas');
+    $this->get(route('admin.liquidaciones-beneficiarios.show', $liquidacion))->assertOk()->assertSee('Registrar el pago')->assertSee('abra la suya en Cajas')
+        ->assertDontSee('(pide')->assertSee('data-etiqueta-comprobante', false)->assertSee('data-comprobante="'.$transferencia->etiquetaComprobante().'"', false);
     $this->from(route('admin.liquidaciones-beneficiarios.show', $liquidacion))->post(route('admin.liquidaciones-beneficiarios.pagos.store', $liquidacion), [
         'monto' => '10.000', 'fecha' => '06/10/2026', 'medio_pago_id' => $transferencia->id, 'referencia' => ''])->assertSessionHas('error', $transferencia->mensajeComprobanteFaltante());
     $this->post(route('admin.liquidaciones-beneficiarios.pagos.store', $liquidacion), [

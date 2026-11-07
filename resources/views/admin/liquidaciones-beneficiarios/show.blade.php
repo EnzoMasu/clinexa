@@ -142,18 +142,22 @@
                 </x-admin.table>
 
                 @if ($puedePagar)
-                    <form method="POST" action="{{ route('admin.liquidaciones-beneficiarios.pagos.store', $liquidacion) }}" novalidate class="flex flex-wrap items-end gap-3">
+                    <form method="POST" action="{{ route('admin.liquidaciones-beneficiarios.pagos.store', $liquidacion) }}" novalidate class="flex flex-wrap items-end gap-3" x-data="medioComprobante()">
                         @csrf
                         <div class="w-40"><x-admin.input name="monto" label="Monto (₲)" inputmode="numeric" :value="(string) $liquidacion->saldo()" required /></div>
                         <div class="w-40"><x-admin.fecha name="fecha" label="Fecha" :value="Fecha::hoy()" hasta-hoy /></div>
                         <div class="w-48">
-                            <x-admin.select name="medio_pago_id" label="Medio" :value="$medioSugerido" required>
+                            <x-admin.select name="medio_pago_id" label="Medio" :value="$medioSugerido" required data-medio x-on:change="actualizar()">
                                 @foreach ($medios as $medio)
-                                    <option value="{{ $medio->id }}" @selected((string) old('medio_pago_id', $medioSugerido) === (string) $medio->id)>{{ $medio->nombre }}{{ $medio->exigeComprobante() ? ' (pide '.$medio->etiquetaComprobante().')' : '' }}</option>
+                                    <option value="{{ $medio->id }}" @if ($medio->exigeComprobante()) data-comprobante="{{ $medio->etiquetaComprobante() }}" @endif @selected((string) old('medio_pago_id', $medioSugerido) === (string) $medio->id)>{{ $medio->nombre }}</option>
                                 @endforeach
                             </x-admin.select>
                         </div>
-                        <div class="w-48"><x-admin.input name="referencia" label="Comprobante" maxlength="100" /></div>
+                        <div class="w-48">
+                            <label for="referencia" data-etiqueta-comprobante class="block font-medium text-sm text-gray-700 dark:text-gray-300">Comprobante (obligatorio salvo en efectivo)</label>
+                            <input id="referencia" name="referencia" type="text" value="{{ old('referencia') }}" maxlength="100" data-comprobante class="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                            <x-input-error class="mt-2" :messages="$errors->get('referencia')" />
+                        </div>
                         @if ($cajas !== [])
                             <div class="w-72"><x-admin.select name="caja_id" label="Desde la caja (solo efectivo)" :options="$cajas" nullable /></div>
                             <div class="w-56"><x-admin.select name="categoria_gasto_id" label="Categoría de gasto (con caja)" :options="$categorias" nullable /></div>
